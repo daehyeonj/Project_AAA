@@ -1,0 +1,52 @@
+Project_AAA
+|-- Assets
+|   |-- _Game
+|   |   |-- Scenes
+|   |   |   `-- Boot.Unity
+|   |   `-- Scripts
+|   |       |-- Bootstrap
+|   |       |   `-- BootEntry.cs
+|   |       |-- Core
+|   |       |   |-- GameState.cs
+|   |       |   |-- PrototypeDebugHUD.cs
+|   |       |   |-- PrototypeLocalization.cs
+|   |       |   `-- ResourceData.cs
+|   |       |-- Dungeon
+|   |       |   `-- StaticPlaceholderWorldView.DungeonRun.cs
+|   |       `-- World
+|   |           |-- DirectTradeScan.cs
+|   |           |-- ManualTradeRuntimeState.cs
+|   |           |-- ManualTradeRuntimeState.cs.pre_shortage_pressure_fix
+|   |           |-- StaticPlaceholderWorldView.cs
+|   |           |-- WorldCameraController.cs
+|   |           `-- WorldData.cs
+|   |-- Scenes
+|   |   `-- SampleScene.unity
+|   `-- TutorialInfo
+|       `-- Scripts
+|           |-- Readme.cs
+|           `-- Editor
+|               `-- ReadmeEditor.cs
+|-- Builds
+|   `-- Smoke
+|       `-- Project_AAA-Smoke.exe
+|-- Packages
+|   |-- manifest.json
+|   `-- packages-lock.json
+|-- ProjectSettings
+|   |-- EditorBuildSettings.asset
+|   |-- ProjectVersion.txt
+|   `-- SceneTemplateSettings.json
+|-- batch5_callgraph.md
+|-- batch5_context_pack.md
+|-- handoff_for_chatgpt.md
+|-- key_scripts_index.md
+|-- tree_core.txt
+|-- unity-standalone-smoke-build.log
+`-- unity-*.log (many)
+
+Current repo notes
+- Active build scene: Assets/Scenes/SampleScene.unity
+- Extra scene file present: Assets/_Game/Scenes/Boot.Unity
+- Current step label in repo: Step DungeonRun-Batch-15: Elite Variant Pack + Post-Elite Reward Identity
+- Root .sln file: not found

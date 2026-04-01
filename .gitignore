@@ -1,0 +1,44 @@
+# Unity generated folders
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Unity generated files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# IDE settings
+.vs/
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Project-local temp and diagnostic artifacts
+.codex_tmp_step*/
+_codex_batch*_backups/
+unity-*.log
+tmp_test.txt
+Assets/_Game/Scripts/World/ManualTradeRuntimeState.cs.pre_shortage_pressure_fix
+Assets/_Game/Scripts/World/ManualTradeRuntimeState.cs.pre_shortage_pressure_fix.meta

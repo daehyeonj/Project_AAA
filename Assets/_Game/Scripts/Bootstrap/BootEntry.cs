@@ -302,6 +302,11 @@ public sealed class BootEntry : MonoBehaviour
     public string Party3HpLabel => _worldView != null ? _worldView.GetPartyMemberHpText(2) : "None";
     public string Party4HpLabel => _worldView != null ? _worldView.GetPartyMemberHpText(3) : "None";
 
+    public PrototypeBattleUiSurfaceData GetBattleUiSurfaceData()
+    {
+        return _worldView != null ? _worldView.BuildBattleUiSurfaceData() : new PrototypeBattleUiSurfaceData();
+    }
+
     private void Awake()
     {
         _gameState = new GameState(GameStateId.Boot);
@@ -710,6 +715,7 @@ public sealed class BootEntry : MonoBehaviour
                     : BootColor;
     }
 }
+
 
 
 

@@ -756,6 +756,571 @@ public sealed partial class StaticPlaceholderWorldView
         return member.DisplayName + " | " + member.RoleLabel + " | ID " + memberIdText + hpText + skillText + " | ATK " + member.Attack + " DEF " + member.Defense + " SPD " + member.Speed + safeStatusText;
     }
 
+    public PrototypeBattleUiSurfaceData BuildBattleUiSurfaceData()
+    {
+        PrototypeBattleUiSurfaceData surface = new PrototypeBattleUiSurfaceData();
+        surface.IsBattleActive = _dungeonRunState == DungeonRunState.Battle;
+        surface.IsTargetSelectionActive = _battleState == BattleState.PartyTargetSelect;
+        surface.CurrentDungeonName = string.IsNullOrEmpty(_currentDungeonName) ? "None" : _currentDungeonName;
+        surface.CurrentRouteLabel = string.IsNullOrEmpty(_selectedRouteLabel) ? "None" : _selectedRouteLabel;
+        surface.EncounterName = GetCurrentEncounterNameText();
+        surface.EncounterRoomType = GetEncounterRoomTypeText();
+        surface.PartyCondition = GetPartyConditionText();
+        surface.TotalPartyHp = BuildTotalPartyHpSummary();
+        surface.EliteStatusText = GetEliteStatusText();
+        surface.EliteEncounterName = GetEliteEncounterNameText();
+        surface.EliteTypeText = string.IsNullOrEmpty(_eliteType) ? "None" : _eliteType;
+        surface.EliteRewardHintText = GetEliteRewardHintText();
+        surface.CurrentActor = BuildBattleUiCurrentActorData();
+        surface.Timeline = BuildBattleUiTimelineData();
+        surface.PartyMembers = BuildBattleUiPartyMembers();
+        surface.SelectedEnemy = BuildSelectedBattleUiEnemyData();
+        surface.EnemyRoster = BuildBattleUiEnemyRoster();
+        if ((surface.SelectedEnemy == null || string.IsNullOrEmpty(surface.SelectedEnemy.MonsterId)) && surface.EnemyRoster.Length > 0)
+        {
+            surface.SelectedEnemy = surface.EnemyRoster[0];
+        }
+
+        surface.CommandSurface = BuildBattleUiCommandSurfaceData(surface.CurrentActor);
+        surface.MessageSurface = BuildBattleUiMessageSurfaceData();
+        surface.TargetSelection = BuildBattleUiTargetSelectionData(surface.CurrentActor);
+        return surface;
+    }
+
+    private PrototypeBattleUiActorData BuildBattleUiCurrentActorData()
+    {
+        PrototypeBattleUiActorData actor = new PrototypeBattleUiActorData();
+        if (_dungeonRunState == DungeonRunState.Battle && _battleState == BattleState.EnemyTurn && _activeBattleMonster != null)
+        {
+            actor.ActorId = _activeBattleMonster.MonsterId;
+            actor.DisplayName = _activeBattleMonster.DisplayName;
+            actor.RoleLabel = GetMonsterRoleText(_activeBattleMonster);
+            actor.SkillLabel = string.IsNullOrEmpty(_activeBattleMonster.SpecialActionName) ? "Attack" : _activeBattleMonster.SpecialActionName;
+            actor.SkillShortText = BuildBattleUiEnemyIntentLabel(_activeBattleMonster);
+            actor.CurrentHp = Mathf.Max(0, _activeBattleMonster.CurrentHp);
+            actor.MaxHp = Mathf.Max(1, _activeBattleMonster.MaxHp);
+            actor.IsEnemy = true;
+            actor.StatusText = "Enemy turn";
+            return actor;
+        }
+
+        DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
+        if (member == null)
+        {
+            actor.StatusText = "Awaiting turn";
+            return actor;
+        }
+
+        actor.ActorId = string.IsNullOrEmpty(member.MemberId) ? string.Empty : member.MemberId;
+        actor.DisplayName = string.IsNullOrEmpty(member.DisplayName) ? "None" : member.DisplayName;
+        actor.RoleLabel = string.IsNullOrEmpty(member.RoleLabel) ? "Adventurer" : member.RoleLabel;
+        actor.SkillLabel = string.IsNullOrEmpty(member.SkillName) ? "Skill" : member.SkillName;
+        actor.SkillShortText = string.IsNullOrEmpty(member.SkillShortText) ? string.Empty : member.SkillShortText;
+        actor.CurrentHp = Mathf.Max(0, member.CurrentHp);
+        actor.MaxHp = Mathf.Max(1, member.MaxHp);
+        actor.IsEnemy = false;
+        actor.StatusText = _battleState == BattleState.PartyTargetSelect ? "Selecting target" : _battleState == BattleState.PartyActionSelect ? "Awaiting command" : "Ready";
+        return actor;
+    }
+
+    private PrototypeBattleUiTimelineData BuildBattleUiTimelineData()
+    {
+        PrototypeBattleUiTimelineData timeline = new PrototypeBattleUiTimelineData();
+        timeline.PhaseLabel = GetBattlePhaseText();
+        timeline.NextStepLabel = GetBattleUiNextStepText();
+
+        List<PrototypeBattleUiTimelineSlotData> slots = new List<PrototypeBattleUiTimelineSlotData>();
+        if (_battleState == BattleState.EnemyTurn && _activeBattleMonster != null)
+        {
+            slots.Add(CreateBattleUiTimelineSlot(_activeBattleMonster.DisplayName, GetMonsterRoleText(_activeBattleMonster), true, true, false, "Current"));
+            DungeonPartyMemberRuntimeData targetMember = GetPartyMemberAtIndex(_pendingEnemyTargetIndex);
+            if (targetMember != null && !targetMember.IsDefeated && targetMember.CurrentHp > 0)
+            {
+                slots.Add(CreateBattleUiTimelineSlot(targetMember.DisplayName, targetMember.RoleLabel, false, false, true, "Targeted"));
+            }
+
+            AppendBattleUiNextPartySlots(slots, _pendingEnemyTargetIndex, 3);
+        }
+        else
+        {
+            DungeonPartyMemberRuntimeData currentMember = GetCurrentActorMember();
+            if (currentMember != null)
+            {
+                slots.Add(CreateBattleUiTimelineSlot(currentMember.DisplayName, currentMember.RoleLabel, true, false, false, "Current"));
+            }
+
+            AppendBattleUiNextPartySlots(slots, _currentActorIndex, 3);
+            DungeonMonsterRuntimeData previewMonster = GetBattleUiPrimaryPreviewMonster();
+            if (previewMonster != null)
+            {
+                slots.Add(CreateBattleUiTimelineSlot(previewMonster.DisplayName, GetMonsterRoleText(previewMonster), false, true, _battleState == BattleState.PartyTargetSelect, _battleState == BattleState.PartyTargetSelect ? "Preview" : "Queued"));
+            }
+        }
+
+        if (slots.Count == 0)
+        {
+            slots.Add(CreateBattleUiTimelineSlot("Awaiting encounter", "Battle", true, false, false, "Current"));
+        }
+
+        timeline.Slots = slots.ToArray();
+        return timeline;
+    }
+
+    private PrototypeBattleUiTimelineSlotData CreateBattleUiTimelineSlot(string label, string secondaryLabel, bool isCurrent, bool isEnemy, bool isPending, string statusLabel)
+    {
+        PrototypeBattleUiTimelineSlotData slot = new PrototypeBattleUiTimelineSlotData();
+        slot.Label = string.IsNullOrEmpty(label) ? "None" : label;
+        slot.SecondaryLabel = string.IsNullOrEmpty(secondaryLabel) ? string.Empty : secondaryLabel;
+        slot.StatusLabel = string.IsNullOrEmpty(statusLabel)
+            ? isCurrent
+                ? "Current"
+                : isPending
+                    ? "Pending"
+                    : "Queued"
+            : statusLabel;
+        slot.IsCurrent = isCurrent;
+        slot.IsEnemy = isEnemy;
+        slot.IsPending = isPending;
+        return slot;
+    }
+
+    private void AppendBattleUiNextPartySlots(List<PrototypeBattleUiTimelineSlotData> slots, int anchorIndex, int maxCount)
+    {
+        if (_activeDungeonParty == null || _activeDungeonParty.Members == null || maxCount <= 0)
+        {
+            return;
+        }
+
+        int startIndex = anchorIndex >= 0 ? anchorIndex + 1 : 0;
+        int addedCount = 0;
+        for (int offset = 0; offset < _activeDungeonParty.Members.Length && addedCount < maxCount; offset++)
+        {
+            int index = (startIndex + offset) % _activeDungeonParty.Members.Length;
+            if (index == anchorIndex)
+            {
+                continue;
+            }
+
+            DungeonPartyMemberRuntimeData member = GetPartyMemberAtIndex(index);
+            if (member == null || member.IsDefeated || member.CurrentHp <= 0)
+            {
+                continue;
+            }
+
+            slots.Add(CreateBattleUiTimelineSlot(member.DisplayName, member.RoleLabel, false, false, false, "Queued"));
+            addedCount += 1;
+        }
+    }
+
+    private DungeonPartyMemberRuntimeData GetPartyMemberAtIndex(int memberIndex)
+    {
+        return _activeDungeonParty != null && _activeDungeonParty.Members != null && memberIndex >= 0 && memberIndex < _activeDungeonParty.Members.Length
+            ? _activeDungeonParty.Members[memberIndex]
+            : null;
+    }
+
+    private PrototypeBattleUiPartyMemberData[] BuildBattleUiPartyMembers()
+    {
+        if (_activeDungeonParty == null || _activeDungeonParty.Members == null || _activeDungeonParty.Members.Length == 0)
+        {
+            return System.Array.Empty<PrototypeBattleUiPartyMemberData>();
+        }
+
+        PrototypeBattleUiPartyMemberData[] members = new PrototypeBattleUiPartyMemberData[_activeDungeonParty.Members.Length];
+        for (int i = 0; i < _activeDungeonParty.Members.Length; i++)
+        {
+            members[i] = BuildBattleUiPartyMemberData(_activeDungeonParty.Members[i], i);
+        }
+
+        return members;
+    }
+
+    private PrototypeBattleUiPartyMemberData BuildBattleUiPartyMemberData(DungeonPartyMemberRuntimeData member, int memberIndex)
+    {
+        PrototypeBattleUiPartyMemberData data = new PrototypeBattleUiPartyMemberData();
+        data.SlotIndex = memberIndex;
+        if (member == null)
+        {
+            data.DisplayName = "Empty";
+            data.StatusText = "Unavailable";
+            return data;
+        }
+
+        bool isTargeted = _dungeonRunState == DungeonRunState.Battle &&
+                          _battleState == BattleState.EnemyTurn &&
+                          _pendingEnemyTargetIndex == memberIndex &&
+                          !member.IsDefeated &&
+                          member.CurrentHp > 0;
+        bool isActive = _dungeonRunState == DungeonRunState.Battle &&
+                        _currentActorIndex == memberIndex &&
+                        !member.IsDefeated &&
+                        member.CurrentHp > 0;
+
+        data.MemberId = string.IsNullOrEmpty(member.MemberId) ? string.Empty : member.MemberId;
+        data.DisplayName = string.IsNullOrEmpty(member.DisplayName) ? "Member " + (memberIndex + 1) : member.DisplayName;
+        data.RoleLabel = string.IsNullOrEmpty(member.RoleLabel) ? "Adventurer" : member.RoleLabel;
+        data.SkillLabel = string.IsNullOrEmpty(member.SkillName) ? "Basic Action" : member.SkillName;
+        data.SkillShortText = string.IsNullOrEmpty(member.SkillShortText) ? string.Empty : member.SkillShortText;
+        data.CurrentHp = Mathf.Max(0, member.CurrentHp);
+        data.MaxHp = Mathf.Max(1, member.MaxHp);
+        data.Attack = member.Attack;
+        data.Defense = member.Defense;
+        data.Speed = member.Speed;
+        data.IsActive = isActive;
+        data.IsTargeted = isTargeted;
+        data.IsKnockedOut = member.IsDefeated || member.CurrentHp <= 0;
+        data.StatusText = data.IsKnockedOut
+            ? "KO"
+            : data.IsActive
+                ? "Acting"
+                : data.IsTargeted
+                    ? "Targeted"
+                    : "Ready";
+        return data;
+    }
+
+    private PrototypeBattleUiEnemyData BuildSelectedBattleUiEnemyData()
+    {
+        return BuildBattleUiEnemyData(GetBattleUiFocusedMonster());
+    }
+
+    private PrototypeBattleUiEnemyData[] BuildBattleUiEnemyRoster()
+    {
+        List<PrototypeBattleUiEnemyData> roster = new List<PrototypeBattleUiEnemyData>();
+        DungeonEncounterRuntimeData encounter = GetActiveEncounter();
+        if (encounter != null && encounter.MonsterIds != null)
+        {
+            for (int i = 0; i < encounter.MonsterIds.Length; i++)
+            {
+                DungeonMonsterRuntimeData monster = GetMonsterById(encounter.MonsterIds[i]);
+                if (monster != null)
+                {
+                    roster.Add(BuildBattleUiEnemyData(monster));
+                }
+            }
+        }
+
+        if (roster.Count == 0)
+        {
+            for (int i = 0; i < _activeMonsters.Count; i++)
+            {
+                DungeonMonsterRuntimeData monster = _activeMonsters[i];
+                if (monster != null)
+                {
+                    roster.Add(BuildBattleUiEnemyData(monster));
+                }
+            }
+        }
+
+        return roster.Count > 0 ? roster.ToArray() : System.Array.Empty<PrototypeBattleUiEnemyData>();
+    }
+
+    private PrototypeBattleUiEnemyData BuildBattleUiEnemyData(DungeonMonsterRuntimeData monster)
+    {
+        PrototypeBattleUiEnemyData data = new PrototypeBattleUiEnemyData();
+        if (monster == null)
+        {
+            data.DisplayName = "No target selected";
+            data.StateLabel = "None";
+            data.IntentLabel = "Unknown";
+            data.TraitText = "Traits pending";
+            return data;
+        }
+
+        bool isSelected = !monster.IsDefeated && _battleState == BattleState.PartyTargetSelect && _activeBattleMonsterId == monster.MonsterId;
+        bool isHovered = !monster.IsDefeated && _battleState == BattleState.PartyTargetSelect && _hoverBattleMonsterId == monster.MonsterId;
+        bool isActing = !monster.IsDefeated && _battleState == BattleState.EnemyTurn && _activeBattleMonsterId == monster.MonsterId;
+        data.MonsterId = string.IsNullOrEmpty(monster.MonsterId) ? string.Empty : monster.MonsterId;
+        data.DisplayName = string.IsNullOrEmpty(monster.DisplayName) ? "Monster" : monster.DisplayName;
+        data.TypeLabel = string.IsNullOrEmpty(monster.MonsterType) ? "Monster" : monster.MonsterType;
+        data.RoleLabel = GetMonsterRoleText(monster);
+        data.IntentLabel = BuildBattleUiEnemyIntentLabel(monster);
+        data.TraitText = BuildBattleUiEnemyTraitText(monster);
+        data.CurrentHp = Mathf.Max(0, monster.CurrentHp);
+        data.MaxHp = Mathf.Max(1, monster.MaxHp);
+        data.Attack = monster.Attack;
+        data.IsElite = monster.IsElite;
+        data.IsSelected = isSelected;
+        data.IsHovered = isHovered;
+        data.IsActing = isActing;
+        data.IsDefeated = monster.IsDefeated;
+        data.StateLabel = monster.IsDefeated ? "Defeated" : isActing ? "Acting" : isHovered ? "Hover" : isSelected ? "Targeted" : "Alive";
+        return data;
+    }
+
+    private string BuildBattleUiEnemyIntentLabel(DungeonMonsterRuntimeData monster)
+    {
+        if (monster == null)
+        {
+            return "Unknown";
+        }
+
+        if (!string.IsNullOrEmpty(_enemyIntentText) && _activeBattleMonsterId == monster.MonsterId)
+        {
+            return _enemyIntentText;
+        }
+
+        if (monster.IsElite && !string.IsNullOrEmpty(monster.SpecialActionName))
+        {
+            return monster.SpecialActionName;
+        }
+
+        return monster.TargetPattern == MonsterTargetPattern.LowestHpLiving
+            ? "Pressure lowest HP"
+            : monster.TargetPattern == MonsterTargetPattern.RandomLiving
+                ? "Unstable focus"
+                : "Frontline pressure";
+    }
+
+    private string BuildBattleUiEnemyTraitText(DungeonMonsterRuntimeData monster)
+    {
+        if (monster == null)
+        {
+            return "Traits pending";
+        }
+
+        if (monster.IsElite)
+        {
+            string eliteTypeText = string.IsNullOrEmpty(_eliteType) ? "Elite pattern" : _eliteType;
+            return string.IsNullOrEmpty(monster.SpecialActionName)
+                ? eliteTypeText
+                : eliteTypeText + " | " + monster.SpecialActionName;
+        }
+
+        return monster.EncounterRole == MonsterEncounterRole.Striker
+            ? "Fast pressure"
+            : monster.EncounterRole == MonsterEncounterRole.Skirmisher
+                ? "Flexible flank"
+                : "Front guard";
+    }
+
+    private DungeonMonsterRuntimeData GetBattleUiFocusedMonster()
+    {
+        if (!string.IsNullOrEmpty(_hoverBattleMonsterId))
+        {
+            DungeonMonsterRuntimeData hoveredMonster = GetMonsterById(_hoverBattleMonsterId);
+            if (hoveredMonster != null && !hoveredMonster.IsDefeated)
+            {
+                return hoveredMonster;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(_activeBattleMonsterId))
+        {
+            DungeonMonsterRuntimeData activeMonster = GetMonsterById(_activeBattleMonsterId);
+            if (activeMonster != null && !activeMonster.IsDefeated)
+            {
+                return activeMonster;
+            }
+        }
+
+        if (_activeBattleMonster != null && !_activeBattleMonster.IsDefeated)
+        {
+            return _activeBattleMonster;
+        }
+
+        DungeonEncounterRuntimeData encounter = GetActiveEncounter();
+        if (encounter != null && encounter.MonsterIds != null)
+        {
+            for (int i = 0; i < encounter.MonsterIds.Length; i++)
+            {
+                DungeonMonsterRuntimeData encounterMonster = GetMonsterById(encounter.MonsterIds[i]);
+                if (encounterMonster != null && !encounterMonster.IsDefeated)
+                {
+                    return encounterMonster;
+                }
+            }
+        }
+
+        for (int i = 0; i < _activeMonsters.Count; i++)
+        {
+            DungeonMonsterRuntimeData monster = _activeMonsters[i];
+            if (monster != null && !monster.IsDefeated)
+            {
+                return monster;
+            }
+        }
+
+        return _activeMonsters.Count > 0 ? _activeMonsters[0] : null;
+    }
+
+    private DungeonMonsterRuntimeData GetBattleUiPrimaryPreviewMonster()
+    {
+        DungeonMonsterRuntimeData focusedMonster = GetBattleUiFocusedMonster();
+        if (focusedMonster != null)
+        {
+            return focusedMonster;
+        }
+
+        DungeonEncounterRuntimeData encounter = GetActiveEncounter();
+        if (encounter != null && encounter.MonsterIds != null)
+        {
+            for (int i = 0; i < encounter.MonsterIds.Length; i++)
+            {
+                DungeonMonsterRuntimeData encounterMonster = GetMonsterById(encounter.MonsterIds[i]);
+                if (encounterMonster != null)
+                {
+                    return encounterMonster;
+                }
+            }
+        }
+
+        return _activeMonsters.Count > 0 ? _activeMonsters[0] : null;
+    }
+
+    private PrototypeBattleUiCommandSurfaceData BuildBattleUiCommandSurfaceData(PrototypeBattleUiActorData actor)
+    {
+        PrototypeBattleUiCommandSurfaceData commandSurface = new PrototypeBattleUiCommandSurfaceData();
+        string selectedActionKey = GetBattleUiSelectedActionKey();
+        commandSurface.SelectedActionKey = selectedActionKey;
+        commandSurface.SelectedActionLabel = GetBattleUiActionDisplayLabel(selectedActionKey, actor);
+
+        string skillLabel = actor != null && !string.IsNullOrEmpty(actor.SkillLabel) && actor.SkillLabel != "None"
+            ? actor.SkillLabel
+            : "Skill";
+        string skillDescription = actor != null && !string.IsNullOrEmpty(actor.SkillShortText)
+            ? actor.SkillShortText
+            : "Uses the active actor's default skill identity.";
+
+        List<PrototypeBattleUiCommandDetailData> details = new List<PrototypeBattleUiCommandDetailData>();
+        details.Add(BuildBattleUiCommandDetailData("attack", "Attack", "Reliable basic strike.", "Single enemy", "None", "Direct damage from the active actor.", IsBattleActionAvailable(BattleActionType.Attack), selectedActionKey == "attack"));
+        details.Add(BuildBattleUiCommandDetailData("skill", skillLabel, skillDescription, "Single enemy", "Placeholder cost", skillDescription, IsBattleActionAvailable(BattleActionType.Skill), selectedActionKey == "skill"));
+        details.Add(BuildBattleUiCommandDetailData("item", "Item", "Reserved for the later inventory batch.", "Self / ally", "Not available yet", "No consumables are wired in this batch.", false, false));
+        details.Add(BuildBattleUiCommandDetailData("retreat", "Retreat", "Leave the run using the current resolution flow.", "Party", "Ends the current run", "Return to WorldSim with the current writeback path.", IsBattleActionAvailable(BattleActionType.Retreat), selectedActionKey == "retreat"));
+        details.Add(BuildBattleUiCommandDetailData("retreat_confirm", "Confirm retreat", "Commit to the retreat action.", "Party", "Confirm exit", "Uses the existing retreat resolution.", IsBattleActionAvailable(BattleActionType.Retreat), false));
+        details.Add(BuildBattleUiCommandDetailData("back", "Back", "Return to the previous command layer.", "Current menu", "None", "Keeps the battle flow intact.", true, false));
+        details.Add(BuildBattleUiCommandDetailData("cancel", "Cancel", "Leave confirmation without committing.", "Current dialog", "None", "Returns to party commands.", true, false));
+        commandSurface.Details = details.ToArray();
+        return commandSurface;
+    }
+
+    private PrototypeBattleUiCommandDetailData BuildBattleUiCommandDetailData(string key, string label, string description, string targetText, string costText, string effectText, bool isAvailable, bool isSelected)
+    {
+        PrototypeBattleUiCommandDetailData detail = new PrototypeBattleUiCommandDetailData();
+        detail.Key = string.IsNullOrEmpty(key) ? string.Empty : key;
+        detail.Label = string.IsNullOrEmpty(label) ? "None" : label;
+        detail.Description = string.IsNullOrEmpty(description) ? string.Empty : description;
+        detail.TargetText = string.IsNullOrEmpty(targetText) ? string.Empty : targetText;
+        detail.CostText = string.IsNullOrEmpty(costText) ? string.Empty : costText;
+        detail.EffectText = string.IsNullOrEmpty(effectText) ? string.Empty : effectText;
+        detail.IsAvailable = isAvailable;
+        detail.IsSelected = isSelected;
+        return detail;
+    }
+
+    private PrototypeBattleUiMessageSurfaceData BuildBattleUiMessageSurfaceData()
+    {
+        PrototypeBattleUiMessageSurfaceData message = new PrototypeBattleUiMessageSurfaceData();
+        message.Prompt = string.IsNullOrEmpty(_currentSelectionPrompt)
+            ? string.IsNullOrEmpty(_battleFeedbackText) ? "Select an action." : _battleFeedbackText
+            : _currentSelectionPrompt;
+        message.CancelHint = GetBattleCancelHintText();
+        message.Feedback = string.IsNullOrEmpty(_battleFeedbackText) ? string.Empty : _battleFeedbackText;
+
+        List<string> logs = new List<string>();
+        for (int i = 0; i < RecentBattleLogLimit; i++)
+        {
+            string logLine = GetRecentBattleLogText(i);
+            if (!string.IsNullOrEmpty(logLine) && logLine != "None")
+            {
+                logs.Add(logLine);
+            }
+        }
+
+        message.RecentLogs = logs.Count > 0 ? logs.ToArray() : System.Array.Empty<string>();
+        return message;
+    }
+
+    private PrototypeBattleUiTargetSelectionData BuildBattleUiTargetSelectionData(PrototypeBattleUiActorData actor)
+    {
+        PrototypeBattleUiTargetSelectionData targetSelection = new PrototypeBattleUiTargetSelectionData();
+        targetSelection.IsActive = _battleState == BattleState.PartyTargetSelect;
+        targetSelection.Title = _queuedBattleAction == BattleActionType.Skill ? "Skill Target" : "Target Selection";
+        targetSelection.QueuedActionLabel = GetBattleUiActionDisplayLabel(GetBattleUiSelectedActionKey(), actor);
+        DungeonMonsterRuntimeData focusedMonster = GetBattleUiFocusedMonster();
+        targetSelection.HasFocusedTarget = focusedMonster != null;
+        targetSelection.TargetLabel = focusedMonster != null ? focusedMonster.DisplayName : "Choose a target";
+        targetSelection.TargetRoleLabel = focusedMonster != null ? GetMonsterRoleText(focusedMonster) : string.Empty;
+        targetSelection.TargetIntentLabel = focusedMonster != null ? BuildBattleUiEnemyIntentLabel(focusedMonster) : string.Empty;
+        targetSelection.TargetTraitText = focusedMonster != null ? BuildBattleUiEnemyTraitText(focusedMonster) : string.Empty;
+        targetSelection.TargetStateText = focusedMonster == null
+            ? "Hover an enemy or click a target."
+            : focusedMonster.IsDefeated
+                ? "Defeated"
+                : _hoverBattleMonsterId == focusedMonster.MonsterId
+                    ? "Hover"
+                    : _activeBattleMonsterId == focusedMonster.MonsterId
+                        ? "Targeted"
+                        : "Ready";
+        targetSelection.TargetCurrentHp = focusedMonster != null ? Mathf.Max(0, focusedMonster.CurrentHp) : 0;
+        targetSelection.TargetMaxHp = focusedMonster != null ? Mathf.Max(1, focusedMonster.MaxHp) : 1;
+        targetSelection.SkillHintText = _queuedBattleAction == BattleActionType.Skill && actor != null && !string.IsNullOrEmpty(actor.SkillShortText)
+            ? actor.SkillShortText
+            : string.Empty;
+        targetSelection.CancelHint = GetBattleCancelHintText();
+        return targetSelection;
+    }
+
+    private string GetBattleUiSelectedActionKey()
+    {
+        return _queuedBattleAction == BattleActionType.Attack
+            ? "attack"
+            : _queuedBattleAction == BattleActionType.Skill
+                ? "skill"
+                : _queuedBattleAction == BattleActionType.Retreat
+                    ? "retreat"
+                    : string.Empty;
+    }
+
+    private string GetBattleUiActionDisplayLabel(string actionKey, PrototypeBattleUiActorData actor)
+    {
+        if (actionKey == "attack")
+        {
+            return "Attack";
+        }
+
+        if (actionKey == "skill")
+        {
+            return actor != null && !string.IsNullOrEmpty(actor.SkillLabel) && actor.SkillLabel != "None"
+                ? actor.SkillLabel
+                : "Skill";
+        }
+
+        if (actionKey == "retreat")
+        {
+            return "Retreat";
+        }
+
+        return "Action";
+    }
+
+    private string GetBattleUiNextStepText()
+    {
+        if (_battleState == BattleState.PartyTargetSelect)
+        {
+            return "Choose target -> resolve action";
+        }
+
+        if (_battleState == BattleState.EnemyTurn)
+        {
+            return "Enemy action resolving";
+        }
+
+        if (_battleState == BattleState.Victory)
+        {
+            return "Battle won -> return to summary";
+        }
+
+        if (_battleState == BattleState.Defeat || _battleState == BattleState.Retreat)
+        {
+            return "Resolve battle result";
+        }
+
+        return _battleState == BattleState.PartyActionSelect
+            ? "Choose command -> choose target"
+            : "Awaiting battle state";
+    }
+
     public bool IsBattleActionAvailable(string actionKey)
     {
         return IsBattleActionAvailable(ParseBattleActionType(actionKey));
@@ -1195,7 +1760,7 @@ public sealed partial class StaticPlaceholderWorldView
 
         worldCamera.orthographic = true;
         worldCamera.transform.position = new Vector3(0f, 0f, -10f);
-        worldCamera.orthographicSize = 5.6f;
+        worldCamera.orthographicSize = _dungeonRunState == DungeonRunState.Battle ? 6.6f : 5.6f;
     }
 
         public bool TryEnterSelectedCityDungeon(Camera worldCamera)
@@ -1256,6 +1821,7 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
+        ConfigureDungeonCamera(worldCamera);
         UpdateBattleTransientState();
 
         if (_dungeonRunState == DungeonRunState.ResultPanel)

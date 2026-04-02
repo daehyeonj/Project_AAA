@@ -6,6 +6,7 @@ public sealed class PrototypeBattleUiSurfaceData
     public string HudSurfaceName = "BattleHUD";
     public bool IsBattleActive;
     public bool IsTargetSelectionActive;
+    public string BattleStateKey = "none";
     public string CurrentDungeonName = "None";
     public string CurrentRouteLabel = "None";
     public string EncounterName = "None";
@@ -17,6 +18,8 @@ public sealed class PrototypeBattleUiSurfaceData
     public string EliteTypeText = "None";
     public string EliteRewardHintText = "None";
     public PrototypeBattleUiActorData CurrentActor = new PrototypeBattleUiActorData();
+    public PrototypeBattleUiActionContextData ActionContext = new PrototypeBattleUiActionContextData();
+    public PrototypeBattleUiTargetContextData TargetContext = new PrototypeBattleUiTargetContextData();
     public PrototypeBattleUiTimelineData Timeline = new PrototypeBattleUiTimelineData();
     public PrototypeBattleUiPartyMemberData[] PartyMembers = Array.Empty<PrototypeBattleUiPartyMemberData>();
     public PrototypeBattleUiEnemyData SelectedEnemy = new PrototypeBattleUiEnemyData();
@@ -37,6 +40,38 @@ public sealed class PrototypeBattleUiActorData
     public int MaxHp = 1;
     public bool IsEnemy;
     public string StatusText = "Idle";
+}
+
+public sealed class PrototypeBattleUiActionContextData
+{
+    public string ActorId = string.Empty;
+    public int ActorIndex = -1;
+    public string SelectedActionKey = string.Empty;
+    public string SelectedActionLabel = "Action";
+    public string SelectedTargetId = string.Empty;
+    public string ResolvedSkillId = string.Empty;
+    public string ResolvedSkillLabel = string.Empty;
+    public string ResolvedTargetKind = string.Empty;
+    public string ResolvedEffectType = string.Empty;
+    public int ResolvedPowerValue;
+    public bool IsSkillAction;
+    public bool RequiresTarget;
+}
+
+public sealed class PrototypeBattleUiTargetContextData
+{
+    public bool HasTarget;
+    public string TargetMonsterId = string.Empty;
+    public int TargetDisplayIndex = -1;
+    public string TargetLabel = "Choose a target";
+    public string TargetRoleLabel = string.Empty;
+    public string TargetIntentLabel = string.Empty;
+    public string TargetStateText = "No target";
+    public int TargetCurrentHp;
+    public int TargetMaxHp = 1;
+    public bool IsHovered;
+    public bool IsLocked;
+    public bool IsDefeated;
 }
 
 public sealed class PrototypeBattleUiTimelineData

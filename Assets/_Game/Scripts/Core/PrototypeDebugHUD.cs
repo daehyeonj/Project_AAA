@@ -1,22 +1,22 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
 public sealed class PrototypeDebugHUD : MonoBehaviour
 {
     private const float Margin = 16f;
-    private const float PanelWidthMin = 320f;
-    private const float PanelWidthMax = 420f;
+    private const float PanelWidthMin = 360f;
+    private const float PanelWidthMax = 520f;
     private const float PanelPadding = 12f;
-    private const float HeaderHeight = 28f;
-    private const float FilterHeight = 34f;
+    private const float HeaderHeight = 32f;
+    private const float FilterHeight = 38f;
     private const float PanelGap = 10f;
     private const float ChipGap = 6f;
-    private const float ChipHeight = 24f;
-    private const float LanguageButtonWidth = 44f;
-    private const float SearchHeight = 24f;
-    private const float SearchLabelWidth = 48f;
-    private const float SearchClearButtonWidth = 52f;
+    private const float ChipHeight = 28f;
+    private const float LanguageButtonWidth = 54f;
+    private const float SearchHeight = 28f;
+    private const float SearchLabelWidth = 56f;
+    private const float SearchClearButtonWidth = 64f;
     private const float DungeonBattleBarMinHeight = 300f;
     private const float DungeonBattleBarMaxHeight = 360f;
     private const float OverlaySectionGap = 10f;
@@ -2026,13 +2026,16 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     {
         bool active = _bootEntry.CurrentLanguage == language;
         GUIStyle style = active ? _chipActiveStyle : _chipStyle;
-        Color previousColor = GUI.color;
-        GUI.color = active ? new Color(0.26f, 0.38f, 0.28f, 1f) : new Color(0.14f, 0.18f, 0.15f, 0.96f);
+        Color previousBackgroundColor = GUI.backgroundColor;
+        Color previousContentColor = GUI.contentColor;
+        GUI.backgroundColor = active ? new Color(0.26f, 0.38f, 0.28f, 1f) : new Color(0.14f, 0.18f, 0.15f, 0.96f);
+        GUI.contentColor = Color.white;
         if (GUI.Button(rect, label, style))
         {
             _bootEntry.SetLanguage(language);
         }
-        GUI.color = previousColor;
+        GUI.backgroundColor = previousBackgroundColor;
+        GUI.contentColor = previousContentColor;
     }
 
     private void DrawFilterChips(Rect rect)
@@ -2045,30 +2048,41 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             Rect chipRect = new Rect(rect.x + ((chipWidth + ChipGap) * i), rect.y, chipWidth, ChipHeight);
             bool active = _activeFilter == filter;
             GUIStyle style = active ? _chipActiveStyle : _chipStyle;
-            Color previousColor = GUI.color;
-            GUI.color = active ? new Color(0.18f, 0.20f, 0.18f, 1f) : new Color(0.09f, 0.10f, 0.11f, 0.94f);
+            Color previousBackgroundColor = GUI.backgroundColor;
+            Color previousContentColor = GUI.contentColor;
+            GUI.backgroundColor = active ? new Color(0.18f, 0.20f, 0.18f, 1f) : new Color(0.09f, 0.10f, 0.11f, 0.94f);
+            GUI.contentColor = Color.white;
             if (GUI.Button(chipRect, GetFilterLabel(filter), style))
             {
                 _activeFilter = filter;
             }
-            GUI.color = previousColor;
+            GUI.backgroundColor = previousBackgroundColor;
+            GUI.contentColor = previousContentColor;
         }
     }
 
     private void DrawSearchBar(Rect rect)
     {
-        GUI.Label(new Rect(rect.x, rect.y + 3f, SearchLabelWidth, rect.height), T("Search"), _bodyStyle);
+        GUI.Label(new Rect(rect.x, rect.y + 4f, SearchLabelWidth, rect.height), T("Search"), _bodyStyle);
         Rect fieldRect = new Rect(rect.x + SearchLabelWidth, rect.y, rect.width - SearchLabelWidth - SearchClearButtonWidth - ChipGap, rect.height);
         Rect clearRect = new Rect(fieldRect.xMax + ChipGap, rect.y, SearchClearButtonWidth, rect.height);
         GUI.SetNextControlName(SearchFieldControlName);
         _searchText = GUI.TextField(fieldRect, _searchText ?? string.Empty, _searchFieldStyle);
+        Color previousBackgroundColor = GUI.backgroundColor;
+        Color previousContentColor = GUI.contentColor;
+        GUI.backgroundColor = new Color(0.12f, 0.16f, 0.18f, 0.96f);
+        GUI.contentColor = Color.white;
         if (GUI.Button(clearRect, T("Clear"), _chipStyle))
         {
             _searchText = string.Empty;
             GUI.FocusControl(string.Empty);
             _isSearchFieldFocused = false;
+            GUI.backgroundColor = previousBackgroundColor;
+            GUI.contentColor = previousContentColor;
             return;
         }
+        GUI.backgroundColor = previousBackgroundColor;
+        GUI.contentColor = previousContentColor;
 
         _isSearchFieldFocused = GUI.GetNameOfFocusedControl() == SearchFieldControlName;
     }
@@ -2155,11 +2169,17 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
             Rect headerRect = new Rect(panelRect.x + 4f, panelRect.y + 2f, panelRect.width - 8f, 24f);
             string foldoutLabel = (expanded ? "[-] " : "[+] ") + panel.Title;
+            Color previousBackgroundColor = GUI.backgroundColor;
+            Color previousContentColor = GUI.contentColor;
+            GUI.backgroundColor = new Color(0.12f, 0.17f, 0.18f, 0.96f);
+            GUI.contentColor = Color.white;
             if (GUI.Button(headerRect, foldoutLabel, _foldoutStyle))
             {
                 _expandedByKey[panel.Key] = !expanded;
                 expanded = !expanded;
             }
+            GUI.backgroundColor = previousBackgroundColor;
+            GUI.contentColor = previousContentColor;
 
             if (expanded)
             {
@@ -2619,7 +2639,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         }
 
         _bodyStyle = new GUIStyle(GUI.skin != null ? GUI.skin.label : GUIStyle.none);
-        _bodyStyle.fontSize = 10;
+        _bodyStyle.fontSize = 12;
         _bodyStyle.wordWrap = true;
         _bodyStyle.alignment = TextAnchor.UpperLeft;
         _bodyStyle.normal.textColor = new Color(0.92f, 0.95f, 0.92f, 1f);
@@ -2628,7 +2648,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         _bodyStyle.margin = new RectOffset(0, 0, 0, 0);
 
         _titleStyle = new GUIStyle(_bodyStyle);
-        _titleStyle.fontSize = 14;
+        _titleStyle.fontSize = 16;
         _titleStyle.fontStyle = FontStyle.Bold;
         _titleStyle.wordWrap = false;
         _titleStyle.alignment = TextAnchor.UpperLeft;
@@ -2638,7 +2658,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         _titleStyle.margin = new RectOffset(0, 0, 0, 0);
 
         _sectionTitleStyle = new GUIStyle(_bodyStyle);
-        _sectionTitleStyle.fontSize = 11;
+        _sectionTitleStyle.fontSize = 13;
         _sectionTitleStyle.fontStyle = FontStyle.Bold;
         _sectionTitleStyle.wordWrap = false;
         _sectionTitleStyle.alignment = TextAnchor.UpperLeft;
@@ -2648,7 +2668,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         _sectionTitleStyle.margin = new RectOffset(0, 0, 0, 0);
 
         _chipStyle = new GUIStyle(GUI.skin != null ? GUI.skin.button : GUIStyle.none);
-        _chipStyle.fontSize = 12;
+        _chipStyle.fontSize = 13;
         _chipStyle.alignment = TextAnchor.MiddleCenter;
         _chipStyle.normal.textColor = new Color(0.88f, 0.92f, 0.88f, 1f);
         _chipStyle.hover.textColor = Color.white;
@@ -2657,16 +2677,16 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         _chipStyle.hover.background = Texture2D.whiteTexture;
         _chipStyle.active.background = Texture2D.whiteTexture;
         _chipStyle.border = new RectOffset(1, 1, 1, 1);
-        _chipStyle.padding = new RectOffset(6, 6, 2, 2);
+        _chipStyle.padding = new RectOffset(8, 8, 3, 3);
 
         _chipActiveStyle = new GUIStyle(_chipStyle);
         _chipActiveStyle.fontStyle = FontStyle.Bold;
 
         _foldoutStyle = new GUIStyle(GUI.skin != null ? GUI.skin.button : GUIStyle.none);
-        _foldoutStyle.fontSize = 12;
+        _foldoutStyle.fontSize = 13;
         _foldoutStyle.fontStyle = FontStyle.Bold;
         _foldoutStyle.alignment = TextAnchor.MiddleLeft;
-        _foldoutStyle.padding = new RectOffset(10, 6, 0, 0);
+        _foldoutStyle.padding = new RectOffset(12, 8, 1, 1);
         _foldoutStyle.normal.textColor = Color.white;
         _foldoutStyle.hover.textColor = Color.white;
         _foldoutStyle.active.textColor = Color.white;
@@ -2675,13 +2695,13 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         _foldoutStyle.active.background = Texture2D.whiteTexture;
 
         _searchFieldStyle = new GUIStyle(GUI.skin != null ? GUI.skin.textField : GUIStyle.none);
-        _searchFieldStyle.fontSize = 12;
+        _searchFieldStyle.fontSize = 13;
         _searchFieldStyle.alignment = TextAnchor.MiddleLeft;
         _searchFieldStyle.normal.textColor = Color.white;
         _searchFieldStyle.focused.textColor = Color.white;
         _searchFieldStyle.normal.background = Texture2D.whiteTexture;
         _searchFieldStyle.focused.background = Texture2D.whiteTexture;
-        _searchFieldStyle.padding = new RectOffset(6, 6, 4, 0);
+        _searchFieldStyle.padding = new RectOffset(8, 8, 5, 1);
         _searchFieldStyle.border = new RectOffset(1, 1, 1, 1);
 
         _panelStyle = new GUIStyle(GUI.skin != null ? GUI.skin.box : GUIStyle.none);
@@ -2691,12 +2711,12 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         _panelStyle.margin = new RectOffset(0, 0, 0, 0);
 
         _actionButtonStyle = new GUIStyle(_bodyStyle);
-        _actionButtonStyle.fontSize = 12;
+        _actionButtonStyle.fontSize = 13;
         _actionButtonStyle.fontStyle = FontStyle.Bold;
         _actionButtonStyle.alignment = TextAnchor.MiddleCenter;
         _actionButtonStyle.wordWrap = false;
         _actionButtonStyle.clipping = TextClipping.Clip;
-        _actionButtonStyle.padding = new RectOffset(6, 6, 0, 0);
+        _actionButtonStyle.padding = new RectOffset(8, 8, 1, 1);
     }
     private void CacheBootEntry()
     {

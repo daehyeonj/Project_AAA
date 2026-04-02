@@ -1,4 +1,4 @@
-public sealed class PrototypeRpgStatBlock
+﻿public sealed class PrototypeRpgStatBlock
 {
     public int MaxHp { get; }
     public int Attack { get; }
@@ -11,6 +11,136 @@ public sealed class PrototypeRpgStatBlock
         Attack = attack > 0 ? attack : 1;
         Defense = defense >= 0 ? defense : 0;
         Speed = speed >= 0 ? speed : 0;
+    }
+}
+
+public sealed class PrototypeRpgSkillDefinition
+{
+    public string SkillId { get; }
+    public string DisplayName { get; }
+    public string ShortText { get; }
+    public string TargetKind { get; }
+    public string EffectType { get; }
+    public int PowerValue { get; }
+    public string PowerHint { get; }
+    public string EffectHint { get; }
+    public string RoleHint { get; }
+
+    public PrototypeRpgSkillDefinition(
+        string skillId,
+        string displayName,
+        string shortText,
+        string targetKind,
+        string effectType,
+        int powerValue,
+        string powerHint,
+        string effectHint,
+        string roleHint)
+    {
+        SkillId = string.IsNullOrWhiteSpace(skillId) ? string.Empty : skillId.Trim().ToLowerInvariant();
+        DisplayName = string.IsNullOrWhiteSpace(displayName) ? "Skill" : displayName.Trim();
+        ShortText = string.IsNullOrWhiteSpace(shortText) ? string.Empty : shortText.Trim();
+        TargetKind = string.IsNullOrWhiteSpace(targetKind) ? "single_enemy" : targetKind.Trim().ToLowerInvariant();
+        EffectType = string.IsNullOrWhiteSpace(effectType) ? "damage" : effectType.Trim().ToLowerInvariant();
+        PowerValue = powerValue > 0 ? powerValue : 1;
+        PowerHint = string.IsNullOrWhiteSpace(powerHint) ? string.Empty : powerHint.Trim();
+        EffectHint = string.IsNullOrWhiteSpace(effectHint) ? string.Empty : effectHint.Trim();
+        RoleHint = string.IsNullOrWhiteSpace(roleHint) ? string.Empty : roleHint.Trim();
+    }
+}
+
+public static class PrototypeRpgSkillCatalog
+{
+    private static readonly PrototypeRpgSkillDefinition[] SharedDefinitions =
+    {
+        new PrototypeRpgSkillDefinition(
+            "skill_power_strike",
+            "Power Strike",
+            "Heavy single-target strike.",
+            "single_enemy",
+            "damage",
+            10,
+            "high",
+            "front-loaded physical burst",
+            "Warrior"),
+        new PrototypeRpgSkillDefinition(
+            "skill_weak_point",
+            "Weak Point",
+            "Finisher that hits harder on weak targets.",
+            "single_enemy",
+            "finisher_damage",
+            7,
+            "medium_high",
+            "precision finisher",
+            "Rogue"),
+        new PrototypeRpgSkillDefinition(
+            "skill_arcane_burst",
+            "Arcane Burst",
+            "Arcane blast that hits all enemies.",
+            "all_enemies",
+            "damage",
+            6,
+            "medium",
+            "multi-target arcane burst",
+            "Mage"),
+        new PrototypeRpgSkillDefinition(
+            "skill_radiant_hymn",
+            "Radiant Hymn",
+            "Party heal that restores all allies.",
+            "all_allies",
+            "heal",
+            5,
+            "support",
+            "party healing pulse",
+            "Cleric")
+    };
+
+    public static PrototypeRpgSkillDefinition GetDefinition(string skillId)
+    {
+        string normalizedSkillId = NormalizeKey(skillId);
+        if (string.IsNullOrEmpty(normalizedSkillId))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < SharedDefinitions.Length; i++)
+        {
+            PrototypeRpgSkillDefinition definition = SharedDefinitions[i];
+            if (definition != null && definition.SkillId == normalizedSkillId)
+            {
+                return definition;
+            }
+        }
+
+        return null;
+    }
+
+    public static PrototypeRpgSkillDefinition GetFallbackDefinitionForRoleTag(string roleTag)
+    {
+        switch (NormalizeKey(roleTag))
+        {
+            case "warrior":
+                return GetDefinition("skill_power_strike");
+            case "rogue":
+                return GetDefinition("skill_weak_point");
+            case "mage":
+                return GetDefinition("skill_arcane_burst");
+            case "cleric":
+                return GetDefinition("skill_radiant_hymn");
+            default:
+                return null;
+        }
+    }
+
+    public static PrototypeRpgSkillDefinition ResolveDefinition(string skillId, string roleTag)
+    {
+        PrototypeRpgSkillDefinition directMatch = GetDefinition(skillId);
+        return directMatch ?? GetFallbackDefinitionForRoleTag(roleTag);
+    }
+
+    private static string NormalizeKey(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
     }
 }
 
@@ -45,15 +175,24 @@ public sealed class PrototypeRpgPartyMemberDefinition
         string equipmentLoadoutId,
         string skillLoadoutId)
     {
+        string normalizedRoleTag = string.IsNullOrWhiteSpace(roleTag) ? "adventurer" : roleTag.Trim().ToLowerInvariant();
+        PrototypeRpgSkillDefinition sharedSkill = PrototypeRpgSkillCatalog.ResolveDefinition(defaultSkillId, normalizedRoleTag);
+
         MemberId = string.IsNullOrWhiteSpace(memberId) ? string.Empty : memberId.Trim();
         DisplayName = string.IsNullOrWhiteSpace(displayName) ? "Adventurer" : displayName.Trim();
-        RoleTag = string.IsNullOrWhiteSpace(roleTag) ? "adventurer" : roleTag.Trim().ToLowerInvariant();
+        RoleTag = normalizedRoleTag;
         RoleLabel = string.IsNullOrWhiteSpace(roleLabel) ? "Adventurer" : roleLabel.Trim();
         PartySlotIndex = partySlotIndex >= 0 ? partySlotIndex : 0;
         BaseStats = baseStats ?? new PrototypeRpgStatBlock(1, 1, 0, 0);
-        DefaultSkillId = string.IsNullOrWhiteSpace(defaultSkillId) ? string.Empty : defaultSkillId.Trim().ToLowerInvariant();
-        DefaultSkillName = string.IsNullOrWhiteSpace(defaultSkillName) ? "Skill" : defaultSkillName.Trim();
-        DefaultSkillShortText = string.IsNullOrWhiteSpace(defaultSkillShortText) ? string.Empty : defaultSkillShortText.Trim();
+        DefaultSkillId = sharedSkill != null
+            ? sharedSkill.SkillId
+            : (string.IsNullOrWhiteSpace(defaultSkillId) ? string.Empty : defaultSkillId.Trim().ToLowerInvariant());
+        DefaultSkillName = !string.IsNullOrWhiteSpace(defaultSkillName)
+            ? defaultSkillName.Trim()
+            : (sharedSkill != null ? sharedSkill.DisplayName : "Skill");
+        DefaultSkillShortText = !string.IsNullOrWhiteSpace(defaultSkillShortText)
+            ? defaultSkillShortText.Trim()
+            : (sharedSkill != null ? sharedSkill.ShortText : string.Empty);
         GrowthTrackId = string.IsNullOrWhiteSpace(growthTrackId) ? string.Empty : growthTrackId.Trim();
         JobId = string.IsNullOrWhiteSpace(jobId) ? string.Empty : jobId.Trim();
         EquipmentLoadoutId = string.IsNullOrWhiteSpace(equipmentLoadoutId) ? string.Empty : equipmentLoadoutId.Trim();
@@ -85,10 +224,10 @@ public static class PrototypeRpgPartyCatalog
             safePartyId,
             new[]
             {
-                CreateMember(safePartyId, 0, "alden", "Alden", "warrior", "Warrior", 28, 5, 2, 3, "skill_power_strike", "Power Strike", "Heavy single-target strike.", "growth_frontline", "job_warrior_novice", "equip_warrior_placeholder", "skillloadout_warrior_placeholder"),
-                CreateMember(safePartyId, 1, "mira", "Mira", "rogue", "Rogue", 19, 4, 1, 5, "skill_weak_point", "Weak Point", "Finisher that hits harder on weak targets.", "growth_precision", "job_rogue_novice", "equip_rogue_placeholder", "skillloadout_rogue_placeholder"),
-                CreateMember(safePartyId, 2, "rune", "Rune", "mage", "Mage", 16, 3, 0, 4, "skill_arcane_burst", "Arcane Burst", "Arcane blast that hits all enemies.", "growth_arcane", "job_mage_novice", "equip_mage_placeholder", "skillloadout_mage_placeholder"),
-                CreateMember(safePartyId, 3, "lia", "Lia", "cleric", "Cleric", 22, 3, 1, 2, "skill_radiant_hymn", "Radiant Hymn", "Party heal that restores all allies.", "growth_support", "job_cleric_novice", "equip_cleric_placeholder", "skillloadout_cleric_placeholder")
+                CreateMember(safePartyId, 0, "alden", "Alden", "warrior", "Warrior", 28, 5, 2, 3, "skill_power_strike", "growth_frontline", "job_warrior_novice", "equip_warrior_placeholder", "skillloadout_warrior_placeholder"),
+                CreateMember(safePartyId, 1, "mira", "Mira", "rogue", "Rogue", 19, 4, 1, 5, "skill_weak_point", "growth_precision", "job_rogue_novice", "equip_rogue_placeholder", "skillloadout_rogue_placeholder"),
+                CreateMember(safePartyId, 2, "rune", "Rune", "mage", "Mage", 16, 3, 0, 4, "skill_arcane_burst", "growth_arcane", "job_mage_novice", "equip_mage_placeholder", "skillloadout_mage_placeholder"),
+                CreateMember(safePartyId, 3, "lia", "Lia", "cleric", "Cleric", 22, 3, 1, 2, "skill_radiant_hymn", "growth_support", "job_cleric_novice", "equip_cleric_placeholder", "skillloadout_cleric_placeholder")
             });
     }
 
@@ -104,8 +243,6 @@ public static class PrototypeRpgPartyCatalog
         int defense,
         int speed,
         string defaultSkillId,
-        string defaultSkillName,
-        string defaultSkillShortText,
         string growthTrackId,
         string jobId,
         string equipmentLoadoutId,
@@ -119,8 +256,8 @@ public static class PrototypeRpgPartyCatalog
             partySlotIndex,
             new PrototypeRpgStatBlock(maxHp, attack, defense, speed),
             defaultSkillId,
-            defaultSkillName,
-            defaultSkillShortText,
+            string.Empty,
+            string.Empty,
             growthTrackId,
             jobId,
             equipmentLoadoutId,
@@ -138,3 +275,4 @@ public static class PrototypeRpgPartyCatalog
         return safePartyId + "-slot-" + (partySlotIndex + 1) + "-" + safeMemberKey;
     }
 }
+

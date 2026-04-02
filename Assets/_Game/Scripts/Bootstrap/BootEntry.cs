@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
 public sealed class BootEntry : MonoBehaviour
@@ -340,6 +340,7 @@ public sealed class BootEntry : MonoBehaviour
 
         Keyboard keyboard = Keyboard.current;
         bool blockKeyboardShortcuts = IsSearchFieldFocused();
+        bool blockDungeonInput = blockKeyboardShortcuts || IsDungeonHudInputBlocked();
         if (keyboard != null)
         {
             if (!blockKeyboardShortcuts && keyboard.lKey.wasPressedThisFrame)
@@ -381,7 +382,7 @@ public sealed class BootEntry : MonoBehaviour
 
         if (_gameState.CurrentState == GameStateId.DungeonRun && _worldView != null)
         {
-            Keyboard dungeonKeyboard = blockKeyboardShortcuts ? null : keyboard;
+            Keyboard dungeonKeyboard = blockDungeonInput ? null : keyboard;
             _worldView.UpdateDungeonRun(dungeonKeyboard, Mouse.current, Camera.main);
             if (_worldView.ConsumeDungeonRunExitRequest())
             {
@@ -657,6 +658,12 @@ public sealed class BootEntry : MonoBehaviour
         {
             _debugHud = gameObject.AddComponent<PrototypeDebugHUD>();
         }
+    }
+
+    private bool IsDungeonHudInputBlocked()
+    {
+        EnsureDebugHUD();
+        return _debugHud != null && _debugHud.ShouldBlockDungeonInput;
     }
 
     private bool IsSearchFieldFocused()

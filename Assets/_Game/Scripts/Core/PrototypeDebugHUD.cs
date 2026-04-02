@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -34,6 +34,16 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         Logs
     }
 
+    private enum BattleHudFlyoutMode
+    {
+        None,
+        ActorCommandMenu,
+        PartyCommandMenu,
+        SkillListPanel,
+        ItemListPanel,
+        ConfirmDialog
+    }
+
     private sealed class HudPanel
     {
         public string Key { get; private set; }
@@ -54,18 +64,23 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     private GUIStyle _bodyStyle;
     private GUIStyle _panelStyle;
     private GUIStyle _titleStyle;
+    private GUIStyle _sectionTitleStyle;
     private GUIStyle _chipStyle;
     private GUIStyle _chipActiveStyle;
     private GUIStyle _foldoutStyle;
     private GUIStyle _searchFieldStyle;
     private GUIStyle _actionButtonStyle;
     private Vector2 _scrollPosition;
+    private readonly Dictionary<string, Vector2> _overlayScrollByKey = new Dictionary<string, Vector2>();
     private HudFilter _activeFilter = HudFilter.All;
     private string _searchText = string.Empty;
     private Dictionary<string, bool> _expandedByKey;
+    private BattleHudFlyoutMode _battleFlyoutMode = BattleHudFlyoutMode.None;
+    private string _pendingConfirmActionKey = string.Empty;
     private bool _isSearchFieldFocused;
 
     public bool IsSearchFieldFocused => _isSearchFieldFocused;
+    public bool ShouldBlockDungeonInput => IsBattleInputModalOpen();
 
     private void Awake()
     {
@@ -84,6 +99,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         EnsureExpandedState();
         EnsureStyles();
+        SyncBattleHudState();
 
         List<HudPanel> panels = BuildPanels();
         bool dungeonHudMode = _bootEntry.IsDungeonRunHudMode;
@@ -141,7 +157,10 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     }
     private void DrawDungeonBattleBottomBar(Rect dockRect)
     {
-        float barHeight = Mathf.Clamp(Screen.height * 0.36f, DungeonBattleBarMinHeight, DungeonBattleBarMaxHeight);
+        bool battleHudShellVisible = _bootEntry != null && _bootEntry.IsDungeonBattleViewActive && !_bootEntry.IsDungeonResultPanelVisible;
+        float barHeight = battleHudShellVisible
+            ? Mathf.Min(Screen.height - (Margin * 2f), Mathf.Clamp(Screen.height * 0.46f, 390f, 470f))
+            : Mathf.Clamp(Screen.height * 0.36f, DungeonBattleBarMinHeight, DungeonBattleBarMaxHeight);
         float availableWidth = Screen.width - (Margin * 3f) - dockRect.width;
         if (availableWidth < 600f)
         {
@@ -159,14 +178,14 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         GUI.color = Color.white;
 
         string overlayTitle = _bootEntry.IsDungeonResultPanelVisible
-            ? T("PanelDungeonResult")
+            ? "VictorySummaryPanel"
             : _bootEntry.IsDungeonRouteChoiceVisible
                 ? T("PanelDungeonRouteChoice")
                 : _bootEntry.IsDungeonEventChoiceVisible
                     ? V(_bootEntry.EventTitleLabel)
                     : _bootEntry.IsDungeonPreEliteChoiceVisible
                         ? T("PanelDungeonPreElite")
-                        : T("PanelDungeonBattle");
+                        : "BattleHUD / BattleScene";
         GUI.Label(new Rect(titleRect.x + PanelPadding, titleRect.y + 4f, titleRect.width - (PanelPadding * 2f), titleRect.height), overlayTitle, _titleStyle);
 
         Rect contentRect = new Rect(rect.x + PanelPadding, rect.y + HeaderHeight + 8f, rect.width - (PanelPadding * 2f), rect.height - HeaderHeight - 16f);
@@ -179,7 +198,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             Rect centerRect = new Rect(leftRect.xMax + OverlaySectionGap, contentRect.y, centerWidth, contentRect.height);
             Rect rightRect = new Rect(centerRect.xMax + OverlaySectionGap, contentRect.y, rightWidth, contentRect.height);
 
-            DrawOverlaySection(leftRect, BuildPanelBody(
+            DrawScrollableOverlaySection("route_planner_info", leftRect, BuildPanelBody(
                 Line("RunState", V(_bootEntry.DungeonRunStateLabel)),
                 Line("SelectedCity", V(_bootEntry.CurrentCityRunLabel)),
                 Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel)),
@@ -199,7 +218,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 V(_bootEntry.RouteChoiceDescriptionLabel),
                 V(_bootEntry.RouteChoicePromptLabel)), new Color(0.08f, 0.12f, 0.16f, 0.94f));
             DrawRouteChoiceSection(centerRect);
-            DrawOverlaySection(rightRect, BuildPanelBody(
+            DrawScrollableOverlaySection("route_planner_preview", rightRect, BuildPanelBody(
                 Line("RoutePreview1", V(_bootEntry.SelectedRoutePreview1Label)),
                 Line("RoutePreview2", V(_bootEntry.SelectedRoutePreview2Label)),
                 Line("RewardPreview", V(_bootEntry.SelectedRewardPreviewLabel)),
@@ -268,7 +287,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             Rect leftRect = new Rect(contentRect.x, contentRect.y, leftWidth, contentRect.height);
             Rect rightRect = new Rect(leftRect.xMax + OverlaySectionGap, contentRect.y, contentRect.width - leftWidth - OverlaySectionGap, contentRect.height);
 
-            DrawOverlaySection(leftRect, BuildPanelBody(
+            DrawNamedScrollableOverlaySection("victory_summary_panel", leftRect, "VictorySummaryPanel", BuildPanelBody(
                 Line("Result", V(_bootEntry.ResultPanelStateLabel)),
                 Line("CityDispatchedFrom", V(_bootEntry.ResultPanelCityDispatchedFromLabel)),
                 Line("DungeonChosen", V(_bootEntry.ResultPanelDungeonChosenLabel)),
@@ -307,7 +326,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("ClearedEncounters", V(_bootEntry.ResultPanelClearedEncountersLabel)),
                 Line("OpenedChests", V(_bootEntry.ResultPanelOpenedChestsLabel)),
                 Line("ReturnToWorldPrompt", V(_bootEntry.ResultPanelReturnPromptLabel))), new Color(0.08f, 0.12f, 0.16f, 0.94f));
-            DrawOverlaySection(rightRect, BuildPanelBody(
+            DrawNamedScrollableOverlaySection("victory_support_panel", rightRect, "BattleResultFeed", BuildPanelBody(
                 Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel)),
                 Line("CurrentRoute", V(_bootEntry.CurrentRouteLabel)),
                 Line("RoomPathSummary", V(_bootEntry.ResultPanelRoomPathSummaryLabel)),
@@ -321,95 +340,127 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         }
         else
         {
-            float leftWidth = (contentRect.width - (OverlaySectionGap * 2f)) * 0.36f;
-            float centerWidth = (contentRect.width - (OverlaySectionGap * 2f)) * 0.29f;
-            float rightWidth = contentRect.width - leftWidth - centerWidth - (OverlaySectionGap * 2f);
-            Rect leftRect = new Rect(contentRect.x, contentRect.y, leftWidth, contentRect.height);
-            Rect centerRect = new Rect(leftRect.xMax + OverlaySectionGap, contentRect.y, centerWidth, contentRect.height);
-            Rect rightRect = new Rect(centerRect.xMax + OverlaySectionGap, contentRect.y, rightWidth, contentRect.height);
-
-            DrawBattleActionSection(leftRect);
-            DrawOverlaySection(centerRect, BuildPanelBody(
-                Line("ActiveParty", V(_bootEntry.ActiveDungeonPartyLabel)),
-                Line("CarriedLoot", V(_bootEntry.CarriedLootRunLabel)),
-                Line("DungeonDanger", V(_bootEntry.CurrentDungeonDangerLabel)),
-                Line("CurrentRoute", V(_bootEntry.CurrentRouteLabel)),
-                Line("RouteRisk", V(_bootEntry.RouteRiskLabel)),
-                Line("CurrentRoomType", V(_bootEntry.CurrentRoomTypeLabel)),
-                Line("RoomProgress", V(_bootEntry.RoomProgressLabel)),
-                Line("NextMajorGoal", V(_bootEntry.NextMajorGoalLabel)),
-                Line("TotalPartyHp", V(_bootEntry.TotalPartyHpLabel)),
-                Line("PartyCondition", V(_bootEntry.PartyConditionLabel)),
-                Line("SustainPressure", V(_bootEntry.SustainPressureLabel)),
-                Line("LootBreakdown", V(_bootEntry.LootBreakdownLabel)),
-                Line("RunTurnCount", _bootEntry.DungeonRunTurnCount),
-                Line("EncounterProgress", V(_bootEntry.EncounterProgressLabel)),
-                Line("EliteStatus", V(_bootEntry.EliteStatusLabel)),
-                Line("EliteRewardStatus", V(_bootEntry.EliteRewardStatusLabel)),
-                Line("EventStatus", V(_bootEntry.EventStatusLabel)),
-                Line("EventChoice", V(_bootEntry.EventChoiceLabel)),
-                Line("PreEliteChoice", V(_bootEntry.PreEliteChoiceRunLabel)),
-                Line("Party1Hp", V(_bootEntry.Party1HpLabel)),
-                Line("Party2Hp", V(_bootEntry.Party2HpLabel)),
-                Line("Party3Hp", V(_bootEntry.Party3HpLabel)),
-                Line("Party4Hp", V(_bootEntry.Party4HpLabel))), new Color(0.09f, 0.13f, 0.17f, 0.94f));
-            DrawOverlaySection(rightRect, BuildPanelBody(
-                "Battle View: " + V(_bootEntry.BattleViewStateLabel),
-                "Encounter: " + V(_bootEntry.EncounterNameLabel),
-                Line("EncounterRoomType", V(_bootEntry.EncounterRoomTypeLabel)),
-                Line("EliteEncounter", V(_bootEntry.EliteEncounterNameLabel)),
-                Line("EliteType", V(_bootEntry.EliteTypeLabel)),
-                Line("EliteHp", V(_bootEntry.EliteHpLabel)),
-                Line("EliteRewardHint", V(_bootEntry.EliteRewardHintLabel)),
-                Line("EliteDefeated", V(_bootEntry.EliteDefeatedLabel)),
-                "Phase: " + V(_bootEntry.BattlePhaseLabel),
-                Line("EliteIntent", V(_bootEntry.EnemyIntentLabel)),
-                Line("Monster1", V(_bootEntry.BattleMonster1Label)),
-                Line("Monster2", V(_bootEntry.BattleMonster2Label)),
-                Line("LastBattleLog1", V(_bootEntry.LastBattleLog1Label)),
-                Line("LastBattleLog2", V(_bootEntry.LastBattleLog2Label)),
-                Line("LastBattleLog3", V(_bootEntry.LastBattleLog3Label))), new Color(0.09f, 0.11f, 0.14f, 0.94f));
+            DrawBattleHudShell(contentRect);
         }
 
         GUI.color = previousColor;
     }
-    private void DrawBattleActionSection(Rect rect)
+
+    private void DrawBattleHudShell(Rect rect)
     {
-        DrawOverlaySectionBackground(rect, new Color(0.08f, 0.12f, 0.16f, 0.94f));
+        float layoutGap = OverlaySectionGap;
+        float timelineHeight = 54f;
+        float commandBarHeight = 34f;
+        float messageHeight = 64f;
+        float mainHeight = rect.height - timelineHeight - commandBarHeight - messageHeight - (layoutGap * 2f);
+        if (mainHeight < 136f)
+        {
+            timelineHeight = 50f;
+            commandBarHeight = 32f;
+            messageHeight = 56f;
+            mainHeight = rect.height - timelineHeight - commandBarHeight - messageHeight - (layoutGap * 2f);
+        }
 
-        Rect innerRect = new Rect(rect.x + SectionInnerPadding, rect.y + SectionInnerPadding, rect.width - (SectionInnerPadding * 2f), rect.height - (SectionInnerPadding * 2f));
-        float buttonAreaHeight = (ActionButtonHeight * 3f) + (ActionButtonGap * 2f);
-        float summaryHeight = Mathf.Max(110f, innerRect.height - buttonAreaHeight - 12f);
-        Rect summaryRect = new Rect(innerRect.x, innerRect.y, innerRect.width, summaryHeight);
-        Rect buttonsRect = new Rect(innerRect.x, summaryRect.yMax + 12f, innerRect.width, buttonAreaHeight);
+        Rect timelineRect = new Rect(rect.x, rect.y, rect.width, timelineHeight);
+        Rect mainRect = new Rect(rect.x, timelineRect.yMax + layoutGap, rect.width, mainHeight);
+        Rect commandBarRect = new Rect(rect.x, mainRect.yMax + layoutGap, rect.width, commandBarHeight);
+        Rect messageRect = new Rect(rect.x, commandBarRect.yMax + 6f, rect.width, rect.yMax - commandBarRect.yMax - 6f);
 
-        List<string> summaryLines = new List<string>();
-        summaryLines.Add(Line("RunState", V(_bootEntry.DungeonRunStateLabel)));
-        summaryLines.Add(Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel)));
-        summaryLines.Add(Line("DungeonDanger", V(_bootEntry.CurrentDungeonDangerLabel)));
-        summaryLines.Add(Line("CurrentRoom", V(_bootEntry.CurrentRoomLabel)));
-        summaryLines.Add(Line("CurrentRoomType", V(_bootEntry.CurrentRoomTypeLabel)));
-        summaryLines.Add(Line("RoomProgress", V(_bootEntry.RoomProgressLabel)));
-        summaryLines.Add(Line("NextMajorGoal", V(_bootEntry.NextMajorGoalLabel)));
-        summaryLines.Add(Line("TotalPartyHp", V(_bootEntry.TotalPartyHpLabel)));
-        summaryLines.Add(Line("PartyCondition", V(_bootEntry.PartyConditionLabel)));
-        summaryLines.Add(Line("SustainPressure", V(_bootEntry.SustainPressureLabel)));
-        summaryLines.Add(Line("CurrentActor", V(_bootEntry.CurrentBattleActorLabel)));
-        summaryLines.Add("Phase: " + V(_bootEntry.BattlePhaseLabel));
-        summaryLines.Add("Prompt: " + V(_bootEntry.CurrentSelectionPromptLabel));
-        AddOptionalSummaryLine(summaryLines, "Intent", V(_bootEntry.EnemyIntentLabel));
-        AddOptionalSummaryLine(summaryLines, "EliteRewardHint", V(_bootEntry.EliteRewardHintLabel));
-        AddOptionalSummaryLine(summaryLines, "Feedback", V(_bootEntry.BattleFeedbackLabel));
-        AddOptionalSummaryLine(summaryLines, "Cancel", V(_bootEntry.BattleCancelHintLabel));
-        GUI.Label(summaryRect, string.Join("\n", summaryLines.ToArray()), _bodyStyle);
+        float leftWidth = (mainRect.width - (OverlaySectionGap * 2f)) * 0.31f;
+        float centerWidth = (mainRect.width - (OverlaySectionGap * 2f)) * 0.35f;
+        float rightWidth = mainRect.width - leftWidth - centerWidth - (OverlaySectionGap * 2f);
+        Rect leftRect = new Rect(mainRect.x, mainRect.y, leftWidth, mainRect.height);
+        Rect centerRect = new Rect(leftRect.xMax + OverlaySectionGap, mainRect.y, centerWidth, mainRect.height);
+        Rect rightRect = new Rect(centerRect.xMax + OverlaySectionGap, mainRect.y, rightWidth, mainRect.height);
+
+        DrawNamedScrollableOverlaySection("battle_turn_order_timeline", timelineRect, "TurnOrderTimeline", BuildBattleTimelineBody(), new Color(0.08f, 0.12f, 0.16f, 0.96f));
+        DrawPartyStatusPanel(leftRect);
+        DrawCommandFlyoutPanel(centerRect);
+        DrawEnemyInfoPanel(rightRect);
+        DrawBottomCommandBar(commandBarRect);
+        DrawBattleMessageBox(messageRect);
+
+        if (IsTargetSelectionActive())
+        {
+            DrawTargetSelectionOverlay(mainRect);
+        }
+    }
+
+    private void DrawPartyStatusPanel(Rect rect)
+    {
+        DrawNamedScrollableOverlaySection("battle_party_status_panel", rect, "PartyStatusPanel", BuildPartyStatusBody(), new Color(0.09f, 0.13f, 0.17f, 0.96f));
+    }
+
+    private void DrawEnemyInfoPanel(Rect rect)
+    {
+        DrawNamedScrollableOverlaySection("battle_enemy_info_panel", rect, "EnemyInfoPanel", BuildEnemyInfoBody(), new Color(0.10f, 0.11f, 0.15f, 0.96f));
+    }
+
+    private void DrawCommandFlyoutPanel(Rect rect)
+    {
+        BattleHudFlyoutMode mode = GetDisplayedBattleFlyoutMode();
+        DrawOverlaySectionBackground(rect, new Color(0.08f, 0.12f, 0.16f, 0.96f));
+
+        Rect titleRect = new Rect(rect.x + SectionInnerPadding, rect.y + 6f, rect.width - (SectionInnerPadding * 2f), 18f);
+        GUI.Label(titleRect, "CommandFlyoutPanel / " + GetBattleFlyoutTitle(mode), _sectionTitleStyle);
+
+        Rect innerRect = new Rect(rect.x + SectionInnerPadding, titleRect.yMax + 4f, rect.width - (SectionInnerPadding * 2f), rect.height - (titleRect.yMax - rect.y) - SectionInnerPadding);
+        switch (mode)
+        {
+            case BattleHudFlyoutMode.SkillListPanel:
+                DrawSkillListPanel(innerRect);
+                break;
+            case BattleHudFlyoutMode.ItemListPanel:
+                DrawItemListPanel(innerRect);
+                break;
+            case BattleHudFlyoutMode.PartyCommandMenu:
+                DrawPartyCommandMenu(innerRect);
+                break;
+            case BattleHudFlyoutMode.ConfirmDialog:
+                DrawConfirmDialog(innerRect);
+                break;
+            default:
+                DrawActorCommandMenu(innerRect);
+                break;
+        }
+    }
+
+    private void DrawActorCommandMenu(Rect rect)
+    {
+        float menuButtonHeight = 28f;
+        float menuButtonGap = 4f;
+        float buttonAreaHeight = (menuButtonHeight * 3f) + (menuButtonGap * 2f);
+        float summaryHeight = Mathf.Clamp(rect.height - buttonAreaHeight - 8f, 26f, 64f);
+        Rect summaryRect = new Rect(rect.x, rect.y, rect.width, summaryHeight);
+        Rect attackRect = new Rect(rect.x, summaryRect.yMax + 8f, rect.width, menuButtonHeight);
+        Rect skillRect = new Rect(rect.x, attackRect.yMax + menuButtonGap, rect.width, menuButtonHeight);
+        Rect itemRect = new Rect(rect.x, skillRect.yMax + menuButtonGap, rect.width, menuButtonHeight);
+
+        DrawScrollableTextRegion("battle_actor_command_summary", summaryRect, BuildPanelBody(
+            "ActorCommandMenu",
+            "Actor: " + GetBattleActorShortLabel(),
+            "Phase: " + GetBattlePhaseShortLabel(),
+            "Prompt: " + GetBattlePromptShortLabel(84)));
 
         Event current = Event.current;
         Vector2 mousePosition = current != null ? current.mousePosition : Vector2.zero;
         string hoveredActionKey = string.Empty;
 
-        DrawBattleActionButton(new Rect(buttonsRect.x, buttonsRect.y, buttonsRect.width, ActionButtonHeight), "attack", "[1] Attack", mousePosition, ref hoveredActionKey);
-        DrawBattleActionButton(new Rect(buttonsRect.x, buttonsRect.y + ActionButtonHeight + ActionButtonGap, buttonsRect.width, ActionButtonHeight), "skill", "[2] Skill", mousePosition, ref hoveredActionKey);
-        DrawBattleActionButton(new Rect(buttonsRect.x, buttonsRect.y + ((ActionButtonHeight + ActionButtonGap) * 2f), buttonsRect.width, ActionButtonHeight), "retreat", "[3] Retreat", mousePosition, ref hoveredActionKey);
+        if (DrawBattleActionMenuButton(attackRect, "attack", "[1] Attack", _bootEntry.IsBattleActionAvailable("attack"), _bootEntry.IsBattleActionSelected("attack"), mousePosition, ref hoveredActionKey))
+        {
+            _bootEntry.TryTriggerBattleAction("attack");
+        }
+
+        if (DrawBattleActionMenuButton(skillRect, "skill", "[2] Skill", _bootEntry.IsBattleActionAvailable("skill"), _bootEntry.IsBattleActionSelected("skill") || _battleFlyoutMode == BattleHudFlyoutMode.SkillListPanel, mousePosition, ref hoveredActionKey))
+        {
+            _battleFlyoutMode = BattleHudFlyoutMode.SkillListPanel;
+        }
+
+        bool itemHovered = itemRect.Contains(mousePosition);
+        if (DrawBottomCommandButton(itemRect, "Item", _bootEntry.IsDungeonBattleViewActive, itemHovered, _battleFlyoutMode == BattleHudFlyoutMode.ItemListPanel))
+        {
+            _battleFlyoutMode = BattleHudFlyoutMode.ItemListPanel;
+        }
 
         if (string.IsNullOrEmpty(hoveredActionKey))
         {
@@ -417,10 +468,194 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         }
     }
 
-    private void DrawBattleActionButton(Rect rect, string actionKey, string label, Vector2 mousePosition, ref string hoveredActionKey)
+    private void DrawSkillListPanel(Rect rect)
     {
-        bool available = _bootEntry.IsBattleActionAvailable(actionKey);
-        bool selected = _bootEntry.IsBattleActionSelected(actionKey);
+        float menuButtonHeight = 28f;
+        float menuButtonGap = 4f;
+        float buttonAreaHeight = (menuButtonHeight * 2f) + menuButtonGap;
+        float summaryHeight = Mathf.Clamp(rect.height - buttonAreaHeight - 8f, 32f, 86f);
+        Rect summaryRect = new Rect(rect.x, rect.y, rect.width, summaryHeight);
+        Rect useRect = new Rect(rect.x, summaryRect.yMax + 8f, rect.width, menuButtonHeight);
+        Rect backRect = new Rect(rect.x, useRect.yMax + menuButtonGap, rect.width, menuButtonHeight);
+
+        DrawScrollableTextRegion("battle_skill_list_panel", summaryRect, BuildPanelBody(
+            "SkillListPanel",
+            "Actor: " + GetBattleActorShortLabel(),
+            "Skill identity comes from the current actor.",
+            "Prompt: " + GetBattlePromptShortLabel(84),
+            "Feedback: " + GetCompactHudText(V(_bootEntry.BattleFeedbackLabel), 84, false)));
+
+        Event current = Event.current;
+        Vector2 mousePosition = current != null ? current.mousePosition : Vector2.zero;
+        string hoveredActionKey = string.Empty;
+
+        if (DrawBattleActionMenuButton(useRect, "skill", "Use Current Skill", _bootEntry.IsBattleActionAvailable("skill"), _bootEntry.IsBattleActionSelected("skill"), mousePosition, ref hoveredActionKey))
+        {
+            _bootEntry.TryTriggerBattleAction("skill");
+            _battleFlyoutMode = BattleHudFlyoutMode.ActorCommandMenu;
+        }
+
+        if (DrawBottomCommandButton(backRect, "Back", true, backRect.Contains(mousePosition), false))
+        {
+            _battleFlyoutMode = BattleHudFlyoutMode.ActorCommandMenu;
+        }
+
+        if (string.IsNullOrEmpty(hoveredActionKey))
+        {
+            _bootEntry.SetBattleActionHover(string.Empty);
+        }
+    }
+
+    private void DrawItemListPanel(Rect rect)
+    {
+        float menuButtonHeight = 28f;
+        float summaryHeight = Mathf.Clamp(rect.height - menuButtonHeight - 8f, 44f, 96f);
+        Rect summaryRect = new Rect(rect.x, rect.y, rect.width, summaryHeight);
+        Rect backRect = new Rect(rect.x, summaryRect.yMax + 8f, rect.width, menuButtonHeight);
+
+        DrawScrollableTextRegion("battle_item_list_panel", summaryRect, BuildPanelBody(
+            "ItemListPanel",
+            "No items.",
+            "Not implemented in RPG-UI-Batch-1.",
+            "This panel only reserves the future item command surface."));
+
+        Event current = Event.current;
+        Vector2 mousePosition = current != null ? current.mousePosition : Vector2.zero;
+        if (DrawBottomCommandButton(backRect, "Back", true, backRect.Contains(mousePosition), false))
+        {
+            _battleFlyoutMode = BattleHudFlyoutMode.ActorCommandMenu;
+        }
+
+        _bootEntry.SetBattleActionHover(string.Empty);
+    }
+
+    private void DrawPartyCommandMenu(Rect rect)
+    {
+        float menuButtonHeight = 28f;
+        float menuButtonGap = 4f;
+        float buttonAreaHeight = (menuButtonHeight * 2f) + menuButtonGap;
+        float summaryHeight = Mathf.Clamp(rect.height - buttonAreaHeight - 8f, 32f, 86f);
+        Rect summaryRect = new Rect(rect.x, rect.y, rect.width, summaryHeight);
+        Rect retreatRect = new Rect(rect.x, summaryRect.yMax + 8f, rect.width, menuButtonHeight);
+        Rect backRect = new Rect(rect.x, retreatRect.yMax + menuButtonGap, rect.width, menuButtonHeight);
+
+        DrawScrollableTextRegion("battle_party_command_panel", summaryRect, BuildPanelBody(
+            "PartyCommandMenu",
+            "Party: " + GetCompactHudText(V(_bootEntry.ActiveDungeonPartyLabel), 72, false),
+            "Condition: " + GetCompactHudText(V(_bootEntry.PartyConditionLabel), 64, false),
+            "Route: " + GetCompactHudText(V(_bootEntry.CurrentRouteLabel), 64, false),
+            "Retreat is treated as a party-wide command."));
+
+        Event current = Event.current;
+        Vector2 mousePosition = current != null ? current.mousePosition : Vector2.zero;
+        string hoveredActionKey = string.Empty;
+
+        if (DrawBattleActionMenuButton(retreatRect, "retreat", "[3] Retreat", _bootEntry.IsBattleActionAvailable("retreat"), false, mousePosition, ref hoveredActionKey))
+        {
+            _battleFlyoutMode = BattleHudFlyoutMode.ConfirmDialog;
+            _pendingConfirmActionKey = "retreat";
+        }
+
+        if (DrawBottomCommandButton(backRect, "Back", true, backRect.Contains(mousePosition), false))
+        {
+            _battleFlyoutMode = BattleHudFlyoutMode.ActorCommandMenu;
+            _pendingConfirmActionKey = string.Empty;
+        }
+
+        if (string.IsNullOrEmpty(hoveredActionKey))
+        {
+            _bootEntry.SetBattleActionHover(string.Empty);
+        }
+    }
+
+    private void DrawConfirmDialog(Rect rect)
+    {
+        float menuButtonHeight = 28f;
+        float menuButtonGap = 4f;
+        float buttonAreaHeight = (menuButtonHeight * 2f) + menuButtonGap;
+        float summaryHeight = Mathf.Clamp(rect.height - buttonAreaHeight - 8f, 36f, 92f);
+        Rect summaryRect = new Rect(rect.x, rect.y, rect.width, summaryHeight);
+        Rect confirmRect = new Rect(rect.x, summaryRect.yMax + 8f, rect.width, menuButtonHeight);
+        Rect cancelRect = new Rect(rect.x, confirmRect.yMax + menuButtonGap, rect.width, menuButtonHeight);
+        string actionKey = string.IsNullOrEmpty(_pendingConfirmActionKey) ? "retreat" : _pendingConfirmActionKey;
+        string actionLabel = actionKey == "retreat" ? "Retreat" : actionKey;
+
+        DrawScrollableTextRegion("battle_confirm_dialog", summaryRect, BuildPanelBody(
+            "ConfirmDialog",
+            "Pending: " + actionLabel,
+            "Dungeon: " + GetCompactHudText(V(_bootEntry.CurrentDungeonRunLabel), 72, false),
+            "Party: " + GetCompactHudText(V(_bootEntry.PartyConditionLabel), 64, false),
+            "Loot: " + GetCompactHudText(V(_bootEntry.LootBreakdownLabel), 72, false)));
+
+        Event current = Event.current;
+        Vector2 mousePosition = current != null ? current.mousePosition : Vector2.zero;
+        string hoveredActionKey = string.Empty;
+
+        if (DrawBattleActionMenuButton(confirmRect, actionKey, "Confirm " + actionLabel, _bootEntry.IsBattleActionAvailable(actionKey), false, mousePosition, ref hoveredActionKey))
+        {
+            _bootEntry.TryTriggerBattleAction(actionKey);
+            ResetBattleHudState();
+        }
+
+        if (DrawBottomCommandButton(cancelRect, "Cancel", true, cancelRect.Contains(mousePosition), false))
+        {
+            _battleFlyoutMode = BattleHudFlyoutMode.PartyCommandMenu;
+            _pendingConfirmActionKey = string.Empty;
+        }
+
+        if (string.IsNullOrEmpty(hoveredActionKey))
+        {
+            _bootEntry.SetBattleActionHover(string.Empty);
+        }
+    }
+
+    private void DrawBottomCommandBar(Rect rect)
+    {
+        DrawOverlaySectionBackground(rect, new Color(0.08f, 0.11f, 0.15f, 0.96f));
+        Rect innerRect = new Rect(rect.x + SectionInnerPadding, rect.y + 4f, rect.width - (SectionInnerPadding * 2f), rect.height - 8f);
+        float buttonWidth = Mathf.Clamp(innerRect.width * 0.18f, 120f, 180f);
+        float infoWidth = innerRect.width - (buttonWidth * 2f) - (OverlaySectionGap * 2f);
+        Rect actorRect = new Rect(innerRect.x, innerRect.y, buttonWidth, innerRect.height);
+        Rect partyRect = new Rect(actorRect.xMax + OverlaySectionGap, innerRect.y, buttonWidth, innerRect.height);
+        Rect infoRect = new Rect(partyRect.xMax + OverlaySectionGap, innerRect.y, infoWidth, innerRect.height);
+
+        Event current = Event.current;
+        Vector2 mousePosition = current != null ? current.mousePosition : Vector2.zero;
+        BattleHudFlyoutMode mode = GetDisplayedBattleFlyoutMode();
+        bool actorSelected = mode == BattleHudFlyoutMode.ActorCommandMenu || mode == BattleHudFlyoutMode.SkillListPanel || mode == BattleHudFlyoutMode.ItemListPanel;
+        bool partySelected = mode == BattleHudFlyoutMode.PartyCommandMenu || mode == BattleHudFlyoutMode.ConfirmDialog;
+
+        if (DrawBottomCommandButton(actorRect, "Actor", true, actorRect.Contains(mousePosition), actorSelected))
+        {
+            _battleFlyoutMode = BattleHudFlyoutMode.ActorCommandMenu;
+            _pendingConfirmActionKey = string.Empty;
+        }
+
+        if (DrawBottomCommandButton(partyRect, "Party", true, partyRect.Contains(mousePosition), partySelected))
+        {
+            _battleFlyoutMode = BattleHudFlyoutMode.PartyCommandMenu;
+            _pendingConfirmActionKey = string.Empty;
+        }
+
+        DrawOverlaySectionBackground(infoRect, new Color(0.10f, 0.14f, 0.19f, 0.96f));
+        GUI.Label(new Rect(infoRect.x + 8f, infoRect.y + 3f, infoRect.width - 16f, infoRect.height - 6f), BuildBottomCommandBarBody(), _bodyStyle);
+    }
+
+    private void DrawBattleMessageBox(Rect rect)
+    {
+        DrawNamedScrollableOverlaySection("battle_message_box", rect, "BattleMessageBox", BuildBattleMessageBody(), new Color(0.08f, 0.10f, 0.13f, 0.96f));
+    }
+
+    private void DrawTargetSelectionOverlay(Rect mainRect)
+    {
+        float overlayWidth = Mathf.Min(340f, mainRect.width - 56f);
+        float overlayHeight = 96f;
+        Rect overlayRect = new Rect(mainRect.x + ((mainRect.width - overlayWidth) * 0.5f), mainRect.y + 14f, overlayWidth, overlayHeight);
+        DrawNamedScrollableOverlaySection("battle_target_selection_overlay", overlayRect, "TargetSelectionOverlay", BuildTargetSelectionBody(), new Color(0.21f, 0.18f, 0.12f, 0.98f));
+    }
+
+    private bool DrawBattleActionMenuButton(Rect rect, string actionKey, string label, bool available, bool selected, Vector2 mousePosition, ref string hoveredActionKey)
+    {
         bool hovered = available && rect.Contains(mousePosition);
         if (hovered)
         {
@@ -428,12 +663,275 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             _bootEntry.SetBattleActionHover(actionKey);
         }
 
-        if (DrawInteractiveButton(rect, label, available, hovered, selected))
+        return DrawInteractiveButton(rect, label, available, hovered, selected);
+    }
+
+    private bool DrawBottomCommandButton(Rect rect, string label, bool available, bool hovered, bool selected)
+    {
+        return DrawInteractiveButton(rect, label, available, hovered, selected);
+    }
+
+    private void DrawNamedScrollableOverlaySection(string scrollKey, Rect rect, string title, string body, Color backgroundColor)
+    {
+        DrawOverlaySectionBackground(rect, backgroundColor);
+        Rect titleRect = new Rect(rect.x + SectionInnerPadding, rect.y + 6f, rect.width - (SectionInnerPadding * 2f), 18f);
+        GUI.Label(titleRect, title, _sectionTitleStyle);
+        float contentHeight = Mathf.Max(24f, rect.height - (titleRect.yMax - rect.y) - SectionInnerPadding);
+        Rect contentRect = new Rect(rect.x + SectionInnerPadding, titleRect.yMax + 4f, rect.width - (SectionInnerPadding * 2f), contentHeight);
+        DrawScrollableTextRegion(scrollKey, contentRect, body);
+    }
+
+    private string BuildBattleTimelineBody()
+    {
+        return BuildPanelBody(
+            "BattleScene -> BattleHUD",
+            "Now: " + GetBattlePhaseShortLabel() + " | Actor: " + GetBattleActorShortLabel(),
+            "Next: " + GetNextBattleTimelineText());
+    }
+
+    private string BuildPartyStatusBody()
+    {
+        return BuildPanelBody(
+            Line("ActiveParty", V(_bootEntry.ActiveDungeonPartyLabel)),
+            "Current Actor: " + GetBattleActorShortLabel(),
+            Line("TotalPartyHp", V(_bootEntry.TotalPartyHpLabel)),
+            Line("PartyCondition", V(_bootEntry.PartyConditionLabel)),
+            Line("Party1Hp", V(_bootEntry.Party1HpLabel)),
+            Line("Party2Hp", V(_bootEntry.Party2HpLabel)),
+            Line("Party3Hp", V(_bootEntry.Party3HpLabel)),
+            Line("Party4Hp", V(_bootEntry.Party4HpLabel)));
+    }
+
+    private string BuildEnemyInfoBody()
+    {
+        List<string> lines = new List<string>();
+        AddOptionalSummaryLine(lines, T("EncounterName"), V(_bootEntry.EncounterNameLabel));
+        AddOptionalSummaryLine(lines, T("MonsterName"), V(_bootEntry.BattleMonsterNameLabel));
+        AddOptionalSummaryLine(lines, T("MonsterHp"), V(_bootEntry.BattleMonsterHpLabel));
+        AddOptionalSummaryLine(lines, T("Monster1"), V(_bootEntry.BattleMonster1Label));
+        AddOptionalSummaryLine(lines, T("Monster2"), V(_bootEntry.BattleMonster2Label));
+        AddOptionalSummaryLine(lines, T("EliteEncounter"), V(_bootEntry.EliteEncounterNameLabel));
+        AddOptionalSummaryLine(lines, T("EliteType"), V(_bootEntry.EliteTypeLabel));
+        AddOptionalSummaryLine(lines, T("EliteHp"), V(_bootEntry.EliteHpLabel));
+        AddOptionalSummaryLine(lines, T("EliteRewardHint"), V(_bootEntry.EliteRewardHintLabel));
+        AddOptionalSummaryLine(lines, T("EliteIntent"), V(_bootEntry.EnemyIntentLabel));
+        if (lines.Count == 0)
         {
-            _bootEntry.TryTriggerBattleAction(actionKey);
+            lines.Add("Waiting for encounter data.");
+        }
+
+        return BuildPanelBody(lines.ToArray());
+    }
+
+    private string BuildBattleMessageBody()
+    {
+        List<string> lines = new List<string>();
+        AddOptionalSummaryLine(lines, "Prompt", V(_bootEntry.CurrentSelectionPromptLabel));
+        AddOptionalSummaryLine(lines, "Feedback", V(_bootEntry.BattleFeedbackLabel));
+        AddOptionalSummaryLine(lines, T("LastBattleLog1"), V(_bootEntry.LastBattleLog1Label));
+        AddOptionalSummaryLine(lines, T("LastBattleLog2"), V(_bootEntry.LastBattleLog2Label));
+        AddOptionalSummaryLine(lines, T("LastBattleLog3"), V(_bootEntry.LastBattleLog3Label));
+        AddOptionalSummaryLine(lines, "Cancel", V(_bootEntry.BattleCancelHintLabel));
+        if (lines.Count == 0)
+        {
+            lines.Add("Battle message feed is waiting for the next action.");
+        }
+
+        return BuildPanelBody(lines.ToArray());
+    }
+
+    private string BuildTargetSelectionBody()
+    {
+        List<string> lines = new List<string>();
+        lines.Add("Target selection is active.");
+        AddOptionalSummaryLine(lines, "QueuedAction", GetSelectedBattleActionLabel());
+        AddOptionalSummaryLine(lines, "Prompt", GetBattlePromptShortLabel(74));
+        AddOptionalSummaryLine(lines, "Target", GetCompactHudText(V(_bootEntry.BattleMonsterNameLabel), 52, false));
+        AddOptionalSummaryLine(lines, "Cancel", GetCompactHudText(V(_bootEntry.BattleCancelHintLabel), 48, false));
+        return BuildPanelBody(lines.ToArray());
+    }
+
+    private string BuildBottomCommandBarBody()
+    {
+        return "BottomCommandBar | " + GetBattlePhaseShortLabel() + " | " + GetBattleActorShortLabel();
+    }
+
+    private string GetBattleActorShortLabel()
+    {
+        return GetCompactHudText(V(_bootEntry.CurrentBattleActorLabel), 34, true);
+    }
+
+    private string GetBattlePhaseShortLabel()
+    {
+        return GetCompactHudText(V(_bootEntry.BattlePhaseLabel), 28, false);
+    }
+
+    private string GetBattlePromptShortLabel(int maxLength)
+    {
+        return GetCompactHudText(V(_bootEntry.CurrentSelectionPromptLabel), maxLength, false);
+    }
+
+    private string GetCompactHudText(string value, int maxLength, bool preferPipePrefix)
+    {
+        if (!HasMeaningfulText(value))
+        {
+            return "None";
+        }
+
+        string compact = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        if (preferPipePrefix)
+        {
+            int pipeIndex = compact.IndexOf('|');
+            if (pipeIndex > 0)
+            {
+                compact = compact.Substring(0, pipeIndex).Trim();
+            }
+        }
+
+        while (compact.Contains("  "))
+        {
+            compact = compact.Replace("  ", " ");
+        }
+
+        if (maxLength > 3 && compact.Length > maxLength)
+        {
+            compact = compact.Substring(0, maxLength - 3) + "...";
+        }
+
+        return compact;
+    }
+
+    private string GetNextBattleTimelineText()
+    {
+        string phase = V(_bootEntry.BattlePhaseLabel);
+        if (IsTargetSelectionActive())
+        {
+            return "Confirm target -> Enemy turn";
+        }
+
+        if (ContainsIgnoreCase(phase, "enemy"))
+        {
+            return "EnemyInfoPanel -> PartyStatusPanel";
+        }
+
+        if (ContainsIgnoreCase(phase, "victory"))
+        {
+            return "VictorySummaryPanel";
+        }
+
+        if (ContainsIgnoreCase(phase, "defeat") || ContainsIgnoreCase(phase, "retreat"))
+        {
+            return "Result resolution";
+        }
+
+        return "ActorCommandMenu -> PartyCommandMenu";
+    }
+
+    private string GetSelectedBattleActionLabel()
+    {
+        string actionKey = GetSelectedBattleActionKey();
+        return actionKey == "attack"
+            ? "Attack"
+            : actionKey == "skill"
+                ? "Skill"
+                : actionKey == "retreat"
+                    ? "Retreat"
+                    : "None";
+    }
+
+    private string GetSelectedBattleActionKey()
+    {
+        if (_bootEntry.IsBattleActionSelected("attack"))
+        {
+            return "attack";
+        }
+
+        if (_bootEntry.IsBattleActionSelected("skill"))
+        {
+            return "skill";
+        }
+
+        if (_bootEntry.IsBattleActionSelected("retreat"))
+        {
+            return "retreat";
+        }
+
+        return string.Empty;
+    }
+
+    private string GetBattleFlyoutTitle(BattleHudFlyoutMode mode)
+    {
+        return mode == BattleHudFlyoutMode.SkillListPanel
+            ? "SkillListPanel"
+            : mode == BattleHudFlyoutMode.ItemListPanel
+                ? "ItemListPanel"
+                : mode == BattleHudFlyoutMode.PartyCommandMenu
+                    ? "PartyCommandMenu"
+                    : mode == BattleHudFlyoutMode.ConfirmDialog
+                        ? "ConfirmDialog"
+                        : "ActorCommandMenu";
+    }
+
+    private BattleHudFlyoutMode GetDisplayedBattleFlyoutMode()
+    {
+        if (_battleFlyoutMode == BattleHudFlyoutMode.ConfirmDialog && string.IsNullOrEmpty(_pendingConfirmActionKey))
+        {
+            return BattleHudFlyoutMode.PartyCommandMenu;
+        }
+
+        return _battleFlyoutMode == BattleHudFlyoutMode.None
+            ? BattleHudFlyoutMode.ActorCommandMenu
+            : _battleFlyoutMode;
+    }
+
+    private void SyncBattleHudState()
+    {
+        if (_bootEntry == null || !_bootEntry.IsDungeonBattleViewActive)
+        {
+            ResetBattleHudState();
+            return;
+        }
+
+        if (_battleFlyoutMode != BattleHudFlyoutMode.ConfirmDialog)
+        {
+            _pendingConfirmActionKey = string.Empty;
         }
     }
 
+    private void ResetBattleHudState()
+    {
+        _battleFlyoutMode = BattleHudFlyoutMode.None;
+        _pendingConfirmActionKey = string.Empty;
+    }
+
+    private bool IsBattleInputModalOpen()
+    {
+        if (_bootEntry == null || !_bootEntry.IsDungeonBattleViewActive)
+        {
+            return false;
+        }
+
+        return _battleFlyoutMode == BattleHudFlyoutMode.SkillListPanel ||
+               _battleFlyoutMode == BattleHudFlyoutMode.ItemListPanel ||
+               _battleFlyoutMode == BattleHudFlyoutMode.ConfirmDialog;
+    }
+
+    private bool IsTargetSelectionActive()
+    {
+        return _bootEntry != null && (
+            _bootEntry.IsBattleActionSelected("attack") ||
+            _bootEntry.IsBattleActionSelected("skill") ||
+            _bootEntry.IsBattleActionSelected("retreat") ||
+            ContainsIgnoreCase(V(_bootEntry.BattlePhaseLabel), "target") ||
+            HasMeaningfulText(V(_bootEntry.BattleCancelHintLabel)));
+    }
+
+    private static bool ContainsIgnoreCase(string value, string token)
+    {
+        return !string.IsNullOrEmpty(value) &&
+               !string.IsNullOrEmpty(token) &&
+               value.IndexOf(token, System.StringComparison.OrdinalIgnoreCase) >= 0;
+    }
     private void DrawRouteChoiceSection(Rect rect)
     {
         DrawOverlaySectionBackground(rect, new Color(0.08f, 0.12f, 0.16f, 0.94f));
@@ -609,6 +1107,54 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         }
 
         return false;
+    }
+
+    private Vector2 GetOverlayScrollPosition(string scrollKey)
+    {
+        if (string.IsNullOrEmpty(scrollKey))
+        {
+            return Vector2.zero;
+        }
+
+        return _overlayScrollByKey.TryGetValue(scrollKey, out Vector2 scrollPosition)
+            ? scrollPosition
+            : Vector2.zero;
+    }
+
+    private void DrawScrollableTextRegion(string scrollKey, Rect viewportRect, string body)
+    {
+        string safeBody = string.IsNullOrEmpty(body) ? "None" : body;
+        bool showVerticalScrollbar = false;
+        float contentWidth = Mathf.Max(32f, viewportRect.width - 4f);
+        float contentHeight = Mathf.Max(viewportRect.height, _bodyStyle.CalcHeight(new GUIContent(safeBody), contentWidth));
+        if (contentHeight > viewportRect.height)
+        {
+            showVerticalScrollbar = true;
+            contentWidth = Mathf.Max(32f, viewportRect.width - 18f);
+            contentHeight = Mathf.Max(viewportRect.height, _bodyStyle.CalcHeight(new GUIContent(safeBody), contentWidth));
+        }
+
+        Vector2 scrollPosition = GetOverlayScrollPosition(scrollKey);
+        Vector2 nextScrollPosition = GUI.BeginScrollView(
+            viewportRect,
+            scrollPosition,
+            new Rect(0f, 0f, contentWidth, contentHeight),
+            false,
+            showVerticalScrollbar);
+        GUI.Label(new Rect(0f, 0f, contentWidth, contentHeight), safeBody, _bodyStyle);
+        GUI.EndScrollView();
+
+        if (!string.IsNullOrEmpty(scrollKey))
+        {
+            _overlayScrollByKey[scrollKey] = nextScrollPosition;
+        }
+    }
+
+    private void DrawScrollableOverlaySection(string scrollKey, Rect rect, string body, Color backgroundColor)
+    {
+        DrawOverlaySectionBackground(rect, backgroundColor);
+        Rect contentRect = new Rect(rect.x + SectionInnerPadding, rect.y + SectionInnerPadding, rect.width - (SectionInnerPadding * 2f), rect.height - (SectionInnerPadding * 2f));
+        DrawScrollableTextRegion(scrollKey, contentRect, body);
     }
 
     private void DrawOverlaySection(Rect rect, string body, Color backgroundColor)
@@ -1244,6 +1790,11 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         _titleStyle.fontStyle = FontStyle.Bold;
         _titleStyle.normal.textColor = Color.white;
 
+        _sectionTitleStyle = new GUIStyle(_bodyStyle);
+        _sectionTitleStyle.fontSize = 12;
+        _sectionTitleStyle.fontStyle = FontStyle.Bold;
+        _sectionTitleStyle.normal.textColor = Color.white;
+
         _chipStyle = new GUIStyle(GUI.skin != null ? GUI.skin.button : GUIStyle.none);
         _chipStyle.fontSize = 12;
         _chipStyle.alignment = TextAnchor.MiddleCenter;
@@ -1309,7 +1860,3 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         return mainCamera.orthographicSize.ToString("0.00");
     }
 }
-
-
-
-

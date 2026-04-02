@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -270,25 +270,37 @@ public sealed partial class StaticPlaceholderWorldView
         public string MemberId;
         public string DisplayName;
         public string RoleLabel;
+        public string RoleTag;
+        public string DefaultSkillId;
         public string SkillName;
+        public string SkillShortText;
         public PartySkillType SkillType;
+        public int PartySlotIndex;
         public int MaxHp;
         public int CurrentHp;
         public int Attack;
+        public int Defense;
+        public int Speed;
         public int SkillPower;
         public bool IsDefeated;
         public Color ViewColor;
 
-        public DungeonPartyMemberRuntimeData(string memberId, string displayName, string roleLabel, string skillName, PartySkillType skillType, int maxHp, int attack, int skillPower, Color viewColor)
+        public DungeonPartyMemberRuntimeData(string memberId, string displayName, string roleLabel, string roleTag, string defaultSkillId, string skillName, string skillShortText, PartySkillType skillType, int partySlotIndex, int maxHp, int attack, int defense, int speed, int skillPower, Color viewColor)
         {
             MemberId = memberId ?? string.Empty;
             DisplayName = displayName ?? string.Empty;
             RoleLabel = string.IsNullOrEmpty(roleLabel) ? "Adventurer" : roleLabel;
+            RoleTag = string.IsNullOrEmpty(roleTag) ? "adventurer" : roleTag;
+            DefaultSkillId = string.IsNullOrEmpty(defaultSkillId) ? string.Empty : defaultSkillId;
             SkillName = string.IsNullOrEmpty(skillName) ? "Skill" : skillName;
+            SkillShortText = string.IsNullOrEmpty(skillShortText) ? string.Empty : skillShortText;
             SkillType = skillType;
+            PartySlotIndex = partySlotIndex >= 0 ? partySlotIndex : 0;
             MaxHp = maxHp > 0 ? maxHp : 1;
             CurrentHp = MaxHp;
             Attack = attack > 0 ? attack : 1;
+            Defense = defense >= 0 ? defense : 0;
+            Speed = speed >= 0 ? speed : 0;
             SkillPower = skillPower > 0 ? skillPower : Attack + 1;
             IsDefeated = false;
             ViewColor = viewColor.a > 0f ? viewColor : Color.white;
@@ -306,20 +318,18 @@ public sealed partial class StaticPlaceholderWorldView
         public string PartyId;
         public string HomeCityId;
         public string DisplayName;
+        public PrototypeRpgPartyDefinition PartyDefinition;
         public DungeonPartyMemberRuntimeData[] Members;
 
-        public TestDungeonPartyData(string partyId, string homeCityId)
+        public TestDungeonPartyData(string partyId, string homeCityId, PrototypeRpgPartyDefinition partyDefinition, DungeonPartyMemberRuntimeData[] members)
         {
             PartyId = partyId ?? string.Empty;
             HomeCityId = homeCityId ?? string.Empty;
-            DisplayName = string.IsNullOrEmpty(PartyId) ? "Test Party" : PartyId;
-            Members = new[]
-            {
-                new DungeonPartyMemberRuntimeData("warrior", "Alden", "Warrior", "Power Strike", PartySkillType.SingleHeavy, 28, 5, 10, new Color(0.78f, 0.47f, 0.29f, 1f)),
-                new DungeonPartyMemberRuntimeData("rogue", "Mira", "Rogue", "Weak Point", PartySkillType.Finisher, 19, 4, 7, new Color(0.28f, 0.75f, 0.58f, 1f)),
-                new DungeonPartyMemberRuntimeData("mage", "Rune", "Mage", "Arcane Burst", PartySkillType.AllEnemies, 16, 3, 6, new Color(0.34f, 0.68f, 0.95f, 1f)),
-                new DungeonPartyMemberRuntimeData("cleric", "Lia", "Cleric", "Radiant Hymn", PartySkillType.PartyHeal, 22, 3, 5, new Color(0.94f, 0.84f, 0.46f, 1f))
-            };
+            PartyDefinition = partyDefinition ?? PrototypeRpgPartyCatalog.CreateDefaultPlaceholderParty(partyId);
+            DisplayName = PartyDefinition != null && !string.IsNullOrEmpty(PartyDefinition.DisplayName)
+                ? PartyDefinition.DisplayName
+                : (string.IsNullOrEmpty(PartyId) ? "Test Party" : PartyId);
+            Members = members ?? System.Array.Empty<DungeonPartyMemberRuntimeData>();
         }
 
         public void ResetForRun()
@@ -729,7 +739,21 @@ public sealed partial class StaticPlaceholderWorldView
                 : _dungeonRunState == DungeonRunState.Battle && _currentActorIndex == memberIndex
                     ? " | Acting"
                     : string.Empty;
-        return member.DisplayName + " | " + member.RoleLabel + " | " + member.CurrentHp + " / " + member.MaxHp + statusText;
+        return BuildPartyMemberRuntimeSummary(member, statusText, true);
+    }
+
+    private string BuildPartyMemberRuntimeSummary(DungeonPartyMemberRuntimeData member, string statusText, bool includeHp)
+    {
+        if (member == null)
+        {
+            return "None";
+        }
+
+        string memberIdText = string.IsNullOrEmpty(member.MemberId) ? "none" : member.MemberId;
+        string hpText = includeHp ? " | HP " + member.CurrentHp + " / " + member.MaxHp : string.Empty;
+        string skillText = string.IsNullOrEmpty(member.SkillName) ? string.Empty : " | Skill " + member.SkillName;
+        string safeStatusText = string.IsNullOrEmpty(statusText) ? string.Empty : statusText;
+        return member.DisplayName + " | " + member.RoleLabel + " | ID " + memberIdText + hpText + skillText + " | ATK " + member.Attack + " DEF " + member.Defense + " SPD " + member.Speed + safeStatusText;
     }
 
     public bool IsBattleActionAvailable(string actionKey)
@@ -2690,8 +2714,9 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         DungeonPartyMemberRuntimeData member = _activeDungeonParty.Members[_currentActorIndex];
-        return member != null ? member.DisplayName + " | " + member.RoleLabel : "None";
+        return BuildPartyMemberRuntimeSummary(member, string.Empty, true);
     }
+
 
     private string GetCurrentEncounterNameText()
     {
@@ -3683,9 +3708,12 @@ public sealed partial class StaticPlaceholderWorldView
             else
             {
                 string hoverActionName = GetBattleActionDisplayName(_hoverBattleAction, member);
+                string skillHintText = string.IsNullOrEmpty(member.SkillShortText) ? string.Empty : " | " + member.SkillShortText;
                 _currentSelectionPrompt = string.IsNullOrEmpty(hoverActionName)
-                    ? "Select action for " + member.DisplayName + ". [1] Attack  [2] " + member.SkillName + "  [3] Retreat"
-                    : "Select " + hoverActionName + " for " + member.DisplayName + " by click or matching key.";
+                    ? "Select action for " + member.DisplayName + " (" + member.RoleLabel + "). [1] Attack  [2] " + member.SkillName + "  [3] Retreat" + skillHintText
+                    : _hoverBattleAction == BattleActionType.Skill
+                        ? "Select " + hoverActionName + " for " + member.DisplayName + ". " + (string.IsNullOrEmpty(member.SkillShortText) ? "Click or matching key." : member.SkillShortText + " Click or matching key.")
+                        : "Select " + hoverActionName + " for " + member.DisplayName + " by click or matching key.";
             }
 
             return;
@@ -3710,8 +3738,12 @@ public sealed partial class StaticPlaceholderWorldView
             : _activeBattleMonster != null && !_activeBattleMonster.IsDefeated
                 ? " | Target: " + _activeBattleMonster.DisplayName
                 : string.Empty;
-        return "Select target for " + actionName + ": [1] " + BuildTargetOptionText(0) + "  [2] " + BuildTargetOptionText(1) + " | Click enemy | [Esc]/Right Click Cancel" + focusText;
+        string skillHintText = _queuedBattleAction == BattleActionType.Skill && member != null && !string.IsNullOrEmpty(member.SkillShortText)
+            ? " | " + member.SkillShortText
+            : string.Empty;
+        return "Select target for " + actionName + ": [1] " + BuildTargetOptionText(0) + "  [2] " + BuildTargetOptionText(1) + " | Click enemy | [Esc]/Right Click Cancel" + focusText + skillHintText;
     }
+
     private string BuildTargetOptionText(int displayIndex)
     {
         DungeonMonsterRuntimeData monster = GetBattleMonsterAtDisplayIndex(displayIndex);
@@ -4663,6 +4695,129 @@ public sealed partial class StaticPlaceholderWorldView
         return new DungeonMonsterRuntimeData(monsterId, encounterId, roomIndex, displayName, monsterType, hp, attack, gridPosition, DungeonRewardResourceId, rewardAmount, targetPattern, encounterRole, isElite, specialAttack, specialActionName);
     }
 
+    private TestDungeonPartyData CreatePlaceholderDungeonParty(string cityId, string partyId)
+    {
+        PrototypeRpgPartyDefinition partyDefinition = PrototypeRpgPartyCatalog.CreateDefaultPlaceholderParty(partyId);
+        return new TestDungeonPartyData(partyId, cityId, partyDefinition, CreateDungeonRuntimeMembers(partyDefinition));
+    }
+
+    private DungeonPartyMemberRuntimeData[] CreateDungeonRuntimeMembers(PrototypeRpgPartyDefinition partyDefinition)
+    {
+        if (partyDefinition == null || partyDefinition.Members == null || partyDefinition.Members.Length == 0)
+        {
+            return System.Array.Empty<DungeonPartyMemberRuntimeData>();
+        }
+
+        DungeonPartyMemberRuntimeData[] members = new DungeonPartyMemberRuntimeData[partyDefinition.Members.Length];
+        for (int i = 0; i < members.Length; i++)
+        {
+            members[i] = CreateDungeonRuntimeMember(partyDefinition.Members[i], i);
+        }
+
+        return members;
+    }
+
+    private DungeonPartyMemberRuntimeData CreateDungeonRuntimeMember(PrototypeRpgPartyMemberDefinition memberDefinition, int fallbackPartySlotIndex)
+    {
+        PrototypeRpgStatBlock baseStats = memberDefinition != null && memberDefinition.BaseStats != null
+            ? memberDefinition.BaseStats
+            : new PrototypeRpgStatBlock(1, 1, 0, 0);
+        string memberId = memberDefinition != null ? memberDefinition.MemberId : string.Empty;
+        string displayName = memberDefinition != null && !string.IsNullOrEmpty(memberDefinition.DisplayName) ? memberDefinition.DisplayName : "Adventurer";
+        string roleTag = memberDefinition != null ? memberDefinition.RoleTag : string.Empty;
+        string roleLabel = memberDefinition != null && !string.IsNullOrEmpty(memberDefinition.RoleLabel) ? memberDefinition.RoleLabel : "Adventurer";
+        string defaultSkillId = memberDefinition != null ? memberDefinition.DefaultSkillId : string.Empty;
+        string skillName = memberDefinition != null && !string.IsNullOrEmpty(memberDefinition.DefaultSkillName) ? memberDefinition.DefaultSkillName : "Skill";
+        string skillShortText = memberDefinition != null ? memberDefinition.DefaultSkillShortText : string.Empty;
+        int partySlotIndex = memberDefinition != null ? memberDefinition.PartySlotIndex : fallbackPartySlotIndex;
+
+        PartySkillType skillType = PartySkillType.SingleHeavy;
+        int skillPower = Mathf.Max(1, baseStats.Attack + 1);
+        Color viewColor = Color.white;
+
+        switch (defaultSkillId)
+        {
+            case "skill_power_strike":
+                roleLabel = string.IsNullOrEmpty(roleLabel) || roleLabel == "Adventurer" ? "Warrior" : roleLabel;
+                skillName = string.IsNullOrEmpty(skillName) || skillName == "Skill" ? "Power Strike" : skillName;
+                skillShortText = string.IsNullOrEmpty(skillShortText) ? "Heavy single-target strike." : skillShortText;
+                skillType = PartySkillType.SingleHeavy;
+                skillPower = 10;
+                viewColor = new Color(0.78f, 0.47f, 0.29f, 1f);
+                break;
+            case "skill_weak_point":
+                roleLabel = string.IsNullOrEmpty(roleLabel) || roleLabel == "Adventurer" ? "Rogue" : roleLabel;
+                skillName = string.IsNullOrEmpty(skillName) || skillName == "Skill" ? "Weak Point" : skillName;
+                skillShortText = string.IsNullOrEmpty(skillShortText) ? "Finisher that hits harder on weak targets." : skillShortText;
+                skillType = PartySkillType.Finisher;
+                skillPower = 7;
+                viewColor = new Color(0.28f, 0.75f, 0.58f, 1f);
+                break;
+            case "skill_arcane_burst":
+                roleLabel = string.IsNullOrEmpty(roleLabel) || roleLabel == "Adventurer" ? "Mage" : roleLabel;
+                skillName = string.IsNullOrEmpty(skillName) || skillName == "Skill" ? "Arcane Burst" : skillName;
+                skillShortText = string.IsNullOrEmpty(skillShortText) ? "Arcane blast that hits all enemies." : skillShortText;
+                skillType = PartySkillType.AllEnemies;
+                skillPower = 6;
+                viewColor = new Color(0.34f, 0.68f, 0.95f, 1f);
+                break;
+            case "skill_radiant_hymn":
+                roleLabel = string.IsNullOrEmpty(roleLabel) || roleLabel == "Adventurer" ? "Cleric" : roleLabel;
+                skillName = string.IsNullOrEmpty(skillName) || skillName == "Skill" ? "Radiant Hymn" : skillName;
+                skillShortText = string.IsNullOrEmpty(skillShortText) ? "Party heal that restores all allies." : skillShortText;
+                skillType = PartySkillType.PartyHeal;
+                skillPower = 5;
+                viewColor = new Color(0.94f, 0.84f, 0.46f, 1f);
+                break;
+            default:
+                switch (roleTag)
+                {
+                    case "warrior":
+                        roleLabel = string.IsNullOrEmpty(roleLabel) || roleLabel == "Adventurer" ? "Warrior" : roleLabel;
+                        defaultSkillId = string.IsNullOrEmpty(defaultSkillId) ? "skill_power_strike" : defaultSkillId;
+                        skillName = string.IsNullOrEmpty(skillName) || skillName == "Skill" ? "Power Strike" : skillName;
+                        skillShortText = string.IsNullOrEmpty(skillShortText) ? "Heavy single-target strike." : skillShortText;
+                        skillType = PartySkillType.SingleHeavy;
+                        skillPower = 10;
+                        viewColor = new Color(0.78f, 0.47f, 0.29f, 1f);
+                        break;
+                    case "rogue":
+                        roleLabel = string.IsNullOrEmpty(roleLabel) || roleLabel == "Adventurer" ? "Rogue" : roleLabel;
+                        defaultSkillId = string.IsNullOrEmpty(defaultSkillId) ? "skill_weak_point" : defaultSkillId;
+                        skillName = string.IsNullOrEmpty(skillName) || skillName == "Skill" ? "Weak Point" : skillName;
+                        skillShortText = string.IsNullOrEmpty(skillShortText) ? "Finisher that hits harder on weak targets." : skillShortText;
+                        skillType = PartySkillType.Finisher;
+                        skillPower = 7;
+                        viewColor = new Color(0.28f, 0.75f, 0.58f, 1f);
+                        break;
+                    case "mage":
+                        roleLabel = string.IsNullOrEmpty(roleLabel) || roleLabel == "Adventurer" ? "Mage" : roleLabel;
+                        defaultSkillId = string.IsNullOrEmpty(defaultSkillId) ? "skill_arcane_burst" : defaultSkillId;
+                        skillName = string.IsNullOrEmpty(skillName) || skillName == "Skill" ? "Arcane Burst" : skillName;
+                        skillShortText = string.IsNullOrEmpty(skillShortText) ? "Arcane blast that hits all enemies." : skillShortText;
+                        skillType = PartySkillType.AllEnemies;
+                        skillPower = 6;
+                        viewColor = new Color(0.34f, 0.68f, 0.95f, 1f);
+                        break;
+                    case "cleric":
+                        roleLabel = string.IsNullOrEmpty(roleLabel) || roleLabel == "Adventurer" ? "Cleric" : roleLabel;
+                        defaultSkillId = string.IsNullOrEmpty(defaultSkillId) ? "skill_radiant_hymn" : defaultSkillId;
+                        skillName = string.IsNullOrEmpty(skillName) || skillName == "Skill" ? "Radiant Hymn" : skillName;
+                        skillShortText = string.IsNullOrEmpty(skillShortText) ? "Party heal that restores all allies." : skillShortText;
+                        skillType = PartySkillType.PartyHeal;
+                        skillPower = 5;
+                        viewColor = new Color(0.94f, 0.84f, 0.46f, 1f);
+                        break;
+                    default:
+                        roleLabel = string.IsNullOrEmpty(roleLabel) ? (string.IsNullOrEmpty(roleTag) ? "Adventurer" : roleTag) : roleLabel;
+                        break;
+                }
+                break;
+        }
+
+        return new DungeonPartyMemberRuntimeData(memberId, displayName, roleLabel, roleTag, defaultSkillId, skillName, skillShortText, skillType, partySlotIndex, baseStats.MaxHp, baseStats.Attack, baseStats.Defense, baseStats.Speed, skillPower, viewColor);
+    }
+
     private TestDungeonPartyData GetOrCreateDungeonParty(string cityId, string partyId)
     {
         if (string.IsNullOrEmpty(cityId) || string.IsNullOrEmpty(partyId))
@@ -4672,14 +4827,21 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (!_dungeonPartyByCityId.TryGetValue(cityId, out TestDungeonPartyData party) || party == null || party.PartyId != partyId)
         {
-            party = new TestDungeonPartyData(partyId, cityId);
+            party = CreatePlaceholderDungeonParty(cityId, partyId);
             _dungeonPartyByCityId[cityId] = party;
         }
         else
         {
             party.PartyId = partyId;
             party.HomeCityId = cityId;
-            party.DisplayName = partyId;
+            party.PartyDefinition = party.PartyDefinition ?? PrototypeRpgPartyCatalog.CreateDefaultPlaceholderParty(partyId);
+            party.DisplayName = party.PartyDefinition != null && !string.IsNullOrEmpty(party.PartyDefinition.DisplayName)
+                ? party.PartyDefinition.DisplayName
+                : partyId;
+            if (party.Members == null || party.Members.Length == 0)
+            {
+                party.Members = CreateDungeonRuntimeMembers(party.PartyDefinition);
+            }
         }
 
         return party;
@@ -5989,64 +6151,3 @@ public sealed partial class StaticPlaceholderWorldView
     }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

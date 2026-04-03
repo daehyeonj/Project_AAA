@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.InputSystem;
 
 public sealed class BootEntry : MonoBehaviour
@@ -13,11 +13,15 @@ public sealed class BootEntry : MonoBehaviour
     private StaticPlaceholderWorldView _worldView;
     private WorldCameraController _worldCameraController;
     private PrototypeDebugHUD _debugHud;
+    private PrototypePresentationShell _presentationShell;
     private ResourceData[] _resources;
     private bool _hasTransitioned;
     private PrototypeLanguage _currentLanguage = PrototypeLanguage.English;
 
     public PrototypeLanguage CurrentLanguage => _currentLanguage;
+    public bool IsBootActive => _gameState != null && _gameState.CurrentState == GameStateId.Boot;
+    public bool IsMainMenuActive => _gameState != null && _gameState.CurrentState == GameStateId.MainMenu;
+    public bool IsWorldSimActive => _gameState != null && _gameState.CurrentState == GameStateId.WorldSim;
     public string CurrentLanguageLabel => PrototypeLocalization.GetLanguageDisplayName(_currentLanguage);
     public string PrototypeNameLabel => GetText("PrototypeName");
     public string DebugStepLabel => GetText("StepLabel");
@@ -302,6 +306,11 @@ public sealed class BootEntry : MonoBehaviour
     public string Party3HpLabel => _worldView != null ? _worldView.GetPartyMemberHpText(2) : "None";
     public string Party4HpLabel => _worldView != null ? _worldView.GetPartyMemberHpText(3) : "None";
 
+    public string GetPartyMemberContributionLabel(int memberIndex)
+    {
+        return _worldView != null ? _worldView.GetPartyMemberContributionText(memberIndex) : "D 0  H 0  A 0  K 0";
+    }
+
     public PrototypeBattleUiSurfaceData GetBattleUiSurfaceData()
     {
         return _worldView != null ? _worldView.BuildBattleUiSurfaceData() : new PrototypeBattleUiSurfaceData();
@@ -313,6 +322,7 @@ public sealed class BootEntry : MonoBehaviour
         _resources = PlaceholderResourceDataFactory.Create();
         _worldView = new StaticPlaceholderWorldView(_resources);
         EnsureDebugHUD();
+        EnsurePresentationShell();
         EnsureWorldCameraController();
         Debug.Log("[Boot] Boot scene started successfully.");
         ApplyBackgroundColor(GameStateId.Boot);
@@ -416,6 +426,79 @@ public sealed class BootEntry : MonoBehaviour
         _currentLanguage = _currentLanguage == PrototypeLanguage.English
             ? PrototypeLanguage.Korean
             : PrototypeLanguage.English;
+    }
+
+    public void EnterWorldSimFromMenu()
+    {
+        if (IsMainMenuActive)
+        {
+            ChangeState(GameStateId.WorldSim);
+        }
+    }
+
+    public void ReturnToMainMenu()
+    {
+        if (IsWorldSimActive)
+        {
+            ChangeState(GameStateId.MainMenu);
+        }
+    }
+
+    public void RunWorldDayStep()
+    {
+        if (IsWorldSimActive && _worldView != null)
+        {
+            _worldView.RunEconomyDay();
+        }
+    }
+
+    public void ResetWorldSimulation()
+    {
+        if (IsWorldSimActive && _worldView != null)
+        {
+            _worldView.ResetRuntimeEconomy();
+        }
+    }
+
+    public void ToggleWorldAutoTick()
+    {
+        if (IsWorldSimActive && _worldView != null)
+        {
+            _worldView.ToggleAutoTickEnabled();
+        }
+    }
+
+    public void ToggleWorldAutoTickPause()
+    {
+        if (IsWorldSimActive && _worldView != null)
+        {
+            _worldView.ToggleAutoTickPaused();
+        }
+    }
+
+    public void RecruitWorldSimParty()
+    {
+        if (IsWorldSimActive && _worldView != null)
+        {
+            _worldView.RecruitSelectedCityParty();
+        }
+    }
+
+    public bool TryEnterSelectedWorldDungeon()
+    {
+        if (!IsWorldSimActive || _worldView == null || !_worldView.TryEnterSelectedCityDungeon(Camera.main))
+        {
+            return false;
+        }
+
+        ChangeState(GameStateId.DungeonRun);
+        return true;
+    }
+
+    public bool IsWorldShellBlockingSelection(Vector2 screenPosition)
+    {
+        EnsurePresentationShell();
+        return _presentationShell != null && _presentationShell.IsPointerOverBlockingUi(screenPosition);
     }
 
     public bool IsBattleActionAvailable(string actionKey)
@@ -634,7 +717,13 @@ public sealed class BootEntry : MonoBehaviour
             return;
         }
 
-        _worldView.SelectAtScreenPosition(mainCamera, mouse.position.ReadValue());
+        Vector2 screenPosition = mouse.position.ReadValue();
+        if (IsWorldShellBlockingSelection(screenPosition))
+        {
+            return;
+        }
+
+        _worldView.SelectAtScreenPosition(mainCamera, screenPosition);
     }
 
     private string GetResourceIdsLabel()
@@ -662,6 +751,15 @@ public sealed class BootEntry : MonoBehaviour
         if (_debugHud == null)
         {
             _debugHud = gameObject.AddComponent<PrototypeDebugHUD>();
+        }
+    }
+
+    private void EnsurePresentationShell()
+    {
+        _presentationShell = GetComponent<PrototypePresentationShell>();
+        if (_presentationShell == null)
+        {
+            _presentationShell = gameObject.AddComponent<PrototypePresentationShell>();
         }
     }
 

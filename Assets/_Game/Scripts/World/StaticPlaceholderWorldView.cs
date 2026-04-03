@@ -362,6 +362,8 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
+        CreateWorldBackdrop();
+
         for (int i = 0; i < _worldData.Routes.Length; i++)
         {
             WorldRouteData route = _worldData.Routes[i];
@@ -1440,6 +1442,163 @@ public sealed partial class StaticPlaceholderWorldView
         return null;
     }
 
+    private Rect GetWorldBoardBounds()
+    {
+        if (_worldData == null || _worldData.Entities == null || _worldData.Entities.Length == 0)
+        {
+            return new Rect(-6.5f, -5f, 13f, 10f);
+        }
+
+        float minX = float.MaxValue;
+        float maxX = float.MinValue;
+        float minY = float.MaxValue;
+        float maxY = float.MinValue;
+        for (int i = 0; i < _worldData.Entities.Length; i++)
+        {
+            WorldEntityData entity = _worldData.Entities[i];
+            if (entity == null)
+            {
+                continue;
+            }
+
+            minX = Mathf.Min(minX, entity.Position.x);
+            maxX = Mathf.Max(maxX, entity.Position.x);
+            minY = Mathf.Min(minY, entity.Position.y);
+            maxY = Mathf.Max(maxY, entity.Position.y);
+        }
+
+        if (minX > maxX || minY > maxY)
+        {
+            return new Rect(-6.5f, -5f, 13f, 10f);
+        }
+
+        const float horizontalPadding = 3.1f;
+        const float verticalPadding = 2.8f;
+        return Rect.MinMaxRect(minX - horizontalPadding, minY - verticalPadding, maxX + horizontalPadding, maxY + verticalPadding);
+    }
+
+    private void CreateWorldBackdrop()
+    {
+        if (_root == null || _sprite == null)
+        {
+            return;
+        }
+
+        Rect bounds = GetWorldBoardBounds();
+        Vector2 center = bounds.center;
+        Vector2 size = bounds.size;
+        CreateWorldVisual(_root.transform, "BoardShadow", center + new Vector2(0.18f, -0.16f), size + new Vector2(1.2f, 1.0f), new Color(0.01f, 0.02f, 0.03f, 0.68f), -30);
+        CreateWorldVisual(_root.transform, "BoardFrame", center, size + new Vector2(0.6f, 0.5f), new Color(0.08f, 0.11f, 0.15f, 0.98f), -29);
+        CreateWorldVisual(_root.transform, "BoardSurface", center, size, new Color(0.13f, 0.18f, 0.18f, 0.96f), -28);
+        CreateWorldVisual(_root.transform, "BoardInset", center, size - new Vector2(0.45f, 0.40f), new Color(0.10f, 0.13f, 0.16f, 0.72f), -27);
+        CreateWorldVisual(_root.transform, "BoardBandTop", center + new Vector2(0f, size.y * 0.28f), new Vector2(size.x - 1.4f, 0.34f), new Color(0.28f, 0.22f, 0.16f, 0.20f), -26);
+        CreateWorldVisual(_root.transform, "BoardBandBottom", center + new Vector2(0f, -size.y * 0.28f), new Vector2(size.x - 1.8f, 0.24f), new Color(0.18f, 0.28f, 0.30f, 0.16f), -26);
+
+        for (int i = 0; i < 4; i++)
+        {
+            float y = bounds.yMin + 1.25f + (i * (size.y - 2.5f) / 3f);
+            CreateWorldVisual(_root.transform, "BoardGuide_" + i, new Vector2(center.x, y), new Vector2(size.x - 1.6f, 0.03f), new Color(0.88f, 0.92f, 0.90f, 0.08f), -25);
+        }
+
+        CreateWorldVisual(_root.transform, "BoardPin_TL", new Vector2(bounds.xMin + 0.5f, bounds.yMax - 0.5f), new Vector2(0.22f, 0.22f), new Color(0.86f, 0.72f, 0.34f, 0.92f), -24, 45f);
+        CreateWorldVisual(_root.transform, "BoardPin_TR", new Vector2(bounds.xMax - 0.5f, bounds.yMax - 0.5f), new Vector2(0.22f, 0.22f), new Color(0.36f, 0.74f, 0.88f, 0.92f), -24, 45f);
+        CreateWorldVisual(_root.transform, "BoardPin_BL", new Vector2(bounds.xMin + 0.5f, bounds.yMin + 0.5f), new Vector2(0.22f, 0.22f), new Color(0.82f, 0.42f, 0.50f, 0.92f), -24, 45f);
+        CreateWorldVisual(_root.transform, "BoardPin_BR", new Vector2(bounds.xMax - 0.5f, bounds.yMin + 0.5f), new Vector2(0.22f, 0.22f), new Color(0.46f, 0.78f, 0.46f, 0.92f), -24, 45f);
+    }
+
+    private GameObject CreateWorldVisual(Transform parent, string name, Vector2 localPosition, Vector2 localScale, Color color, int sortingOrder, float rotationDegrees = 0f)
+    {
+        GameObject visual = new GameObject(name);
+        visual.transform.SetParent(parent, false);
+        visual.transform.localPosition = new Vector3(localPosition.x, localPosition.y, 0f);
+        visual.transform.localRotation = Quaternion.Euler(0f, 0f, rotationDegrees);
+        visual.transform.localScale = new Vector3(localScale.x, localScale.y, 1f);
+
+        SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
+        renderer.sprite = _sprite;
+        renderer.color = color;
+        renderer.sortingOrder = sortingOrder;
+        return visual;
+    }
+
+    private TextMesh CreateWorldText(Transform parent, string name, Vector2 localPosition, string text, int fontSize, float characterSize, Color color, int sortingOrder)
+    {
+        GameObject labelRoot = new GameObject(name);
+        labelRoot.transform.SetParent(parent, false);
+        labelRoot.transform.localPosition = new Vector3(localPosition.x, localPosition.y, 0f);
+
+        TextMesh textMesh = labelRoot.AddComponent<TextMesh>();
+        textMesh.anchor = TextAnchor.MiddleCenter;
+        textMesh.alignment = TextAlignment.Center;
+        textMesh.characterSize = characterSize;
+        textMesh.fontSize = fontSize;
+        textMesh.color = color;
+        textMesh.text = string.IsNullOrEmpty(text) ? string.Empty : text;
+
+        MeshRenderer meshRenderer = labelRoot.GetComponent<MeshRenderer>();
+        if (meshRenderer != null)
+        {
+            meshRenderer.sortingOrder = sortingOrder;
+        }
+
+        return textMesh;
+    }
+
+    private string BuildRouteVisualLabel(WorldRouteData route)
+    {
+        if (route == null || string.IsNullOrEmpty(route.Id))
+        {
+            return string.Empty;
+        }
+
+        return route.Id.StartsWith("road-")
+            ? "Route " + route.Id.Substring("road-".Length)
+            : route.Id.Replace('-', ' ');
+    }
+
+    private string BuildEntitySecondaryText(WorldEntityData entity)
+    {
+        if (entity == null)
+        {
+            return string.Empty;
+        }
+
+        return entity.Kind == WorldEntityKind.City
+            ? "Pop " + entity.PrimaryStatValue
+            : "Danger " + entity.PrimaryStatValue;
+    }
+
+    private Color GetEntitySurfaceColor(WorldEntityData entity)
+    {
+        if (entity == null)
+        {
+            return new Color(0.12f, 0.14f, 0.18f, 0.96f);
+        }
+
+        if (entity.Kind == WorldEntityKind.Dungeon)
+        {
+            return entity.Id == "dungeon-beta"
+                ? new Color(0.10f, 0.18f, 0.14f, 0.98f)
+                : new Color(0.18f, 0.11f, 0.14f, 0.98f);
+        }
+
+        return entity.Id == "city-b"
+            ? new Color(0.20f, 0.16f, 0.11f, 0.98f)
+            : new Color(0.11f, 0.16f, 0.21f, 0.98f);
+    }
+
+    private Color GetEntityTrimColor(WorldEntityData entity)
+    {
+        return entity != null && entity.Kind == WorldEntityKind.Dungeon
+            ? new Color(0.92f, 0.78f, 0.40f, 0.98f)
+            : new Color(0.84f, 0.90f, 0.94f, 0.98f);
+    }
+
+    private Color GetEntityGlowColor(WorldEntityData entity)
+    {
+        Color accent = GetEntityColor(entity);
+        return new Color(accent.r, accent.g, accent.b, 0.16f);
+    }
     private void CreateSelectableMarker(WorldEntityData entity)
     {
         if (_root == null || _sprite == null || entity == null)
@@ -1450,22 +1609,46 @@ public sealed partial class StaticPlaceholderWorldView
         GameObject marker = new GameObject(entity.DisplayName);
         marker.transform.SetParent(_root.transform, false);
         marker.transform.localPosition = new Vector3(entity.Position.x, entity.Position.y, 0f);
-        marker.transform.localRotation = entity.Kind == WorldEntityKind.Dungeon
-            ? Quaternion.Euler(0f, 0f, 45f)
-            : Quaternion.identity;
-        marker.transform.localScale = entity.Kind == WorldEntityKind.Dungeon
-            ? new Vector3(0.85f, 0.85f, 1f)
-            : new Vector3(0.9f, 0.9f, 1f);
+        marker.transform.localRotation = Quaternion.identity;
+        marker.transform.localScale = Vector3.one;
 
-        SpriteRenderer renderer = marker.AddComponent<SpriteRenderer>();
-        renderer.sprite = _sprite;
-        renderer.color = GetEntityColor(entity);
-        renderer.sortingOrder = 1;
+        Color accentColor = GetEntityColor(entity);
+        Color surfaceColor = GetEntitySurfaceColor(entity);
+        Color trimColor = GetEntityTrimColor(entity);
+        Color glowColor = GetEntityGlowColor(entity);
+        bool isDungeon = entity.Kind == WorldEntityKind.Dungeon;
+        float markerRotation = isDungeon ? 45f : 0f;
 
-        marker.AddComponent<BoxCollider2D>();
+        CreateWorldVisual(marker.transform, "Shadow", new Vector2(0.08f, -0.08f), new Vector2(1.56f, 1.16f), new Color(0f, 0f, 0f, 0.42f), 4, markerRotation);
+        SpriteRenderer glowRenderer = CreateWorldVisual(marker.transform, "Glow", Vector2.zero, new Vector2(1.76f, 1.34f), glowColor, 5, markerRotation).GetComponent<SpriteRenderer>();
+        CreateWorldVisual(marker.transform, "Plate", Vector2.zero, new Vector2(1.38f, 1.02f), surfaceColor, 6, markerRotation);
+        SpriteRenderer renderer = CreateWorldVisual(marker.transform, "Core", Vector2.zero, new Vector2(0.92f, 0.92f), accentColor, 7, markerRotation).GetComponent<SpriteRenderer>();
+        SpriteRenderer selectionRenderer = CreateWorldVisual(marker.transform, "Selection", Vector2.zero, new Vector2(1.95f, 1.46f), new Color(trimColor.r, trimColor.g, trimColor.b, 0.26f), 9, markerRotation).GetComponent<SpriteRenderer>();
+        selectionRenderer.enabled = false;
+
+        if (isDungeon)
+        {
+            CreateWorldVisual(marker.transform, "RuneSpine", new Vector2(0f, 0.02f), new Vector2(0.18f, 0.58f), new Color(0.16f, 0.12f, 0.18f, 0.96f), 8);
+            CreateWorldVisual(marker.transform, "Threshold", new Vector2(0f, -0.30f), new Vector2(0.42f, 0.12f), trimColor, 8);
+            CreateWorldVisual(marker.transform, "Shard", new Vector2(0f, 0.54f), new Vector2(0.22f, 0.22f), new Color(0.98f, 0.90f, 0.58f, 0.96f), 8, 45f);
+        }
+        else
+        {
+            CreateWorldVisual(marker.transform, "Banner", new Vector2(0f, 0.48f), new Vector2(0.46f, 0.18f), trimColor, 8);
+            CreateWorldVisual(marker.transform, "Keep", new Vector2(0f, 0.12f), new Vector2(0.28f, 0.46f), new Color(0.92f, 0.94f, 0.90f, 0.96f), 8);
+            CreateWorldVisual(marker.transform, "Gate", new Vector2(0f, -0.20f), new Vector2(0.48f, 0.14f), new Color(0.12f, 0.16f, 0.18f, 0.96f), 8);
+        }
+
+        CreateWorldVisual(marker.transform, "LabelPlate", new Vector2(0f, -0.98f), new Vector2(1.86f, 0.34f), new Color(0.06f, 0.08f, 0.10f, 0.82f), 8);
+        CreateWorldVisual(marker.transform, "DetailPlate", new Vector2(0f, -1.28f), new Vector2(1.18f, 0.18f), new Color(0.10f, 0.12f, 0.16f, 0.70f), 8);
+        TextMesh labelText = CreateWorldText(marker.transform, "LabelText", new Vector2(0f, -0.98f), entity.DisplayName, 48, 0.09f, new Color(0.94f, 0.96f, 0.95f, 1f), 10);
+        TextMesh detailText = CreateWorldText(marker.transform, "DetailText", new Vector2(0f, -1.28f), BuildEntitySecondaryText(entity), 32, 0.07f, new Color(0.74f, 0.80f, 0.82f, 0.96f), 10);
+
+        BoxCollider2D collider = marker.AddComponent<BoxCollider2D>();
+        collider.size = new Vector2(1.8f, 1.8f);
 
         WorldSelectableMarker selectableMarker = marker.AddComponent<WorldSelectableMarker>();
-        selectableMarker.Initialize(entity, renderer);
+        selectableMarker.Initialize(entity, renderer, glowRenderer, selectionRenderer, labelText, detailText);
     }
 
     private void CreateRoad(WorldRouteData route, Vector2 start, Vector2 end, Color color)
@@ -1479,17 +1662,13 @@ public sealed partial class StaticPlaceholderWorldView
         float length = Mathf.Max(0.01f, delta.magnitude);
         float angle = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
         Vector2 midpoint = (start + end) * 0.5f;
+        Vector2 normal = delta.sqrMagnitude > 0.0001f ? new Vector2(-delta.y, delta.x).normalized : Vector2.up;
 
-        GameObject road = new GameObject(route.Id);
-        road.transform.SetParent(_root.transform, false);
-        road.transform.localPosition = new Vector3(midpoint.x, midpoint.y, 0f);
-        road.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
-        road.transform.localScale = new Vector3(length, 0.18f, 1f);
-
-        SpriteRenderer renderer = road.AddComponent<SpriteRenderer>();
-        renderer.sprite = _sprite;
-        renderer.color = color;
-        renderer.sortingOrder = 0;
+        CreateWorldVisual(_root.transform, route.Id + "_Shadow", midpoint + new Vector2(0.08f, -0.08f), new Vector2(length, 0.30f), new Color(0f, 0f, 0f, 0.34f), 0, angle);
+        CreateWorldVisual(_root.transform, route.Id + "_Base", midpoint, new Vector2(length, 0.22f), new Color(0.26f, 0.24f, 0.22f, 0.96f), 1, angle);
+        CreateWorldVisual(_root.transform, route.Id + "_Inner", midpoint, new Vector2(Mathf.Max(0.12f, length - 0.10f), 0.08f), new Color(0.72f, 0.62f, 0.42f, 0.78f), 2, angle);
+        CreateWorldVisual(_root.transform, route.Id + "_Seal", midpoint, new Vector2(0.34f, 0.34f), new Color(color.r, color.g, color.b, 0.92f), 3, 45f);
+        CreateWorldText(_root.transform, route.Id + "_Label", midpoint + (normal * 0.34f), BuildRouteVisualLabel(route), 34, 0.07f, new Color(0.90f, 0.84f, 0.76f, 0.96f), 4);
     }
 
     private void SetSelected(WorldSelectableMarker nextMarker)
@@ -1537,24 +1716,65 @@ public sealed class WorldSelectableMarker : MonoBehaviour
     public WorldEntityData EntityData { get; private set; }
 
     private SpriteRenderer _renderer;
+    private SpriteRenderer _glowRenderer;
+    private SpriteRenderer _selectionRenderer;
+    private TextMesh _labelText;
+    private TextMesh _detailText;
     private Vector3 _baseScale;
     private Color _baseColor;
+    private Color _glowColor;
+    private Color _labelColor;
+    private Color _detailColor;
 
-    public void Initialize(WorldEntityData entityData, SpriteRenderer renderer)
+    public void Initialize(WorldEntityData entityData, SpriteRenderer renderer, SpriteRenderer glowRenderer, SpriteRenderer selectionRenderer, TextMesh labelText, TextMesh detailText)
     {
         EntityData = entityData;
         _renderer = renderer;
+        _glowRenderer = glowRenderer;
+        _selectionRenderer = selectionRenderer;
+        _labelText = labelText;
+        _detailText = detailText;
         _baseScale = transform.localScale;
         _baseColor = renderer != null ? renderer.color : Color.white;
+        _glowColor = glowRenderer != null ? glowRenderer.color : Color.clear;
+        _labelColor = labelText != null ? labelText.color : Color.white;
+        _detailColor = detailText != null ? detailText.color : Color.white;
+
+        if (_selectionRenderer != null)
+        {
+            _selectionRenderer.enabled = false;
+        }
     }
 
     public void SetSelected(bool isSelected)
     {
-        transform.localScale = isSelected ? _baseScale * 1.15f : _baseScale;
+        transform.localScale = isSelected ? _baseScale * 1.08f : _baseScale;
 
         if (_renderer != null)
         {
-            _renderer.color = isSelected ? Color.Lerp(_baseColor, Color.white, 0.35f) : _baseColor;
+            _renderer.color = isSelected ? Color.Lerp(_baseColor, Color.white, 0.28f) : _baseColor;
+        }
+
+        if (_glowRenderer != null)
+        {
+            _glowRenderer.color = isSelected
+                ? new Color(_glowColor.r, _glowColor.g, _glowColor.b, Mathf.Max(0.34f, _glowColor.a + 0.18f))
+                : _glowColor;
+        }
+
+        if (_selectionRenderer != null)
+        {
+            _selectionRenderer.enabled = isSelected;
+        }
+
+        if (_labelText != null)
+        {
+            _labelText.color = isSelected ? Color.Lerp(_labelColor, Color.white, 0.25f) : _labelColor;
+        }
+
+        if (_detailText != null)
+        {
+            _detailText.color = isSelected ? Color.Lerp(_detailColor, Color.white, 0.18f) : _detailColor;
         }
     }
 }

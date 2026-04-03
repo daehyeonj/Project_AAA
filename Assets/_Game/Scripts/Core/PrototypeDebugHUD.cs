@@ -106,17 +106,22 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         List<HudPanel> panels = BuildPanels();
         bool dungeonHudMode = _bootEntry.IsDungeonRunHudMode;
         bool overlayMode = _bootEntry.IsDungeonBattleViewActive || _bootEntry.IsDungeonRouteChoiceVisible || _bootEntry.IsDungeonEventChoiceVisible || _bootEntry.IsDungeonPreEliteChoiceVisible || _bootEntry.IsDungeonResultPanelVisible;
+        bool frontendDockMode = _bootEntry.IsMainMenuActive || _bootEntry.IsWorldSimActive;
 
         float panelWidth = overlayMode
             ? Mathf.Clamp(Screen.width * 0.18f, 276f, 308f)
-            : Mathf.Clamp(Screen.width * 0.34f, PanelWidthMin, PanelWidthMax);
+            : frontendDockMode
+                ? Mathf.Clamp(Screen.width * 0.18f, 300f, 360f)
+                : Mathf.Clamp(Screen.width * 0.34f, PanelWidthMin, PanelWidthMax);
         panelWidth = Mathf.Min(panelWidth, Screen.width - (Margin * 2f));
 
         float panelHeight = overlayMode
             ? Mathf.Clamp(Screen.height * 0.18f, 148f, 188f)
             : dungeonHudMode
                 ? Mathf.Clamp(Screen.height * 0.34f, 248f, 380f)
-                : Mathf.Max(220f, Screen.height - (Margin * 2f));
+                : frontendDockMode
+                    ? Mathf.Clamp(Screen.height * 0.44f, 300f, 420f)
+                    : Mathf.Max(220f, Screen.height - (Margin * 2f));
         Rect dockRect = new Rect(Screen.width - panelWidth - Margin, Margin, panelWidth, panelHeight);
         if (!overlayMode)
         {
@@ -554,10 +559,13 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         Rect nameRect = new Rect(avatarRect.xMax + 10f, rect.y + 10f, statusRect.x - avatarRect.xMax - 18f, 18f);
         Rect roleRect = new Rect(nameRect.x, nameRect.yMax + 3f, nameRect.width, 16f);
         Rect hpRect = new Rect(rect.x + 10f, rect.yMax - 24f, rect.width - 20f, 16f);
+        Rect contributionRect = new Rect(nameRect.x, roleRect.yMax + 2f, rect.width - (nameRect.x - rect.x) - 10f, Mathf.Max(12f, hpRect.y - roleRect.yMax - 4f));
+        string contributionText = _bootEntry != null ? _bootEntry.GetPartyMemberContributionLabel(slotIndex - 1) : "D 0  H 0  A 0  K 0";
 
         DrawOverlaySectionBackground(statusRect, new Color(0.11f, 0.14f, 0.19f, 0.96f));
         DrawFittedLabel(nameRect, GetCompactHudText(memberName, 20, false), _sectionTitleStyle, 12, 10, false);
         DrawFittedLabel(roleRect, GetCompactHudText(role, 18, false), _bodyStyle, 10, 9, false);
+        DrawFittedLabel(contributionRect, GetCompactHudText(contributionText, 28, false), _bodyStyle, 9, 7, false);
         DrawFittedLabel(new Rect(statusRect.x + 6f, statusRect.y + 3f, statusRect.width - 12f, statusRect.height - 6f), GetCompactHudText(statusText, 16, false), _bodyStyle, 10, 8, false);
 
         float hpCurrent = memberData != null ? memberData.CurrentHp : 0f;
@@ -847,7 +855,8 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         if (DrawBattleActionMenuButton(skillRect, "skill", "Skill  [2]", _bootEntry.IsBattleActionAvailable("skill"), _bootEntry.IsBattleActionSelected("skill") || _battleFlyoutMode == BattleHudFlyoutMode.SkillListPanel, mousePosition, ref hoveredActionKey))
         {
-            _battleFlyoutMode = BattleHudFlyoutMode.SkillListPanel;
+            _bootEntry.TryTriggerBattleAction("skill");
+            _battleFlyoutMode = BattleHudFlyoutMode.ActorCommandMenu;
         }
 
         bool itemHovered = itemRect.Contains(mousePosition);
@@ -2066,10 +2075,16 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         GUI.Label(new Rect(rect.x, rect.y + 4f, SearchLabelWidth, rect.height), T("Search"), _bodyStyle);
         Rect fieldRect = new Rect(rect.x + SearchLabelWidth, rect.y, rect.width - SearchLabelWidth - SearchClearButtonWidth - ChipGap, rect.height);
         Rect clearRect = new Rect(fieldRect.xMax + ChipGap, rect.y, SearchClearButtonWidth, rect.height);
-        GUI.SetNextControlName(SearchFieldControlName);
-        _searchText = GUI.TextField(fieldRect, _searchText ?? string.Empty, _searchFieldStyle);
+
         Color previousBackgroundColor = GUI.backgroundColor;
         Color previousContentColor = GUI.contentColor;
+        GUI.backgroundColor = new Color(0.08f, 0.11f, 0.14f, 0.98f);
+        GUI.contentColor = Color.white;
+        GUI.SetNextControlName(SearchFieldControlName);
+        _searchText = GUI.TextField(fieldRect, _searchText ?? string.Empty, _searchFieldStyle);
+        GUI.backgroundColor = previousBackgroundColor;
+        GUI.contentColor = previousContentColor;
+
         GUI.backgroundColor = new Color(0.12f, 0.16f, 0.18f, 0.96f);
         GUI.contentColor = Color.white;
         if (GUI.Button(clearRect, T("Clear"), _chipStyle))
@@ -2601,10 +2616,10 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             { "world_snapshot", false },
             { "trade_flow", false },
             { "economy_control", false },
-            { "expedition_loop", true },
-            { "economy_pressure", true },
-            { "selected_entity", true },
-            { "selected_economy", true },
+            { "expedition_loop", false },
+            { "economy_pressure", false },
+            { "selected_entity", false },
+            { "selected_economy", false },
             { "selected_day_metrics", false },
             { "selected_trade_signals", false },
             { "dungeon_run", true },
@@ -2668,7 +2683,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         _sectionTitleStyle.margin = new RectOffset(0, 0, 0, 0);
 
         _chipStyle = new GUIStyle(GUI.skin != null ? GUI.skin.button : GUIStyle.none);
-        _chipStyle.fontSize = 13;
+        _chipStyle.fontSize = 11;
         _chipStyle.alignment = TextAnchor.MiddleCenter;
         _chipStyle.normal.textColor = new Color(0.88f, 0.92f, 0.88f, 1f);
         _chipStyle.hover.textColor = Color.white;
@@ -2677,7 +2692,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         _chipStyle.hover.background = Texture2D.whiteTexture;
         _chipStyle.active.background = Texture2D.whiteTexture;
         _chipStyle.border = new RectOffset(1, 1, 1, 1);
-        _chipStyle.padding = new RectOffset(8, 8, 3, 3);
+        _chipStyle.padding = new RectOffset(6, 6, 3, 3);
 
         _chipActiveStyle = new GUIStyle(_chipStyle);
         _chipActiveStyle.fontStyle = FontStyle.Bold;
@@ -2697,8 +2712,8 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         _searchFieldStyle = new GUIStyle(GUI.skin != null ? GUI.skin.textField : GUIStyle.none);
         _searchFieldStyle.fontSize = 13;
         _searchFieldStyle.alignment = TextAnchor.MiddleLeft;
-        _searchFieldStyle.normal.textColor = Color.white;
-        _searchFieldStyle.focused.textColor = Color.white;
+        _searchFieldStyle.normal.textColor = new Color(0.92f, 0.95f, 0.96f, 1f);
+        _searchFieldStyle.focused.textColor = new Color(0.96f, 0.97f, 0.98f, 1f);
         _searchFieldStyle.normal.background = Texture2D.whiteTexture;
         _searchFieldStyle.focused.background = Texture2D.whiteTexture;
         _searchFieldStyle.padding = new RectOffset(8, 8, 5, 1);
@@ -2749,3 +2764,6 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         return mainCamera.orthographicSize.ToString("0.00");
     }
 }
+
+
+

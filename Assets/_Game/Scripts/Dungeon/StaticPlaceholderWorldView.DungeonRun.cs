@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -23,12 +23,13 @@ public sealed partial class StaticPlaceholderWorldView
     private const int ShrineEventRecoverAmount = 4;
     private const string SafeRouteId = "safe";
     private const string RiskyRouteId = "risky";
-    private static readonly Vector2Int ShrineEventGridPosition = new Vector2Int(8, 4);
-    private static readonly Vector2Int Room2EventGridPosition = new Vector2Int(12, 2);
-    private static readonly Vector2Int Room2ChestGridPosition = new Vector2Int(14, 2);
-    private static readonly Vector2Int Room1EncounterMarkerPosition = new Vector2Int(4, 5);
+    private static readonly Vector2Int ShrineEventGridPosition = new Vector2Int(8, 5);
+    private static readonly Vector2Int Room2EventGridPosition = new Vector2Int(9, 3);
+    private static readonly Vector2Int Room2ChestGridPosition = new Vector2Int(10, 3);
+    private static readonly Vector2Int Room1EncounterMarkerPosition = new Vector2Int(4, 4);
     private static readonly Vector2Int Room2EncounterMarkerPosition = new Vector2Int(13, 4);
-    private static readonly Vector2Int PreparationRoomGridPosition = new Vector2Int(9, 4);
+    private static readonly Vector2Int PreparationRoomGridPosition = new Vector2Int(12, 6);
+    private static readonly Vector2Int EliteEncounterMarkerPosition = new Vector2Int(13, 2);
     private static readonly Vector3[] BattleMonsterViewPositions =
     {
         new Vector3(5.2f, 1.05f, 0f),
@@ -481,6 +482,17 @@ public sealed partial class StaticPlaceholderWorldView
 
     private readonly Dictionary<string, TestDungeonPartyData> _dungeonPartyByCityId = new Dictionary<string, TestDungeonPartyData>();
     private readonly List<string> _recentBattleLogs = new List<string>(RecentBattleLogLimit);
+    private readonly List<PrototypeBattleEventRecord> _battleEventRecords = new List<PrototypeBattleEventRecord>(32);
+    private PrototypeBattleResultSnapshot _currentBattleResultSnapshot = new PrototypeBattleResultSnapshot();
+    private PrototypeEnemyIntentSnapshot _currentEnemyIntentSnapshot = new PrototypeEnemyIntentSnapshot();
+    private PrototypeRpgRunResultSnapshot _latestRpgRunResultSnapshot = new PrototypeRpgRunResultSnapshot();
+    private PrototypeRpgProgressionSeedSnapshot _latestRpgProgressionSeedSnapshot = new PrototypeRpgProgressionSeedSnapshot();
+    private PrototypeRpgCombatContributionSnapshot _latestRpgCombatContributionSnapshot = new PrototypeRpgCombatContributionSnapshot();
+    private PrototypeRpgProgressionPreviewSnapshot _latestRpgProgressionPreviewSnapshot = new PrototypeRpgProgressionPreviewSnapshot();
+    private int _battleEventStepIndex = 0;
+    private int _totalDamageDealt = 0;
+    private int _totalDamageTaken = 0;
+    private int _totalHealingDone = 0;
     private readonly Dictionary<string, string> _lastDispatchImpactByCityId = new Dictionary<string, string>();
     private readonly Dictionary<string, string> _lastDispatchStockDeltaByCityId = new Dictionary<string, string>();
     private readonly Dictionary<string, string> _lastNeedPressureChangeByCityId = new Dictionary<string, string>();
@@ -496,7 +508,11 @@ public sealed partial class StaticPlaceholderWorldView
     private readonly List<string> _roomPathHistory = new List<string>();
     private readonly Dictionary<string, SpriteRenderer> _monsterRendererById = new Dictionary<string, SpriteRenderer>();
     private readonly bool[] _partyActedThisRound = new bool[4];
-
+    private readonly int[] _runMemberDamageDealt = new int[4];
+    private readonly int[] _runMemberDamageTaken = new int[4];
+    private readonly int[] _runMemberHealingDone = new int[4];
+    private readonly int[] _runMemberActionCount = new int[4];
+    private readonly int[] _runMemberKillCount = new int[4];
     private GameObject _dungeonRoot;
     private Texture2D _dungeonTexture;
     private Sprite _dungeonSprite;
@@ -758,7 +774,10 @@ public sealed partial class StaticPlaceholderWorldView
     public string ResultPanelReturnPromptText => _dungeonRunState == DungeonRunState.ResultPanel ? "[Enter] Return to World" : "None";
     public string SelectedDispatchPolicyText => GetSelectedDispatchPolicyText();
     public string SelectedMonsterCountPreviewText => GetSelectedEncounterCountPreviewText();
-
+    public PrototypeRpgRunResultSnapshot LatestRpgRunResultSnapshot => CopyRpgRunResultSnapshot(_latestRpgRunResultSnapshot);
+    public PrototypeRpgProgressionSeedSnapshot LatestRpgProgressionSeedSnapshot => CopyRpgProgressionSeedSnapshot(_latestRpgProgressionSeedSnapshot);
+    public PrototypeRpgCombatContributionSnapshot LatestRpgCombatContributionSnapshot => CopyRpgCombatContributionSnapshot(_latestRpgCombatContributionSnapshot);
+    public PrototypeRpgProgressionPreviewSnapshot LatestRpgProgressionPreviewSnapshot => CopyRpgProgressionPreviewSnapshot(_latestRpgProgressionPreviewSnapshot);
     public string GetPartyMemberHpText(int memberIndex)
     {
         if (_activeDungeonParty == null || _activeDungeonParty.Members == null || memberIndex < 0 || memberIndex >= _activeDungeonParty.Members.Length)
@@ -785,6 +804,19 @@ public sealed partial class StaticPlaceholderWorldView
                     ? " | Acting"
                     : string.Empty;
         return BuildPartyMemberRuntimeSummary(member, statusText, true);
+    }
+
+    public string GetPartyMemberContributionText(int memberIndex)
+    {
+        if (_activeDungeonParty == null || _activeDungeonParty.Members == null || memberIndex < 0 || memberIndex >= _activeDungeonParty.Members.Length)
+        {
+            return "D 0  H 0  A 0  K 0";
+        }
+
+        return "D " + GetRunMemberContributionValue(_runMemberDamageDealt, memberIndex) +
+               "  H " + GetRunMemberContributionValue(_runMemberHealingDone, memberIndex) +
+               "  A " + GetRunMemberContributionValue(_runMemberActionCount, memberIndex) +
+               "  K " + GetRunMemberContributionValue(_runMemberKillCount, memberIndex);
     }
 
     private string BuildPartyMemberRuntimeSummary(DungeonPartyMemberRuntimeData member, string statusText, bool includeHp)
@@ -832,6 +864,9 @@ public sealed partial class StaticPlaceholderWorldView
         surface.CommandSurface = BuildBattleUiCommandSurfaceData(surface.CurrentActor, surface.ActionContext);
         surface.MessageSurface = BuildBattleUiMessageSurfaceData();
         surface.TargetSelection = BuildBattleUiTargetSelectionData(surface.CurrentActor, surface.ActionContext, surface.TargetContext);
+        surface.EnemyIntent = BuildCurrentEnemyIntentSnapshotView();
+        surface.RecentEvents = BuildRecentBattleEventRecords();
+        surface.ResultSnapshot = BuildCurrentBattleResultSnapshotView();
         return surface;
     }
 
@@ -1534,6 +1569,1718 @@ public sealed partial class StaticPlaceholderWorldView
         }
     }
 
+    private string GetBattleActionKey(BattleActionType action)
+    {
+        switch (action)
+        {
+            case BattleActionType.Attack:
+                return "attack";
+            case BattleActionType.Skill:
+                return "skill";
+            case BattleActionType.Retreat:
+                return "retreat";
+            default:
+                return string.Empty;
+        }
+    }
+
+    private DungeonPartyMemberRuntimeData GetPartyMemberById(string memberId)
+    {
+        if (_activeDungeonParty == null || _activeDungeonParty.Members == null || string.IsNullOrEmpty(memberId))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < _activeDungeonParty.Members.Length; i++)
+        {
+            DungeonPartyMemberRuntimeData member = _activeDungeonParty.Members[i];
+            if (member != null && member.MemberId == memberId)
+            {
+                return member;
+            }
+        }
+
+        return null;
+    }
+
+    private string GetBattlePhaseKey()
+    {
+        switch (_battleState)
+        {
+            case BattleState.PartyActionSelect:
+                return "party_action_select";
+            case BattleState.PartyTargetSelect:
+                return "party_target_select";
+            case BattleState.EnemyTurn:
+                return "enemy_turn";
+            case BattleState.Victory:
+                return "victory";
+            case BattleState.Defeat:
+                return "defeat";
+            case BattleState.Retreat:
+                return "retreat";
+            default:
+                return "none";
+        }
+    }
+
+    private string GetCombatEntityDisplayName(string entityId)
+    {
+        if (string.IsNullOrEmpty(entityId))
+        {
+            return string.Empty;
+        }
+
+        DungeonPartyMemberRuntimeData member = GetPartyMemberById(entityId);
+        if (member != null)
+        {
+            return member.DisplayName;
+        }
+
+        DungeonMonsterRuntimeData monster = GetMonsterById(entityId);
+        if (monster != null)
+        {
+            return monster.DisplayName;
+        }
+
+        if (entityId == _currentDungeonId && !string.IsNullOrEmpty(_currentDungeonName))
+        {
+            return _currentDungeonName;
+        }
+
+        DungeonEncounterRuntimeData encounter = GetActiveEncounter();
+        if (encounter != null && encounter.EncounterId == entityId)
+        {
+            return encounter.DisplayName;
+        }
+
+        if (!string.IsNullOrEmpty(_eliteEncounterId) && entityId == _eliteEncounterId)
+        {
+            return string.IsNullOrEmpty(_eliteName) ? entityId : _eliteName;
+        }
+
+        return entityId;
+    }
+
+    private string InferBattleActionKeyForEvent(string actorId)
+    {
+        if (string.IsNullOrEmpty(actorId))
+        {
+            return string.Empty;
+        }
+
+        if (GetPartyMemberById(actorId) != null)
+        {
+            string actionKey = GetBattleActionKey(_queuedBattleAction);
+            return string.IsNullOrEmpty(actionKey) ? "attack" : actionKey;
+        }
+
+        if (GetMonsterById(actorId) != null)
+        {
+            return _pendingEnemyUsedSpecialAttack ? "skill" : "attack";
+        }
+
+        return string.Empty;
+    }
+
+    private string InferBattleSkillIdForEvent(string actorId, string actionKey)
+    {
+        if (!string.Equals(actionKey, "skill"))
+        {
+            return string.Empty;
+        }
+
+        DungeonPartyMemberRuntimeData member = GetPartyMemberById(actorId);
+        return member != null ? member.DefaultSkillId : string.Empty;
+    }
+
+    private string BuildPartyMembersAtEndSummary()
+    {
+        if (_activeDungeonParty == null || _activeDungeonParty.Members == null || _activeDungeonParty.Members.Length == 0)
+        {
+            return "None";
+        }
+
+        List<string> parts = new List<string>();
+        for (int i = 0; i < _activeDungeonParty.Members.Length; i++)
+        {
+            DungeonPartyMemberRuntimeData member = _activeDungeonParty.Members[i];
+            if (member == null)
+            {
+                continue;
+            }
+
+            string statusSuffix = member.IsDefeated ? " KO" : string.Empty;
+            parts.Add(member.DisplayName + " " + member.CurrentHp + "/" + member.MaxHp + statusSuffix);
+        }
+
+        return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : "None";
+    }
+
+    private PrototypeBattleEventRecord CopyBattleEventRecord(PrototypeBattleEventRecord source)
+    {
+        PrototypeBattleEventRecord copy = new PrototypeBattleEventRecord();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.EventId = source.EventId;
+        copy.Sequence = source.Sequence;
+        copy.EventKey = source.EventKey;
+        copy.EventType = source.EventType;
+        copy.PhaseKey = source.PhaseKey;
+        copy.ActorId = source.ActorId;
+        copy.ActorName = source.ActorName;
+        copy.TargetId = source.TargetId;
+        copy.TargetName = source.TargetName;
+        copy.ActionKey = source.ActionKey;
+        copy.SkillId = source.SkillId;
+        copy.Amount = source.Amount;
+        copy.Value = source.Value;
+        copy.StepIndex = source.StepIndex;
+        copy.TurnIndex = source.TurnIndex;
+        copy.ShortText = source.ShortText;
+        copy.Summary = source.Summary;
+        return copy;
+    }
+
+    private PrototypeBattleResultSnapshot CopyBattleResultSnapshot(PrototypeBattleResultSnapshot source)
+    {
+        PrototypeBattleResultSnapshot copy = new PrototypeBattleResultSnapshot();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.OutcomeKey = source.OutcomeKey;
+        copy.ResultStateKey = source.ResultStateKey;
+        copy.EncounterId = source.EncounterId;
+        copy.EncounterName = source.EncounterName;
+        copy.RouteLabel = source.RouteLabel;
+        copy.CurrentDungeonName = source.CurrentDungeonName;
+        copy.PartyMembersAtEndSummary = source.PartyMembersAtEndSummary;
+        copy.FinalLootSummary = source.FinalLootSummary;
+        copy.EliteEncounterName = source.EliteEncounterName;
+        copy.EliteRewardLabel = source.EliteRewardLabel;
+        copy.PreEliteChoiceSummary = source.PreEliteChoiceSummary;
+        copy.TurnsTaken = source.TurnsTaken;
+        copy.SurvivingMemberCount = source.SurvivingMemberCount;
+        copy.KnockedOutMemberCount = source.KnockedOutMemberCount;
+        copy.DefeatedEnemyCount = source.DefeatedEnemyCount;
+        copy.EliteDefeated = source.EliteDefeated;
+        copy.TotalDamageDealt = source.TotalDamageDealt;
+        copy.TotalDamageTaken = source.TotalDamageTaken;
+        copy.TotalHealingDone = source.TotalHealingDone;
+        return copy;
+    }
+
+    private PrototypeEnemyIntentSnapshot CopyEnemyIntentSnapshot(PrototypeEnemyIntentSnapshot source)
+    {
+        PrototypeEnemyIntentSnapshot copy = new PrototypeEnemyIntentSnapshot();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.IntentKey = source.IntentKey;
+        copy.TargetPatternKey = source.TargetPatternKey;
+        copy.PreviewText = source.PreviewText;
+        copy.PredictedValue = source.PredictedValue;
+        copy.TargetId = source.TargetId;
+        copy.TargetName = source.TargetName;
+        copy.SourceEnemyId = source.SourceEnemyId;
+        copy.SourceEnemyName = source.SourceEnemyName;
+        copy.ActionKey = source.ActionKey;
+        return copy;
+    }
+
+    private void RecordBattleEvent(
+        string eventKey,
+        string actorId,
+        string targetId,
+        int amount,
+        string summary,
+        string actionKey = "",
+        string skillId = "",
+        string phaseKey = "",
+        string actorName = "",
+        string targetName = "",
+        string shortText = "",
+        string eventType = "")
+    {
+        if (string.IsNullOrEmpty(eventKey))
+        {
+            return;
+        }
+
+        int sequence = _battleEventStepIndex;
+        string resolvedPhaseKey = string.IsNullOrEmpty(phaseKey) ? GetBattlePhaseKey() : phaseKey;
+        string resolvedActionKey = string.IsNullOrEmpty(actionKey) ? InferBattleActionKeyForEvent(actorId) : actionKey;
+        string resolvedSkillId = string.IsNullOrEmpty(skillId) ? InferBattleSkillIdForEvent(actorId, resolvedActionKey) : skillId;
+        string resolvedActorName = string.IsNullOrEmpty(actorName) ? GetCombatEntityDisplayName(actorId) : actorName;
+        string resolvedTargetName = string.IsNullOrEmpty(targetName) ? GetCombatEntityDisplayName(targetId) : targetName;
+        string resolvedSummary = string.IsNullOrEmpty(summary) ? eventKey : summary;
+        string resolvedShortText = string.IsNullOrEmpty(shortText) ? resolvedSummary : shortText;
+
+        PrototypeBattleEventRecord record = new PrototypeBattleEventRecord();
+        record.EventId = eventKey + "_" + sequence;
+        record.Sequence = sequence;
+        record.EventKey = eventKey;
+        record.EventType = string.IsNullOrEmpty(eventType) ? eventKey : eventType;
+        record.PhaseKey = resolvedPhaseKey;
+        record.ActorId = string.IsNullOrEmpty(actorId) ? string.Empty : actorId;
+        record.ActorName = string.IsNullOrEmpty(resolvedActorName) ? string.Empty : resolvedActorName;
+        record.TargetId = string.IsNullOrEmpty(targetId) ? string.Empty : targetId;
+        record.TargetName = string.IsNullOrEmpty(resolvedTargetName) ? string.Empty : resolvedTargetName;
+        record.ActionKey = string.IsNullOrEmpty(resolvedActionKey) ? string.Empty : resolvedActionKey;
+        record.SkillId = string.IsNullOrEmpty(resolvedSkillId) ? string.Empty : resolvedSkillId;
+        record.Amount = amount;
+        record.Value = amount;
+        record.StepIndex = sequence;
+        record.TurnIndex = Mathf.Max(0, _battleTurnIndex);
+        record.ShortText = resolvedShortText;
+        record.Summary = resolvedSummary;
+        _battleEventStepIndex += 1;
+        _battleEventRecords.Add(record);
+        if (_battleEventRecords.Count > 32)
+        {
+            _battleEventRecords.RemoveAt(0);
+        }
+    }
+
+    public PrototypeBattleEventRecord[] GetRecentBattleEventRecords()
+    {
+        return BuildRecentBattleEventRecords();
+    }
+
+    public PrototypeBattleEventRecord GetLatestBattleEventRecord()
+    {
+        if (_battleEventRecords.Count <= 0)
+        {
+            return new PrototypeBattleEventRecord();
+        }
+
+        return CopyBattleEventRecord(_battleEventRecords[_battleEventRecords.Count - 1]);
+    }
+
+    public PrototypeBattleResultSnapshot BuildBattleResultSnapshot()
+    {
+        return BuildCurrentBattleResultSnapshotView();
+    }
+
+    private PrototypeBattleEventRecord[] BuildRecentBattleEventRecords(int maxCount = 8)
+    {
+        if (_battleEventRecords.Count == 0)
+        {
+            return System.Array.Empty<PrototypeBattleEventRecord>();
+        }
+
+        int count = Mathf.Clamp(maxCount, 1, _battleEventRecords.Count);
+        PrototypeBattleEventRecord[] records = new PrototypeBattleEventRecord[count];
+        int startIndex = _battleEventRecords.Count - count;
+        for (int i = 0; i < count; i++)
+        {
+            records[i] = CopyBattleEventRecord(_battleEventRecords[startIndex + i]);
+        }
+
+        return records;
+    }
+
+    private PrototypeBattleResultSnapshot BuildCurrentBattleResultSnapshotView()
+    {
+        if (_currentBattleResultSnapshot != null &&
+            ((!string.IsNullOrEmpty(_currentBattleResultSnapshot.ResultStateKey) && _currentBattleResultSnapshot.ResultStateKey != PrototypeBattleOutcomeKeys.None) ||
+             !string.IsNullOrEmpty(_currentBattleResultSnapshot.EncounterName)))
+        {
+            return CopyBattleResultSnapshot(_currentBattleResultSnapshot);
+        }
+
+        string outcomeKey = _currentBattleResultSnapshot != null && !string.IsNullOrEmpty(_currentBattleResultSnapshot.OutcomeKey)
+            ? _currentBattleResultSnapshot.OutcomeKey
+            : PrototypeBattleOutcomeKeys.None;
+        return BuildBattleResultSnapshot(outcomeKey);
+    }
+
+    private PrototypeEnemyIntentSnapshot BuildCurrentEnemyIntentSnapshotView()
+    {
+        return CopyEnemyIntentSnapshot(_currentEnemyIntentSnapshot);
+    }
+
+    private void ResetCombatRulePipelineState()
+    {
+        _battleEventRecords.Clear();
+        _currentBattleResultSnapshot = new PrototypeBattleResultSnapshot();
+        _currentEnemyIntentSnapshot = new PrototypeEnemyIntentSnapshot();
+        _battleEventStepIndex = 0;
+        _totalDamageDealt = 0;
+        _totalDamageTaken = 0;
+        _totalHealingDone = 0;
+    }
+
+    private void UpdateBattleResultSnapshot(string outcomeKey)
+    {
+        _currentBattleResultSnapshot = BuildBattleResultSnapshot(outcomeKey);
+    }
+
+    private PrototypeBattleResultSnapshot BuildBattleResultSnapshot(string outcomeKey)
+    {
+        PrototypeBattleResultSnapshot snapshot = new PrototypeBattleResultSnapshot();
+        DungeonEncounterRuntimeData encounter = GetActiveEncounter();
+        DungeonRoomTemplateData room = GetCurrentPlannedRoomStep();
+        string encounterId = encounter != null ? encounter.EncounterId : room != null ? room.EncounterId : string.Empty;
+        string encounterName = encounter != null ? encounter.DisplayName : room != null ? room.DisplayName : string.Empty;
+
+        snapshot.OutcomeKey = string.IsNullOrEmpty(outcomeKey) ? PrototypeBattleOutcomeKeys.None : outcomeKey;
+        snapshot.ResultStateKey = snapshot.OutcomeKey;
+        snapshot.EncounterId = string.IsNullOrEmpty(encounterId) ? string.Empty : encounterId;
+        snapshot.EncounterName = string.IsNullOrEmpty(encounterName)
+            ? (!string.IsNullOrEmpty(_eliteName) ? _eliteName : string.Empty)
+            : encounterName;
+        snapshot.RouteLabel = string.IsNullOrEmpty(_selectedRouteLabel) ? "None" : _selectedRouteLabel;
+        snapshot.CurrentDungeonName = string.IsNullOrEmpty(_currentDungeonName) ? "None" : _currentDungeonName;
+        snapshot.PartyMembersAtEndSummary = BuildPartyMembersAtEndSummary();
+        snapshot.FinalLootSummary = BuildLootBreakdownSummary();
+        snapshot.EliteEncounterName = string.IsNullOrEmpty(_eliteName) ? "None" : _eliteName;
+        snapshot.EliteRewardLabel = string.IsNullOrEmpty(_eliteRewardLabel) ? "None" : _eliteRewardLabel;
+        snapshot.PreEliteChoiceSummary = GetSelectedPreEliteChoiceDisplayText();
+        snapshot.TurnsTaken = Mathf.Max(_runTurnCount, _battleTurnIndex);
+        snapshot.SurvivingMemberCount = GetLivingPartyMemberCount();
+        snapshot.KnockedOutMemberCount = GetKnockedOutMemberCount();
+        snapshot.DefeatedEnemyCount = GetDefeatedEnemyCount();
+        snapshot.EliteDefeated = _eliteDefeated;
+        snapshot.TotalDamageDealt = _totalDamageDealt;
+        snapshot.TotalDamageTaken = _totalDamageTaken;
+        snapshot.TotalHealingDone = _totalHealingDone;
+        return snapshot;
+    }
+    private PrototypeRpgRunResultSnapshot CopyRpgRunResultSnapshot(PrototypeRpgRunResultSnapshot source)
+    {
+        PrototypeRpgRunResultSnapshot copy = new PrototypeRpgRunResultSnapshot();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.ResultStateKey = string.IsNullOrEmpty(source.ResultStateKey) ? string.Empty : source.ResultStateKey;
+        copy.DungeonId = string.IsNullOrEmpty(source.DungeonId) ? string.Empty : source.DungeonId;
+        copy.DungeonLabel = string.IsNullOrEmpty(source.DungeonLabel) ? string.Empty : source.DungeonLabel;
+        copy.RouteId = string.IsNullOrEmpty(source.RouteId) ? string.Empty : source.RouteId;
+        copy.RouteLabel = string.IsNullOrEmpty(source.RouteLabel) ? string.Empty : source.RouteLabel;
+        copy.TotalTurnsTaken = Mathf.Max(0, source.TotalTurnsTaken);
+        copy.ResultSummary = string.IsNullOrEmpty(source.ResultSummary) ? string.Empty : source.ResultSummary;
+        copy.SurvivingMembersSummary = string.IsNullOrEmpty(source.SurvivingMembersSummary) ? string.Empty : source.SurvivingMembersSummary;
+        copy.PartyOutcome = CopyRpgPartyOutcomeSnapshot(source.PartyOutcome);
+        copy.LootOutcome = CopyRpgLootOutcomeSnapshot(source.LootOutcome);
+        copy.EliteOutcome = CopyRpgEliteOutcomeSnapshot(source.EliteOutcome);
+        copy.EncounterOutcome = CopyRpgEncounterOutcomeSnapshot(source.EncounterOutcome);
+        return copy;
+    }
+
+    private PrototypeRpgPartyOutcomeSnapshot CopyRpgPartyOutcomeSnapshot(PrototypeRpgPartyOutcomeSnapshot source)
+    {
+        PrototypeRpgPartyOutcomeSnapshot copy = new PrototypeRpgPartyOutcomeSnapshot();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.PartyConditionText = string.IsNullOrEmpty(source.PartyConditionText) ? string.Empty : source.PartyConditionText;
+        copy.PartyHpSummaryText = string.IsNullOrEmpty(source.PartyHpSummaryText) ? string.Empty : source.PartyHpSummaryText;
+        copy.PartyMembersAtEndSummary = string.IsNullOrEmpty(source.PartyMembersAtEndSummary) ? string.Empty : source.PartyMembersAtEndSummary;
+        copy.SurvivingMemberCount = Mathf.Max(0, source.SurvivingMemberCount);
+        copy.KnockedOutMemberCount = Mathf.Max(0, source.KnockedOutMemberCount);
+
+        if (source.Members == null || source.Members.Length == 0)
+        {
+            copy.Members = System.Array.Empty<PrototypeRpgPartyMemberOutcomeSnapshot>();
+            return copy;
+        }
+
+        PrototypeRpgPartyMemberOutcomeSnapshot[] members = new PrototypeRpgPartyMemberOutcomeSnapshot[source.Members.Length];
+        for (int i = 0; i < source.Members.Length; i++)
+        {
+            members[i] = CopyRpgPartyMemberOutcomeSnapshot(source.Members[i]);
+        }
+
+        copy.Members = members;
+        return copy;
+    }
+
+    private PrototypeRpgPartyMemberOutcomeSnapshot CopyRpgPartyMemberOutcomeSnapshot(PrototypeRpgPartyMemberOutcomeSnapshot source)
+    {
+        PrototypeRpgPartyMemberOutcomeSnapshot copy = new PrototypeRpgPartyMemberOutcomeSnapshot();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.MemberId = string.IsNullOrEmpty(source.MemberId) ? string.Empty : source.MemberId;
+        copy.DisplayName = string.IsNullOrEmpty(source.DisplayName) ? string.Empty : source.DisplayName;
+        copy.RoleTag = string.IsNullOrEmpty(source.RoleTag) ? string.Empty : source.RoleTag;
+        copy.RoleLabel = string.IsNullOrEmpty(source.RoleLabel) ? string.Empty : source.RoleLabel;
+        copy.DefaultSkillId = string.IsNullOrEmpty(source.DefaultSkillId) ? string.Empty : source.DefaultSkillId;
+        copy.CurrentHp = Mathf.Max(0, source.CurrentHp);
+        copy.MaxHp = Mathf.Max(1, source.MaxHp);
+        copy.Survived = source.Survived;
+        copy.KnockedOut = source.KnockedOut;
+        return copy;
+    }
+
+    private PrototypeRpgLootOutcomeSnapshot CopyRpgLootOutcomeSnapshot(PrototypeRpgLootOutcomeSnapshot source)
+    {
+        PrototypeRpgLootOutcomeSnapshot copy = new PrototypeRpgLootOutcomeSnapshot();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.TotalLootGained = Mathf.Max(0, source.TotalLootGained);
+        copy.BattleLootGained = Mathf.Max(0, source.BattleLootGained);
+        copy.ChestLootGained = Mathf.Max(0, source.ChestLootGained);
+        copy.EventLootGained = Mathf.Max(0, source.EventLootGained);
+        copy.EliteRewardAmount = Mathf.Max(0, source.EliteRewardAmount);
+        copy.EliteBonusRewardAmount = Mathf.Max(0, source.EliteBonusRewardAmount);
+        copy.FinalLootSummary = string.IsNullOrEmpty(source.FinalLootSummary) ? string.Empty : source.FinalLootSummary;
+        return copy;
+    }
+
+    private PrototypeRpgEliteOutcomeSnapshot CopyRpgEliteOutcomeSnapshot(PrototypeRpgEliteOutcomeSnapshot source)
+    {
+        PrototypeRpgEliteOutcomeSnapshot copy = new PrototypeRpgEliteOutcomeSnapshot();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.IsEliteDefeated = source.IsEliteDefeated;
+        copy.EliteName = string.IsNullOrEmpty(source.EliteName) ? string.Empty : source.EliteName;
+        copy.EliteTypeLabel = string.IsNullOrEmpty(source.EliteTypeLabel) ? string.Empty : source.EliteTypeLabel;
+        copy.EliteRewardLabel = string.IsNullOrEmpty(source.EliteRewardLabel) ? string.Empty : source.EliteRewardLabel;
+        copy.EliteRewardAmount = Mathf.Max(0, source.EliteRewardAmount);
+        copy.EliteBonusRewardEarned = source.EliteBonusRewardEarned;
+        copy.EliteBonusRewardAmount = Mathf.Max(0, source.EliteBonusRewardAmount);
+        return copy;
+    }
+
+    private PrototypeRpgEncounterOutcomeSnapshot CopyRpgEncounterOutcomeSnapshot(PrototypeRpgEncounterOutcomeSnapshot source)
+    {
+        PrototypeRpgEncounterOutcomeSnapshot copy = new PrototypeRpgEncounterOutcomeSnapshot();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.ClearedEncounterCount = Mathf.Max(0, source.ClearedEncounterCount);
+        copy.ClearedEncounterSummary = string.IsNullOrEmpty(source.ClearedEncounterSummary) ? string.Empty : source.ClearedEncounterSummary;
+        copy.OpenedChestCount = Mathf.Max(0, source.OpenedChestCount);
+        copy.RoomPathSummary = string.IsNullOrEmpty(source.RoomPathSummary) ? string.Empty : source.RoomPathSummary;
+        copy.SelectedEventChoice = string.IsNullOrEmpty(source.SelectedEventChoice) ? string.Empty : source.SelectedEventChoice;
+        copy.SelectedPreEliteChoice = string.IsNullOrEmpty(source.SelectedPreEliteChoice) ? string.Empty : source.SelectedPreEliteChoice;
+        copy.PreEliteHealAmount = Mathf.Max(0, source.PreEliteHealAmount);
+        return copy;
+    }
+
+    private string BuildRpgRunResultLootSummary(PrototypeRpgLootOutcomeSnapshot lootOutcome)
+    {
+        if (lootOutcome == null)
+        {
+            return "None";
+        }
+
+        int battleLoot = Mathf.Max(0, lootOutcome.BattleLootGained);
+        int chestLoot = Mathf.Max(0, lootOutcome.ChestLootGained);
+        int eventLoot = Mathf.Max(0, lootOutcome.EventLootGained);
+        int eliteLoot = Mathf.Max(0, lootOutcome.EliteRewardAmount);
+        int eliteBonusLoot = Mathf.Max(0, lootOutcome.EliteBonusRewardAmount);
+        int totalLoot = Mathf.Max(Mathf.Max(0, lootOutcome.TotalLootGained), battleLoot + chestLoot + eventLoot + eliteLoot + eliteBonusLoot);
+        return "Battle " + battleLoot + " / Chest " + chestLoot + " / Event " + eventLoot + " / Elite " + eliteLoot + " / Elite Bonus " + eliteBonusLoot + " / Total " + totalLoot;
+    }
+
+    private PrototypeRpgPartyOutcomeSnapshot BuildRpgPartyOutcomeSnapshot()
+    {
+        PrototypeRpgPartyOutcomeSnapshot snapshot = new PrototypeRpgPartyOutcomeSnapshot();
+        snapshot.PartyConditionText = GetPartyConditionText();
+        snapshot.PartyHpSummaryText = BuildTotalPartyHpSummary();
+        snapshot.PartyMembersAtEndSummary = BuildPartyMembersAtEndSummary();
+        snapshot.SurvivingMemberCount = GetLivingPartyMemberCount();
+        snapshot.KnockedOutMemberCount = GetKnockedOutMemberCount();
+
+        if (_activeDungeonParty == null || _activeDungeonParty.Members == null)
+        {
+            snapshot.Members = System.Array.Empty<PrototypeRpgPartyMemberOutcomeSnapshot>();
+            return snapshot;
+        }
+
+        PrototypeRpgPartyMemberOutcomeSnapshot[] members = new PrototypeRpgPartyMemberOutcomeSnapshot[_activeDungeonParty.Members.Length];
+        for (int i = 0; i < _activeDungeonParty.Members.Length; i++)
+        {
+            PrototypeRpgPartyMemberOutcomeSnapshot memberSnapshot = new PrototypeRpgPartyMemberOutcomeSnapshot();
+            DungeonPartyMemberRuntimeData member = _activeDungeonParty.Members[i];
+            if (member != null)
+            {
+                memberSnapshot.MemberId = string.IsNullOrEmpty(member.MemberId) ? string.Empty : member.MemberId;
+                memberSnapshot.DisplayName = string.IsNullOrEmpty(member.DisplayName) ? string.Empty : member.DisplayName;
+                memberSnapshot.RoleTag = string.IsNullOrEmpty(member.RoleTag) ? string.Empty : member.RoleTag;
+                memberSnapshot.RoleLabel = string.IsNullOrEmpty(member.RoleLabel) ? string.Empty : member.RoleLabel;
+                memberSnapshot.DefaultSkillId = string.IsNullOrEmpty(member.DefaultSkillId) ? string.Empty : member.DefaultSkillId;
+                memberSnapshot.CurrentHp = Mathf.Max(0, member.CurrentHp);
+                memberSnapshot.MaxHp = Mathf.Max(1, member.MaxHp);
+                memberSnapshot.Survived = !member.IsDefeated && member.CurrentHp > 0;
+                memberSnapshot.KnockedOut = member.IsDefeated;
+            }
+
+            members[i] = memberSnapshot;
+        }
+
+        snapshot.Members = members;
+        return snapshot;
+    }
+
+    private PrototypeRpgRunResultSnapshot BuildRpgRunResultSnapshot(string resultStateKey, int safeReturnedLoot, string safeResultSummary)
+    {
+        PrototypeRpgRunResultSnapshot snapshot = new PrototypeRpgRunResultSnapshot();
+        PrototypeRpgPartyOutcomeSnapshot partyOutcome = BuildRpgPartyOutcomeSnapshot();
+        PrototypeRpgLootOutcomeSnapshot lootOutcome = new PrototypeRpgLootOutcomeSnapshot();
+        PrototypeRpgEliteOutcomeSnapshot eliteOutcome = new PrototypeRpgEliteOutcomeSnapshot();
+        PrototypeRpgEncounterOutcomeSnapshot encounterOutcome = new PrototypeRpgEncounterOutcomeSnapshot();
+        int battleLoot = safeReturnedLoot > 0 ? Mathf.Max(0, _battleLootAmount) : 0;
+        int chestLoot = safeReturnedLoot > 0 ? Mathf.Max(0, _chestLootAmount) : 0;
+        int eventLoot = safeReturnedLoot > 0 ? Mathf.Max(0, _eventLootAmount) : 0;
+        int eliteLoot = _eliteRewardGranted ? Mathf.Max(0, _eliteRewardAmount) : 0;
+        int eliteBonusLoot = _eliteBonusRewardGranted ? Mathf.Max(0, _eliteBonusRewardGrantedAmount) : 0;
+
+        snapshot.ResultStateKey = string.IsNullOrEmpty(resultStateKey) ? PrototypeBattleOutcomeKeys.None : resultStateKey;
+        snapshot.DungeonId = string.IsNullOrEmpty(_currentDungeonId) ? string.Empty : _currentDungeonId;
+        snapshot.DungeonLabel = string.IsNullOrEmpty(_currentDungeonName) ? string.Empty : _currentDungeonName;
+        snapshot.RouteId = string.IsNullOrEmpty(_selectedRouteId) ? string.Empty : _selectedRouteId;
+        snapshot.RouteLabel = string.IsNullOrEmpty(_selectedRouteLabel) ? string.Empty : _selectedRouteLabel;
+        snapshot.TotalTurnsTaken = Mathf.Max(0, _runTurnCount);
+        snapshot.ResultSummary = string.IsNullOrEmpty(safeResultSummary) ? "The run ended." : safeResultSummary;
+        snapshot.SurvivingMembersSummary = BuildSurvivingMembersSummary();
+
+        lootOutcome.BattleLootGained = battleLoot;
+        lootOutcome.ChestLootGained = chestLoot;
+        lootOutcome.EventLootGained = eventLoot;
+        lootOutcome.EliteRewardAmount = eliteLoot;
+        lootOutcome.EliteBonusRewardAmount = eliteBonusLoot;
+        lootOutcome.TotalLootGained = Mathf.Max(Mathf.Max(0, safeReturnedLoot), battleLoot + chestLoot + eventLoot + eliteLoot + eliteBonusLoot);
+        lootOutcome.FinalLootSummary = BuildRpgRunResultLootSummary(lootOutcome);
+
+        eliteOutcome.IsEliteDefeated = _eliteDefeated;
+        eliteOutcome.EliteName = string.IsNullOrEmpty(_eliteName) ? string.Empty : _eliteName;
+        eliteOutcome.EliteTypeLabel = string.IsNullOrEmpty(_eliteType) ? string.Empty : _eliteType;
+        eliteOutcome.EliteRewardLabel = string.IsNullOrEmpty(_eliteRewardLabel) ? string.Empty : _eliteRewardLabel;
+        eliteOutcome.EliteRewardAmount = eliteLoot;
+        eliteOutcome.EliteBonusRewardEarned = _eliteBonusRewardGranted;
+        eliteOutcome.EliteBonusRewardAmount = eliteBonusLoot;
+
+        encounterOutcome.ClearedEncounterCount = Mathf.Max(0, _clearedEncounterCount);
+        encounterOutcome.ClearedEncounterSummary = BuildClearedEncounterSummary();
+        encounterOutcome.OpenedChestCount = Mathf.Max(0, _chestOpenedCount);
+        encounterOutcome.RoomPathSummary = BuildCurrentRoomPathSummary();
+        encounterOutcome.SelectedEventChoice = GetSelectedEventChoiceDisplayText();
+        encounterOutcome.SelectedPreEliteChoice = GetSelectedPreEliteChoiceDisplayText();
+        encounterOutcome.PreEliteHealAmount = Mathf.Max(0, _preEliteHealAmount);
+
+        snapshot.PartyOutcome = partyOutcome;
+        snapshot.LootOutcome = lootOutcome;
+        snapshot.EliteOutcome = eliteOutcome;
+        snapshot.EncounterOutcome = encounterOutcome;
+        return snapshot;
+    }
+
+    private void ApplyRpgRunResultSnapshotToLegacyFields(PrototypeRpgRunResultSnapshot snapshot)
+    {
+        PrototypeRpgRunResultSnapshot safeSnapshot = snapshot ?? new PrototypeRpgRunResultSnapshot();
+        PrototypeRpgPartyOutcomeSnapshot partyOutcome = safeSnapshot.PartyOutcome ?? new PrototypeRpgPartyOutcomeSnapshot();
+        PrototypeRpgLootOutcomeSnapshot lootOutcome = safeSnapshot.LootOutcome ?? new PrototypeRpgLootOutcomeSnapshot();
+        PrototypeRpgEliteOutcomeSnapshot eliteOutcome = safeSnapshot.EliteOutcome ?? new PrototypeRpgEliteOutcomeSnapshot();
+        PrototypeRpgEncounterOutcomeSnapshot encounterOutcome = safeSnapshot.EncounterOutcome ?? new PrototypeRpgEncounterOutcomeSnapshot();
+
+        _resultTurnsTaken = Mathf.Max(0, safeSnapshot.TotalTurnsTaken);
+        _resultLootGained = Mathf.Max(0, lootOutcome.TotalLootGained);
+        _resultBattleLootGained = Mathf.Max(0, lootOutcome.BattleLootGained);
+        _resultChestLootGained = Mathf.Max(0, lootOutcome.ChestLootGained);
+        _resultEventLootGained = Mathf.Max(0, lootOutcome.EventLootGained);
+        _resultSurvivingMembersText = string.IsNullOrEmpty(safeSnapshot.SurvivingMembersSummary) ? string.Empty : safeSnapshot.SurvivingMembersSummary;
+        _resultPartyHpSummaryText = string.IsNullOrEmpty(partyOutcome.PartyHpSummaryText) ? string.Empty : partyOutcome.PartyHpSummaryText;
+        _resultPartyConditionText = string.IsNullOrEmpty(partyOutcome.PartyConditionText) ? string.Empty : partyOutcome.PartyConditionText;
+        _resultEventChoiceText = string.IsNullOrEmpty(encounterOutcome.SelectedEventChoice) ? string.Empty : encounterOutcome.SelectedEventChoice;
+        _resultPreEliteChoiceText = string.IsNullOrEmpty(encounterOutcome.SelectedPreEliteChoice) ? string.Empty : encounterOutcome.SelectedPreEliteChoice;
+        _resultPreEliteHealAmount = Mathf.Max(0, encounterOutcome.PreEliteHealAmount);
+        _resultClearedEncounters = Mathf.Max(0, encounterOutcome.ClearedEncounterCount);
+        _resultOpenedChests = Mathf.Max(0, encounterOutcome.OpenedChestCount);
+        _resultEliteDefeated = eliteOutcome.IsEliteDefeated;
+        _resultEliteName = string.IsNullOrEmpty(eliteOutcome.EliteName) ? string.Empty : eliteOutcome.EliteName;
+        _resultEliteRewardLabel = string.IsNullOrEmpty(eliteOutcome.EliteRewardLabel) ? string.Empty : eliteOutcome.EliteRewardLabel;
+        _resultEliteRewardAmount = Mathf.Max(0, eliteOutcome.EliteRewardAmount);
+        _resultEliteBonusRewardAmount = Mathf.Max(0, eliteOutcome.EliteBonusRewardAmount);
+        _resultRoomPathSummaryText = string.IsNullOrEmpty(encounterOutcome.RoomPathSummary) ? string.Empty : encounterOutcome.RoomPathSummary;
+    }
+    private PrototypeRpgProgressionSeedSnapshot CopyRpgProgressionSeedSnapshot(PrototypeRpgProgressionSeedSnapshot source)
+    {
+        PrototypeRpgProgressionSeedSnapshot copy = new PrototypeRpgProgressionSeedSnapshot();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.ResultStateKey = string.IsNullOrEmpty(source.ResultStateKey) ? string.Empty : source.ResultStateKey;
+        copy.DungeonId = string.IsNullOrEmpty(source.DungeonId) ? string.Empty : source.DungeonId;
+        copy.DungeonLabel = string.IsNullOrEmpty(source.DungeonLabel) ? string.Empty : source.DungeonLabel;
+        copy.DungeonDangerLabel = string.IsNullOrEmpty(source.DungeonDangerLabel) ? string.Empty : source.DungeonDangerLabel;
+        copy.RouteId = string.IsNullOrEmpty(source.RouteId) ? string.Empty : source.RouteId;
+        copy.RouteLabel = string.IsNullOrEmpty(source.RouteLabel) ? string.Empty : source.RouteLabel;
+        copy.RouteRiskLabel = string.IsNullOrEmpty(source.RouteRiskLabel) ? string.Empty : source.RouteRiskLabel;
+        copy.TotalTurnsTaken = Mathf.Max(0, source.TotalTurnsTaken);
+        copy.ClearedEncounterCount = Mathf.Max(0, source.ClearedEncounterCount);
+        copy.EliteDefeated = source.EliteDefeated;
+        copy.EliteName = string.IsNullOrEmpty(source.EliteName) ? string.Empty : source.EliteName;
+        copy.EliteTypeLabel = string.IsNullOrEmpty(source.EliteTypeLabel) ? string.Empty : source.EliteTypeLabel;
+        copy.PartyConditionText = string.IsNullOrEmpty(source.PartyConditionText) ? string.Empty : source.PartyConditionText;
+        copy.SurvivingMemberCount = Mathf.Max(0, source.SurvivingMemberCount);
+        copy.KnockedOutMemberCount = Mathf.Max(0, source.KnockedOutMemberCount);
+        copy.EliteClearBonusHint = string.IsNullOrEmpty(source.EliteClearBonusHint) ? string.Empty : source.EliteClearBonusHint;
+        copy.RouteRiskHint = string.IsNullOrEmpty(source.RouteRiskHint) ? string.Empty : source.RouteRiskHint;
+        copy.DungeonDangerHint = string.IsNullOrEmpty(source.DungeonDangerHint) ? string.Empty : source.DungeonDangerHint;
+        copy.Loot = CopyRpgLootSeed(source.Loot);
+
+        if (source.Members == null || source.Members.Length == 0)
+        {
+            copy.Members = System.Array.Empty<PrototypeRpgMemberProgressionSeed>();
+        }
+        else
+        {
+            PrototypeRpgMemberProgressionSeed[] members = new PrototypeRpgMemberProgressionSeed[source.Members.Length];
+            for (int i = 0; i < source.Members.Length; i++)
+            {
+                members[i] = CopyRpgMemberProgressionSeed(source.Members[i]);
+            }
+
+            copy.Members = members;
+        }
+
+        copy.RewardTags = source.RewardTags != null && source.RewardTags.Length > 0 ? (string[])source.RewardTags.Clone() : System.Array.Empty<string>();
+        copy.GrowthTags = source.GrowthTags != null && source.GrowthTags.Length > 0 ? (string[])source.GrowthTags.Clone() : System.Array.Empty<string>();
+        return copy;
+    }
+
+    private PrototypeRpgMemberProgressionSeed CopyRpgMemberProgressionSeed(PrototypeRpgMemberProgressionSeed source)
+    {
+        PrototypeRpgMemberProgressionSeed copy = new PrototypeRpgMemberProgressionSeed();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.MemberId = string.IsNullOrEmpty(source.MemberId) ? string.Empty : source.MemberId;
+        copy.DisplayName = string.IsNullOrEmpty(source.DisplayName) ? string.Empty : source.DisplayName;
+        copy.RoleTag = string.IsNullOrEmpty(source.RoleTag) ? string.Empty : source.RoleTag;
+        copy.RoleLabel = string.IsNullOrEmpty(source.RoleLabel) ? string.Empty : source.RoleLabel;
+        copy.DefaultSkillId = string.IsNullOrEmpty(source.DefaultSkillId) ? string.Empty : source.DefaultSkillId;
+        copy.Survived = source.Survived;
+        copy.KnockedOut = source.KnockedOut;
+        copy.CurrentHp = Mathf.Max(0, source.CurrentHp);
+        copy.MaxHp = Mathf.Max(1, source.MaxHp);
+        copy.Combat = CopyRpgCombatContributionSeed(source.Combat);
+        return copy;
+    }
+
+    private PrototypeRpgCombatContributionSeed CopyRpgCombatContributionSeed(PrototypeRpgCombatContributionSeed source)
+    {
+        PrototypeRpgCombatContributionSeed copy = new PrototypeRpgCombatContributionSeed();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.DamageDealt = Mathf.Max(0, source.DamageDealt);
+        copy.DamageTaken = Mathf.Max(0, source.DamageTaken);
+        copy.HealingDone = Mathf.Max(0, source.HealingDone);
+        copy.ActionCount = Mathf.Max(0, source.ActionCount);
+        return copy;
+    }
+
+    private PrototypeRpgLootSeed CopyRpgLootSeed(PrototypeRpgLootSeed source)
+    {
+        PrototypeRpgLootSeed copy = new PrototypeRpgLootSeed();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.TotalLootGained = Mathf.Max(0, source.TotalLootGained);
+        copy.BattleLootGained = Mathf.Max(0, source.BattleLootGained);
+        copy.ChestLootGained = Mathf.Max(0, source.ChestLootGained);
+        copy.EventLootGained = Mathf.Max(0, source.EventLootGained);
+        copy.EliteRewardAmount = Mathf.Max(0, source.EliteRewardAmount);
+        copy.EliteBonusRewardAmount = Mathf.Max(0, source.EliteBonusRewardAmount);
+        copy.LootBreakdownSummary = string.IsNullOrEmpty(source.LootBreakdownSummary) ? string.Empty : source.LootBreakdownSummary;
+        return copy;
+    }
+
+    private void ResetRpgProgressionSeedState()
+    {
+        _latestRpgProgressionSeedSnapshot = new PrototypeRpgProgressionSeedSnapshot();
+        _latestRpgCombatContributionSnapshot = new PrototypeRpgCombatContributionSnapshot();
+        _latestRpgProgressionPreviewSnapshot = new PrototypeRpgProgressionPreviewSnapshot();
+        for (int i = 0; i < _runMemberDamageDealt.Length; i++)
+        {
+            _runMemberDamageDealt[i] = 0;
+            _runMemberDamageTaken[i] = 0;
+            _runMemberHealingDone[i] = 0;
+            _runMemberActionCount[i] = 0;
+            _runMemberKillCount[i] = 0;
+        }
+    }
+
+    private void AddRunMemberContributionValue(int[] values, int memberIndex, int amount)
+    {
+        if (values == null || memberIndex < 0 || memberIndex >= values.Length || amount <= 0)
+        {
+            return;
+        }
+
+        values[memberIndex] += amount;
+    }
+
+    private int GetRunMemberContributionValue(int[] values, int memberIndex)
+    {
+        if (values == null || memberIndex < 0 || memberIndex >= values.Length)
+        {
+            return 0;
+        }
+
+        return Mathf.Max(0, values[memberIndex]);
+    }
+
+    private void AddProgressionTag(List<string> tags, string tag)
+    {
+        if (tags == null || string.IsNullOrEmpty(tag) || tags.Contains(tag))
+        {
+            return;
+        }
+
+        tags.Add(tag);
+    }
+
+    private string[] BuildRpgProgressionRewardTags(PrototypeRpgRunResultSnapshot snapshot)
+    {
+        List<string> tags = new List<string>();
+        if (snapshot != null && !string.IsNullOrEmpty(snapshot.ResultStateKey) && snapshot.ResultStateKey != PrototypeBattleOutcomeKeys.None)
+        {
+            AddProgressionTag(tags, snapshot.ResultStateKey);
+        }
+
+        if (snapshot != null && snapshot.LootOutcome != null && snapshot.LootOutcome.TotalLootGained > 0)
+        {
+            AddProgressionTag(tags, "loot_returned");
+        }
+
+        if (snapshot != null && snapshot.EliteOutcome != null && snapshot.EliteOutcome.IsEliteDefeated)
+        {
+            AddProgressionTag(tags, "elite_clear");
+        }
+
+        if (snapshot != null && snapshot.EliteOutcome != null && snapshot.EliteOutcome.EliteBonusRewardEarned)
+        {
+            AddProgressionTag(tags, "elite_bonus");
+        }
+
+        if (_selectedRouteId == RiskyRouteId)
+        {
+            AddProgressionTag(tags, "risky_route");
+        }
+
+        return tags.Count > 0 ? tags.ToArray() : System.Array.Empty<string>();
+    }
+
+    private string[] BuildRpgProgressionGrowthTags(PrototypeRpgRunResultSnapshot snapshot)
+    {
+        List<string> tags = new List<string>();
+        PrototypeRpgPartyOutcomeSnapshot partyOutcome = snapshot != null ? snapshot.PartyOutcome : null;
+        if (partyOutcome != null && partyOutcome.KnockedOutMemberCount > 0)
+        {
+            AddProgressionTag(tags, "party_recovery");
+        }
+
+        if (partyOutcome != null && partyOutcome.SurvivingMemberCount > 0 && partyOutcome.KnockedOutMemberCount <= 0)
+        {
+            AddProgressionTag(tags, "clean_survival");
+        }
+
+        if (snapshot != null && snapshot.TotalTurnsTaken >= 6)
+        {
+            AddProgressionTag(tags, "endurance_run");
+        }
+
+        if (snapshot != null && snapshot.EliteOutcome != null && snapshot.EliteOutcome.IsEliteDefeated)
+        {
+            AddProgressionTag(tags, "elite_mastery");
+        }
+
+        return tags.Count > 0 ? tags.ToArray() : System.Array.Empty<string>();
+    }
+
+    private PrototypeRpgLootSeed BuildRpgProgressionLootSeed(PrototypeRpgRunResultSnapshot snapshot)
+    {
+        PrototypeRpgLootSeed seed = new PrototypeRpgLootSeed();
+        PrototypeRpgLootOutcomeSnapshot lootOutcome = snapshot != null ? snapshot.LootOutcome : null;
+        if (lootOutcome == null)
+        {
+            return seed;
+        }
+
+        seed.TotalLootGained = Mathf.Max(0, lootOutcome.TotalLootGained);
+        seed.BattleLootGained = Mathf.Max(0, lootOutcome.BattleLootGained);
+        seed.ChestLootGained = Mathf.Max(0, lootOutcome.ChestLootGained);
+        seed.EventLootGained = Mathf.Max(0, lootOutcome.EventLootGained);
+        seed.EliteRewardAmount = Mathf.Max(0, lootOutcome.EliteRewardAmount);
+        seed.EliteBonusRewardAmount = Mathf.Max(0, lootOutcome.EliteBonusRewardAmount);
+        seed.LootBreakdownSummary = string.IsNullOrEmpty(lootOutcome.FinalLootSummary) ? string.Empty : lootOutcome.FinalLootSummary;
+        return seed;
+    }
+
+    private PrototypeRpgProgressionSeedSnapshot BuildRpgProgressionSeedSnapshot(PrototypeRpgRunResultSnapshot runResultSnapshot)
+    {
+        PrototypeRpgProgressionSeedSnapshot snapshot = new PrototypeRpgProgressionSeedSnapshot();
+        PrototypeRpgRunResultSnapshot safeRunResult = runResultSnapshot ?? new PrototypeRpgRunResultSnapshot();
+        PrototypeRpgPartyOutcomeSnapshot partyOutcome = safeRunResult.PartyOutcome ?? new PrototypeRpgPartyOutcomeSnapshot();
+        PrototypeRpgEliteOutcomeSnapshot eliteOutcome = safeRunResult.EliteOutcome ?? new PrototypeRpgEliteOutcomeSnapshot();
+        PrototypeRpgEncounterOutcomeSnapshot encounterOutcome = safeRunResult.EncounterOutcome ?? new PrototypeRpgEncounterOutcomeSnapshot();
+        PrototypeRpgPartyMemberOutcomeSnapshot[] members = partyOutcome.Members ?? System.Array.Empty<PrototypeRpgPartyMemberOutcomeSnapshot>();
+
+        snapshot.ResultStateKey = string.IsNullOrEmpty(safeRunResult.ResultStateKey) ? string.Empty : safeRunResult.ResultStateKey;
+        snapshot.DungeonId = string.IsNullOrEmpty(safeRunResult.DungeonId) ? string.Empty : safeRunResult.DungeonId;
+        snapshot.DungeonLabel = string.IsNullOrEmpty(safeRunResult.DungeonLabel) ? string.Empty : safeRunResult.DungeonLabel;
+        snapshot.DungeonDangerLabel = GetCurrentDungeonDangerText();
+        snapshot.RouteId = string.IsNullOrEmpty(safeRunResult.RouteId) ? string.Empty : safeRunResult.RouteId;
+        snapshot.RouteLabel = string.IsNullOrEmpty(safeRunResult.RouteLabel) ? string.Empty : safeRunResult.RouteLabel;
+        snapshot.RouteRiskLabel = string.IsNullOrEmpty(_selectedRouteRiskLabel) ? string.Empty : _selectedRouteRiskLabel;
+        snapshot.TotalTurnsTaken = Mathf.Max(0, safeRunResult.TotalTurnsTaken);
+        snapshot.ClearedEncounterCount = Mathf.Max(0, encounterOutcome.ClearedEncounterCount);
+        snapshot.EliteDefeated = eliteOutcome.IsEliteDefeated;
+        snapshot.EliteName = string.IsNullOrEmpty(eliteOutcome.EliteName) ? string.Empty : eliteOutcome.EliteName;
+        snapshot.EliteTypeLabel = string.IsNullOrEmpty(eliteOutcome.EliteTypeLabel) ? string.Empty : eliteOutcome.EliteTypeLabel;
+        snapshot.PartyConditionText = string.IsNullOrEmpty(partyOutcome.PartyConditionText) ? string.Empty : partyOutcome.PartyConditionText;
+        snapshot.SurvivingMemberCount = Mathf.Max(0, partyOutcome.SurvivingMemberCount);
+        snapshot.KnockedOutMemberCount = Mathf.Max(0, partyOutcome.KnockedOutMemberCount);
+        snapshot.EliteClearBonusHint = eliteOutcome.EliteBonusRewardEarned ? "Elite bonus reward earned." : eliteOutcome.IsEliteDefeated ? "Elite clear completed." : "Elite clear not achieved.";
+        snapshot.RouteRiskHint = string.IsNullOrEmpty(snapshot.RouteRiskLabel) ? "Route risk: none." : "Route risk: " + snapshot.RouteRiskLabel + ".";
+        snapshot.DungeonDangerHint = string.IsNullOrEmpty(snapshot.DungeonDangerLabel) ? "Dungeon danger: none." : "Dungeon danger: " + snapshot.DungeonDangerLabel + ".";
+        snapshot.Loot = BuildRpgProgressionLootSeed(safeRunResult);
+        snapshot.RewardTags = BuildRpgProgressionRewardTags(safeRunResult);
+        snapshot.GrowthTags = BuildRpgProgressionGrowthTags(safeRunResult);
+
+        if (members.Length <= 0)
+        {
+            snapshot.Members = System.Array.Empty<PrototypeRpgMemberProgressionSeed>();
+            return snapshot;
+        }
+
+        PrototypeRpgMemberProgressionSeed[] memberSeeds = new PrototypeRpgMemberProgressionSeed[members.Length];
+        for (int i = 0; i < members.Length; i++)
+        {
+            PrototypeRpgPartyMemberOutcomeSnapshot memberOutcome = members[i] ?? new PrototypeRpgPartyMemberOutcomeSnapshot();
+            PrototypeRpgMemberProgressionSeed memberSeed = new PrototypeRpgMemberProgressionSeed();
+            memberSeed.MemberId = string.IsNullOrEmpty(memberOutcome.MemberId) ? string.Empty : memberOutcome.MemberId;
+            memberSeed.DisplayName = string.IsNullOrEmpty(memberOutcome.DisplayName) ? string.Empty : memberOutcome.DisplayName;
+            memberSeed.RoleTag = string.IsNullOrEmpty(memberOutcome.RoleTag) ? string.Empty : memberOutcome.RoleTag;
+            memberSeed.RoleLabel = string.IsNullOrEmpty(memberOutcome.RoleLabel) ? string.Empty : memberOutcome.RoleLabel;
+            memberSeed.DefaultSkillId = string.IsNullOrEmpty(memberOutcome.DefaultSkillId) ? string.Empty : memberOutcome.DefaultSkillId;
+            memberSeed.Survived = memberOutcome.Survived;
+            memberSeed.KnockedOut = memberOutcome.KnockedOut;
+            memberSeed.CurrentHp = Mathf.Max(0, memberOutcome.CurrentHp);
+            memberSeed.MaxHp = Mathf.Max(1, memberOutcome.MaxHp);
+            memberSeed.Combat = new PrototypeRpgCombatContributionSeed
+            {
+                DamageDealt = GetRunMemberContributionValue(_runMemberDamageDealt, i),
+                DamageTaken = GetRunMemberContributionValue(_runMemberDamageTaken, i),
+                HealingDone = GetRunMemberContributionValue(_runMemberHealingDone, i),
+                ActionCount = GetRunMemberContributionValue(_runMemberActionCount, i)
+            };
+            memberSeeds[i] = memberSeed;
+        }
+
+        snapshot.Members = memberSeeds;
+        return snapshot;
+    }
+    private PrototypeRpgCombatContributionSnapshot CopyRpgCombatContributionSnapshot(PrototypeRpgCombatContributionSnapshot source)
+    {
+        PrototypeRpgCombatContributionSnapshot copy = new PrototypeRpgCombatContributionSnapshot();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.ResultStateKey = string.IsNullOrEmpty(source.ResultStateKey) ? string.Empty : source.ResultStateKey;
+        copy.DungeonId = string.IsNullOrEmpty(source.DungeonId) ? string.Empty : source.DungeonId;
+        copy.DungeonLabel = string.IsNullOrEmpty(source.DungeonLabel) ? string.Empty : source.DungeonLabel;
+        copy.RouteId = string.IsNullOrEmpty(source.RouteId) ? string.Empty : source.RouteId;
+        copy.RouteLabel = string.IsNullOrEmpty(source.RouteLabel) ? string.Empty : source.RouteLabel;
+        copy.TotalTurnsTaken = Mathf.Max(0, source.TotalTurnsTaken);
+        copy.SurvivingMemberCount = Mathf.Max(0, source.SurvivingMemberCount);
+        copy.KnockedOutMemberCount = Mathf.Max(0, source.KnockedOutMemberCount);
+        copy.TotalDamageDealt = Mathf.Max(0, source.TotalDamageDealt);
+        copy.TotalDamageTaken = Mathf.Max(0, source.TotalDamageTaken);
+        copy.TotalHealingDone = Mathf.Max(0, source.TotalHealingDone);
+
+        PrototypeRpgMemberContributionSnapshot[] sourceMembers = source.Members ?? System.Array.Empty<PrototypeRpgMemberContributionSnapshot>();
+        if (sourceMembers.Length <= 0)
+        {
+            copy.Members = System.Array.Empty<PrototypeRpgMemberContributionSnapshot>();
+        }
+        else
+        {
+            PrototypeRpgMemberContributionSnapshot[] memberCopies = new PrototypeRpgMemberContributionSnapshot[sourceMembers.Length];
+            for (int i = 0; i < sourceMembers.Length; i++)
+            {
+                memberCopies[i] = CopyRpgMemberContributionSnapshot(sourceMembers[i]);
+            }
+
+            copy.Members = memberCopies;
+        }
+
+        PrototypeBattleEventRecord[] sourceEvents = source.RecentEvents ?? System.Array.Empty<PrototypeBattleEventRecord>();
+        if (sourceEvents.Length <= 0)
+        {
+            copy.RecentEvents = System.Array.Empty<PrototypeBattleEventRecord>();
+        }
+        else
+        {
+            PrototypeBattleEventRecord[] eventCopies = new PrototypeBattleEventRecord[sourceEvents.Length];
+            for (int i = 0; i < sourceEvents.Length; i++)
+            {
+                eventCopies[i] = CopyBattleEventRecord(sourceEvents[i]);
+            }
+
+            copy.RecentEvents = eventCopies;
+        }
+
+        return copy;
+    }
+
+    private PrototypeRpgMemberContributionSnapshot CopyRpgMemberContributionSnapshot(PrototypeRpgMemberContributionSnapshot source)
+    {
+        PrototypeRpgMemberContributionSnapshot copy = new PrototypeRpgMemberContributionSnapshot();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.MemberId = string.IsNullOrEmpty(source.MemberId) ? string.Empty : source.MemberId;
+        copy.DisplayName = string.IsNullOrEmpty(source.DisplayName) ? string.Empty : source.DisplayName;
+        copy.RoleTag = string.IsNullOrEmpty(source.RoleTag) ? string.Empty : source.RoleTag;
+        copy.RoleLabel = string.IsNullOrEmpty(source.RoleLabel) ? string.Empty : source.RoleLabel;
+        copy.DefaultSkillId = string.IsNullOrEmpty(source.DefaultSkillId) ? string.Empty : source.DefaultSkillId;
+        copy.DamageDealt = Mathf.Max(0, source.DamageDealt);
+        copy.DamageTaken = Mathf.Max(0, source.DamageTaken);
+        copy.HealingDone = Mathf.Max(0, source.HealingDone);
+        copy.ActionCount = Mathf.Max(0, source.ActionCount);
+        copy.KillCount = Mathf.Max(0, source.KillCount);
+        copy.KnockedOut = source.KnockedOut;
+        copy.Survived = source.Survived;
+        copy.EliteVictor = source.EliteVictor;
+        return copy;
+    }
+
+    private PrototypeRpgProgressionPreviewSnapshot CopyRpgProgressionPreviewSnapshot(PrototypeRpgProgressionPreviewSnapshot source)
+    {
+        PrototypeRpgProgressionPreviewSnapshot copy = new PrototypeRpgProgressionPreviewSnapshot();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.ResultStateKey = string.IsNullOrEmpty(source.ResultStateKey) ? string.Empty : source.ResultStateKey;
+        copy.DungeonId = string.IsNullOrEmpty(source.DungeonId) ? string.Empty : source.DungeonId;
+        copy.DungeonLabel = string.IsNullOrEmpty(source.DungeonLabel) ? string.Empty : source.DungeonLabel;
+        copy.DungeonDangerLabel = string.IsNullOrEmpty(source.DungeonDangerLabel) ? string.Empty : source.DungeonDangerLabel;
+        copy.RouteId = string.IsNullOrEmpty(source.RouteId) ? string.Empty : source.RouteId;
+        copy.RouteLabel = string.IsNullOrEmpty(source.RouteLabel) ? string.Empty : source.RouteLabel;
+        copy.RouteRiskLabel = string.IsNullOrEmpty(source.RouteRiskLabel) ? string.Empty : source.RouteRiskLabel;
+        copy.EliteDefeated = source.EliteDefeated;
+        copy.TotalLootGained = Mathf.Max(0, source.TotalLootGained);
+        copy.RewardHintTags = source.RewardHintTags != null && source.RewardHintTags.Length > 0 ? (string[])source.RewardHintTags.Clone() : System.Array.Empty<string>();
+        copy.GrowthHintTags = source.GrowthHintTags != null && source.GrowthHintTags.Length > 0 ? (string[])source.GrowthHintTags.Clone() : System.Array.Empty<string>();
+
+        PrototypeRpgMemberProgressPreview[] sourceMembers = source.Members ?? System.Array.Empty<PrototypeRpgMemberProgressPreview>();
+        if (sourceMembers.Length <= 0)
+        {
+            copy.Members = System.Array.Empty<PrototypeRpgMemberProgressPreview>();
+        }
+        else
+        {
+            PrototypeRpgMemberProgressPreview[] memberCopies = new PrototypeRpgMemberProgressPreview[sourceMembers.Length];
+            for (int i = 0; i < sourceMembers.Length; i++)
+            {
+                memberCopies[i] = CopyRpgMemberProgressPreview(sourceMembers[i]);
+            }
+
+            copy.Members = memberCopies;
+        }
+
+        return copy;
+    }
+
+    private PrototypeRpgMemberProgressPreview CopyRpgMemberProgressPreview(PrototypeRpgMemberProgressPreview source)
+    {
+        PrototypeRpgMemberProgressPreview copy = new PrototypeRpgMemberProgressPreview();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.MemberId = string.IsNullOrEmpty(source.MemberId) ? string.Empty : source.MemberId;
+        copy.DisplayName = string.IsNullOrEmpty(source.DisplayName) ? string.Empty : source.DisplayName;
+        copy.RoleTag = string.IsNullOrEmpty(source.RoleTag) ? string.Empty : source.RoleTag;
+        copy.RoleLabel = string.IsNullOrEmpty(source.RoleLabel) ? string.Empty : source.RoleLabel;
+        copy.Survived = source.Survived;
+        copy.Contribution = CopyRpgMemberContributionSnapshot(source.Contribution);
+        copy.SuggestedGrowthHintTags = source.SuggestedGrowthHintTags != null && source.SuggestedGrowthHintTags.Length > 0 ? (string[])source.SuggestedGrowthHintTags.Clone() : System.Array.Empty<string>();
+        copy.SuggestedRewardHintTags = source.SuggestedRewardHintTags != null && source.SuggestedRewardHintTags.Length > 0 ? (string[])source.SuggestedRewardHintTags.Clone() : System.Array.Empty<string>();
+        copy.NotableOutcomeKey = string.IsNullOrEmpty(source.NotableOutcomeKey) ? string.Empty : source.NotableOutcomeKey;
+        return copy;
+    }
+
+    private PrototypeRpgCombatContributionSnapshot BuildRpgCombatContributionSnapshot(PrototypeRpgRunResultSnapshot runResultSnapshot)
+    {
+        PrototypeRpgCombatContributionSnapshot snapshot = new PrototypeRpgCombatContributionSnapshot();
+        PrototypeRpgRunResultSnapshot safeRunResult = runResultSnapshot ?? new PrototypeRpgRunResultSnapshot();
+        PrototypeRpgPartyOutcomeSnapshot partyOutcome = safeRunResult.PartyOutcome ?? new PrototypeRpgPartyOutcomeSnapshot();
+        PrototypeRpgPartyMemberOutcomeSnapshot[] members = partyOutcome.Members ?? System.Array.Empty<PrototypeRpgPartyMemberOutcomeSnapshot>();
+
+        snapshot.ResultStateKey = string.IsNullOrEmpty(safeRunResult.ResultStateKey) ? string.Empty : safeRunResult.ResultStateKey;
+        snapshot.DungeonId = string.IsNullOrEmpty(safeRunResult.DungeonId) ? string.Empty : safeRunResult.DungeonId;
+        snapshot.DungeonLabel = string.IsNullOrEmpty(safeRunResult.DungeonLabel) ? string.Empty : safeRunResult.DungeonLabel;
+        snapshot.RouteId = string.IsNullOrEmpty(safeRunResult.RouteId) ? string.Empty : safeRunResult.RouteId;
+        snapshot.RouteLabel = string.IsNullOrEmpty(safeRunResult.RouteLabel) ? string.Empty : safeRunResult.RouteLabel;
+        snapshot.TotalTurnsTaken = Mathf.Max(0, safeRunResult.TotalTurnsTaken);
+        snapshot.SurvivingMemberCount = Mathf.Max(0, partyOutcome.SurvivingMemberCount);
+        snapshot.KnockedOutMemberCount = Mathf.Max(0, partyOutcome.KnockedOutMemberCount);
+        snapshot.TotalDamageDealt = Mathf.Max(0, _totalDamageDealt);
+        snapshot.TotalDamageTaken = Mathf.Max(0, _totalDamageTaken);
+        snapshot.TotalHealingDone = Mathf.Max(0, _totalHealingDone);
+        snapshot.RecentEvents = BuildRecentBattleEventRecords();
+
+        if (members.Length <= 0)
+        {
+            snapshot.Members = System.Array.Empty<PrototypeRpgMemberContributionSnapshot>();
+            return snapshot;
+        }
+
+        PrototypeRpgMemberContributionSnapshot[] memberSnapshots = new PrototypeRpgMemberContributionSnapshot[members.Length];
+        bool eliteDefeated = safeRunResult.EliteOutcome != null && safeRunResult.EliteOutcome.IsEliteDefeated;
+        for (int i = 0; i < members.Length; i++)
+        {
+            PrototypeRpgPartyMemberOutcomeSnapshot memberOutcome = members[i] ?? new PrototypeRpgPartyMemberOutcomeSnapshot();
+            PrototypeRpgMemberContributionSnapshot memberSnapshot = new PrototypeRpgMemberContributionSnapshot();
+            memberSnapshot.MemberId = string.IsNullOrEmpty(memberOutcome.MemberId) ? string.Empty : memberOutcome.MemberId;
+            memberSnapshot.DisplayName = string.IsNullOrEmpty(memberOutcome.DisplayName) ? string.Empty : memberOutcome.DisplayName;
+            memberSnapshot.RoleTag = string.IsNullOrEmpty(memberOutcome.RoleTag) ? string.Empty : memberOutcome.RoleTag;
+            memberSnapshot.RoleLabel = string.IsNullOrEmpty(memberOutcome.RoleLabel) ? string.Empty : memberOutcome.RoleLabel;
+            memberSnapshot.DefaultSkillId = string.IsNullOrEmpty(memberOutcome.DefaultSkillId) ? string.Empty : memberOutcome.DefaultSkillId;
+            memberSnapshot.DamageDealt = GetRunMemberContributionValue(_runMemberDamageDealt, i);
+            memberSnapshot.DamageTaken = GetRunMemberContributionValue(_runMemberDamageTaken, i);
+            memberSnapshot.HealingDone = GetRunMemberContributionValue(_runMemberHealingDone, i);
+            memberSnapshot.ActionCount = GetRunMemberContributionValue(_runMemberActionCount, i);
+            memberSnapshot.KillCount = GetRunMemberContributionValue(_runMemberKillCount, i);
+            memberSnapshot.KnockedOut = memberOutcome.KnockedOut;
+            memberSnapshot.Survived = memberOutcome.Survived;
+            memberSnapshot.EliteVictor = eliteDefeated && memberOutcome.Survived;
+            memberSnapshots[i] = memberSnapshot;
+        }
+
+        snapshot.Members = memberSnapshots;
+        return snapshot;
+    }
+    private string[] BuildRpgProgressionPreviewRewardHintTags(PrototypeRpgRunResultSnapshot runResultSnapshot, PrototypeRpgProgressionSeedSnapshot progressionSeedSnapshot)
+    {
+        List<string> tags = new List<string>();
+        string[] seedTags = progressionSeedSnapshot != null ? (progressionSeedSnapshot.RewardTags ?? System.Array.Empty<string>()) : System.Array.Empty<string>();
+        for (int i = 0; i < seedTags.Length; i++)
+        {
+            AddProgressionTag(tags, seedTags[i]);
+        }
+
+        if (runResultSnapshot != null && runResultSnapshot.EliteOutcome != null && runResultSnapshot.EliteOutcome.IsEliteDefeated)
+        {
+            AddProgressionTag(tags, "elite_victor");
+        }
+
+        if (runResultSnapshot != null && runResultSnapshot.ResultStateKey == PrototypeBattleOutcomeKeys.RunRetreat)
+        {
+            AddProgressionTag(tags, "retreat_penalty_hint");
+        }
+
+        bool riskyRoute = (runResultSnapshot != null && runResultSnapshot.RouteId == RiskyRouteId) || (progressionSeedSnapshot != null && progressionSeedSnapshot.RouteId == RiskyRouteId);
+        if (riskyRoute)
+        {
+            AddProgressionTag(tags, "risky_route_hint");
+        }
+
+        return tags.Count > 0 ? tags.ToArray() : System.Array.Empty<string>();
+    }
+
+    private string[] BuildRpgProgressionPreviewGrowthHintTags(PrototypeRpgProgressionSeedSnapshot progressionSeedSnapshot, PrototypeRpgCombatContributionSnapshot contributionSnapshot)
+    {
+        List<string> tags = new List<string>();
+        string[] seedTags = progressionSeedSnapshot != null ? (progressionSeedSnapshot.GrowthTags ?? System.Array.Empty<string>()) : System.Array.Empty<string>();
+        for (int i = 0; i < seedTags.Length; i++)
+        {
+            AddProgressionTag(tags, seedTags[i]);
+        }
+
+        if (contributionSnapshot != null && contributionSnapshot.KnockedOutMemberCount > 0)
+        {
+            AddProgressionTag(tags, "knocked_out");
+        }
+
+        if (contributionSnapshot != null && contributionSnapshot.SurvivingMemberCount > 0)
+        {
+            AddProgressionTag(tags, "survivor");
+        }
+
+        if (contributionSnapshot != null && contributionSnapshot.TotalHealingDone > 0)
+        {
+            AddProgressionTag(tags, "party_support");
+        }
+
+        return tags.Count > 0 ? tags.ToArray() : System.Array.Empty<string>();
+    }
+
+    private string[] BuildMemberProgressionGrowthHintTags(PrototypeRpgMemberContributionSnapshot contribution)
+    {
+        List<string> tags = new List<string>();
+        if (contribution == null)
+        {
+            return System.Array.Empty<string>();
+        }
+
+        if (contribution.RoleTag == "warrior" && contribution.DamageTaken > 0 && contribution.DamageTaken >= contribution.DamageDealt)
+        {
+            AddProgressionTag(tags, "frontline_pressure");
+        }
+
+        if (contribution.RoleTag == "mage" && contribution.DamageDealt >= 8)
+        {
+            AddProgressionTag(tags, "aoe_clear");
+        }
+
+        if (contribution.RoleTag == "cleric" && contribution.HealingDone > 0)
+        {
+            AddProgressionTag(tags, "party_support");
+        }
+
+        if (contribution.Survived)
+        {
+            AddProgressionTag(tags, "survivor");
+        }
+
+        if (contribution.KnockedOut)
+        {
+            AddProgressionTag(tags, "knocked_out");
+        }
+
+        return tags.Count > 0 ? tags.ToArray() : System.Array.Empty<string>();
+    }
+
+    private string[] BuildMemberProgressionRewardHintTags(PrototypeRpgMemberContributionSnapshot contribution, PrototypeRpgRunResultSnapshot runResultSnapshot)
+    {
+        List<string> tags = new List<string>();
+        if (contribution == null)
+        {
+            return System.Array.Empty<string>();
+        }
+
+        if (contribution.RoleTag == "rogue" && contribution.KillCount > 0)
+        {
+            AddProgressionTag(tags, "finisher");
+        }
+
+        if (runResultSnapshot != null && runResultSnapshot.EliteOutcome != null && runResultSnapshot.EliteOutcome.IsEliteDefeated && contribution.Survived)
+        {
+            AddProgressionTag(tags, "elite_victor");
+        }
+
+        if (runResultSnapshot != null && runResultSnapshot.ResultStateKey == PrototypeBattleOutcomeKeys.RunRetreat)
+        {
+            AddProgressionTag(tags, "retreat_penalty_hint");
+        }
+
+        if (runResultSnapshot != null && runResultSnapshot.RouteId == RiskyRouteId)
+        {
+            AddProgressionTag(tags, "risky_route_hint");
+        }
+
+        return tags.Count > 0 ? tags.ToArray() : System.Array.Empty<string>();
+    }
+
+    private string BuildMemberNotableOutcomeKey(PrototypeRpgMemberContributionSnapshot contribution, PrototypeRpgRunResultSnapshot runResultSnapshot)
+    {
+        if (contribution == null)
+        {
+            return string.Empty;
+        }
+
+        if (contribution.KnockedOut)
+        {
+            return "knocked_out";
+        }
+
+        if (runResultSnapshot != null && runResultSnapshot.EliteOutcome != null && runResultSnapshot.EliteOutcome.IsEliteDefeated && contribution.Survived)
+        {
+            return "elite_victor";
+        }
+
+        if (contribution.RoleTag == "cleric" && contribution.HealingDone > 0)
+        {
+            return "party_support";
+        }
+
+        if (contribution.RoleTag == "mage" && contribution.DamageDealt >= 8)
+        {
+            return "aoe_clear";
+        }
+
+        if (contribution.RoleTag == "rogue" && contribution.KillCount > 0)
+        {
+            return "finisher";
+        }
+
+        if (contribution.RoleTag == "warrior" && contribution.DamageTaken > 0 && contribution.DamageTaken >= contribution.DamageDealt)
+        {
+            return "frontline_pressure";
+        }
+
+        if (runResultSnapshot != null && runResultSnapshot.ResultStateKey == PrototypeBattleOutcomeKeys.RunRetreat)
+        {
+            return "retreat_penalty_hint";
+        }
+
+        if (runResultSnapshot != null && runResultSnapshot.RouteId == RiskyRouteId)
+        {
+            return "risky_route_hint";
+        }
+
+        if (contribution.Survived)
+        {
+            return "survivor";
+        }
+
+        return string.Empty;
+    }
+
+    private PrototypeRpgProgressionPreviewSnapshot BuildRpgProgressionPreviewSnapshot(PrototypeRpgRunResultSnapshot runResultSnapshot, PrototypeRpgProgressionSeedSnapshot progressionSeedSnapshot, PrototypeRpgCombatContributionSnapshot contributionSnapshot)
+    {
+        PrototypeRpgProgressionPreviewSnapshot snapshot = new PrototypeRpgProgressionPreviewSnapshot();
+        PrototypeRpgRunResultSnapshot safeRunResult = runResultSnapshot ?? new PrototypeRpgRunResultSnapshot();
+        PrototypeRpgProgressionSeedSnapshot safeSeed = progressionSeedSnapshot ?? new PrototypeRpgProgressionSeedSnapshot();
+        PrototypeRpgCombatContributionSnapshot safeContribution = contributionSnapshot ?? new PrototypeRpgCombatContributionSnapshot();
+        PrototypeRpgMemberContributionSnapshot[] contributionMembers = safeContribution.Members ?? System.Array.Empty<PrototypeRpgMemberContributionSnapshot>();
+
+        snapshot.ResultStateKey = string.IsNullOrEmpty(safeRunResult.ResultStateKey) ? string.Empty : safeRunResult.ResultStateKey;
+        snapshot.DungeonId = string.IsNullOrEmpty(safeRunResult.DungeonId) ? string.Empty : safeRunResult.DungeonId;
+        snapshot.DungeonLabel = string.IsNullOrEmpty(safeRunResult.DungeonLabel) ? string.Empty : safeRunResult.DungeonLabel;
+        snapshot.DungeonDangerLabel = string.IsNullOrEmpty(safeSeed.DungeonDangerLabel) ? string.Empty : safeSeed.DungeonDangerLabel;
+        snapshot.RouteId = string.IsNullOrEmpty(safeRunResult.RouteId) ? string.Empty : safeRunResult.RouteId;
+        snapshot.RouteLabel = string.IsNullOrEmpty(safeRunResult.RouteLabel) ? string.Empty : safeRunResult.RouteLabel;
+        snapshot.RouteRiskLabel = string.IsNullOrEmpty(safeSeed.RouteRiskLabel) ? string.Empty : safeSeed.RouteRiskLabel;
+        snapshot.EliteDefeated = safeSeed.EliteDefeated;
+        snapshot.TotalLootGained = safeSeed.Loot != null ? Mathf.Max(0, safeSeed.Loot.TotalLootGained) : 0;
+        snapshot.RewardHintTags = BuildRpgProgressionPreviewRewardHintTags(safeRunResult, safeSeed);
+        snapshot.GrowthHintTags = BuildRpgProgressionPreviewGrowthHintTags(safeSeed, safeContribution);
+
+        if (contributionMembers.Length <= 0)
+        {
+            snapshot.Members = System.Array.Empty<PrototypeRpgMemberProgressPreview>();
+            return snapshot;
+        }
+
+        PrototypeRpgMemberProgressPreview[] previews = new PrototypeRpgMemberProgressPreview[contributionMembers.Length];
+        for (int i = 0; i < contributionMembers.Length; i++)
+        {
+            PrototypeRpgMemberContributionSnapshot contribution = CopyRpgMemberContributionSnapshot(contributionMembers[i]);
+            PrototypeRpgMemberProgressPreview preview = new PrototypeRpgMemberProgressPreview();
+            preview.MemberId = string.IsNullOrEmpty(contribution.MemberId) ? string.Empty : contribution.MemberId;
+            preview.DisplayName = string.IsNullOrEmpty(contribution.DisplayName) ? string.Empty : contribution.DisplayName;
+            preview.RoleTag = string.IsNullOrEmpty(contribution.RoleTag) ? string.Empty : contribution.RoleTag;
+            preview.RoleLabel = string.IsNullOrEmpty(contribution.RoleLabel) ? string.Empty : contribution.RoleLabel;
+            preview.Survived = contribution.Survived;
+            preview.Contribution = contribution;
+            preview.SuggestedGrowthHintTags = BuildMemberProgressionGrowthHintTags(contribution);
+            preview.SuggestedRewardHintTags = BuildMemberProgressionRewardHintTags(contribution, safeRunResult);
+            preview.NotableOutcomeKey = BuildMemberNotableOutcomeKey(contribution, safeRunResult);
+            previews[i] = preview;
+        }
+
+        snapshot.Members = previews;
+        return snapshot;
+    }
+
+    private int GetDefeatedEnemyCount()
+    {
+        int count = 0;
+        DungeonEncounterRuntimeData encounter = GetActiveEncounter();
+        if (encounter != null && encounter.MonsterIds != null)
+        {
+            for (int i = 0; i < encounter.MonsterIds.Length; i++)
+            {
+                DungeonMonsterRuntimeData monster = GetMonsterById(encounter.MonsterIds[i]);
+                if (monster != null && (monster.IsDefeated || monster.CurrentHp <= 0))
+                {
+                    count += 1;
+                }
+            }
+
+            return count;
+        }
+
+        for (int i = 0; i < _activeMonsters.Count; i++)
+        {
+            DungeonMonsterRuntimeData monster = _activeMonsters[i];
+            if (monster != null && (monster.IsDefeated || monster.CurrentHp <= 0))
+            {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
+
+    private void RecordCurrentPartyTurnStartEvent()
+    {
+        DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
+        if (member == null)
+        {
+            return;
+        }
+
+        RecordBattleEvent(
+            PrototypeBattleEventKeys.TurnStart,
+            member.MemberId,
+            string.Empty,
+            Mathf.Max(0, _currentActorIndex),
+            member.DisplayName + " turn started.",
+            phaseKey: "party_turn",
+            actorName: member.DisplayName,
+            shortText: "Turn started");
+    }
+
+    private void RecordEnemyTurnStartEvent(DungeonMonsterRuntimeData monster)
+    {
+        if (monster == null)
+        {
+            return;
+        }
+
+        RecordBattleEvent(
+            PrototypeBattleEventKeys.TurnStart,
+            monster.MonsterId,
+            string.Empty,
+            Mathf.Max(0, _enemyTurnMonsterCursor),
+            monster.DisplayName + " turn started.",
+            phaseKey: "enemy_turn",
+            actorName: monster.DisplayName,
+            shortText: "Turn started");
+    }
+
+    private int ApplyBattleDamageToMonster(DungeonPartyMemberRuntimeData actor, DungeonMonsterRuntimeData monster, int damage, Color popupColor)
+    {
+        if (monster == null || monster.IsDefeated || monster.CurrentHp <= 0)
+        {
+            return 0;
+        }
+
+        bool wasDefeated = monster.IsDefeated;
+        int safeDamage = Mathf.Max(1, damage);
+        int applied = monster.RuntimeState != null ? monster.RuntimeState.ApplyDamage(safeDamage) : 0;
+        if (monster.RuntimeState == null)
+        {
+            int previousHp = monster.CurrentHp;
+            monster.CurrentHp = Mathf.Max(0, previousHp - safeDamage);
+            applied = previousHp - monster.CurrentHp;
+        }
+
+        if (applied <= 0)
+        {
+            return 0;
+        }
+
+        _totalDamageDealt += applied;
+        if (actor != null)
+        {
+            AddRunMemberContributionValue(_runMemberDamageDealt, actor.PartySlotIndex, applied);
+        }
+
+        FlashMonster(monster, popupColor);
+        ShowBattlePopupForMonster(monster, "-" + applied, popupColor);
+        string actionKey = actor != null ? GetBattleActionKey(_queuedBattleAction) : (_pendingEnemyUsedSpecialAttack ? "skill" : "attack");
+        string skillId = actor != null && actionKey == "skill" ? actor.DefaultSkillId : string.Empty;
+        RecordBattleEvent(
+            PrototypeBattleEventKeys.DamageApplied,
+            actor != null ? actor.MemberId : string.Empty,
+            monster.MonsterId,
+            applied,
+            monster.DisplayName + " took " + applied + " damage.",
+            actionKey: actionKey,
+            skillId: skillId,
+            actorName: actor != null ? actor.DisplayName : string.Empty,
+            targetName: monster.DisplayName,
+            shortText: "-" + applied);
+        ResolveMonsterDefeat(monster, wasDefeated);
+        if (actor != null && !wasDefeated && monster.IsDefeated)
+        {
+            AddRunMemberContributionValue(_runMemberKillCount, actor.PartySlotIndex, 1);
+        }
+
+        return applied;
+    }
+
+    private int ApplyBattleDamageToPartyMember(DungeonMonsterRuntimeData monster, int targetIndex, int damage, Color popupColor)
+    {
+        DungeonPartyMemberRuntimeData member = GetPartyMemberAtIndex(targetIndex);
+        if (member == null || member.IsDefeated || member.CurrentHp <= 0)
+        {
+            return 0;
+        }
+
+        bool wasKnockedOut = member.IsDefeated;
+        int safeDamage = Mathf.Max(1, damage);
+        int applied = member.RuntimeState != null ? member.RuntimeState.ApplyDamage(safeDamage) : 0;
+        if (member.RuntimeState == null)
+        {
+            int previousHp = member.CurrentHp;
+            member.CurrentHp = Mathf.Max(0, previousHp - safeDamage);
+            applied = previousHp - member.CurrentHp;
+        }
+
+        if (applied <= 0)
+        {
+            return 0;
+        }
+
+        _totalDamageTaken += applied;
+        AddRunMemberContributionValue(_runMemberDamageTaken, targetIndex, applied);
+
+        FlashPartyMember(targetIndex, popupColor);
+        ShowBattlePopupForPartyMember(targetIndex, "-" + applied, popupColor);
+        RecordBattleEvent(
+            PrototypeBattleEventKeys.DamageApplied,
+            monster != null ? monster.MonsterId : string.Empty,
+            member.MemberId,
+            applied,
+            member.DisplayName + " took " + applied + " damage.",
+            actionKey: _pendingEnemyUsedSpecialAttack ? "skill" : "attack",
+            actorName: monster != null ? monster.DisplayName : string.Empty,
+            targetName: member.DisplayName,
+            shortText: "-" + applied);
+        ResolvePartyMemberKnockOut(member, wasKnockedOut);
+        return applied;
+    }
+
+    private int ApplyBattleHealToPartyMember(DungeonPartyMemberRuntimeData actor, DungeonPartyMemberRuntimeData member, int memberIndex, int recoverAmount, Color popupColor)
+    {
+        if (member == null || member.IsDefeated || member.CurrentHp <= 0)
+        {
+            return 0;
+        }
+
+        int safeRecover = Mathf.Max(1, recoverAmount);
+        int recovered = member.RuntimeState != null ? member.RuntimeState.RecoverHp(safeRecover) : 0;
+        if (member.RuntimeState == null)
+        {
+            int previousHp = member.CurrentHp;
+            member.CurrentHp = Mathf.Min(member.MaxHp, previousHp + safeRecover);
+            recovered = member.CurrentHp - previousHp;
+        }
+
+        if (recovered <= 0)
+        {
+            return 0;
+        }
+
+        _totalHealingDone += recovered;
+        if (actor != null)
+        {
+            AddRunMemberContributionValue(_runMemberHealingDone, actor.PartySlotIndex, recovered);
+        }
+
+        FlashPartyMember(memberIndex, popupColor);
+        ShowBattlePopupForPartyMember(memberIndex, "+" + recovered, popupColor);
+        RecordBattleEvent(
+            PrototypeBattleEventKeys.HealApplied,
+            actor != null ? actor.MemberId : string.Empty,
+            member.MemberId,
+            recovered,
+            member.DisplayName + " recovered " + recovered + " HP.",
+            actionKey: "skill",
+            skillId: actor != null ? actor.DefaultSkillId : string.Empty,
+            actorName: actor != null ? actor.DisplayName : string.Empty,
+            targetName: member.DisplayName,
+            shortText: "+" + recovered);
+        return recovered;
+    }
+
+    private void ResolveMonsterDefeat(DungeonMonsterRuntimeData monster, bool wasDefeated)
+    {
+        if (monster == null || wasDefeated || !monster.IsDefeated)
+        {
+            return;
+        }
+
+        monster.RuntimeState?.ClearIntent();
+        ShowBattlePopupForMonster(monster, "Defeated", new Color(1f, 0.82f, 0.24f, 1f), 1.18f);
+        AppendBattleLog(monster.DisplayName + " is defeated.");
+        RecordBattleEvent(
+            PrototypeBattleEventKeys.EnemyDefeated,
+            string.Empty,
+            monster.MonsterId,
+            0,
+            monster.DisplayName + " is defeated.",
+            phaseKey: "resolution",
+            targetName: monster.DisplayName,
+            shortText: "Enemy defeated");
+    }
+
+    private void ResolvePartyMemberKnockOut(DungeonPartyMemberRuntimeData member, bool wasKnockedOut)
+    {
+        if (member == null || wasKnockedOut || !member.IsDefeated)
+        {
+            return;
+        }
+
+        ShowBattlePopupForPartyMember(member.PartySlotIndex, "KO", new Color(1f, 0.82f, 0.24f, 1f), 1.02f);
+        AppendBattleLog(member.DisplayName + " is KO.");
+        RecordBattleEvent(
+            PrototypeBattleEventKeys.KnockOut,
+            string.Empty,
+            member.MemberId,
+            0,
+            member.DisplayName + " is KO.",
+            phaseKey: "resolution",
+            targetName: member.DisplayName,
+            shortText: "Party KO");
+    }
+    private void AdvanceBattleAfterPartyAction()
+    {
+        AddRunMemberContributionValue(_runMemberActionCount, _currentActorIndex, 1);
+        _partyActedThisRound[_currentActorIndex] = true;
+        _queuedBattleAction = BattleActionType.None;
+        _hoverBattleAction = BattleActionType.None;
+        ClearBattleHoverState();
+        ClearBattleInputLock();
+
+        if (GetLivingBattleMonsterCount() <= 0)
+        {
+            ResolveCurrentEncounterVictory();
+            return;
+        }
+
+        int nextIndex = Mathf.Max(0, _currentActorIndex + 1);
+        if (TrySelectNextPartyActor(nextIndex))
+        {
+            _battleState = BattleState.PartyActionSelect;
+            SetActiveBattleMonster(GetFirstLivingBattleMonster());
+            RecordCurrentPartyTurnStartEvent();
+            RefreshSelectionPrompt();
+            RefreshDungeonPresentation();
+            return;
+        }
+
+        BeginEnemyTurn();
+    }
+
+    private void ResumePlayerTurnFromStartIndex(int startIndex)
+    {
+        ResetRoundActions();
+        _battleState = BattleState.PartyActionSelect;
+        TrySelectNextPartyActor(Mathf.Max(0, startIndex));
+        SetActiveBattleMonster(GetFirstLivingBattleMonster());
+        ClearEnemyIntentState();
+        RecordCurrentPartyTurnStartEvent();
+        RefreshSelectionPrompt();
+        RefreshDungeonPresentation();
+    }
+
+    private List<int> GetLivingAllies()
+    {
+        List<int> livingIndices = new List<int>();
+        if (_activeDungeonParty == null || _activeDungeonParty.Members == null)
+        {
+            return livingIndices;
+        }
+
+        for (int i = 0; i < _activeDungeonParty.Members.Length; i++)
+        {
+            DungeonPartyMemberRuntimeData member = _activeDungeonParty.Members[i];
+            if (member != null && !member.IsDefeated && member.CurrentHp > 0)
+            {
+                livingIndices.Add(i);
+            }
+        }
+
+        return livingIndices;
+    }
+
+    private List<DungeonMonsterRuntimeData> GetTargetableBattleMonsters()
+    {
+        List<DungeonMonsterRuntimeData> monsters = new List<DungeonMonsterRuntimeData>();
+        DungeonEncounterRuntimeData encounter = GetActiveEncounter();
+        if (encounter != null && encounter.MonsterIds != null)
+        {
+            for (int i = 0; i < encounter.MonsterIds.Length; i++)
+            {
+                DungeonMonsterRuntimeData monster = GetMonsterById(encounter.MonsterIds[i]);
+                if (monster != null && !monster.IsDefeated && monster.CurrentHp > 0)
+                {
+                    monsters.Add(monster);
+                }
+            }
+
+            return monsters;
+        }
+
+        for (int i = 0; i < _activeMonsters.Count; i++)
+        {
+            DungeonMonsterRuntimeData monster = _activeMonsters[i];
+            if (monster != null && !monster.IsDefeated && monster.CurrentHp > 0)
+            {
+                monsters.Add(monster);
+            }
+        }
+
+        return monsters;
+    }
+
+    private PrototypeEnemyIntentSnapshot BuildEnemyIntentSnapshot(DungeonMonsterRuntimeData monster, int targetIndex, bool useSpecial)
+    {
+        PrototypeEnemyIntentSnapshot snapshot = new PrototypeEnemyIntentSnapshot();
+        if (monster == null)
+        {
+            return snapshot;
+        }
+
+        string targetPatternKey = useSpecial && IsPartyWideEliteSpecial(monster, useSpecial)
+            ? "all_living_allies"
+            : monster.TargetPattern == MonsterTargetPattern.LowestHpLiving
+                ? "lowest_hp_living"
+                : monster.TargetPattern == MonsterTargetPattern.RandomLiving
+                    ? "random_living"
+                    : "frontmost_living";
+        DungeonPartyMemberRuntimeData targetMember = GetPartyMemberAtIndex(targetIndex);
+        snapshot.IntentKey = useSpecial ? "enemy_special_attack" : "enemy_attack";
+        snapshot.TargetPatternKey = targetPatternKey;
+        snapshot.PreviewText = BuildEnemyIntentText(monster, targetIndex, useSpecial);
+        snapshot.PredictedValue = Mathf.Max(1, GetEnemyActionPower(monster, useSpecial));
+        snapshot.TargetId = targetMember != null ? targetMember.MemberId : string.Empty;
+        snapshot.TargetName = targetMember != null ? targetMember.DisplayName : string.Empty;
+        snapshot.SourceEnemyId = monster.MonsterId;
+        snapshot.SourceEnemyName = monster.DisplayName;
+        snapshot.ActionKey = useSpecial ? "skill" : "attack";
+        return snapshot;
+    }
     private string GetBattleUiNextStepText()
     {
         if (_battleState == BattleState.PartyTargetSelect)
@@ -2349,7 +4096,7 @@ public sealed partial class StaticPlaceholderWorldView
             AddPlannedRoomStep("alpha-safe-prep", "Quiet Antechamber", "Preparation Room", DungeonRoomType.Preparation, PreparationRoomGridPosition);
         }
 
-        AddPlannedRoomStep(dungeonId + "-elite", "Elite Chamber", "Elite Chamber", DungeonRoomType.Elite, new Vector2Int(13, 5), _eliteEncounterId);
+        AddPlannedRoomStep(dungeonId + "-elite", "Elite Chamber", "Elite Chamber", DungeonRoomType.Elite, EliteEncounterMarkerPosition, _eliteEncounterId);
     }
 
     private string BuildRoomPathPreviewText(string dungeonId, string routeId)
@@ -2672,6 +4419,45 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         return _exitUnlocked ? "Exit Route" : "None";
+    }
+
+    private DungeonRoomTemplateData GetPlannedRoomByMarkerPosition(Vector2Int markerPosition)
+    {
+        for (int i = 0; i < _plannedRooms.Count; i++)
+        {
+            DungeonRoomTemplateData room = _plannedRooms[i];
+            if (room != null && room.MarkerPosition == markerPosition)
+            {
+                return room;
+            }
+        }
+
+        return null;
+    }
+
+    private Color GetRoomMarkerColor(DungeonRoomType roomType)
+    {
+        if (roomType == DungeonRoomType.Cache)
+        {
+            return new Color(0.46f, 0.34f, 0.16f, 1f);
+        }
+
+        if (roomType == DungeonRoomType.Shrine)
+        {
+            return new Color(0.24f, 0.38f, 0.28f, 1f);
+        }
+
+        if (roomType == DungeonRoomType.Preparation)
+        {
+            return new Color(0.39f, 0.28f, 0.46f, 1f);
+        }
+
+        if (roomType == DungeonRoomType.Elite)
+        {
+            return new Color(0.48f, 0.20f, 0.20f, 1f);
+        }
+
+        return new Color(0.25f, 0.32f, 0.46f, 1f);
     }
 
     private string GetRoomProgressText()
@@ -4832,12 +6618,13 @@ public sealed partial class StaticPlaceholderWorldView
         _pendingEnemyUsedSpecialAttack = false;
         _enemyIntentResolveAtTime = 0f;
         _enemyIntentTelegraphActive = false;
+        _currentEnemyIntentSnapshot = new PrototypeEnemyIntentSnapshot();
 
         for (int i = 0; i < _activeMonsters.Count; i++)
         {
             if (_activeMonsters[i] != null)
             {
-                _activeMonsters[i].IntentLabel = string.Empty;
+                _activeMonsters[i].RuntimeState?.ClearIntent();
             }
         }
     }
@@ -5112,6 +6899,7 @@ public sealed partial class StaticPlaceholderWorldView
 
         bool eliteVictory = encounter.IsEliteEncounter;
         int encounterLoot = CalculateActiveEncounterLoot();
+        int grantedLoot = encounterLoot;
         if (!encounter.IsCleared)
         {
             encounter.IsCleared = true;
@@ -5133,6 +6921,7 @@ public sealed partial class StaticPlaceholderWorldView
                 _eliteBonusRewardGrantedAmount = _eliteBonusRewardPending;
                 _battleLootAmount += _eliteBonusRewardGrantedAmount;
                 _carriedLootAmount += _eliteBonusRewardGrantedAmount;
+                grantedLoot += _eliteBonusRewardGrantedAmount;
                 AppendBattleLog("Bonus reward granted: " + BuildLootAmountText(_eliteBonusRewardGrantedAmount) + ".");
                 _eliteBonusRewardPending = 0;
             }
@@ -5149,6 +6938,18 @@ public sealed partial class StaticPlaceholderWorldView
             _exitUnlocked = true;
             AppendBattleLog(eliteVictory ? "Final elite defeated. The exit is now unlocked." : "All encounters cleared. The exit is now unlocked.");
         }
+
+        UpdateBattleResultSnapshot(PrototypeBattleOutcomeKeys.EncounterVictory);
+        RecordBattleEvent(
+            PrototypeBattleEventKeys.BattleVictory,
+            string.Empty,
+            encounter.EncounterId,
+            grantedLoot,
+            eliteVictory ? "Elite encounter won." : encounter.DisplayName + " cleared.",
+            phaseKey: "victory",
+            actorName: ActiveDungeonPartyText,
+            targetName: encounter.DisplayName,
+            shortText: eliteVictory ? "Elite victory" : "Encounter victory");
 
         _activeEncounterId = string.Empty;
         _dungeonRunState = DungeonRunState.Explore;
@@ -5171,7 +6972,6 @@ public sealed partial class StaticPlaceholderWorldView
         RefreshSelectionPrompt();
         RefreshDungeonPresentation();
     }
-
     private void BeginEnemyTurn()
     {
         _battleState = BattleState.EnemyTurn;
@@ -5230,16 +7030,37 @@ public sealed partial class StaticPlaceholderWorldView
             SetActiveBattleMonster(monster);
             _enemyIntentTelegraphActive = true;
             _enemyIntentResolveAtTime = Time.unscaledTime + telegraphDuration;
+
             for (int monsterIndex = 0; monsterIndex < _activeMonsters.Count; monsterIndex++)
             {
                 if (_activeMonsters[monsterIndex] != null)
                 {
-                    _activeMonsters[monsterIndex].IntentLabel = string.Empty;
+                    _activeMonsters[monsterIndex].RuntimeState?.ClearIntent();
                 }
             }
 
-            _enemyIntentText = BuildEnemyIntentText(monster, targetIndex, useSpecial);
-            monster.IntentLabel = _enemyIntentText;
+            RecordEnemyTurnStartEvent(monster);
+            _currentEnemyIntentSnapshot = BuildEnemyIntentSnapshot(monster, targetIndex, useSpecial);
+            _enemyIntentText = string.IsNullOrEmpty(_currentEnemyIntentSnapshot.PreviewText)
+                ? BuildEnemyIntentText(monster, targetIndex, useSpecial)
+                : _currentEnemyIntentSnapshot.PreviewText;
+            monster.RuntimeState?.SetIntent(
+                _currentEnemyIntentSnapshot.IntentKey,
+                _currentEnemyIntentSnapshot.TargetPatternKey,
+                _enemyIntentText,
+                _currentEnemyIntentSnapshot.PredictedValue,
+                _currentEnemyIntentSnapshot.TargetId);
+            RecordBattleEvent(
+                PrototypeBattleEventKeys.EnemyIntentShown,
+                monster.MonsterId,
+                _currentEnemyIntentSnapshot.TargetId,
+                _currentEnemyIntentSnapshot.PredictedValue,
+                _enemyIntentText,
+                actionKey: _currentEnemyIntentSnapshot.ActionKey,
+                phaseKey: "enemy_turn",
+                actorName: monster.DisplayName,
+                targetName: _currentEnemyIntentSnapshot.TargetName,
+                shortText: _pendingEnemyActionLabel);
             AppendBattleLog(_enemyIntentText);
             SetBattleFeedbackText(_enemyIntentText);
             LockBattleInput(telegraphDuration);
@@ -5250,7 +7071,6 @@ public sealed partial class StaticPlaceholderWorldView
 
         return false;
     }
-
     private bool TryActivateCurrentBattleAction(BattleActionType action)
     {
         if (!IsBattleActionAvailable(action))
@@ -5265,13 +7085,39 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         PrototypeRpgSkillDefinition resolvedSkillDefinition = action == BattleActionType.Skill ? ResolveCurrentActorSkillDefinition() : null;
+        string resolvedSkillId = action == BattleActionType.Skill && resolvedSkillDefinition != null ? resolvedSkillDefinition.SkillId : member != null ? member.DefaultSkillId : string.Empty;
         string resolvedSkillName = action == BattleActionType.Skill ? GetResolvedSkillDisplayName(member, resolvedSkillDefinition) : string.Empty;
         int resolvedSkillPower = action == BattleActionType.Skill ? GetResolvedSkillPower(member, resolvedSkillDefinition) : 0;
         string resolvedSkillTargetKind = action == BattleActionType.Skill ? GetResolvedSkillTargetKind(member, resolvedSkillDefinition) : string.Empty;
         string resolvedSkillEffectType = action == BattleActionType.Skill ? GetResolvedSkillEffectType(member, resolvedSkillDefinition) : string.Empty;
+        string actionLabel = GetBattleActionDisplayName(action, member);
+        string actionKey = GetBattleActionKey(action);
+
+        RecordBattleEvent(
+            PrototypeBattleEventKeys.ActionSelected,
+            member != null ? member.MemberId : string.Empty,
+            string.Empty,
+            0,
+            (member != null ? member.DisplayName : ActiveDungeonPartyText) + " selected " + actionLabel + ".",
+            actionKey: actionKey,
+            skillId: action == BattleActionType.Skill ? resolvedSkillId : string.Empty,
+            phaseKey: "party_turn",
+            actorName: member != null ? member.DisplayName : ActiveDungeonPartyText,
+            shortText: actionLabel);
 
         if (action == BattleActionType.Retreat)
         {
+            RecordBattleEvent(
+                PrototypeBattleEventKeys.RetreatConfirmed,
+                member != null ? member.MemberId : string.Empty,
+                _currentDungeonId,
+                0,
+                ActiveDungeonPartyText + " confirmed retreat.",
+                actionKey: "retreat",
+                phaseKey: "retreat",
+                actorName: member != null ? member.DisplayName : ActiveDungeonPartyText,
+                targetName: _currentDungeonName,
+                shortText: "Retreat confirmed");
             AppendBattleLog("The party retreats from battle and abandons the run.");
             FinishDungeonRun(RunResultState.Retreat, BattleState.Retreat, false, 0, ActiveDungeonPartyText + " retreated from " + _currentDungeonName + " with no loot.");
             _pendingDungeonExit = true;
@@ -5288,7 +7134,7 @@ public sealed partial class StaticPlaceholderWorldView
             _battleState = BattleState.PartyTargetSelect;
             SetActiveBattleMonster(GetFirstLivingBattleMonster());
             ClearBattleInputLock();
-            SetBattleFeedbackText(GetBattleActionDisplayName(action, member) + " selected.");
+            SetBattleFeedbackText(actionLabel + " selected.");
             RefreshSelectionPrompt();
             RefreshDungeonPresentation();
             return true;
@@ -5297,84 +7143,77 @@ public sealed partial class StaticPlaceholderWorldView
         if (resolvedSkillTargetKind == "all_enemies" && resolvedSkillEffectType == "damage")
         {
             int hitCount = 0;
-            for (int i = 0; i < 2; i++)
+            int totalDamage = 0;
+            List<DungeonMonsterRuntimeData> targetMonsters = GetTargetableBattleMonsters();
+            for (int i = 0; i < targetMonsters.Count; i++)
             {
-                DungeonMonsterRuntimeData monster = GetBattleMonsterAtDisplayIndex(i);
-                if (monster == null || monster.IsDefeated || monster.CurrentHp <= 0)
+                int applied = ApplyBattleDamageToMonster(member, targetMonsters[i], resolvedSkillPower, new Color(0.46f, 0.75f, 1f, 1f));
+                if (applied > 0)
                 {
-                    continue;
-                }
-
-                int damage = Mathf.Max(1, resolvedSkillPower);
-                monster.CurrentHp = Mathf.Max(0, monster.CurrentHp - damage);
-                FlashMonster(monster, new Color(0.46f, 0.75f, 1f, 1f));
-                ShowBattlePopupForMonster(monster, "-" + damage, new Color(0.46f, 0.75f, 1f, 1f));
-                hitCount += 1;
-                if (monster.CurrentHp <= 0)
-                {
-                    monster.IsDefeated = true;
-                    ShowBattlePopupForMonster(monster, "Defeated", new Color(1f, 0.82f, 0.24f, 1f), 1.18f);
-                    AppendBattleLog(monster.DisplayName + " is defeated.");
+                    totalDamage += applied;
+                    hitCount += 1;
                 }
             }
 
             AppendBattleLog(member.DisplayName + " used " + resolvedSkillName + " on all enemies.");
             SetBattleFeedbackText(resolvedSkillName + " hit " + hitCount + " enemies.");
+            RecordBattleEvent(
+                PrototypeBattleEventKeys.SkillResolved,
+                member.MemberId,
+                string.Empty,
+                totalDamage,
+                member.DisplayName + " resolved " + resolvedSkillName + " on all enemies.",
+                actionKey: "skill",
+                skillId: resolvedSkillId,
+                phaseKey: "resolution",
+                actorName: member.DisplayName,
+                targetName: "All enemies",
+                shortText: resolvedSkillName);
         }
         else if (resolvedSkillTargetKind == "all_allies" && resolvedSkillEffectType == "heal")
         {
             int totalRecovered = 0;
-            for (int i = 0; i < _activeDungeonParty.Members.Length; i++)
+            List<int> livingAllyIndices = GetLivingAllies();
+            for (int i = 0; i < livingAllyIndices.Count; i++)
             {
-                DungeonPartyMemberRuntimeData ally = _activeDungeonParty.Members[i];
-                if (ally == null || ally.IsDefeated || ally.CurrentHp <= 0)
-                {
-                    continue;
-                }
-
-                int previousHp = ally.CurrentHp;
-                ally.CurrentHp = Mathf.Min(ally.MaxHp, ally.CurrentHp + Mathf.Max(1, resolvedSkillPower));
-                int recovered = ally.CurrentHp - previousHp;
-                if (recovered <= 0)
-                {
-                    continue;
-                }
-
-                totalRecovered += recovered;
-                FlashPartyMember(i, new Color(0.56f, 1f, 0.68f, 1f));
-                ShowBattlePopupForPartyMember(i, "+" + recovered, new Color(0.56f, 1f, 0.68f, 1f));
+                int memberIndex = livingAllyIndices[i];
+                DungeonPartyMemberRuntimeData ally = GetPartyMemberAtIndex(memberIndex);
+                totalRecovered += ApplyBattleHealToPartyMember(member, ally, memberIndex, resolvedSkillPower, new Color(0.56f, 1f, 0.68f, 1f));
             }
 
             AppendBattleLog(member.DisplayName + " used " + resolvedSkillName + " and restored " + totalRecovered + " HP.");
             SetBattleFeedbackText(resolvedSkillName + " restored " + totalRecovered + " HP.");
+            RecordBattleEvent(
+                PrototypeBattleEventKeys.SkillResolved,
+                member.MemberId,
+                string.Empty,
+                totalRecovered,
+                member.DisplayName + " resolved " + resolvedSkillName + " for the party.",
+                actionKey: "skill",
+                skillId: resolvedSkillId,
+                phaseKey: "resolution",
+                actorName: member.DisplayName,
+                targetName: "All allies",
+                shortText: resolvedSkillName);
         }
         else
         {
             AppendBattleLog(member.DisplayName + " used " + resolvedSkillName + ".");
             SetBattleFeedbackText(resolvedSkillName + " resolved.");
+            RecordBattleEvent(
+                PrototypeBattleEventKeys.SkillResolved,
+                member.MemberId,
+                string.Empty,
+                0,
+                member.DisplayName + " resolved " + resolvedSkillName + ".",
+                actionKey: "skill",
+                skillId: resolvedSkillId,
+                phaseKey: "resolution",
+                actorName: member.DisplayName,
+                shortText: resolvedSkillName);
         }
 
-        _partyActedThisRound[_currentActorIndex] = true;
-        _queuedBattleAction = BattleActionType.None;
-        ClearBattleInputLock();
-
-        if (GetLivingBattleMonsterCount() <= 0)
-        {
-            ResolveCurrentEncounterVictory();
-            return true;
-        }
-
-        int nextIndex = Mathf.Max(0, _currentActorIndex + 1);
-        if (TrySelectNextPartyActor(nextIndex))
-        {
-            _battleState = BattleState.PartyActionSelect;
-            SetActiveBattleMonster(GetFirstLivingBattleMonster());
-            RefreshSelectionPrompt();
-            RefreshDungeonPresentation();
-            return true;
-        }
-
-        BeginEnemyTurn();
+        AdvanceBattleAfterPartyAction();
         return true;
     }
     private void HandleDungeonBattleInput(Keyboard keyboard)
@@ -5483,6 +7322,8 @@ public sealed partial class StaticPlaceholderWorldView
 
         SetActiveBattleMonster(targetMonster);
         PrototypeRpgSkillDefinition resolvedSkillDefinition = _queuedBattleAction == BattleActionType.Skill ? ResolveMemberSkillDefinition(member) : null;
+        string actionKey = _queuedBattleAction == BattleActionType.Skill ? "skill" : "attack";
+        string resolvedSkillId = _queuedBattleAction == BattleActionType.Skill && resolvedSkillDefinition != null ? resolvedSkillDefinition.SkillId : string.Empty;
         int damage;
         string actionName;
         if (_queuedBattleAction == BattleActionType.Skill)
@@ -5500,46 +7341,36 @@ public sealed partial class StaticPlaceholderWorldView
             actionName = "Attack";
         }
 
-        damage = Mathf.Max(1, damage);
-        targetMonster.CurrentHp = Mathf.Max(0, targetMonster.CurrentHp - damage);
-        FlashMonster(targetMonster, new Color(1f, 0.48f, 0.30f, 1f));
-        ShowBattlePopupForMonster(targetMonster, "-" + damage, new Color(1f, 0.48f, 0.30f, 1f));
-
-        AppendBattleLog(member.DisplayName + " used " + actionName + " on " + targetMonster.DisplayName + " for " + damage + " damage.");
-        SetBattleFeedbackText(actionName + " dealt " + damage + " to " + targetMonster.DisplayName + ".");
-
-        if (targetMonster.CurrentHp <= 0)
-        {
-            targetMonster.IsDefeated = true;
-            ShowBattlePopupForMonster(targetMonster, "Defeated", new Color(1f, 0.82f, 0.24f, 1f), 1.18f);
-            AppendBattleLog(targetMonster.DisplayName + " is defeated.");
-        }
-
-        _partyActedThisRound[_currentActorIndex] = true;
-        _queuedBattleAction = BattleActionType.None;
-        _hoverBattleAction = BattleActionType.None;
-        ClearBattleHoverState();
-
-        if (GetLivingBattleMonsterCount() <= 0)
-        {
-            ResolveCurrentEncounterVictory();
-            return true;
-        }
-
-        int nextIndex = Mathf.Max(0, _currentActorIndex + 1);
-        if (TrySelectNextPartyActor(nextIndex))
-        {
-            _battleState = BattleState.PartyActionSelect;
-            SetActiveBattleMonster(GetFirstLivingBattleMonster());
-            RefreshSelectionPrompt();
-            RefreshDungeonPresentation();
-            return true;
-        }
-
-        BeginEnemyTurn();
+        RecordBattleEvent(
+            PrototypeBattleEventKeys.TargetSelected,
+            member.MemberId,
+            targetMonster.MonsterId,
+            GetBattleMonsterDisplayIndex(targetMonster.MonsterId),
+            member.DisplayName + " targeted " + targetMonster.DisplayName + ".",
+            actionKey: actionKey,
+            skillId: resolvedSkillId,
+            phaseKey: "target_select",
+            actorName: member.DisplayName,
+            targetName: targetMonster.DisplayName,
+            shortText: "Target locked");
+        int appliedDamage = ApplyBattleDamageToMonster(member, targetMonster, damage, new Color(1f, 0.48f, 0.30f, 1f));
+        AppendBattleLog(member.DisplayName + " used " + actionName + " on " + targetMonster.DisplayName + " for " + appliedDamage + " damage.");
+        SetBattleFeedbackText(actionName + " dealt " + appliedDamage + " to " + targetMonster.DisplayName + ".");
+        RecordBattleEvent(
+            _queuedBattleAction == BattleActionType.Skill ? PrototypeBattleEventKeys.SkillResolved : PrototypeBattleEventKeys.AttackResolved,
+            member.MemberId,
+            targetMonster.MonsterId,
+            appliedDamage,
+            member.DisplayName + " resolved " + actionName + " on " + targetMonster.DisplayName + ".",
+            actionKey: actionKey,
+            skillId: resolvedSkillId,
+            phaseKey: "resolution",
+            actorName: member.DisplayName,
+            targetName: targetMonster.DisplayName,
+            shortText: actionName);
+        AdvanceBattleAfterPartyAction();
         return true;
     }
-
     private void ExecuteQueuedEnemyIntent()
     {
         if (_dungeonRunState != DungeonRunState.Battle || _battleState != BattleState.EnemyTurn || !_enemyIntentTelegraphActive || _activeBattleMonster == null)
@@ -5555,13 +7386,7 @@ public sealed partial class StaticPlaceholderWorldView
         {
             if (!TryQueueEnemyIntent(_enemyTurnMonsterCursor + 1))
             {
-                ResetRoundActions();
-                _battleState = BattleState.PartyActionSelect;
-                TrySelectNextPartyActor(0);
-                SetActiveBattleMonster(GetFirstLivingBattleMonster());
-                ClearEnemyIntentState();
-                RefreshSelectionPrompt();
-                RefreshDungeonPresentation();
+                ResumePlayerTurnFromStartIndex(0);
             }
 
             return;
@@ -5574,13 +7399,7 @@ public sealed partial class StaticPlaceholderWorldView
         {
             if (!TryQueueEnemyIntent(_enemyTurnMonsterCursor + 1))
             {
-                ResetRoundActions();
-                _battleState = BattleState.PartyActionSelect;
-                TrySelectNextPartyActor(0);
-                SetActiveBattleMonster(GetFirstLivingBattleMonster());
-                ClearEnemyIntentState();
-                RefreshSelectionPrompt();
-                RefreshDungeonPresentation();
+                ResumePlayerTurnFromStartIndex(0);
             }
 
             return;
@@ -5593,46 +7412,50 @@ public sealed partial class StaticPlaceholderWorldView
             int sweepDamage = Mathf.Max(1, damage - 4);
             int hitCount = 0;
             int totalDamage = 0;
-            for (int memberIndex = 0; memberIndex < _activeDungeonParty.Members.Length; memberIndex++)
+            List<int> livingAllyIndices = GetLivingAllies();
+            for (int i = 0; i < livingAllyIndices.Count; i++)
             {
-                DungeonPartyMemberRuntimeData member = _activeDungeonParty.Members[memberIndex];
-                if (member == null || member.IsDefeated || member.CurrentHp <= 0)
+                int memberIndex = livingAllyIndices[i];
+                int applied = ApplyBattleDamageToPartyMember(_activeBattleMonster, memberIndex, sweepDamage, new Color(1f, 0.34f, 0.42f, 1f));
+                if (applied > 0)
                 {
-                    continue;
-                }
-
-                member.CurrentHp = Mathf.Max(0, member.CurrentHp - sweepDamage);
-                FlashPartyMember(memberIndex, new Color(1f, 0.34f, 0.42f, 1f));
-                ShowBattlePopupForPartyMember(memberIndex, "-" + sweepDamage, new Color(1f, 0.34f, 0.42f, 1f));
-                totalDamage += sweepDamage;
-                hitCount += 1;
-                if (member.CurrentHp <= 0)
-                {
-                    member.IsDefeated = true;
-                    ShowBattlePopupForPartyMember(memberIndex, "KO", new Color(1f, 0.82f, 0.24f, 1f), 1.02f);
-                    AppendBattleLog(member.DisplayName + " is KO.");
+                    totalDamage += applied;
+                    hitCount += 1;
                 }
             }
 
             AppendBattleLog(_activeBattleMonster.DisplayName + " used " + actionLabel + " on all living allies for " + totalDamage + " total damage.");
             SetBattleFeedbackText(_activeBattleMonster.DisplayName + " unleashed " + actionLabel + " on " + hitCount + " allies.");
+            RecordBattleEvent(
+                _pendingEnemyUsedSpecialAttack ? PrototypeBattleEventKeys.SkillResolved : PrototypeBattleEventKeys.AttackResolved,
+                _activeBattleMonster.MonsterId,
+                string.Empty,
+                totalDamage,
+                _activeBattleMonster.DisplayName + " resolved " + actionLabel + " on all allies.",
+                actionKey: _pendingEnemyUsedSpecialAttack ? "skill" : "attack",
+                phaseKey: "enemy_turn",
+                actorName: _activeBattleMonster.DisplayName,
+                targetName: "All living allies",
+                shortText: actionLabel);
             _activeBattleMonster.TurnsActed += 1;
         }
         else
         {
-            targetMember.CurrentHp = Mathf.Max(0, targetMember.CurrentHp - damage);
-            FlashPartyMember(targetIndex, new Color(1f, 0.40f, 0.35f, 1f));
-            ShowBattlePopupForPartyMember(targetIndex, "-" + damage, new Color(1f, 0.40f, 0.35f, 1f));
-            AppendBattleLog(_activeBattleMonster.DisplayName + " used " + actionLabel + " on " + targetMember.DisplayName + " for " + damage + " damage.");
+            int appliedDamage = ApplyBattleDamageToPartyMember(_activeBattleMonster, targetIndex, damage, new Color(1f, 0.40f, 0.35f, 1f));
+            AppendBattleLog(_activeBattleMonster.DisplayName + " used " + actionLabel + " on " + targetMember.DisplayName + " for " + appliedDamage + " damage.");
             SetBattleFeedbackText(_activeBattleMonster.DisplayName + " used " + actionLabel + " on " + targetMember.DisplayName + ".");
+            RecordBattleEvent(
+                _pendingEnemyUsedSpecialAttack ? PrototypeBattleEventKeys.SkillResolved : PrototypeBattleEventKeys.AttackResolved,
+                _activeBattleMonster.MonsterId,
+                targetMember.MemberId,
+                appliedDamage,
+                _activeBattleMonster.DisplayName + " resolved " + actionLabel + " on " + targetMember.DisplayName + ".",
+                actionKey: _pendingEnemyUsedSpecialAttack ? "skill" : "attack",
+                phaseKey: "enemy_turn",
+                actorName: _activeBattleMonster.DisplayName,
+                targetName: targetMember.DisplayName,
+                shortText: actionLabel);
             _activeBattleMonster.TurnsActed += 1;
-
-            if (targetMember.CurrentHp <= 0)
-            {
-                targetMember.IsDefeated = true;
-                ShowBattlePopupForPartyMember(targetIndex, "KO", new Color(1f, 0.82f, 0.24f, 1f), 1.02f);
-                AppendBattleLog(targetMember.DisplayName + " is KO.");
-            }
         }
 
         if (GetFirstLivingPartyMemberIndex() < 0)
@@ -5646,15 +7469,8 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
-        ResetRoundActions();
-        _battleState = BattleState.PartyActionSelect;
-        TrySelectNextPartyActor(0);
-        SetActiveBattleMonster(GetFirstLivingBattleMonster());
-        ClearEnemyIntentState();
-        RefreshSelectionPrompt();
-        RefreshDungeonPresentation();
+        ResumePlayerTurnFromStartIndex(0);
     }
-
     private string BuildSurvivingMembersSummary()
     {
         if (_activeDungeonParty == null || _activeDungeonParty.Members == null)
@@ -6191,9 +8007,11 @@ public sealed partial class StaticPlaceholderWorldView
         ClearBattleInputLock();
         ClearEnemyIntentState();
         ClearBattleFloatingPopups();
+        ResetCombatRulePipelineState();
         ResetRoundActions();
         TrySelectNextPartyActor(0);
         SetActiveBattleMonster(GetFirstLivingBattleMonster());
+        RecordCurrentPartyTurnStartEvent();
 
         if (encounter.IsEliteEncounter)
         {
@@ -6211,6 +8029,7 @@ public sealed partial class StaticPlaceholderWorldView
         RefreshDungeonPresentation();
         return true;
     }
+
     private void BuildFixedDungeonRoom()
     {
         _activeMonsters.Clear();
@@ -6256,7 +8075,7 @@ public sealed partial class StaticPlaceholderWorldView
                 _eliteType = "Goblin Elite | Focused Execution";
                 _eliteRewardLabel = "Raider War Spoils";
                 _eliteRewardAmount = 11;
-                _activeMonsters.Add(CreateMonster("beta-risky-elite", _eliteEncounterId, 3, _eliteName, "Goblin", 36, 6, new Vector2Int(13, 6), _eliteRewardAmount, MonsterTargetPattern.LowestHpLiving, MonsterEncounterRole.Striker, true, 11, "Execution Strike"));
+                _activeMonsters.Add(CreateMonster("beta-risky-elite", _eliteEncounterId, 3, _eliteName, "Goblin", 36, 6, EliteEncounterMarkerPosition, _eliteRewardAmount, MonsterTargetPattern.LowestHpLiving, MonsterEncounterRole.Striker, true, 11, "Execution Strike"));
             }
             else
             {
@@ -6268,7 +8087,7 @@ public sealed partial class StaticPlaceholderWorldView
                 _eliteType = "Goblin Elite | Focused Command";
                 _eliteRewardLabel = "Captain's Stash";
                 _eliteRewardAmount = 9;
-                _activeMonsters.Add(CreateMonster("beta-safe-elite", _eliteEncounterId, 3, _eliteName, "Goblin", 32, 5, new Vector2Int(13, 6), _eliteRewardAmount, MonsterTargetPattern.LowestHpLiving, MonsterEncounterRole.Bulwark, true, 9, "Command Strike"));
+                _activeMonsters.Add(CreateMonster("beta-safe-elite", _eliteEncounterId, 3, _eliteName, "Goblin", 32, 5, EliteEncounterMarkerPosition, _eliteRewardAmount, MonsterTargetPattern.LowestHpLiving, MonsterEncounterRole.Bulwark, true, 9, "Command Strike"));
             }
         }
         else
@@ -6283,7 +8102,7 @@ public sealed partial class StaticPlaceholderWorldView
                 _eliteType = "Volatile Slime Elite | Surging Pressure";
                 _eliteRewardLabel = "Volatile Core Cache";
                 _eliteRewardAmount = 8;
-                _activeMonsters.Add(CreateMonster("alpha-risky-elite", _eliteEncounterId, 3, _eliteName, "Slime", 30, 5, new Vector2Int(13, 6), _eliteRewardAmount, MonsterTargetPattern.LowestHpLiving, MonsterEncounterRole.Striker, true, 10, "Core Rupture"));
+                _activeMonsters.Add(CreateMonster("alpha-risky-elite", _eliteEncounterId, 3, _eliteName, "Slime", 30, 5, EliteEncounterMarkerPosition, _eliteRewardAmount, MonsterTargetPattern.LowestHpLiving, MonsterEncounterRole.Striker, true, 10, "Core Rupture"));
             }
             else
             {
@@ -6295,7 +8114,7 @@ public sealed partial class StaticPlaceholderWorldView
                 _eliteType = "Royal Slime Elite | Surging Pressure";
                 _eliteRewardLabel = "Royal Gel Cache";
                 _eliteRewardAmount = 6;
-                _activeMonsters.Add(CreateMonster("alpha-safe-elite", _eliteEncounterId, 3, _eliteName, "Slime", 34, 5, new Vector2Int(13, 6), _eliteRewardAmount, MonsterTargetPattern.RandomLiving, MonsterEncounterRole.Bulwark, true, 9, "Royal Wave"));
+                _activeMonsters.Add(CreateMonster("alpha-safe-elite", _eliteEncounterId, 3, _eliteName, "Slime", 34, 5, EliteEncounterMarkerPosition, _eliteRewardAmount, MonsterTargetPattern.RandomLiving, MonsterEncounterRole.Bulwark, true, 9, "Royal Wave"));
             }
         }
 
@@ -6321,6 +8140,9 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         _activeDungeonParty.ResetForRun();
+        ResetCombatRulePipelineState();
+        _latestRpgRunResultSnapshot = new PrototypeRpgRunResultSnapshot();
+        ResetRpgProgressionSeedState();
         _selectedRouteChoiceId = template.RouteId;
         _selectedRouteId = template.RouteId;
         _selectedRouteLabel = template.RouteLabel;
@@ -6426,25 +8248,82 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         int safeReturnedLoot = success ? Mathf.Max(0, lootReturned) : 0;
-        _resultTurnsTaken = _runTurnCount;
-        _resultLootGained = safeReturnedLoot;
-        _resultBattleLootGained = success ? _battleLootAmount : 0;
-        _resultChestLootGained = success ? _chestLootAmount : 0;
-        _resultEventLootGained = success ? _eventLootAmount : 0;
-        _resultSurvivingMembersText = BuildSurvivingMembersSummary();
-        _resultPartyHpSummaryText = BuildTotalPartyHpSummary();
-        _resultPartyConditionText = GetPartyConditionText();
-        _resultEventChoiceText = GetSelectedEventChoiceDisplayText();
-        _resultPreEliteChoiceText = GetSelectedPreEliteChoiceDisplayText();
-        _resultPreEliteHealAmount = _preEliteHealAmount;
-        _resultClearedEncounters = _clearedEncounterCount;
-        _resultOpenedChests = _chestOpenedCount;
-        _resultEliteDefeated = _eliteDefeated;
-        _resultEliteName = _eliteName;
-        _resultEliteRewardLabel = _eliteRewardLabel;
-        _resultEliteRewardAmount = _eliteRewardGranted ? _eliteRewardAmount : 0;
-        _resultEliteBonusRewardAmount = _eliteBonusRewardGranted ? _eliteBonusRewardGrantedAmount : 0;
-        _resultRoomPathSummaryText = BuildCurrentRoomPathSummary();
+        string outcomeKey = resultState == RunResultState.Clear
+            ? PrototypeBattleOutcomeKeys.RunClear
+            : resultState == RunResultState.Defeat
+                ? PrototypeBattleOutcomeKeys.RunDefeat
+                : resultState == RunResultState.Retreat
+                    ? PrototypeBattleOutcomeKeys.RunRetreat
+                    : PrototypeBattleOutcomeKeys.None;
+        string safeResultSummary = !string.IsNullOrEmpty(resultSummary)
+            ? resultSummary
+            : resultState == RunResultState.Clear
+                ? "The run ended in victory."
+                : resultState == RunResultState.Defeat
+                    ? "The party was defeated."
+                    : resultState == RunResultState.Retreat
+                        ? "The party retreated."
+                        : "The run ended.";
+
+        _latestRpgRunResultSnapshot = BuildRpgRunResultSnapshot(outcomeKey, safeReturnedLoot, safeResultSummary);
+        ApplyRpgRunResultSnapshotToLegacyFields(_latestRpgRunResultSnapshot);
+
+
+        if (resultState == RunResultState.Clear)
+        {
+            RecordBattleEvent(
+                PrototypeBattleEventKeys.BattleVictory,
+                string.Empty,
+                _currentDungeonId,
+                safeReturnedLoot,
+                safeResultSummary,
+                phaseKey: "victory",
+                actorName: ActiveDungeonPartyText,
+                targetName: _currentDungeonName,
+                shortText: "Run clear");
+        }
+        else if (resultState == RunResultState.Defeat)
+        {
+            RecordBattleEvent(
+                PrototypeBattleEventKeys.BattleDefeat,
+                string.Empty,
+                _currentDungeonId,
+                0,
+                safeResultSummary,
+                phaseKey: "defeat",
+                actorName: ActiveDungeonPartyText,
+                targetName: _currentDungeonName,
+                shortText: "Run defeat");
+        }
+        else if (resultState == RunResultState.Retreat)
+        {
+            RecordBattleEvent(
+                PrototypeBattleEventKeys.RetreatConfirmed,
+                string.Empty,
+                _currentDungeonId,
+                0,
+                safeResultSummary,
+                actionKey: "retreat",
+                phaseKey: "retreat",
+                actorName: ActiveDungeonPartyText,
+                targetName: _currentDungeonName,
+                shortText: "Run retreat");
+        }
+
+        RecordBattleEvent(
+            PrototypeBattleEventKeys.BattleEnd,
+            string.Empty,
+            _currentDungeonId,
+            safeReturnedLoot,
+            safeResultSummary,
+            phaseKey: resultState == RunResultState.Clear ? "victory" : resultState == RunResultState.Defeat ? "defeat" : resultState == RunResultState.Retreat ? "retreat" : GetBattlePhaseKey(),
+            actorName: ActiveDungeonPartyText,
+            targetName: _currentDungeonName,
+            shortText: "Battle end");
+        _latestRpgProgressionSeedSnapshot = BuildRpgProgressionSeedSnapshot(_latestRpgRunResultSnapshot);
+        _latestRpgCombatContributionSnapshot = BuildRpgCombatContributionSnapshot(_latestRpgRunResultSnapshot);
+        _latestRpgProgressionPreviewSnapshot = BuildRpgProgressionPreviewSnapshot(_latestRpgRunResultSnapshot, _latestRpgProgressionSeedSnapshot, _latestRpgCombatContributionSnapshot);
+        UpdateBattleResultSnapshot(outcomeKey);
         _runResultState = resultState;
         _battleState = battleState;
         _dungeonRunState = DungeonRunState.ResultPanel;
@@ -6457,7 +8336,7 @@ public sealed partial class StaticPlaceholderWorldView
         ClearBattleInputLock();
         ClearEnemyIntentState();
         ClearBattleFloatingPopups();
-        AppendBattleLog(string.IsNullOrEmpty(resultSummary) ? "The run ended." : resultSummary);
+        AppendBattleLog(safeResultSummary);
         AppendBattleLog("Party Condition at end: " + _resultPartyConditionText + " | HP: " + _resultPartyHpSummaryText + ".");
         if (_eliteRewardGranted && _resultEliteRewardAmount > 0)
         {
@@ -6467,7 +8346,18 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (_runtimeEconomyState != null && !string.IsNullOrEmpty(_currentHomeCityId) && !string.IsNullOrEmpty(_currentDungeonId))
         {
-            _runtimeEconomyState.ResolveDungeonRun(_currentHomeCityId, _currentDungeonId, DungeonRewardResourceId, safeReturnedLoot, success, string.IsNullOrEmpty(resultSummary) ? ActiveDungeonPartyText + " returned from " + _currentDungeonName + "." : resultSummary, _resultSurvivingMembersText, BuildClearedEncounterSummary(), _resultEventChoiceText, BuildLootBreakdownSummary(), BuildSelectedRouteSummary());
+            _runtimeEconomyState.ResolveDungeonRun(
+                _currentHomeCityId,
+                _currentDungeonId,
+                DungeonRewardResourceId,
+                safeReturnedLoot,
+                success,
+                safeResultSummary,
+                _latestRpgRunResultSnapshot.SurvivingMembersSummary,
+                _latestRpgRunResultSnapshot.EncounterOutcome.ClearedEncounterSummary,
+                _latestRpgRunResultSnapshot.EncounterOutcome.SelectedEventChoice,
+                _latestRpgRunResultSnapshot.LootOutcome.FinalLootSummary,
+                BuildSelectedRouteSummary());
         }
 
         _resultStockBefore = _preRunManaShardStock;
@@ -6490,11 +8380,9 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         AppendBattleLog("Returned " + BuildLootAmountText(safeReturnedLoot) + ".");
-        AppendBattleLog("Need Pressure " + _resultNeedPressureBeforeText + " -> " + _resultNeedPressureAfterText + ".");
-        AppendBattleLog("Dispatch Readiness " + _resultDispatchReadinessBeforeText + " -> " + _resultDispatchReadinessAfterText + " | ETA: " + BuildRecoveryEtaText(_resultRecoveryEtaDays) + ".");
-        if (_eliteBonusRewardGranted && _eliteBonusRewardGrantedAmount > 0)
+        if (_eliteBonusRewardGranted && _resultEliteBonusRewardAmount > 0)
         {
-            AppendBattleLog("Elite bonus reward earned: " + BuildLootAmountText(_eliteBonusRewardGrantedAmount) + ".");
+            AppendBattleLog("Elite bonus reward earned: " + BuildLootAmountText(_resultEliteBonusRewardAmount) + ".");
         }
         RefreshSelectionPrompt();
         RefreshDungeonPresentation();
@@ -6605,6 +8493,9 @@ public sealed partial class StaticPlaceholderWorldView
         _enemyIntentResolveAtTime = 0f;
         _enemyIntentTelegraphActive = false;
         _followedRecommendation = false;
+        ResetCombatRulePipelineState();
+        _latestRpgRunResultSnapshot = new PrototypeRpgRunResultSnapshot();
+        ResetRpgProgressionSeedState();
         _plannedRooms.Clear();
         _roomPathHistory.Clear();
         _activeMonsters.Clear();
@@ -6705,17 +8596,17 @@ public sealed partial class StaticPlaceholderWorldView
                 else if (inCorridor) color = new Color(0.20f, 0.24f, 0.31f, 1f);
                 else if (inRoom2) color = new Color(0.16f, 0.21f, 0.29f, 1f);
 
-                if (currentRoom != null && grid == currentRoom.MarkerPosition)
+                DungeonRoomTemplateData markerRoom = GetPlannedRoomByMarkerPosition(grid);
+                if (markerRoom != null)
                 {
-                    color = currentRoom.RoomType == DungeonRoomType.Cache
-                        ? new Color(0.36f, 0.29f, 0.12f, 1f)
-                        : currentRoom.RoomType == DungeonRoomType.Shrine
-                            ? new Color(0.20f, 0.31f, 0.22f, 1f)
-                            : currentRoom.RoomType == DungeonRoomType.Preparation
-                                ? new Color(0.31f, 0.22f, 0.38f, 1f)
-                                : currentRoom.RoomType == DungeonRoomType.Elite
-                                    ? new Color(0.35f, 0.16f, 0.16f, 1f)
-                                    : new Color(0.21f, 0.25f, 0.38f, 1f);
+                    Color markerColor = GetRoomMarkerColor(markerRoom.RoomType);
+                    bool isCurrentMarker = currentRoom != null && markerRoom.RoomId == currentRoom.RoomId;
+                    bool isResolvedMarker = IsRoomStepResolved(markerRoom);
+                    color = isCurrentMarker
+                        ? markerColor
+                        : isResolvedMarker
+                            ? Color.Lerp(markerColor, new Color(0.12f, 0.15f, 0.21f, 1f), 0.70f)
+                            : Color.Lerp(markerColor, new Color(0.15f, 0.18f, 0.24f, 1f), 0.36f);
                 }
 
                 if (_exitUnlocked && grid == _exitGridPosition)
@@ -6946,7 +8837,7 @@ public sealed partial class StaticPlaceholderWorldView
 
             if (!_monsterRendererById.TryGetValue(monster.MonsterId, out SpriteRenderer renderer) || renderer == null)
             {
-                GameObject token = CreateDungeonToken(_dungeonRoot.transform, "Monster_" + monster.MonsterId, GetGridLocalPosition(monster.GridPosition), new Vector2(0.9f, 0.9f), 38);
+                GameObject token = CreateDungeonToken(_dungeonRoot.transform, "Monster_" + monster.MonsterId, GetGridLocalPosition(monster.GridPosition), new Vector2(0.74f, 0.74f), 38);
                 renderer = token != null ? token.GetComponent<SpriteRenderer>() : null;
                 _monsterRendererById[monster.MonsterId] = renderer;
             }
@@ -6976,7 +8867,7 @@ public sealed partial class StaticPlaceholderWorldView
             }
 
             renderer.transform.localPosition = GetGridLocalPosition(monster.GridPosition);
-            renderer.transform.localScale = monster.IsElite ? new Vector3(1.18f, 1.18f, 1f) : new Vector3(0.92f, 0.92f, 1f);
+            renderer.transform.localScale = monster.IsElite ? new Vector3(1.06f, 1.06f, 1f) : new Vector3(0.90f, 0.90f, 1f);
             renderer.color = GetMonsterBaseColor(monster);
         }
     }
@@ -7004,18 +8895,18 @@ public sealed partial class StaticPlaceholderWorldView
         {
             for (int y = 0; y < DungeonGridHeight; y++)
             {
-                GameObject tile = CreateDungeonToken(_dungeonRoot.transform, "Tile_" + x + "_" + y, GetGridLocalPosition(new Vector2Int(x, y)), new Vector2(0.94f, 0.94f), 0);
+                GameObject tile = CreateDungeonToken(_dungeonRoot.transform, "Tile_" + x + "_" + y, GetGridLocalPosition(new Vector2Int(x, y)), new Vector2(0.72f, 0.72f), 0);
                 _dungeonTileRenderers[x, y] = tile != null ? tile.GetComponent<SpriteRenderer>() : null;
             }
         }
 
-        _playerToken = CreateDungeonToken(_dungeonRoot.transform, "PlayerToken", GetGridLocalPosition(_playerGridPosition), new Vector2(0.92f, 0.92f), 40);
+        _playerToken = CreateDungeonToken(_dungeonRoot.transform, "PlayerToken", GetGridLocalPosition(_playerGridPosition), new Vector2(0.66f, 0.66f), 40);
         _playerRenderer = _playerToken != null ? _playerToken.GetComponent<SpriteRenderer>() : null;
-        _exitToken = CreateDungeonToken(_dungeonRoot.transform, "ExitToken", GetGridLocalPosition(_exitGridPosition), new Vector2(0.95f, 0.95f), 39);
+        _exitToken = CreateDungeonToken(_dungeonRoot.transform, "ExitToken", GetGridLocalPosition(_exitGridPosition), new Vector2(0.70f, 0.70f), 39);
         _exitRenderer = _exitToken != null ? _exitToken.GetComponent<SpriteRenderer>() : null;
-        _chestToken = CreateDungeonToken(_dungeonRoot.transform, "ChestToken", GetGridLocalPosition(Room2ChestGridPosition), new Vector2(0.88f, 0.88f), 39);
+        _chestToken = CreateDungeonToken(_dungeonRoot.transform, "ChestToken", GetGridLocalPosition(Room2ChestGridPosition), new Vector2(0.64f, 0.64f), 39);
         _chestRenderer = _chestToken != null ? _chestToken.GetComponent<SpriteRenderer>() : null;
-        _eventToken = CreateDungeonToken(_dungeonRoot.transform, "EventToken", GetGridLocalPosition(_eventGridPosition), new Vector2(0.88f, 0.88f), 39);
+        _eventToken = CreateDungeonToken(_dungeonRoot.transform, "EventToken", GetGridLocalPosition(_eventGridPosition), new Vector2(0.64f, 0.64f), 39);
         _eventRenderer = _eventToken != null ? _eventToken.GetComponent<SpriteRenderer>() : null;
 
         _battleViewRoot = new GameObject("BattleViewRoot");
@@ -7177,3 +9068,11 @@ public sealed partial class StaticPlaceholderWorldView
     }
 
 }
+
+
+
+
+
+
+
+

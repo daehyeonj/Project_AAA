@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public sealed class PrototypeRpgEnemyRuntimeState
 {
@@ -13,6 +13,10 @@ public sealed class PrototypeRpgEnemyRuntimeState
     public int CurrentHp { get; private set; }
     public bool IsDefeated { get; private set; }
     public string IntentLabel { get; private set; }
+    public string IntentKey { get; private set; }
+    public string IntentTargetPatternKey { get; private set; }
+    public string IntentTargetId { get; private set; }
+    public int IntentPredictedValue { get; private set; }
 
     public PrototypeRpgEnemyRuntimeState(
         string enemyId,
@@ -37,7 +41,7 @@ public sealed class PrototypeRpgEnemyRuntimeState
     {
         CurrentHp = MaxHp;
         IsDefeated = false;
-        IntentLabel = string.Empty;
+        ClearIntent();
     }
 
     public void SetCurrentHp(int currentHp)
@@ -65,9 +69,26 @@ public sealed class PrototypeRpgEnemyRuntimeState
         return previousHp - CurrentHp;
     }
 
+    public void ClearIntent()
+    {
+        IntentLabel = string.Empty;
+        IntentKey = string.Empty;
+        IntentTargetPatternKey = string.Empty;
+        IntentTargetId = string.Empty;
+        IntentPredictedValue = 0;
+    }
+
+    public void SetIntent(string intentKey, string targetPatternKey, string previewText, int predictedValue, string targetId)
+    {
+        IntentKey = string.IsNullOrWhiteSpace(intentKey) ? string.Empty : intentKey.Trim();
+        IntentTargetPatternKey = string.IsNullOrWhiteSpace(targetPatternKey) ? string.Empty : targetPatternKey.Trim();
+        IntentLabel = string.IsNullOrWhiteSpace(previewText) ? string.Empty : previewText.Trim();
+        IntentPredictedValue = Mathf.Max(0, predictedValue);
+        IntentTargetId = string.IsNullOrWhiteSpace(targetId) ? string.Empty : targetId.Trim();
+    }
+
     public void SetIntentLabel(string intentLabel)
     {
         IntentLabel = string.IsNullOrWhiteSpace(intentLabel) ? string.Empty : intentLabel.Trim();
     }
 }
-

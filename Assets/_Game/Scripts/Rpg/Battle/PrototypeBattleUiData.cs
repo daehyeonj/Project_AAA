@@ -27,6 +27,9 @@ public sealed class PrototypeBattleUiSurfaceData
     public PrototypeBattleUiCommandSurfaceData CommandSurface = new PrototypeBattleUiCommandSurfaceData();
     public PrototypeBattleUiMessageSurfaceData MessageSurface = new PrototypeBattleUiMessageSurfaceData();
     public PrototypeBattleUiTargetSelectionData TargetSelection = new PrototypeBattleUiTargetSelectionData();
+    public PrototypeEnemyIntentSnapshot EnemyIntent = new PrototypeEnemyIntentSnapshot();
+    public PrototypeBattleEventRecord[] RecentEvents = Array.Empty<PrototypeBattleEventRecord>();
+    public PrototypeBattleResultSnapshot ResultSnapshot = new PrototypeBattleResultSnapshot();
 }
 
 public sealed class PrototypeBattleUiActorData

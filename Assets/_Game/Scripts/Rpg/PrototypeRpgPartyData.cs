@@ -1,4 +1,4 @@
-﻿public sealed class PrototypeRpgStatBlock
+public sealed class PrototypeRpgStatBlock
 {
     public int MaxHp { get; }
     public int Attack { get; }
@@ -25,6 +25,8 @@ public sealed class PrototypeRpgSkillDefinition
     public string PowerHint { get; }
     public string EffectHint { get; }
     public string RoleHint { get; }
+    public string ConditionKey { get; }
+    public string PatternKey { get; }
 
     public PrototypeRpgSkillDefinition(
         string skillId,
@@ -35,7 +37,9 @@ public sealed class PrototypeRpgSkillDefinition
         int powerValue,
         string powerHint,
         string effectHint,
-        string roleHint)
+        string roleHint,
+        string conditionKey,
+        string patternKey)
     {
         SkillId = string.IsNullOrWhiteSpace(skillId) ? string.Empty : skillId.Trim().ToLowerInvariant();
         DisplayName = string.IsNullOrWhiteSpace(displayName) ? "Skill" : displayName.Trim();
@@ -46,6 +50,8 @@ public sealed class PrototypeRpgSkillDefinition
         PowerHint = string.IsNullOrWhiteSpace(powerHint) ? string.Empty : powerHint.Trim();
         EffectHint = string.IsNullOrWhiteSpace(effectHint) ? string.Empty : effectHint.Trim();
         RoleHint = string.IsNullOrWhiteSpace(roleHint) ? string.Empty : roleHint.Trim();
+        ConditionKey = string.IsNullOrWhiteSpace(conditionKey) ? string.Empty : conditionKey.Trim().ToLowerInvariant();
+        PatternKey = string.IsNullOrWhiteSpace(patternKey) ? string.Empty : patternKey.Trim().ToLowerInvariant();
     }
 }
 
@@ -62,7 +68,9 @@ public static class PrototypeRpgSkillCatalog
             10,
             "high",
             "front-loaded physical burst",
-            "Warrior"),
+            "Warrior",
+            string.Empty,
+            "heavy_single"),
         new PrototypeRpgSkillDefinition(
             "skill_weak_point",
             "Weak Point",
@@ -72,7 +80,9 @@ public static class PrototypeRpgSkillCatalog
             7,
             "medium_high",
             "precision finisher",
-            "Rogue"),
+            "Rogue",
+            "target_weakened",
+            "precision_finisher"),
         new PrototypeRpgSkillDefinition(
             "skill_arcane_burst",
             "Arcane Burst",
@@ -82,7 +92,9 @@ public static class PrototypeRpgSkillCatalog
             6,
             "medium",
             "multi-target arcane burst",
-            "Mage"),
+            "Mage",
+            string.Empty,
+            "arcane_volley"),
         new PrototypeRpgSkillDefinition(
             "skill_radiant_hymn",
             "Radiant Hymn",
@@ -92,7 +104,9 @@ public static class PrototypeRpgSkillCatalog
             5,
             "support",
             "party healing pulse",
-            "Cleric")
+            "Cleric",
+            "injured_allies",
+            "party_recovery")
     };
 
     public static PrototypeRpgSkillDefinition GetDefinition(string skillId)
@@ -275,4 +289,3 @@ public static class PrototypeRpgPartyCatalog
         return safePartyId + "-slot-" + (partySlotIndex + 1) + "-" + safeMemberKey;
     }
 }
-

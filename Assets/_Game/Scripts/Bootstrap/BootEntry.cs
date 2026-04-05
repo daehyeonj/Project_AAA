@@ -316,6 +316,25 @@ public sealed class BootEntry : MonoBehaviour
         return _worldView != null ? _worldView.BuildBattleUiSurfaceData() : new PrototypeBattleUiSurfaceData();
     }
 
+    public PrototypeRpgPostRunSummarySurfaceData GetPostRunSummarySurfaceData()
+    {
+        return _worldView != null ? _worldView.GetPostRunSummarySurfaceData() : new PrototypeRpgPostRunSummarySurfaceData();
+    }
+
+    public PrototypeRpgPendingRewardDeltaPack GetPendingRewardDeltaPack()
+    {
+        return _worldView != null ? _worldView.GetPendingRewardDeltaPack() : new PrototypeRpgPendingRewardDeltaPack();
+    }
+
+    public PrototypeRpgPresentationGatewayData GetRpgPresentationGatewayData()
+    {
+        return _worldView != null ? _worldView.GetRpgPresentationGatewayData() : new PrototypeRpgPresentationGatewayData();
+    }
+
+    public PrototypeBattleInteractionSurfaceData GetBattleInteractionSurfaceData()
+    {
+        return _worldView != null ? _worldView.GetBattleInteractionSurfaceData() : new PrototypeBattleInteractionSurfaceData();
+    }
     private void Awake()
     {
         _gameState = new GameState(GameStateId.Boot);

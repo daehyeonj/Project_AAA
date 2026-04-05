@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 
 public sealed class PrototypeRpgRunResultSnapshot
 {
+    public string RunIdentity = string.Empty;
     public string ResultStateKey = string.Empty;
     public string DungeonId = string.Empty;
     public string DungeonLabel = string.Empty;
@@ -10,6 +11,7 @@ public sealed class PrototypeRpgRunResultSnapshot
     public int TotalTurnsTaken;
     public string ResultSummary = string.Empty;
     public string SurvivingMembersSummary = string.Empty;
+    public string AppliedProgressSummaryText = string.Empty;
     public PrototypeRpgPartyOutcomeSnapshot PartyOutcome = new PrototypeRpgPartyOutcomeSnapshot();
     public PrototypeRpgLootOutcomeSnapshot LootOutcome = new PrototypeRpgLootOutcomeSnapshot();
     public PrototypeRpgEliteOutcomeSnapshot EliteOutcome = new PrototypeRpgEliteOutcomeSnapshot();
@@ -21,6 +23,7 @@ public sealed class PrototypeRpgPartyOutcomeSnapshot
     public string PartyConditionText = string.Empty;
     public string PartyHpSummaryText = string.Empty;
     public string PartyMembersAtEndSummary = string.Empty;
+    public string AppliedPartySummaryText = string.Empty;
     public int SurvivingMemberCount;
     public int KnockedOutMemberCount;
     public PrototypeRpgPartyMemberOutcomeSnapshot[] Members = Array.Empty<PrototypeRpgPartyMemberOutcomeSnapshot>();
@@ -33,6 +36,13 @@ public sealed class PrototypeRpgPartyMemberOutcomeSnapshot
     public string RoleTag = string.Empty;
     public string RoleLabel = string.Empty;
     public string DefaultSkillId = string.Empty;
+    public string AppliedRoleLabel = string.Empty;
+    public string AppliedDefaultSkillId = string.Empty;
+    public string AppliedGrowthTrackId = string.Empty;
+    public string AppliedJobId = string.Empty;
+    public string AppliedEquipmentLoadoutId = string.Empty;
+    public string AppliedSkillLoadoutId = string.Empty;
+    public string AppliedProgressSummaryText = string.Empty;
     public int CurrentHp;
     public int MaxHp = 1;
     public bool Survived;
@@ -41,12 +51,16 @@ public sealed class PrototypeRpgPartyMemberOutcomeSnapshot
 
 public sealed class PrototypeRpgLootOutcomeSnapshot
 {
+    public string RewardResourceId = string.Empty;
     public int TotalLootGained;
+    public int TotalReturnedAmount;
     public int BattleLootGained;
     public int ChestLootGained;
     public int EventLootGained;
     public int EliteRewardAmount;
     public int EliteBonusRewardAmount;
+    public int PendingBonusRewardLostAmount;
+    public string CarryoverHintText = string.Empty;
     public string FinalLootSummary = string.Empty;
 }
 

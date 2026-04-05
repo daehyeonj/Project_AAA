@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 public sealed class PrototypeBattleUiSurfaceData
 {
@@ -30,6 +30,7 @@ public sealed class PrototypeBattleUiSurfaceData
     public PrototypeEnemyIntentSnapshot EnemyIntent = new PrototypeEnemyIntentSnapshot();
     public PrototypeBattleEventRecord[] RecentEvents = Array.Empty<PrototypeBattleEventRecord>();
     public PrototypeBattleResultSnapshot ResultSnapshot = new PrototypeBattleResultSnapshot();
+    public PrototypeRpgCombatContributionSnapshot PartyContribution = new PrototypeRpgCombatContributionSnapshot();
 }
 
 public sealed class PrototypeBattleUiActorData
@@ -55,6 +56,7 @@ public sealed class PrototypeBattleUiActionContextData
     public string ResolvedSkillId = string.Empty;
     public string ResolvedSkillLabel = string.Empty;
     public string ResolvedTargetKind = string.Empty;
+    public string ResolvedTargetPolicyKey = string.Empty;
     public string ResolvedEffectType = string.Empty;
     public int ResolvedPowerValue;
     public bool IsSkillAction;

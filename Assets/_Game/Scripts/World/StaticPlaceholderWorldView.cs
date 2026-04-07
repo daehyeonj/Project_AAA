@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public sealed partial class StaticPlaceholderWorldView
 {
@@ -238,9 +238,11 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
+        CaptureWorldOperationBaseline("run_day");
         int previousWorldDayCount = _runtimeEconomyState.WorldDayCount;
         _runtimeEconomyState.RunEconomyDay();
         AdvanceDispatchRecoveryForEconomyDays(previousWorldDayCount, _runtimeEconomyState.WorldDayCount);
+        RefreshWorldOperationSurface();
     }
 
     public void UpdateAutoTick(float deltaTime)
@@ -250,9 +252,11 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
+        CaptureWorldOperationBaseline("run_day");
         int previousWorldDayCount = _runtimeEconomyState.WorldDayCount;
         _runtimeEconomyState.UpdateAutoTick(deltaTime);
         AdvanceDispatchRecoveryForEconomyDays(previousWorldDayCount, _runtimeEconomyState.WorldDayCount);
+        RefreshWorldOperationSurface();
     }
 
     public void ToggleAutoTickEnabled()
@@ -263,6 +267,7 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         _runtimeEconomyState.ToggleAutoTickEnabled();
+        RefreshWorldOperationSurface();
     }
 
     public void ToggleAutoTickPaused()
@@ -273,6 +278,7 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         _runtimeEconomyState.ToggleAutoTickPaused();
+        RefreshWorldOperationSurface();
     }
 
     public void ResetRuntimeEconomy()
@@ -282,25 +288,28 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
+        ResetWorldOutcomeReadbackState();
         _runtimeEconomyState.Reset();
         ResetDungeonRunSystems();
+        ResetWorldRecruitmentRuntimeState();
+        ResetWorldPartyRosterRuntimeState();
+        RefreshWorldOperationSurface();
     }
 
     public void RecruitSelectedCityParty()
     {
-        if (_runtimeEconomyState == null || _selectedMarker == null || _selectedMarker.EntityData.Kind != WorldEntityKind.City)
+        if (_selectedMarker == null || _selectedMarker.EntityData.Kind != WorldEntityKind.City)
         {
             return;
         }
 
-        string cityId = _selectedMarker.EntityData.Id;
-        if (!_runtimeEconomyState.RecruitParty(cityId))
+        if (!_isRecruitmentBoardOpen)
         {
+            TryOpenSelectedCityRecruitmentBoard();
             return;
         }
 
-        string partyId = _runtimeEconomyState.GetIdlePartyIdInCity(cityId);
-        GetOrCreateDungeonParty(cityId, partyId);
+        TryConfirmSelectedRecruitOffer();
     }
 
     public void DispatchSelectedCityExpedition()
@@ -335,6 +344,7 @@ public sealed partial class StaticPlaceholderWorldView
             _texture = null;
         }
 
+        ClearWorldOperationVisualRegistry();
         DisposeDungeonRunSystems();
     }
 
@@ -381,6 +391,9 @@ public sealed partial class StaticPlaceholderWorldView
         {
             CreateSelectableMarker(_worldData.Entities[i]);
         }
+
+        EnsureWorldOperationSurfaceVisuals();
+        RefreshWorldOperationSurface();
     }
 
     private WorldRouteData GetFirstRoute()
@@ -1649,6 +1662,7 @@ public sealed partial class StaticPlaceholderWorldView
 
         WorldSelectableMarker selectableMarker = marker.AddComponent<WorldSelectableMarker>();
         selectableMarker.Initialize(entity, renderer, glowRenderer, selectionRenderer, labelText, detailText);
+        RegisterWorldMarker(selectableMarker);
     }
 
     private void CreateRoad(WorldRouteData route, Vector2 start, Vector2 end, Color color)
@@ -1665,12 +1679,12 @@ public sealed partial class StaticPlaceholderWorldView
         Vector2 normal = delta.sqrMagnitude > 0.0001f ? new Vector2(-delta.y, delta.x).normalized : Vector2.up;
 
         CreateWorldVisual(_root.transform, route.Id + "_Shadow", midpoint + new Vector2(0.08f, -0.08f), new Vector2(length, 0.30f), new Color(0f, 0f, 0f, 0.34f), 0, angle);
-        CreateWorldVisual(_root.transform, route.Id + "_Base", midpoint, new Vector2(length, 0.22f), new Color(0.26f, 0.24f, 0.22f, 0.96f), 1, angle);
-        CreateWorldVisual(_root.transform, route.Id + "_Inner", midpoint, new Vector2(Mathf.Max(0.12f, length - 0.10f), 0.08f), new Color(0.72f, 0.62f, 0.42f, 0.78f), 2, angle);
-        CreateWorldVisual(_root.transform, route.Id + "_Seal", midpoint, new Vector2(0.34f, 0.34f), new Color(color.r, color.g, color.b, 0.92f), 3, 45f);
-        CreateWorldText(_root.transform, route.Id + "_Label", midpoint + (normal * 0.34f), BuildRouteVisualLabel(route), 34, 0.07f, new Color(0.90f, 0.84f, 0.76f, 0.96f), 4);
+        SpriteRenderer baseRenderer = CreateWorldVisual(_root.transform, route.Id + "_Base", midpoint, new Vector2(length, 0.22f), new Color(0.26f, 0.24f, 0.22f, 0.96f), 1, angle).GetComponent<SpriteRenderer>();
+        SpriteRenderer innerRenderer = CreateWorldVisual(_root.transform, route.Id + "_Inner", midpoint, new Vector2(Mathf.Max(0.12f, length - 0.10f), 0.08f), new Color(0.72f, 0.62f, 0.42f, 0.78f), 2, angle).GetComponent<SpriteRenderer>();
+        SpriteRenderer sealRenderer = CreateWorldVisual(_root.transform, route.Id + "_Seal", midpoint, new Vector2(0.34f, 0.34f), new Color(color.r, color.g, color.b, 0.92f), 3, 45f).GetComponent<SpriteRenderer>();
+        TextMesh labelText = CreateWorldText(_root.transform, route.Id + "_Label", midpoint + (normal * 0.34f), BuildRouteVisualLabel(route), 34, 0.07f, new Color(0.90f, 0.84f, 0.76f, 0.96f), 4);
+        RegisterWorldRoutePulse(route.Id, new WorldBoardRoutePressureVisual(baseRenderer, innerRenderer, sealRenderer, labelText));
     }
-
     private void SetSelected(WorldSelectableMarker nextMarker)
     {
         if (_selectedMarker == nextMarker)
@@ -1689,6 +1703,10 @@ public sealed partial class StaticPlaceholderWorldView
         {
             _selectedMarker.SetSelected(true);
         }
+
+        HandleWorldRecruitmentSelectionChanged();
+        HandleWorldPartyRosterSelectionChanged();
+        RefreshWorldOperationSurface();
     }
 
     private Color GetEntityColor(WorldEntityData entity)
@@ -1723,8 +1741,15 @@ public sealed class WorldSelectableMarker : MonoBehaviour
     private Vector3 _baseScale;
     private Color _baseColor;
     private Color _glowColor;
+    private Color _selectionColor;
     private Color _labelColor;
     private Color _detailColor;
+    private bool _isSelected;
+    private bool _isLinkedFocus;
+    private bool _hasOutcomePin;
+    private bool _isActionReady;
+    private string _pressureStateKey = string.Empty;
+    private bool _isOpportunityPulse;
 
     public void Initialize(WorldEntityData entityData, SpriteRenderer renderer, SpriteRenderer glowRenderer, SpriteRenderer selectionRenderer, TextMesh labelText, TextMesh detailText)
     {
@@ -1737,6 +1762,7 @@ public sealed class WorldSelectableMarker : MonoBehaviour
         _baseScale = transform.localScale;
         _baseColor = renderer != null ? renderer.color : Color.white;
         _glowColor = glowRenderer != null ? glowRenderer.color : Color.clear;
+        _selectionColor = selectionRenderer != null ? selectionRenderer.color : Color.clear;
         _labelColor = labelText != null ? labelText.color : Color.white;
         _detailColor = detailText != null ? detailText.color : Color.white;
 
@@ -1744,43 +1770,179 @@ public sealed class WorldSelectableMarker : MonoBehaviour
         {
             _selectionRenderer.enabled = false;
         }
+
+        RefreshPresentationState();
     }
 
     public void SetSelected(bool isSelected)
     {
-        transform.localScale = isSelected ? _baseScale * 1.08f : _baseScale;
+        _isSelected = isSelected;
+        RefreshPresentationState();
+    }
+
+    public void SetLinkedFocus(bool isLinkedFocus)
+    {
+        _isLinkedFocus = isLinkedFocus;
+        RefreshPresentationState();
+    }
+
+    public void SetOutcomePinned(bool hasOutcomePin)
+    {
+        _hasOutcomePin = hasOutcomePin;
+        RefreshPresentationState();
+    }
+
+    public void SetActionReady(bool isActionReady)
+    {
+        _isActionReady = isActionReady;
+        RefreshPresentationState();
+    }
+
+    public void SetPressureState(string pressureStateKey, bool isOpportunityPulse)
+    {
+        _pressureStateKey = string.IsNullOrEmpty(pressureStateKey) ? string.Empty : pressureStateKey;
+        _isOpportunityPulse = isOpportunityPulse;
+        RefreshPresentationState();
+    }
+
+    private void RefreshPresentationState()
+    {
+        bool hasPressureState = !string.IsNullOrEmpty(_pressureStateKey);
+        float pressureScale = _pressureStateKey == "critical" ? 1.035f : _pressureStateKey == "strained" ? 1.028f : _pressureStateKey == "recovering" ? 1.018f : _pressureStateKey == "watch" ? 1.012f : 1f;
+        float scaleMultiplier = _isSelected ? 1.08f : _isLinkedFocus ? 1.04f : _hasOutcomePin ? 1.02f : hasPressureState ? pressureScale : 1f;
+        transform.localScale = _baseScale * scaleMultiplier;
+
+        Color pressureTint = _isOpportunityPulse
+            ? new Color(0.52f, 0.82f, 0.60f, 1f)
+            : _pressureStateKey == "critical"
+                ? new Color(0.94f, 0.56f, 0.38f, 1f)
+                : _pressureStateKey == "strained"
+                    ? new Color(0.90f, 0.74f, 0.34f, 1f)
+                    : _pressureStateKey == "recovering"
+                        ? new Color(0.46f, 0.74f, 0.92f, 1f)
+                        : _pressureStateKey == "watch"
+                            ? new Color(0.58f, 0.80f, 0.82f, 1f)
+                            : _baseColor;
+        float pressureMix = _isOpportunityPulse ? 0.20f : _pressureStateKey == "critical" ? 0.28f : _pressureStateKey == "strained" ? 0.22f : _pressureStateKey == "recovering" ? 0.16f : _pressureStateKey == "watch" ? 0.12f : 0f;
 
         if (_renderer != null)
         {
-            _renderer.color = isSelected ? Color.Lerp(_baseColor, Color.white, 0.28f) : _baseColor;
+            Color target = pressureMix > 0f ? Color.Lerp(_baseColor, pressureTint, pressureMix) : _baseColor;
+            if (_isLinkedFocus)
+            {
+                target = Color.Lerp(target, Color.white, 0.12f);
+            }
+
+            if (_hasOutcomePin)
+            {
+                target = Color.Lerp(target, new Color(0.96f, 0.84f, 0.54f, 1f), 0.18f);
+            }
+
+            if (_isSelected)
+            {
+                target = Color.Lerp(target, _isActionReady ? new Color(0.92f, 0.98f, 0.92f, 1f) : Color.white, _isActionReady ? 0.30f : 0.28f);
+            }
+
+            _renderer.color = target;
         }
 
         if (_glowRenderer != null)
         {
-            _glowRenderer.color = isSelected
-                ? new Color(_glowColor.r, _glowColor.g, _glowColor.b, Mathf.Max(0.34f, _glowColor.a + 0.18f))
-                : _glowColor;
+            Color glowTarget = pressureMix > 0f ? Color.Lerp(_glowColor, new Color(pressureTint.r, pressureTint.g, pressureTint.b, _glowColor.a), 0.34f) : _glowColor;
+            float alpha = glowTarget.a;
+            if (hasPressureState)
+            {
+                alpha = Mathf.Max(alpha, _pressureStateKey == "critical" ? 0.34f : _pressureStateKey == "strained" ? 0.26f : _pressureStateKey == "recovering" ? 0.20f : 0.18f);
+            }
+
+            if (_isOpportunityPulse)
+            {
+                alpha = Mathf.Max(alpha, 0.26f);
+            }
+
+            if (_isLinkedFocus)
+            {
+                alpha = Mathf.Max(alpha, 0.24f);
+            }
+
+            if (_hasOutcomePin)
+            {
+                alpha = Mathf.Max(alpha, 0.30f);
+            }
+
+            if (_isSelected)
+            {
+                alpha = Mathf.Max(alpha, _isActionReady ? 0.48f : 0.34f);
+            }
+
+            _glowRenderer.color = new Color(glowTarget.r, glowTarget.g, glowTarget.b, alpha);
         }
 
         if (_selectionRenderer != null)
         {
-            _selectionRenderer.enabled = isSelected;
+            _selectionRenderer.enabled = _isSelected || _isLinkedFocus || _hasOutcomePin;
+            if (_selectionRenderer.enabled)
+            {
+                Color highlight = _selectionColor;
+                if (_isSelected && _isActionReady)
+                {
+                    highlight = new Color(0.58f, 0.84f, 0.62f, 0.38f);
+                }
+                else if (_isSelected)
+                {
+                    highlight = new Color(0.92f, 0.96f, 1f, 0.32f);
+                }
+                else if (_hasOutcomePin)
+                {
+                    highlight = new Color(0.96f, 0.82f, 0.46f, 0.24f);
+                }
+                else if (_isLinkedFocus)
+                {
+                    highlight = new Color(0.46f, 0.72f, 0.88f, 0.20f);
+                }
+
+                _selectionRenderer.color = highlight;
+            }
         }
 
         if (_labelText != null)
         {
-            _labelText.color = isSelected ? Color.Lerp(_labelColor, Color.white, 0.25f) : _labelColor;
+            Color labelColor = pressureMix > 0f ? Color.Lerp(_labelColor, pressureTint, pressureMix) : _labelColor;
+            if (_isLinkedFocus)
+            {
+                labelColor = Color.Lerp(labelColor, Color.white, 0.14f);
+            }
+
+            if (_hasOutcomePin)
+            {
+                labelColor = Color.Lerp(labelColor, new Color(1f, 0.92f, 0.70f, 1f), 0.18f);
+            }
+
+            if (_isSelected)
+            {
+                labelColor = Color.Lerp(labelColor, Color.white, 0.25f);
+            }
+
+            _labelText.color = labelColor;
         }
 
         if (_detailText != null)
         {
-            _detailText.color = isSelected ? Color.Lerp(_detailColor, Color.white, 0.18f) : _detailColor;
+            Color detailColor = pressureMix > 0f ? Color.Lerp(_detailColor, pressureTint, pressureMix * 0.8f) : _detailColor;
+            if (_hasOutcomePin)
+            {
+                detailColor = Color.Lerp(detailColor, new Color(0.98f, 0.90f, 0.72f, 1f), 0.20f);
+            }
+
+            if (_isSelected || _isLinkedFocus)
+            {
+                detailColor = Color.Lerp(detailColor, Color.white, _isSelected ? 0.18f : 0.10f);
+            }
+
+            _detailText.color = detailColor;
         }
     }
 }
-
-
-
 
 
 

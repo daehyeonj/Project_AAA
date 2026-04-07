@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 public sealed class PrototypeBattleUiSurfaceData
 {
@@ -39,6 +39,13 @@ public sealed class PrototypeBattleUiActorData
     public string RoleLabel = "None";
     public string SkillLabel = "None";
     public string SkillShortText = string.Empty;
+    public string LevelSummaryText = string.Empty;
+    public string LoadoutSummaryText = string.Empty;
+    public string ConsumableSlotSummaryText = string.Empty;
+    public string ActiveSkillSlotSummaryText = string.Empty;
+    public string SkillCooldownSummaryText = string.Empty;
+    public string SkillResourceSummaryText = string.Empty;
+    public string ActionEconomySummaryText = string.Empty;
     public int CurrentHp;
     public int MaxHp = 1;
     public bool IsEnemy;
@@ -52,11 +59,31 @@ public sealed class PrototypeBattleUiActionContextData
     public string SelectedActionKey = string.Empty;
     public string SelectedActionLabel = "Action";
     public string SelectedTargetId = string.Empty;
+    public int ResolvedSlotIndex = -1;
+    public string ResolvedSlotKey = string.Empty;
     public string ResolvedSkillId = string.Empty;
     public string ResolvedSkillLabel = string.Empty;
+    public string ResolvedLoadoutId = string.Empty;
+    public string ResolvedLoadoutSummaryText = string.Empty;
+    public string ResolvedSkillSegmentKey = string.Empty;
     public string ResolvedTargetKind = string.Empty;
+    public string ResolvedEffectBucketKey = string.Empty;
     public string ResolvedEffectType = string.Empty;
     public int ResolvedPowerValue;
+    public int ResolvedCooldownTurns;
+    public int ResolvedCooldownRemaining;
+    public int ResolvedResourceCost;
+    public int ResolvedCurrentResource;
+    public int ResolvedMaxResource = 1;
+    public int ResolvedEncounterChargesRemaining;
+    public int ResolvedMaxEncounterCharges;
+    public string ResolvedAvailabilityStateKey = string.Empty;
+    public string ResolvedAvailabilitySummaryText = string.Empty;
+    public string ActiveSkillSlotSummaryText = string.Empty;
+    public string SkillCooldownSummaryText = string.Empty;
+    public string SkillResourceSummaryText = string.Empty;
+    public string ActionEconomySummaryText = string.Empty;
+    public string ConsumableSlotSummaryText = string.Empty;
     public bool IsSkillAction;
     public bool RequiresTarget;
 }
@@ -102,6 +129,11 @@ public sealed class PrototypeBattleUiPartyMemberData
     public string RoleLabel = "Adventurer";
     public string SkillLabel = "Basic Action";
     public string SkillShortText = string.Empty;
+    public string LevelSummaryText = string.Empty;
+    public string LoadoutSummaryText = string.Empty;
+    public string ConsumableSlotSummaryText = string.Empty;
+    public string ActiveSkillSlotSummaryText = string.Empty;
+    public string SkillResourceSummaryText = string.Empty;
     public int CurrentHp;
     public int MaxHp = 1;
     public int Attack;
@@ -136,6 +168,7 @@ public sealed class PrototypeBattleUiCommandSurfaceData
 {
     public string SelectedActionKey = string.Empty;
     public string SelectedActionLabel = string.Empty;
+    public string SupplementalSummaryText = string.Empty;
     public PrototypeBattleUiCommandDetailData[] Details = Array.Empty<PrototypeBattleUiCommandDetailData>();
 }
 

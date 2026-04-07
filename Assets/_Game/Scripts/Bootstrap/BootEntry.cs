@@ -88,6 +88,50 @@ public sealed class BootEntry : MonoBehaviour
     public string RecentExpeditionLog1Label => _worldView != null ? _worldView.RecentExpeditionLog1Text : "None";
     public string RecentExpeditionLog2Label => _worldView != null ? _worldView.RecentExpeditionLog2Text : "None";
     public string RecentExpeditionLog3Label => _worldView != null ? _worldView.RecentExpeditionLog3Text : "None";
+    public string CurrentOperationChainSummaryLabel => _worldView != null ? _worldView.CurrentOperationChainSummaryText : "None";
+    public string CurrentRouteFocusSummaryLabel => _worldView != null ? _worldView.CurrentRouteFocusSummaryText : "None";
+    public string CurrentBoardPulseSummaryLabel => _worldView != null ? _worldView.CurrentBoardPulseSummaryText : "None";
+    public string CurrentRecentEventFeedSummaryLabel => _worldView != null ? _worldView.CurrentRecentEventFeedSummaryText : "None";
+    public string CurrentActionReasonLabel => _worldView != null ? _worldView.CurrentActionReasonSummaryText : "None";
+    public string CurrentExpeditionStagingSummaryLabel => _worldView != null ? _worldView.CurrentExpeditionStagingSummaryText : "None";
+    public string CurrentReturnAftermathSummaryLabel => _worldView != null ? _worldView.CurrentReturnAftermathSummaryText : "None";
+    public string CurrentAlertRibbonSummaryLabel => _worldView != null ? _worldView.CurrentAlertRibbonSummaryText : "None";
+    public string CurrentOpportunityLadderLabel => _worldView != null ? _worldView.CurrentOpportunityLadderSummaryText : "None";
+    public string CurrentConsequencePreviewLabel => _worldView != null ? _worldView.CurrentConsequencePreviewSummaryText : "None";
+    public string CurrentCommitReasonLabel => _worldView != null ? _worldView.CurrentCommitReasonSummaryText : "None";
+    public string CurrentBlockedReasonLabel => _worldView != null ? _worldView.CurrentBlockedReasonSummaryText : "None";
+    public string CurrentAlternateMoveLabel => _worldView != null ? _worldView.CurrentAlternateMoveSummaryText : "None";
+    public string CurrentCommitmentQueueLabel => _worldView != null ? _worldView.CurrentCommitmentQueueSummaryText : "None";
+    public string CurrentDeferredOpportunityLabel => _worldView != null ? _worldView.CurrentDeferredOpportunitySummaryText : "None";
+    public string CurrentRecoveryWindowLabel => _worldView != null ? _worldView.CurrentRecoveryWindowSummaryText : "None";
+    public string CurrentPriorityClockLabel => _worldView != null ? _worldView.CurrentPriorityClockSummaryText : "None";
+    public string CurrentShortHorizonWorldLabel => _worldView != null ? _worldView.CurrentShortHorizonWorldSummaryText : "None";
+    public string CurrentWorldPostureLabel => _worldView != null ? _worldView.CurrentWorldPostureSummaryText : "None";
+    public string CurrentOutcomeReadbackLabel => _worldView != null ? _worldView.CurrentOutcomeReadbackSummaryText : "None";
+    public string CurrentConfirmationStateLabel => _worldView != null ? _worldView.CurrentConfirmationStateSummaryText : "None";
+    public string CurrentChangedBestMoveLabel => _worldView != null ? _worldView.CurrentChangedBestMoveSummaryText : "None";
+    public string CurrentRelievedHotspotLabel => _worldView != null ? _worldView.CurrentRelievedHotspotSummaryText : "None";
+    public string CurrentReboundHotspotLabel => _worldView != null ? _worldView.CurrentReboundHotspotSummaryText : "None";
+    public string CurrentCorrectiveFollowUpLabel => _worldView != null ? _worldView.CurrentCorrectiveFollowUpSummaryText : "None";
+    public bool IsRecruitmentBoardOpen => IsWorldSimActive && _worldView != null && _worldView.IsRecruitmentBoardOpen;
+    public bool CanConfirmSelectedRecruitOffer => IsWorldSimActive && _worldView != null && _worldView.CanConfirmSelectedRecruitOffer;
+    public string CurrentRecruitmentBoardSummaryLabel => _worldView != null ? _worldView.CurrentRecruitmentBoardSummaryText : "None";
+    public string CurrentSelectedRecruitOfferSummaryLabel => _worldView != null ? _worldView.CurrentSelectedRecruitOfferSummaryText : "None";
+    public string CurrentRecruitBlockedReasonSummaryLabel => _worldView != null ? _worldView.CurrentRecruitBlockedReasonSummaryText : "None";
+    public string CurrentLastRecruitedPartyLabel => _worldView != null ? _worldView.CurrentLastRecruitedPartySummaryText : "None";
+    public string CurrentNextRecruitRefreshLabel => _worldView != null ? _worldView.CurrentNextRecruitRefreshSummaryText : "None";
+    public string CurrentRecruitmentWorldPostureLabel => _worldView != null ? _worldView.CurrentRecruitmentWorldPostureSummaryText : "None";
+    public bool IsPartyRosterBoardOpen => IsWorldSimActive && _worldView != null && _worldView.IsPartyRosterBoardOpen;
+    public bool CanStageSelectedPartyRosterEntry => IsWorldSimActive && _worldView != null && _worldView.CanStageSelectedPartyRosterEntry;
+    public string CurrentPartyRosterSummaryLabel => _worldView != null ? _worldView.CurrentPartyRosterSummaryText : "None";
+    public string CurrentSelectedPartyRosterSummaryLabel => _worldView != null ? _worldView.CurrentSelectedPartyRosterSummaryText : "None";
+    public string CurrentStagedPartySummaryLabel => _worldView != null ? _worldView.CurrentStagedPartySummaryText : "None";
+    public string CurrentPartyRosterBlockedReasonSummaryLabel => _worldView != null ? _worldView.CurrentPartyRosterBlockedReasonSummaryText : "None";
+    public string CurrentLastCommittedPartySummaryLabel => _worldView != null ? _worldView.CurrentLastCommittedPartySummaryText : "None";
+    public string CurrentPartyRosterWorldPostureLabel => _worldView != null ? _worldView.CurrentPartyRosterWorldPostureSummaryText : "None";
+    public int PartyRosterEntryCount => _worldView != null ? _worldView.PartyRosterEntryCount : 0;
+    public bool CanRecruitWorldSimParty => IsWorldSimActive && _worldView != null && _worldView.CanRecruitSelectedCityPartyAction;
+    public bool CanEnterSelectedWorldDungeon => IsWorldSimActive && _worldView != null && _worldView.CanEnterSelectedCityDungeonAction;
     public string SelectedDisplayName => _worldView != null ? _worldView.SelectedDisplayName : "None";
     public string SelectedTypeLabel => _worldView != null ? _worldView.SelectedKind : "None";
     public string SelectedPositionLabel => _worldView != null ? _worldView.SelectedPositionText : "None";
@@ -257,6 +301,9 @@ public sealed class BootEntry : MonoBehaviour
     public string EliteDefeatedLabel => _worldView != null ? _worldView.EliteDefeatedText : "None";
     public string EliteRewardStatusLabel => _worldView != null ? _worldView.EliteRewardStatusText : "None";
     public string EliteRewardHintLabel => _worldView != null ? _worldView.EliteRewardHintText : "None";
+    public string EncounterPhaseSummaryLabel => _worldView != null ? _worldView.CurrentEncounterPhaseSummaryText : "None";
+    public string EncounterWaveSummaryLabel => _worldView != null ? _worldView.CurrentEncounterWaveSummaryText : "None";
+    public string BossPatternSummaryLabel => _worldView != null ? _worldView.CurrentBossPatternSummaryText : "None";
     public string CurrentSelectionPromptLabel => _worldView != null ? _worldView.CurrentSelectionPromptText : "None";
     public string BattlePhaseLabel => _worldView != null ? _worldView.BattlePhaseText : "None";
     public string BattleCancelHintLabel => _worldView != null ? _worldView.BattleCancelHintText : "None";
@@ -300,6 +347,11 @@ public sealed class BootEntry : MonoBehaviour
     public string ResultPanelRoomPathSummaryLabel => _worldView != null ? _worldView.ResultPanelRoomPathSummaryText : "None";
     public string ResultPanelPartyHpSummaryLabel => _worldView != null ? _worldView.ResultPanelPartyHpSummaryText : "None";
     public string ResultPanelPartyConditionLabel => _worldView != null ? _worldView.ResultPanelPartyConditionText : "None";
+    public string ResultPanelPostRunSummaryLabel => _worldView != null ? _worldView.ResultPanelPostRunSummaryText : "None";
+    public string ResultPanelOfferAndApplySummaryLabel => _worldView != null ? _worldView.ResultPanelOfferAndApplySummaryText : "None";
+    public string ResultPanelStrategySummaryLabel => _worldView != null ? _worldView.ResultPanelStrategySummaryText : "None";
+    public string ResultPanelProgressionSummaryLabel => _worldView != null ? _worldView.ResultPanelProgressionSummaryText : "None";
+    public string ResultPanelGearRewardSummaryLabel => _worldView != null ? _worldView.ResultPanelGearRewardSummaryText : "None";
     public string ResultPanelReturnPromptLabel => _worldView != null ? _worldView.ResultPanelReturnPromptText : "None";
     public string Party1HpLabel => _worldView != null ? _worldView.GetPartyMemberHpText(0) : "None";
     public string Party2HpLabel => _worldView != null ? _worldView.GetPartyMemberHpText(1) : "None";
@@ -374,8 +426,19 @@ public sealed class BootEntry : MonoBehaviour
 
             if (!blockKeyboardShortcuts && _gameState.CurrentState == GameStateId.WorldSim && keyboard.escapeKey.wasPressedThisFrame)
             {
-                ChangeState(GameStateId.MainMenu);
-                return;
+                if (_worldView != null && _worldView.IsPartyRosterBoardOpen)
+                {
+                    _worldView.CancelPartyRosterBoard();
+                }
+                else if (_worldView != null && _worldView.IsRecruitmentBoardOpen)
+                {
+                    _worldView.CancelRecruitmentBoard();
+                }
+                else
+                {
+                    ChangeState(GameStateId.MainMenu);
+                    return;
+                }
             }
 
             if (!blockKeyboardShortcuts && _gameState.CurrentState == GameStateId.WorldSim)
@@ -480,8 +543,107 @@ public sealed class BootEntry : MonoBehaviour
     {
         if (IsWorldSimActive && _worldView != null)
         {
-            _worldView.RecruitSelectedCityParty();
+            _worldView.TryOpenSelectedCityRecruitmentBoard();
         }
+    }
+
+    public bool TrySelectWorldRecruitOffer(int offerIndex)
+    {
+        return IsWorldSimActive && _worldView != null && _worldView.TrySelectRecruitOffer(offerIndex);
+    }
+
+    public bool TryConfirmWorldRecruitOffer()
+    {
+        return IsWorldSimActive && _worldView != null && _worldView.TryConfirmSelectedRecruitOffer();
+    }
+
+    public void CancelWorldRecruitmentBoard()
+    {
+        if (IsWorldSimActive && _worldView != null)
+        {
+            _worldView.CancelRecruitmentBoard();
+        }
+    }
+
+    public void OpenWorldPartyRosterBoard()
+    {
+        if (IsWorldSimActive && _worldView != null)
+        {
+            _worldView.TryOpenSelectedCityPartyRosterBoard();
+        }
+    }
+
+    public bool TrySelectWorldPartyRosterEntry(int entryIndex)
+    {
+        return IsWorldSimActive && _worldView != null && _worldView.TrySelectPartyRosterEntry(entryIndex);
+    }
+
+    public bool TryStageWorldPartyRosterEntry()
+    {
+        return IsWorldSimActive && _worldView != null && _worldView.TryStageSelectedPartyRosterEntry();
+    }
+
+    public void CancelWorldPartyRosterBoard()
+    {
+        if (IsWorldSimActive && _worldView != null)
+        {
+            _worldView.CancelPartyRosterBoard();
+        }
+    }
+
+    public string GetPartyRosterEntryDisplayLabel(int entryIndex)
+    {
+        return _worldView != null ? _worldView.GetPartyRosterEntryDisplayText(entryIndex) : "None";
+    }
+
+    public string GetPartyRosterEntrySummaryLabel(int entryIndex)
+    {
+        return _worldView != null ? _worldView.GetPartyRosterEntrySummaryText(entryIndex) : "None";
+    }
+
+    public bool IsPartyRosterEntrySelected(int entryIndex)
+    {
+        return _worldView != null && _worldView.IsPartyRosterEntrySelected(entryIndex);
+    }
+
+    public bool IsPartyRosterEntryRecommended(int entryIndex)
+    {
+        return _worldView != null && _worldView.IsPartyRosterEntryRecommended(entryIndex);
+    }
+
+    public bool IsPartyRosterEntryStaged(int entryIndex)
+    {
+        return _worldView != null && _worldView.IsPartyRosterEntryStaged(entryIndex);
+    }
+
+    public bool IsPartyRosterEntryBlocked(int entryIndex)
+    {
+        return _worldView != null && _worldView.IsPartyRosterEntryBlocked(entryIndex);
+    }
+
+    public string GetRecruitOfferDisplayLabel(int offerIndex)
+    {
+        return _worldView != null ? _worldView.GetRecruitOfferDisplayText(offerIndex) : "None";
+    }
+
+    public string GetRecruitOfferSummaryLabel(int offerIndex)
+    {
+        return _worldView != null ? _worldView.GetRecruitOfferSummaryText(offerIndex) : "None";
+    }
+
+    public bool IsRecruitOfferSelected(int offerIndex)
+    {
+        return _worldView != null && _worldView.IsRecruitOfferSelected(offerIndex);
+    }
+
+    public bool IsRecruitOfferRecommended(int offerIndex)
+    {
+        return _worldView != null && _worldView.IsRecruitOfferRecommended(offerIndex);
+    }
+
+    public bool IsRecruitOfferBlocked(int offerIndex)
+    {
+        return _worldView != null && _worldView.IsRecruitOfferBlocked(offerIndex);
     }
 
     public bool TryEnterSelectedWorldDungeon()
@@ -671,6 +833,76 @@ public sealed class BootEntry : MonoBehaviour
             return;
         }
 
+        if (_worldView.IsRecruitmentBoardOpen)
+        {
+            if (keyboard.digit1Key.wasPressedThisFrame || keyboard.numpad1Key.wasPressedThisFrame)
+            {
+                _worldView.TrySelectRecruitOffer(0);
+            }
+
+            if (keyboard.digit2Key.wasPressedThisFrame || keyboard.numpad2Key.wasPressedThisFrame)
+            {
+                _worldView.TrySelectRecruitOffer(1);
+            }
+
+            if (keyboard.digit3Key.wasPressedThisFrame || keyboard.numpad3Key.wasPressedThisFrame)
+            {
+                _worldView.TrySelectRecruitOffer(2);
+            }
+
+            if (keyboard.digit4Key.wasPressedThisFrame || keyboard.numpad4Key.wasPressedThisFrame)
+            {
+                _worldView.TrySelectRecruitOffer(3);
+            }
+
+            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
+            {
+                _worldView.TryConfirmSelectedRecruitOffer();
+            }
+
+            return;
+        }
+
+        if (_worldView.IsPartyRosterBoardOpen)
+        {
+            if (keyboard.digit1Key.wasPressedThisFrame || keyboard.numpad1Key.wasPressedThisFrame)
+            {
+                _worldView.TrySelectPartyRosterEntry(0);
+            }
+
+            if (keyboard.digit2Key.wasPressedThisFrame || keyboard.numpad2Key.wasPressedThisFrame)
+            {
+                _worldView.TrySelectPartyRosterEntry(1);
+            }
+
+            if (keyboard.digit3Key.wasPressedThisFrame || keyboard.numpad3Key.wasPressedThisFrame)
+            {
+                _worldView.TrySelectPartyRosterEntry(2);
+            }
+
+            if (keyboard.digit4Key.wasPressedThisFrame || keyboard.numpad4Key.wasPressedThisFrame)
+            {
+                _worldView.TrySelectPartyRosterEntry(3);
+            }
+
+            if (keyboard.digit5Key.wasPressedThisFrame || keyboard.numpad5Key.wasPressedThisFrame)
+            {
+                _worldView.TrySelectPartyRosterEntry(4);
+            }
+
+            if (keyboard.digit6Key.wasPressedThisFrame || keyboard.numpad6Key.wasPressedThisFrame)
+            {
+                _worldView.TrySelectPartyRosterEntry(5);
+            }
+
+            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
+            {
+                _worldView.TryStageSelectedPartyRosterEntry();
+            }
+
+            return;
+        }
+
         if (keyboard.tKey.wasPressedThisFrame)
         {
             _worldView.RunEconomyDay();
@@ -693,9 +925,8 @@ public sealed class BootEntry : MonoBehaviour
 
         if (keyboard.gKey.wasPressedThisFrame)
         {
-            _worldView.RecruitSelectedCityParty();
+            _worldView.TryOpenSelectedCityRecruitmentBoard();
         }
-
 
         if (keyboard.xKey.wasPressedThisFrame && _worldView.TryEnterSelectedCityDungeon(Camera.main))
         {
@@ -813,6 +1044,13 @@ public sealed class BootEntry : MonoBehaviour
                     : BootColor;
     }
 }
+
+
+
+
+
+
+
 
 
 

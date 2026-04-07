@@ -288,30 +288,41 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             Rect rightRect = new Rect(centerRect.xMax + OverlaySectionGap, contentRectLegacy.y, rightWidth, contentRectLegacy.height);
 
             DrawNamedScrollableOverlaySection("victory_party_panel", leftRect, "Party Outcome", BuildPanelBody(
-                Line("PartyHpSummary", V(_bootEntry.ResultPanelPartyHpSummaryLabel)),
-                Line("PartyConditionAtEnd", V(_bootEntry.ResultPanelPartyConditionLabel)),
-                Line("SurvivingMembers", V(_bootEntry.ResultPanelSurvivingMembersLabel)),
+                Line("ActiveParty", V(_bootEntry.ActiveDungeonPartyLabel)),
+                Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel)),
                 Line("CurrentRoute", V(_bootEntry.CurrentRouteLabel)),
-                Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel))), new Color(0.08f, 0.12f, 0.16f, 0.94f));
+                SpacerLine(),
+                Block(T("PartyHpSummary"), V(_bootEntry.ResultPanelPartyHpSummaryLabel)),
+                Block(T("PartyConditionAtEnd"), V(_bootEntry.ResultPanelPartyConditionLabel)),
+                Block(T("SurvivingMembers"), V(_bootEntry.ResultPanelSurvivingMembersLabel)),
+                SpacerLine(),
+                Block("Progression Summary", V(_bootEntry.ResultPanelProgressionSummaryLabel))), new Color(0.08f, 0.12f, 0.16f, 0.94f));
             DrawNamedScrollableOverlaySection("victory_reward_panel", centerRect, "Victory Summary", BuildPanelBody(
+                Line("Result", V(_bootEntry.ResultPanelStateLabel)),
+                Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel)),
+                Line("CurrentRoute", V(_bootEntry.CurrentRouteLabel)),
                 Line("EliteRewardIdentity", V(_bootEntry.ResultPanelEliteRewardIdentityLabel)),
                 Line("EliteRewardAmount", V(_bootEntry.ResultPanelEliteRewardAmountLabel)),
                 Line("EliteBonusRewardAmount", V(_bootEntry.ResultPanelEliteBonusRewardAmountLabel)),
                 Line("RoomPathSummary", V(_bootEntry.ResultPanelRoomPathSummaryLabel)),
-                Line("PartyHpSummary", V(_bootEntry.ResultPanelPartyHpSummaryLabel)),
-                Line("PartyConditionAtEnd", V(_bootEntry.ResultPanelPartyConditionLabel)),
-                Line("SurvivingMembers", V(_bootEntry.ResultPanelSurvivingMembersLabel)),
                 Line("ClearedEncounters", V(_bootEntry.ResultPanelClearedEncountersLabel)),
                 Line("OpenedChests", V(_bootEntry.ResultPanelOpenedChestsLabel)),
+                SpacerLine(),
+                Block("Post-Run Summary", V(_bootEntry.ResultPanelPostRunSummaryLabel)),
+                Block("Gear Reward", V(_bootEntry.ResultPanelGearRewardSummaryLabel)),
                 Line("ReturnToWorldPrompt", V(_bootEntry.ResultPanelReturnPromptLabel))), new Color(0.08f, 0.12f, 0.16f, 0.94f));
             DrawNamedScrollableOverlaySection("victory_support_panel", rightRect, "Battle Result Feed", BuildPanelBody(
-                Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel)),
-                Line("CurrentRoute", V(_bootEntry.CurrentRouteLabel)),
-                Line("RoomPathSummary", V(_bootEntry.ResultPanelRoomPathSummaryLabel)),
-                Line("PartyHpSummary", V(_bootEntry.ResultPanelPartyHpSummaryLabel)),
-                Line("PartyConditionAtEnd", V(_bootEntry.ResultPanelPartyConditionLabel)),
                 Line("ActiveParty", V(_bootEntry.ActiveDungeonPartyLabel)),
-                Line("LootBreakdown", V(_bootEntry.LootBreakdownLabel)),
+                Line("EncounterPhase", V(_bootEntry.EncounterPhaseSummaryLabel)),
+                Line("EncounterWave", V(_bootEntry.EncounterWaveSummaryLabel)),
+                Line("BossPattern", V(_bootEntry.BossPatternSummaryLabel)),
+                SpacerLine(),
+                Block("Offer & Apply", V(_bootEntry.ResultPanelOfferAndApplySummaryLabel)),
+                SpacerLine(),
+                Block("Strategy", V(_bootEntry.ResultPanelStrategySummaryLabel)),
+                SpacerLine(),
+                Block("Loot Breakdown", V(_bootEntry.LootBreakdownLabel)),
+                SpacerLine(),
                 Line("LastBattleLog1", V(_bootEntry.LastBattleLog1Label)),
                 Line("LastBattleLog2", V(_bootEntry.LastBattleLog2Label)),
                 Line("LastBattleLog3", V(_bootEntry.LastBattleLog3Label))), new Color(0.09f, 0.11f, 0.14f, 0.94f));
@@ -379,12 +390,15 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         string stateLine = HasMeaningfulText(surface.TotalPartyHp) || HasMeaningfulText(surface.PartyCondition)
             ? GetCompactHudText(surface.TotalPartyHp + " | " + surface.PartyCondition, 56, false)
             : "Party state pending";
+        string orchestrationLine = BuildBattleOrchestrationSummaryText();
         Rect titleRect = new Rect(summaryRect.x + 14f, summaryRect.y + 10f, summaryRect.width - 28f, 22f);
         Rect subRect = new Rect(summaryRect.x + 14f, titleRect.yMax + 5f, summaryRect.width - 28f, 18f);
         Rect stateRect = new Rect(summaryRect.x + 14f, subRect.yMax + 4f, summaryRect.width - 28f, 18f);
+        Rect orchestrationRect = new Rect(summaryRect.x + 14f, stateRect.yMax + 4f, summaryRect.width - 28f, Mathf.Max(18f, summaryRect.yMax - stateRect.yMax - 12f));
         DrawFittedLabel(titleRect, GetBattleHudHeaderTitle(), _titleStyle, 15, 11, false);
         DrawFittedLabel(subRect, dungeonLine, _bodyStyle, 11, 9, false);
         DrawFittedLabel(stateRect, stateLine, _bodyStyle, 11, 9, false);
+        DrawFittedLabel(orchestrationRect, orchestrationLine, _bodyStyle, 10, 8, true);
 
         DrawOverlaySectionBackground(actorRect, new Color(0.11f, 0.17f, 0.24f, 0.90f));
         Rect actorTitleRect = new Rect(actorRect.x + 12f, actorRect.y + 10f, actorRect.width - 24f, 16f);
@@ -395,6 +409,35 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         DrawFittedLabel(actorRoleRect, GetCompactHudText(GetCurrentActorRoleLabel(), 22, false), _bodyStyle, 11, 9, false);
 
         DrawTurnOrderTimeline(timelineRect);
+    }
+
+    private string BuildBattleOrchestrationSummaryText()
+    {
+        if (_bootEntry == null)
+        {
+            return "Phase / wave / pattern pending";
+        }
+
+        List<string> tokens = new List<string>();
+        string phaseText = V(_bootEntry.EncounterPhaseSummaryLabel);
+        string waveText = V(_bootEntry.EncounterWaveSummaryLabel);
+        string patternText = V(_bootEntry.BossPatternSummaryLabel);
+        if (HasMeaningfulText(phaseText))
+        {
+            tokens.Add(phaseText);
+        }
+        if (HasMeaningfulText(waveText))
+        {
+            tokens.Add(waveText);
+        }
+        if (HasMeaningfulText(patternText))
+        {
+            tokens.Add(patternText);
+        }
+
+        return tokens.Count > 0
+            ? GetCompactHudText(string.Join(" | ", tokens), 108, false)
+            : "Phase / wave / pattern pending";
     }
 
     private void DrawTurnOrderTimeline(Rect rect)
@@ -2378,36 +2421,44 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("CityDispatchedFrom", V(_bootEntry.ResultPanelCityDispatchedFromLabel)),
                 Line("DungeonChosen", V(_bootEntry.ResultPanelDungeonChosenLabel)),
                 Line("DungeonDanger", V(_bootEntry.ResultPanelDungeonDangerLabel)),
+                Line("RouteChosen", V(_bootEntry.ResultPanelRouteChosenLabel)),
+                Line("RouteRisk", V(_bootEntry.ResultPanelRouteRiskLabel)),
                 Line("RecommendedRoute", V(_bootEntry.ResultPanelRecommendedRouteLabel)),
                 Line("FollowedRecommendation", V(_bootEntry.ResultPanelFollowedRecommendationLabel)),
+                Line("TurnsTaken", V(_bootEntry.ResultPanelTurnsTakenLabel)),
+                SpacerLine(),
+                Block(T("PartyHpSummary"), V(_bootEntry.ResultPanelPartyHpSummaryLabel)),
+                Block(T("PartyConditionAtEnd"), V(_bootEntry.ResultPanelPartyConditionLabel)),
+                Block(T("SurvivingMembers"), V(_bootEntry.ResultPanelSurvivingMembersLabel)),
+                Block("Progression Summary", V(_bootEntry.ResultPanelProgressionSummaryLabel)),
+                SpacerLine(),
+                Line("LootGained", V(_bootEntry.ResultPanelLootGainedLabel)),
                 Line("ManaShardsReturned", V(_bootEntry.ResultPanelManaShardsReturnedLabel)),
+                Line("BattleLoot", V(_bootEntry.ResultPanelBattleLootLabel)),
+                Line("ChestLoot", V(_bootEntry.ResultPanelChestLootLabel)),
+                Line("EventLoot", V(_bootEntry.ResultPanelEventLootLabel)),
                 Line("StockBefore", V(_bootEntry.ResultPanelStockBeforeLabel)),
                 Line("StockAfter", V(_bootEntry.ResultPanelStockAfterLabel)),
                 Line("StockDelta", V(_bootEntry.ResultPanelStockDeltaLabel)),
                 Line("NeedPressureBefore", V(_bootEntry.ResultPanelNeedPressureBeforeLabel)),
                 Line("NeedPressureAfter", V(_bootEntry.ResultPanelNeedPressureAfterLabel)),
-                Line("TurnsTaken", V(_bootEntry.ResultPanelTurnsTakenLabel)),
-                Line("LootGained", V(_bootEntry.ResultPanelLootGainedLabel)),
-                Line("RouteChosen", V(_bootEntry.ResultPanelRouteChosenLabel)),
-                Line("RouteRisk", V(_bootEntry.ResultPanelRouteRiskLabel)),
-                Line("BattleLoot", V(_bootEntry.ResultPanelBattleLootLabel)),
-                Line("ChestLoot", V(_bootEntry.ResultPanelChestLootLabel)),
-                Line("EventLoot", V(_bootEntry.ResultPanelEventLootLabel)),
                 Line("EventChoice", V(_bootEntry.ResultPanelEventChoiceLabel)),
                 Line("PreEliteChoice", V(_bootEntry.ResultPanelPreEliteChoiceLabel)),
                 Line("PreEliteHealAmount", V(_bootEntry.ResultPanelPreEliteHealAmountLabel)),
                 Line("EliteBonusRewardEarned", V(_bootEntry.ResultPanelEliteBonusRewardEarnedLabel)),
                 Line("EliteBonusRewardAmount", V(_bootEntry.ResultPanelEliteBonusRewardAmountLabel)),
                 Line("RoomPathSummary", V(_bootEntry.ResultPanelRoomPathSummaryLabel)),
-                Line("PartyHpSummary", V(_bootEntry.ResultPanelPartyHpSummaryLabel)),
-                Line("PartyConditionAtEnd", V(_bootEntry.ResultPanelPartyConditionLabel)),
                 Line("EliteDefeated", V(_bootEntry.ResultPanelEliteDefeatedLabel)),
                 Line("EliteName", V(_bootEntry.ResultPanelEliteNameLabel)),
                 Line("EliteRewardIdentity", V(_bootEntry.ResultPanelEliteRewardIdentityLabel)),
                 Line("EliteRewardAmount", V(_bootEntry.ResultPanelEliteRewardAmountLabel)),
-                Line("SurvivingMembers", V(_bootEntry.ResultPanelSurvivingMembersLabel)),
                 Line("ClearedEncounters", V(_bootEntry.ResultPanelClearedEncountersLabel)),
                 Line("OpenedChests", V(_bootEntry.ResultPanelOpenedChestsLabel)),
+                SpacerLine(),
+                Block("Post-Run Summary", V(_bootEntry.ResultPanelPostRunSummaryLabel)),
+                Block("Offer & Apply", V(_bootEntry.ResultPanelOfferAndApplySummaryLabel)),
+                Block("Strategy", V(_bootEntry.ResultPanelStrategySummaryLabel)),
+                Block("Gear Reward", V(_bootEntry.ResultPanelGearRewardSummaryLabel)),
                 Line("ReturnToWorldPrompt", V(_bootEntry.ResultPanelReturnPromptLabel))), HudFilter.Logs),
             new HudPanel("economy_pressure", T("PanelEconomyPressure"), BuildPanelBody(
                 Line("ProducedTotal", _bootEntry.ProducedTotal),
@@ -2540,6 +2591,32 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         return T(labelKey) + ": " + value;
     }
 
+    private static string SpacerLine()
+    {
+        return " ";
+    }
+
+    private static string Block(string label, string value)
+    {
+        if (string.IsNullOrEmpty(label) || !HasMeaningfulText(value))
+        {
+            return null;
+        }
+
+        List<string> parts = SplitBlockParts(value);
+        if (parts.Count <= 0)
+        {
+            return null;
+        }
+
+        if (parts.Count == 1)
+        {
+            return label + ": " + parts[0];
+        }
+
+        return label + ":\n  " + string.Join("\n  ", parts.ToArray());
+    }
+
     private string Line(string labelKey, int value)
     {
         return Line(labelKey, value.ToString());
@@ -2587,6 +2664,38 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         }
 
         return filtered.Count == 0 ? "None" : string.Join("\n", filtered.ToArray());
+    }
+
+    private static List<string> SplitBlockParts(string value)
+    {
+        List<string> parts = new List<string>();
+        if (string.IsNullOrEmpty(value))
+        {
+            return parts;
+        }
+
+        string normalized = value.Replace("\r\n", "\n");
+        string[] lines = normalized.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string line = lines[i];
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            string[] subParts = line.Split(new[] { " | " }, System.StringSplitOptions.RemoveEmptyEntries);
+            for (int j = 0; j < subParts.Length; j++)
+            {
+                string part = subParts[j].Trim();
+                if (!string.IsNullOrEmpty(part))
+                {
+                    parts.Add(part);
+                }
+            }
+        }
+
+        return parts;
     }
 
     private void AddOptionalSummaryLine(List<string> lines, string prefix, string value)
@@ -2764,6 +2873,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         return mainCamera.orthographicSize.ToString("0.00");
     }
 }
+
 
 
 

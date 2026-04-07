@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -9,6 +9,7 @@ public sealed class PrototypePresentationShell : MonoBehaviour
     private const float WorldBottomBarHeight = 58f;
     private const float WorldDropdownHeight = 212f;
     private const float WorldBottomSheetHeight = 166f;
+    private const float WorldAlertRibbonHeight = 34f;
     private static readonly Rect[] EmptyBlockingRects = System.Array.Empty<Rect>();
 
     private enum WorldTopDropdownMode
@@ -149,8 +150,8 @@ public sealed class PrototypePresentationShell : MonoBehaviour
         DrawPanel(rect, new Color(0.07f, 0.10f, 0.14f, 0.98f), new Color(0.11f, 0.15f, 0.18f, 0.94f));
 
         Rect titleRect = new Rect(rect.x + 20f, rect.y + 20f, rect.width - 40f, 24f);
-        Rect boardRect = new Rect(rect.x + 20f, titleRect.yMax + 16f, rect.width - 40f, rect.height - 94f);
-        Rect footerRect = new Rect(rect.x + 20f, boardRect.yMax + 10f, rect.width - 40f, 20f);
+        Rect boardRect = new Rect(rect.x + 20f, titleRect.yMax + 16f, rect.width - 40f, rect.height - 118f);
+        Rect footerRect = new Rect(rect.x + 20f, boardRect.yMax + 8f, rect.width - 40f, 62f);
 
         GUI.Label(titleRect, T("FrontMenuPillarNetwork"), _panelTitleStyle);
         DrawPanel(boardRect, new Color(0.06f, 0.08f, 0.11f, 0.98f), new Color(0.12f, 0.16f, 0.17f, 0.76f));
@@ -168,7 +169,11 @@ public sealed class PrototypePresentationShell : MonoBehaviour
         DrawMiniNode(new Rect(cityB.x - 28f, cityB.y - 28f, 56f, 56f), false, new Color(0.86f, 0.72f, 0.34f, 1f));
         DrawMiniNode(new Rect(dungeonA.x - 22f, dungeonA.y - 22f, 44f, 44f), true, new Color(0.84f, 0.42f, 0.52f, 1f));
         DrawMiniNode(new Rect(dungeonB.x - 22f, dungeonB.y - 22f, 44f, 44f), true, new Color(0.46f, 0.76f, 0.46f, 1f));
-        GUI.Label(footerRect, T("FrontMenuSubtitle"), _captionStyle);
+        GUI.Label(footerRect,
+            Line(T("FrontMenuWorldPosture"), V(_bootEntry.CurrentWorldPostureLabel)) + "\n" +
+            Line(T("FrontMenuRecruitPosture"), V(_bootEntry.CurrentRecruitmentWorldPostureLabel)) + "\n" +
+            Line(T("FrontMenuRosterPosture"), V(_bootEntry.CurrentPartyRosterWorldPostureLabel)),
+            _captionStyle);
     }
 
     private void DrawMainMenuPillars(Rect rect)
@@ -192,10 +197,12 @@ public sealed class PrototypePresentationShell : MonoBehaviour
         Rect layoutRect = new Rect(ScreenMargin, ScreenMargin, Screen.width - reservedRight - (ScreenMargin * 2f), Screen.height - (ScreenMargin * 2f));
         Rect gnbRect = new Rect(layoutRect.x, layoutRect.y, layoutRect.width, WorldTopBarHeight);
         Rect bnbRect = new Rect(layoutRect.x, layoutRect.yMax - WorldBottomBarHeight, layoutRect.width, WorldBottomBarHeight);
-        Rect boardRect = new Rect(layoutRect.x, gnbRect.yMax + 14f, layoutRect.width, bnbRect.y - gnbRect.yMax - 28f);
+        Rect alertRect = new Rect(layoutRect.x, gnbRect.yMax + 10f, layoutRect.width, WorldAlertRibbonHeight);
+        Rect boardRect = new Rect(layoutRect.x, alertRect.yMax + 10f, layoutRect.width, bnbRect.y - alertRect.yMax - 20f);
 
         List<Rect> blockingRects = new List<Rect>();
         blockingRects.Add(gnbRect);
+        blockingRects.Add(alertRect);
         blockingRects.Add(bnbRect);
 
         DrawRect(new Rect(0f, 0f, layoutRect.xMax + 24f, 120f), new Color(0.10f, 0.16f, 0.19f, 0.14f));
@@ -203,10 +210,12 @@ public sealed class PrototypePresentationShell : MonoBehaviour
         DrawRotatedRect(new Rect(boardRect.x - 18f, boardRect.y + 28f, boardRect.width + 36f, 14f), -4f, new Color(0.18f, 0.26f, 0.30f, 0.08f));
         DrawRotatedRect(new Rect(boardRect.x + 20f, boardRect.yMax - 42f, boardRect.width - 40f, 10f), 5f, new Color(0.92f, 0.75f, 0.32f, 0.05f));
 
+        DrawWorldAlertRibbon(alertRect);
         if (_showBoardOverlay)
         {
             DrawWorldBoardFrame(boardRect);
         }
+
         Rect dropdownRect = DrawWorldTopBar(gnbRect);
         if (dropdownRect.width > 0f && dropdownRect.height > 0f)
         {
@@ -220,6 +229,20 @@ public sealed class PrototypePresentationShell : MonoBehaviour
         }
 
         DrawWorldBottomBar(bnbRect);
+        Rect recruitBoardRect = DrawWorldRecruitmentBoard(layoutRect);
+        if (recruitBoardRect.width > 0f && recruitBoardRect.height > 0f)
+        {
+            blockingRects.Add(layoutRect);
+            blockingRects.Add(recruitBoardRect);
+        }
+
+        Rect rosterBoardRect = DrawWorldPartyRosterBoard(layoutRect);
+        if (rosterBoardRect.width > 0f && rosterBoardRect.height > 0f)
+        {
+            blockingRects.Add(layoutRect);
+            blockingRects.Add(rosterBoardRect);
+        }
+
         _blockingRects = blockingRects.ToArray();
     }
 
@@ -372,6 +395,22 @@ public sealed class PrototypePresentationShell : MonoBehaviour
         }
     }
 
+    private void DrawWorldAlertRibbon(Rect rect)
+    {
+        Color accentColor = _bootEntry.CanEnterSelectedWorldDungeon
+            ? new Color(0.34f, 0.66f, 0.42f, 1f)
+            : _bootEntry.ActiveExpeditions > 0
+                ? new Color(0.86f, 0.70f, 0.30f, 1f)
+                : _bootEntry.AutoTickEnabled
+                    ? new Color(0.28f, 0.56f, 0.72f, 1f)
+                    : new Color(0.40f, 0.46f, 0.52f, 1f);
+
+        DrawPanel(rect, new Color(0.08f, 0.11f, 0.14f, 0.98f), new Color(0.10f, 0.14f, 0.18f, 0.94f));
+        DrawRect(new Rect(rect.x + 8f, rect.y + 7f, 10f, rect.height - 14f), accentColor);
+        GUI.Label(new Rect(rect.x + 26f, rect.y + 7f, 116f, rect.height - 14f), T("FrontWorldAlertRibbon"), _badgeStyle);
+        GUI.Label(new Rect(rect.x + 140f, rect.y + 7f, rect.width - 152f, rect.height - 14f), V(_bootEntry.CurrentAlertRibbonSummaryLabel), _captionStyle);
+    }
+
     private void DrawWorldBoardFrame(Rect rect)
     {
         DrawRect(new Rect(rect.x + 4f, rect.y + 6f, rect.width, rect.height), new Color(0f, 0f, 0f, 0.18f));
@@ -389,7 +428,10 @@ public sealed class PrototypePresentationShell : MonoBehaviour
         Rect footerRect = new Rect(innerRect.x + 14f, innerRect.yMax - 18f, innerRect.width - 28f, 16f);
         GUI.Label(titleRect, T("FrontWorldBoardOverlay"), _panelTitleStyle);
         GUI.Label(subtitleRect, T("FrontWorldOverlayReason"), _captionStyle);
-        GUI.Label(footerRect, BuildWorldLegendText(), _captionStyle);
+        GUI.Label(footerRect,
+            Line(T("FrontMenuWorldPosture"), V(_bootEntry.CurrentWorldPostureLabel)) + "\n" +
+            Line(T("FrontMenuRecruitPosture"), V(_bootEntry.CurrentRecruitmentWorldPostureLabel)),
+            _captionStyle);
 
         float pinSize = 10f;
         DrawRect(new Rect(innerRect.x + 8f, innerRect.y + 8f, pinSize, pinSize), new Color(0.84f, 0.72f, 0.34f, 0.72f));
@@ -400,8 +442,8 @@ public sealed class PrototypePresentationShell : MonoBehaviour
 
     private void DrawWorldActionSheet(Rect rect)
     {
-        bool hasCitySelection = _bootEntry.SelectedTypeLabel == "City";
-        bool canEnterDungeon = hasCitySelection && HasMeaningfulValue(_bootEntry.SelectedLinkedDungeonLabel);
+        bool canRecruitParty = _bootEntry.CanRecruitWorldSimParty;
+        bool canEnterDungeon = _bootEntry.CanEnterSelectedWorldDungeon;
         bool autoTickEnabled = _bootEntry.AutoTickEnabled;
         float gap = 10f;
         float width = (rect.width - (gap * 5f)) / 6f;
@@ -419,12 +461,12 @@ public sealed class PrototypePresentationShell : MonoBehaviour
             _bootEntry.RunWorldDayStep();
         }
 
-        if (DrawActionButton(recruitRect, "[G] " + T("FrontActionRecruit"), new Color(0.24f, 0.36f, 0.26f, 1f), hasCitySelection))
+        if (DrawActionButton(recruitRect, "[G] " + T("FrontActionRecruit"), new Color(0.24f, 0.36f, 0.26f, 1f), canRecruitParty))
         {
             _bootEntry.RecruitWorldSimParty();
         }
 
-        if (DrawActionButton(enterRect, "[X] " + T("FrontActionEnterDungeon"), new Color(0.44f, 0.30f, 0.18f, 1f), canEnterDungeon))
+        if (DrawActionButton(enterRect, "[X] " + T("FrontActionRosterEnter"), new Color(0.44f, 0.30f, 0.18f, 1f), canEnterDungeon))
         {
             _bootEntry.TryEnterSelectedWorldDungeon();
         }
@@ -444,9 +486,225 @@ public sealed class PrototypePresentationShell : MonoBehaviour
             _bootEntry.ResetWorldSimulation();
         }
 
-        GUI.Label(hintRect, V(_bootEntry.EconomyControlsLabel) + "\n" + V(_bootEntry.ExpeditionControlsLabel), _captionStyle);
+        GUI.Label(hintRect,
+            Line(T("FrontWorldActionReason"), V(_bootEntry.CurrentActionReasonLabel)) + "\n" +
+            Line(T("FrontWorldCommitmentQueue"), V(_bootEntry.CurrentCommitmentQueueLabel)) + "\n" +
+            Line(T("FrontWorldPartyRoster"), V(_bootEntry.CurrentPartyRosterSummaryLabel)) + "\n" +
+            Line(T("FrontWorldStagedParty"), V(_bootEntry.CurrentStagedPartySummaryLabel)) + "\n" +
+            Line(T("FrontWorldLastCommittedParty"), V(_bootEntry.CurrentLastCommittedPartySummaryLabel)) + "\n" +
+            Line(T("FrontWorldOutcomeReadback"), V(_bootEntry.CurrentOutcomeReadbackLabel)) + "\n" +
+            Line(T("FrontWorldLastRecruitedParty"), V(_bootEntry.CurrentLastRecruitedPartyLabel)) + "\n" +
+            V(_bootEntry.EconomyControlsLabel) + "\n" +
+            V(_bootEntry.ExpeditionControlsLabel),
+            _captionStyle);
     }
 
+    private Rect DrawWorldRecruitmentBoard(Rect layoutRect)
+    {
+        if (_bootEntry == null || !_bootEntry.IsRecruitmentBoardOpen)
+        {
+            return Rect.zero;
+        }
+
+        DrawRect(layoutRect, new Color(0.02f, 0.03f, 0.05f, 0.74f));
+        GUI.Button(layoutRect, GUIContent.none, GUIStyle.none);
+
+        float width = Mathf.Min(920f, layoutRect.width - 72f);
+        float height = Mathf.Min(620f, layoutRect.height - 96f);
+        Rect boardRect = new Rect(
+            layoutRect.x + ((layoutRect.width - width) * 0.5f),
+            layoutRect.y + ((layoutRect.height - height) * 0.5f),
+            width,
+            height);
+        DrawPanel(boardRect, new Color(0.08f, 0.12f, 0.17f, 0.98f), new Color(0.10f, 0.14f, 0.18f, 0.96f));
+
+        Rect titleRect = new Rect(boardRect.x + 20f, boardRect.y + 16f, boardRect.width - 40f, 24f);
+        Rect subtitleRect = new Rect(titleRect.x, titleRect.yMax + 6f, titleRect.width, 44f);
+        Rect cardsRect = new Rect(boardRect.x + 20f, subtitleRect.yMax + 12f, boardRect.width - 40f, 324f);
+        Rect selectedRect = new Rect(boardRect.x + 20f, cardsRect.yMax + 12f, boardRect.width - 40f, 92f);
+        Rect footerRect = new Rect(boardRect.x + 20f, selectedRect.yMax + 10f, boardRect.width - 40f, 84f);
+
+        GUI.Label(titleRect, T("FrontWorldRecruitmentBoard"), _panelTitleStyle);
+        GUI.Label(subtitleRect,
+            Line(T("FrontWorldRecruitmentBoard"), V(_bootEntry.CurrentRecruitmentBoardSummaryLabel)) + "\n" +
+            Line(T("FrontWorldRecruitRefresh"), V(_bootEntry.CurrentNextRecruitRefreshLabel)),
+            _bodyStyle);
+
+        float gap = 14f;
+        float cardWidth = (cardsRect.width - gap) * 0.5f;
+        float cardHeight = (cardsRect.height - gap) * 0.5f;
+        for (int i = 0; i < 4; i++)
+        {
+            int row = i / 2;
+            int column = i % 2;
+            Rect cardRect = new Rect(
+                cardsRect.x + ((cardWidth + gap) * column),
+                cardsRect.y + ((cardHeight + gap) * row),
+                cardWidth,
+                cardHeight);
+            bool isSelected = _bootEntry.IsRecruitOfferSelected(i);
+            bool isRecommended = _bootEntry.IsRecruitOfferRecommended(i);
+            bool isBlocked = _bootEntry.IsRecruitOfferBlocked(i);
+            Color borderColor = isSelected
+                ? new Color(0.28f, 0.56f, 0.72f, 1f)
+                : isRecommended
+                    ? new Color(0.72f, 0.60f, 0.24f, 1f)
+                    : new Color(0.11f, 0.16f, 0.20f, 1f);
+            Color innerColor = isBlocked
+                ? new Color(0.10f, 0.12f, 0.14f, 0.96f)
+                : isSelected
+                    ? new Color(0.12f, 0.19f, 0.24f, 0.96f)
+                    : new Color(0.09f, 0.12f, 0.16f, 0.96f);
+            DrawPanel(cardRect, borderColor, innerColor);
+            DrawRect(new Rect(cardRect.x + 10f, cardRect.y + 10f, cardRect.width - 20f, 2f), isRecommended ? new Color(0.90f, 0.76f, 0.32f, 0.82f) : new Color(0.26f, 0.36f, 0.42f, 0.32f));
+            GUI.Label(new Rect(cardRect.x + 14f, cardRect.y + 14f, cardRect.width - 28f, 22f), V(_bootEntry.GetRecruitOfferDisplayLabel(i)), _badgeStyle);
+            GUI.Label(new Rect(cardRect.x + 14f, cardRect.y + 42f, cardRect.width - 28f, cardRect.height - 68f), V(_bootEntry.GetRecruitOfferSummaryLabel(i)), _captionStyle);
+
+            Rect stateRect = new Rect(cardRect.x + 14f, cardRect.yMax - 28f, cardRect.width - 28f, 18f);
+            string stateText = isBlocked
+                ? T("FrontWorldBlockedReason")
+                : isSelected
+                    ? T("Selected")
+                    : isRecommended
+                        ? T("RecommendedRoute")
+                        : T("FrontActionRecruit");
+            GUI.Label(stateRect, stateText, _captionStyle);
+
+            if (GUI.Button(cardRect, GUIContent.none, GUIStyle.none))
+            {
+                _bootEntry.TrySelectWorldRecruitOffer(i);
+            }
+        }
+
+        GUI.Label(selectedRect,
+            Line(T("FrontWorldSelectedRecruitOffer"), V(_bootEntry.CurrentSelectedRecruitOfferSummaryLabel)) + "\n" +
+            Line(T("FrontWorldRecruitBlocked"), V(_bootEntry.CurrentRecruitBlockedReasonSummaryLabel)) + "\n" +
+            Line(T("FrontWorldLastRecruitedParty"), V(_bootEntry.CurrentLastRecruitedPartyLabel)),
+            _bodyStyle);
+
+        Rect confirmRect = new Rect(footerRect.x, footerRect.y + 4f, 240f, 42f);
+        Rect cancelRect = new Rect(confirmRect.xMax + 12f, footerRect.y + 4f, 180f, 42f);
+        Rect controlsRect = new Rect(footerRect.x, confirmRect.yMax + 8f, footerRect.width, 24f);
+        if (DrawActionButton(confirmRect, "[Enter] " + T("FrontWorldConfirmRecruit"), new Color(0.22f, 0.46f, 0.36f, 1f), _bootEntry.CanConfirmSelectedRecruitOffer))
+        {
+            _bootEntry.TryConfirmWorldRecruitOffer();
+        }
+
+        if (DrawActionButton(cancelRect, "[Esc] " + T("FrontWorldCancelRecruit"), new Color(0.18f, 0.20f, 0.24f, 1f), true))
+        {
+            _bootEntry.CancelWorldRecruitmentBoard();
+        }
+
+        GUI.Label(controlsRect, T("FrontWorldRecruitControls"), _captionStyle);
+        return boardRect;
+    }
+
+    private Rect DrawWorldPartyRosterBoard(Rect layoutRect)
+    {
+        if (_bootEntry == null || !_bootEntry.IsPartyRosterBoardOpen)
+        {
+            return Rect.zero;
+        }
+
+        DrawRect(layoutRect, new Color(0.02f, 0.03f, 0.05f, 0.74f));
+        GUI.Button(layoutRect, GUIContent.none, GUIStyle.none);
+
+        float width = Mathf.Min(960f, layoutRect.width - 72f);
+        float height = Mathf.Min(680f, layoutRect.height - 84f);
+        Rect boardRect = new Rect(
+            layoutRect.x + ((layoutRect.width - width) * 0.5f),
+            layoutRect.y + ((layoutRect.height - height) * 0.5f),
+            width,
+            height);
+        DrawPanel(boardRect, new Color(0.08f, 0.12f, 0.17f, 0.98f), new Color(0.10f, 0.14f, 0.18f, 0.96f));
+
+        Rect titleRect = new Rect(boardRect.x + 20f, boardRect.y + 16f, boardRect.width - 40f, 24f);
+        Rect subtitleRect = new Rect(titleRect.x, titleRect.yMax + 6f, titleRect.width, 62f);
+        Rect cardsRect = new Rect(boardRect.x + 20f, subtitleRect.yMax + 12f, boardRect.width - 40f, 342f);
+        Rect selectedRect = new Rect(boardRect.x + 20f, cardsRect.yMax + 12f, boardRect.width - 40f, 118f);
+        Rect footerRect = new Rect(boardRect.x + 20f, selectedRect.yMax + 10f, boardRect.width - 40f, 84f);
+
+        GUI.Label(titleRect, T("FrontWorldPartyRoster"), _panelTitleStyle);
+        GUI.Label(subtitleRect,
+            Line(T("FrontWorldPartyRoster"), V(_bootEntry.CurrentPartyRosterSummaryLabel)) + "\n" +
+            Line(T("FrontWorldStagedParty"), V(_bootEntry.CurrentStagedPartySummaryLabel)) + "\n" +
+            Line(T("FrontMenuRosterPosture"), V(_bootEntry.CurrentPartyRosterWorldPostureLabel)),
+            _bodyStyle);
+
+        int entryCount = Mathf.Min(6, _bootEntry.PartyRosterEntryCount);
+        float gap = 12f;
+        float cardWidth = (cardsRect.width - gap) * 0.5f;
+        float cardHeight = (cardsRect.height - (gap * 2f)) / 3f;
+        for (int i = 0; i < entryCount; i++)
+        {
+            int row = i / 2;
+            int column = i % 2;
+            Rect cardRect = new Rect(
+                cardsRect.x + ((cardWidth + gap) * column),
+                cardsRect.y + ((cardHeight + gap) * row),
+                cardWidth,
+                cardHeight);
+            bool isSelected = _bootEntry.IsPartyRosterEntrySelected(i);
+            bool isRecommended = _bootEntry.IsPartyRosterEntryRecommended(i);
+            bool isStaged = _bootEntry.IsPartyRosterEntryStaged(i);
+            bool isBlocked = _bootEntry.IsPartyRosterEntryBlocked(i);
+            Color borderColor = isStaged
+                ? new Color(0.24f, 0.58f, 0.44f, 1f)
+                : isSelected
+                    ? new Color(0.28f, 0.56f, 0.72f, 1f)
+                    : isRecommended
+                        ? new Color(0.72f, 0.60f, 0.24f, 1f)
+                        : new Color(0.11f, 0.16f, 0.20f, 1f);
+            Color innerColor = isBlocked
+                ? new Color(0.10f, 0.12f, 0.14f, 0.96f)
+                : isSelected || isStaged
+                    ? new Color(0.12f, 0.19f, 0.24f, 0.96f)
+                    : new Color(0.09f, 0.12f, 0.16f, 0.96f);
+            DrawPanel(cardRect, borderColor, innerColor);
+            DrawRect(new Rect(cardRect.x + 10f, cardRect.y + 10f, cardRect.width - 20f, 2f), isStaged ? new Color(0.36f, 0.78f, 0.56f, 0.82f) : isRecommended ? new Color(0.90f, 0.76f, 0.32f, 0.82f) : new Color(0.26f, 0.36f, 0.42f, 0.32f));
+            GUI.Label(new Rect(cardRect.x + 14f, cardRect.y + 14f, cardRect.width - 28f, 22f), V(_bootEntry.GetPartyRosterEntryDisplayLabel(i)), _badgeStyle);
+            GUI.Label(new Rect(cardRect.x + 14f, cardRect.y + 42f, cardRect.width - 28f, cardRect.height - 68f), V(_bootEntry.GetPartyRosterEntrySummaryLabel(i)), _captionStyle);
+
+            Rect stateRect = new Rect(cardRect.x + 14f, cardRect.yMax - 26f, cardRect.width - 28f, 18f);
+            string stateText = isBlocked
+                ? T("FrontWorldRosterBlocked")
+                : isStaged
+                    ? T("FrontWorldStagedParty")
+                    : isSelected
+                        ? T("Selected")
+                        : isRecommended
+                            ? T("RecommendedRoute")
+                            : "Ready";
+            GUI.Label(stateRect, stateText, _captionStyle);
+
+            if (GUI.Button(cardRect, GUIContent.none, GUIStyle.none))
+            {
+                _bootEntry.TrySelectWorldPartyRosterEntry(i);
+            }
+        }
+
+        GUI.Label(selectedRect,
+            Line(T("FrontWorldSelectedPartyRoster"), V(_bootEntry.CurrentSelectedPartyRosterSummaryLabel)) + "\n" +
+            Line(T("FrontWorldRosterBlocked"), V(_bootEntry.CurrentPartyRosterBlockedReasonSummaryLabel)) + "\n" +
+            Line(T("FrontWorldLastCommittedParty"), V(_bootEntry.CurrentLastCommittedPartySummaryLabel)),
+            _bodyStyle);
+
+        Rect confirmRect = new Rect(footerRect.x, footerRect.y + 4f, 260f, 42f);
+        Rect cancelRect = new Rect(confirmRect.xMax + 12f, footerRect.y + 4f, 180f, 42f);
+        Rect controlsRect = new Rect(footerRect.x, confirmRect.yMax + 8f, footerRect.width, 24f);
+        if (DrawActionButton(confirmRect, "[Enter] " + T("FrontWorldConfirmStageParty"), new Color(0.22f, 0.46f, 0.36f, 1f), _bootEntry.CanStageSelectedPartyRosterEntry))
+        {
+            _bootEntry.TryStageWorldPartyRosterEntry();
+        }
+
+        if (DrawActionButton(cancelRect, "[Esc] " + T("FrontWorldCancelRoster"), new Color(0.18f, 0.20f, 0.24f, 1f), true))
+        {
+            _bootEntry.CancelWorldPartyRosterBoard();
+        }
+
+        GUI.Label(controlsRect, T("FrontWorldRosterControls"), _captionStyle);
+        return boardRect;
+    }
     private string GetTopDropdownBody(WorldTopDropdownMode mode)
     {
         if (mode == WorldTopDropdownMode.Selection)
@@ -489,96 +747,122 @@ public sealed class PrototypePresentationShell : MonoBehaviour
                Line(T("TradeStepCount"), _bootEntry.TradeStepCount.ToString()) + "\n" +
                Line(T("AutoTickEnabled"), _bootEntry.AutoTickEnabled ? T("BoolOn") : T("BoolOff")) + "\n" +
                Line(T("RouteCapacityUsed"), V(_bootEntry.RouteCapacityUsedLabel)) + "\n" +
-               Line(T("CitiesWithShortages"), V(_bootEntry.CitiesWithShortagesLabel)) + "\n\n" +
-               V(_bootEntry.ControlsLabel);
+               Line(T("FrontMenuWorldPosture"), V(_bootEntry.CurrentWorldPostureLabel)) + "\n" +
+               Line(T("FrontWorldOutcomeReadback"), V(_bootEntry.CurrentOutcomeReadbackLabel)) + "\n" +
+               Line(T("FrontWorldCorrectiveMove"), V(_bootEntry.CurrentCorrectiveFollowUpLabel));
     }
 
     private string BuildWorldOperationsBody()
     {
-        return Line(T("EconomyControls"), V(_bootEntry.EconomyControlsLabel)) + "\n" +
-               Line(T("ExpeditionControls"), V(_bootEntry.ExpeditionControlsLabel)) + "\n" +
-               Line(T("ActiveExpeditions"), _bootEntry.ActiveExpeditions.ToString()) + "\n" +
-               Line(T("IdleParties"), _bootEntry.IdleParties.ToString()) + "\n" +
-               Line(T("UnmetTotal"), _bootEntry.UnmetTotal.ToString()) + "\n\n" +
-               Line(T("LastTransition"), V(_bootEntry.LastTransitionLabel));
+        return Line(T("FrontWorldAlertRibbon"), V(_bootEntry.CurrentAlertRibbonSummaryLabel)) + "\n" +
+               Line(T("FrontWorldStagingLane"), V(_bootEntry.CurrentExpeditionStagingSummaryLabel)) + "\n" +
+               Line(T("FrontWorldCommitmentQueue"), V(_bootEntry.CurrentCommitmentQueueLabel)) + "\n" +
+               Line(T("FrontWorldPartyRoster"), V(_bootEntry.CurrentPartyRosterSummaryLabel)) + "\n" +
+               Line(T("FrontWorldStagedParty"), V(_bootEntry.CurrentStagedPartySummaryLabel)) + "\n" +
+               Line(T("FrontWorldLastCommittedParty"), V(_bootEntry.CurrentLastCommittedPartySummaryLabel)) + "\n" +
+               Line(T("FrontWorldOutcomeReadback"), V(_bootEntry.CurrentOutcomeReadbackLabel)) + "\n" +
+               Line(T("FrontWorldChangedBestMove"), V(_bootEntry.CurrentChangedBestMoveLabel)) + "\n" +
+               Line(T("FrontWorldCorrectiveMove"), V(_bootEntry.CurrentCorrectiveFollowUpLabel)) + "\n" +
+               Line(T("FrontWorldAftermath"), V(_bootEntry.CurrentReturnAftermathSummaryLabel));
     }
-
     private string BuildWorldSelectionBriefBody()
     {
         if (!HasMeaningfulValue(_bootEntry.SelectedDisplayName))
         {
-            return T("FrontWorldNoSelection");
+            return T("FrontWorldNoSelection") + "\n\n" +
+                   Line(T("FrontWorldCommitmentQueue"), V(_bootEntry.CurrentCommitmentQueueLabel)) + "\n" +
+                   Line(T("FrontWorldOutcomeReadback"), V(_bootEntry.CurrentOutcomeReadbackLabel));
         }
 
         if (_bootEntry.SelectedTypeLabel == "City")
         {
             return V(_bootEntry.SelectedDisplayName) + "\n" +
-                   Line(T("CityManaShardStock"), V(_bootEntry.SelectedCityManaShardStockLabel)) + "\n" +
                    Line(T("NeedPressure"), V(_bootEntry.SelectedNeedPressureLabel)) + "\n" +
                    Line(T("DispatchReadiness"), V(_bootEntry.SelectedDispatchReadinessLabel)) + "\n" +
-                   Line(T("DispatchPolicy"), V(_bootEntry.SelectedDispatchPolicyLabel)) + "\n" +
                    Line(T("LinkedDungeon"), V(_bootEntry.SelectedLinkedDungeonLabel)) + "\n" +
-                   Line(T("RecommendedRoute"), V(_bootEntry.SelectedRecommendedRouteSummaryLabel));
+                   Line(T("RecommendedRoute"), V(_bootEntry.SelectedRecommendedRouteSummaryLabel)) + "\n" +
+                   Line(T("FrontWorldPartyRoster"), V(_bootEntry.CurrentPartyRosterSummaryLabel)) + "\n" +
+                   Line(T("FrontWorldStagedParty"), V(_bootEntry.CurrentStagedPartySummaryLabel)) + "\n" +
+                   Line(T("FrontWorldSelectedPartyRoster"), V(_bootEntry.CurrentSelectedPartyRosterSummaryLabel)) + "\n" +
+                   Line(T("FrontWorldLastCommittedParty"), V(_bootEntry.CurrentLastCommittedPartySummaryLabel)) + "\n" +
+                   Line(T("FrontWorldLastRecruitedParty"), V(_bootEntry.CurrentLastRecruitedPartyLabel)) + "\n" +
+                   Line(T("FrontWorldOpportunityLadder"), V(_bootEntry.CurrentOpportunityLadderLabel)) + "\n" +
+                   Line(T("FrontWorldOutcomeReadback"), V(_bootEntry.CurrentOutcomeReadbackLabel)) + "\n" +
+                   Line(T("FrontWorldCommitmentQueue"), V(_bootEntry.CurrentCommitmentQueueLabel));
         }
 
         return V(_bootEntry.SelectedDisplayName) + "\n" +
                Line(T("DungeonDanger"), V(_bootEntry.SelectedDungeonDangerLabel)) + "\n" +
                Line(T("LinkedCity"), V(_bootEntry.SelectedLinkedCityLabel)) + "\n" +
-               Line(T("RewardPreview"), V(_bootEntry.SelectedRewardPreviewLabel)) + "\n" +
-               Line(T("RoutePreview1"), V(_bootEntry.SelectedRoutePreview1Label));
+               Line(T("FrontWorldRouteFocus"), V(_bootEntry.CurrentRouteFocusSummaryLabel)) + "\n" +
+               Line(T("FrontWorldOpportunityLadder"), V(_bootEntry.CurrentOpportunityLadderLabel)) + "\n" +
+               Line(T("FrontWorldOutcomeReadback"), V(_bootEntry.CurrentOutcomeReadbackLabel)) + "\n" +
+               Line(T("FrontWorldCorrectiveMove"), V(_bootEntry.CurrentCorrectiveFollowUpLabel));
     }
-
     private string BuildWorldSelectionDetailBody()
     {
         if (!HasMeaningfulValue(_bootEntry.SelectedDisplayName))
         {
-            return T("FrontWorldNoSelection");
+            return T("FrontWorldNoSelection") + "\n\n" +
+                   Line(T("FrontWorldOutcomeReadback"), V(_bootEntry.CurrentOutcomeReadbackLabel)) + "\n" +
+                   Line(T("FrontWorldChangedBestMove"), V(_bootEntry.CurrentChangedBestMoveLabel)) + "\n" +
+                   Line(T("FrontWorldCorrectiveMove"), V(_bootEntry.CurrentCorrectiveFollowUpLabel));
         }
 
         if (_bootEntry.SelectedTypeLabel == "City")
         {
             return V(_bootEntry.SelectedDisplayName) + "\n" +
-                   Line(T("SelectedType"), V(_bootEntry.SelectedTypeLabel)) + "\n" +
-                   Line(T("CityManaShardStock"), V(_bootEntry.SelectedCityManaShardStockLabel)) + "\n" +
-                   Line(T("NeedPressure"), V(_bootEntry.SelectedNeedPressureLabel)) + "\n" +
-                   Line(T("DispatchReadiness"), V(_bootEntry.SelectedDispatchReadinessLabel)) + "\n" +
                    Line(T("RecoveryProgress"), V(_bootEntry.SelectedDispatchRecoveryProgressLabel)) + "\n" +
-                   Line(T("DispatchPolicy"), V(_bootEntry.SelectedDispatchPolicyLabel)) + "\n" +
-                   Line(T("LinkedDungeon"), V(_bootEntry.SelectedLinkedDungeonLabel)) + "\n" +
                    Line(T("RecommendedRoute"), V(_bootEntry.SelectedRecommendedRouteSummaryLabel)) + "\n" +
-                   V(_bootEntry.SelectedRecommendationReasonLabel);
+                   Line(T("FrontWorldPartyRoster"), V(_bootEntry.CurrentPartyRosterSummaryLabel)) + "\n" +
+                   Line(T("FrontWorldSelectedPartyRoster"), V(_bootEntry.CurrentSelectedPartyRosterSummaryLabel)) + "\n" +
+                   Line(T("FrontWorldRosterBlocked"), V(_bootEntry.CurrentPartyRosterBlockedReasonSummaryLabel)) + "\n" +
+                   Line(T("FrontWorldStagedParty"), V(_bootEntry.CurrentStagedPartySummaryLabel)) + "\n" +
+                   Line(T("FrontWorldLastCommittedParty"), V(_bootEntry.CurrentLastCommittedPartySummaryLabel)) + "\n" +
+                   Line(T("FrontWorldConsequencePreview"), V(_bootEntry.CurrentConsequencePreviewLabel)) + "\n" +
+                   Line(T("FrontWorldOutcomeReadback"), V(_bootEntry.CurrentOutcomeReadbackLabel)) + "\n" +
+                   Line(T("FrontWorldConfirmation"), V(_bootEntry.CurrentConfirmationStateLabel)) + "\n" +
+                   Line(T("FrontWorldChangedBestMove"), V(_bootEntry.CurrentChangedBestMoveLabel)) + "\n" +
+                   Line(T("FrontWorldLastRecruitedParty"), V(_bootEntry.CurrentLastRecruitedPartyLabel)) + "\n" +
+                   Line(T("FrontWorldAftermath"), V(_bootEntry.CurrentReturnAftermathSummaryLabel));
         }
 
         return V(_bootEntry.SelectedDisplayName) + "\n" +
-               Line(T("SelectedType"), V(_bootEntry.SelectedTypeLabel)) + "\n" +
-               Line(T("DungeonDanger"), V(_bootEntry.SelectedDungeonDangerLabel)) + "\n" +
                Line(T("LinkedCity"), V(_bootEntry.SelectedLinkedCityLabel)) + "\n" +
-               Line(T("RewardPreview"), V(_bootEntry.SelectedRewardPreviewLabel)) + "\n" +
-               Line(T("EventPreview"), V(_bootEntry.SelectedEventPreviewLabel)) + "\n" +
-               Line(T("RoutePreview1"), V(_bootEntry.SelectedRoutePreview1Label)) + "\n" +
-               Line(T("RoutePreview2"), V(_bootEntry.SelectedRoutePreview2Label));
+               Line(T("FrontWorldRouteFocus"), V(_bootEntry.CurrentRouteFocusSummaryLabel)) + "\n" +
+               Line(T("FrontWorldConsequencePreview"), V(_bootEntry.CurrentConsequencePreviewLabel)) + "\n" +
+               Line(T("FrontWorldOutcomeReadback"), V(_bootEntry.CurrentOutcomeReadbackLabel)) + "\n" +
+               Line(T("FrontWorldConfirmation"), V(_bootEntry.CurrentConfirmationStateLabel)) + "\n" +
+               Line(T("FrontWorldChangedBestMove"), V(_bootEntry.CurrentChangedBestMoveLabel)) + "\n" +
+               Line(T("FrontWorldCorrectiveMove"), V(_bootEntry.CurrentCorrectiveFollowUpLabel)) + "\n" +
+               Line(T("FrontWorldAftermath"), V(_bootEntry.CurrentReturnAftermathSummaryLabel));
     }
-
     private string BuildWorldOverviewBriefBody()
     {
         return Line(T("WorldDay"), _bootEntry.WorldDayCount.ToString()) + "\n" +
-               Line(T("TradeStepCount"), _bootEntry.TradeStepCount.ToString()) + "\n" +
-               Line(T("TotalParties"), _bootEntry.TotalParties.ToString()) + "\n" +
-               Line(T("IdleParties"), _bootEntry.IdleParties.ToString()) + "\n" +
-               Line(T("ActiveExpeditions"), _bootEntry.ActiveExpeditions.ToString()) + "\n" +
-               Line(T("UnmetTotal"), _bootEntry.UnmetTotal.ToString()) + "\n" +
-               Line(T("CitiesWithShortages"), V(_bootEntry.CitiesWithShortagesLabel));
+               Line(T("RouteCapacityUsed"), V(_bootEntry.RouteCapacityUsedLabel)) + "\n" +
+               Line(T("FrontMenuWorldPosture"), V(_bootEntry.CurrentWorldPostureLabel)) + "\n" +
+               Line(T("FrontMenuRecruitPosture"), V(_bootEntry.CurrentRecruitmentWorldPostureLabel)) + "\n" +
+               Line(T("FrontMenuRosterPosture"), V(_bootEntry.CurrentPartyRosterWorldPostureLabel)) + "\n" +
+               Line(T("FrontWorldAlertRibbon"), V(_bootEntry.CurrentAlertRibbonSummaryLabel)) + "\n" +
+               Line(T("FrontWorldPartyRoster"), V(_bootEntry.CurrentPartyRosterSummaryLabel)) + "\n" +
+               Line(T("FrontWorldStagedParty"), V(_bootEntry.CurrentStagedPartySummaryLabel)) + "\n" +
+               Line(T("FrontWorldLastCommittedParty"), V(_bootEntry.CurrentLastCommittedPartySummaryLabel)) + "\n" +
+               Line(T("FrontWorldOutcomeReadback"), V(_bootEntry.CurrentOutcomeReadbackLabel)) + "\n" +
+               Line(T("FrontWorldChangedBestMove"), V(_bootEntry.CurrentChangedBestMoveLabel)) + "\n" +
+               Line(T("FrontWorldRelievedHotspot"), V(_bootEntry.CurrentRelievedHotspotLabel)) + "\n" +
+               Line(T("FrontWorldReboundHotspot"), V(_bootEntry.CurrentReboundHotspotLabel)) + "\n" +
+               Line(T("FrontWorldCorrectiveMove"), V(_bootEntry.CurrentCorrectiveFollowUpLabel));
     }
-
     private string BuildWorldLogBody()
     {
-        return Line(T("RecentExpeditionLog1"), V(_bootEntry.RecentExpeditionLog1Label)) + "\n" +
-               Line(T("RecentExpeditionLog2"), V(_bootEntry.RecentExpeditionLog2Label)) + "\n" +
-               Line(T("RecentExpeditionLog3"), V(_bootEntry.RecentExpeditionLog3Label)) + "\n\n" +
-               Line(T("RecentDayLog1"), V(_bootEntry.RecentDayLog1Label)) + "\n" +
-               Line(T("RecentDayLog2"), V(_bootEntry.RecentDayLog2Label));
+        return Line(T("FrontWorldAftermath"), V(_bootEntry.CurrentReturnAftermathSummaryLabel)) + "\n" +
+               Line(T("FrontWorldOutcomeReadback"), V(_bootEntry.CurrentOutcomeReadbackLabel)) + "\n" +
+               Line(T("FrontWorldConfirmation"), V(_bootEntry.CurrentConfirmationStateLabel)) + "\n\n" +
+               Line(T("FrontWorldRecentFeed"), V(_bootEntry.CurrentRecentEventFeedSummaryLabel)) + "\n\n" +
+               Line(T("RecentExpeditionLog1"), V(_bootEntry.RecentExpeditionLog1Label)) + "\n" +
+               Line(T("RecentDayLog1"), V(_bootEntry.RecentDayLog1Label));
     }
-
     private string BuildWorldLegendText()
     {
         return T("FrontMenuPillarNetwork") + "  |  " + T("FrontMenuPillarDispatch") + "  |  " + T("FrontMenuPillarEconomy");
@@ -819,6 +1103,20 @@ public sealed class PrototypePresentationShell : MonoBehaviour
         _badgeStyle.padding = new RectOffset(6, 6, 4, 4);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public sealed class ManualTradeRuntimeState
@@ -9,6 +10,7 @@ public sealed class ManualTradeRuntimeState
     private const int ReserveStockFloor = 1;
     private const int DefaultPartyPower = 3;
     private const int DefaultPartyCarryCapacity = 2;
+    private const int MaxPartiesPerCity = 3;
 
     private enum PartyState
     {
@@ -429,7 +431,7 @@ public sealed class ManualTradeRuntimeState
 
     public bool RecruitParty(string cityId)
     {
-        if (!TryGetEntity(cityId, out WorldEntityData city) || city.Kind != WorldEntityKind.City || FindAnyPartyByHomeCity(cityId) != null)
+        if (!TryGetEntity(cityId, out WorldEntityData city) || city.Kind != WorldEntityKind.City || GetPartyCountInCity(cityId) >= MaxPartiesPerCity)
         {
             return false;
         }
@@ -445,13 +447,21 @@ public sealed class ManualTradeRuntimeState
 
     public string BeginDungeonRun(string cityId, string dungeonId)
     {
+        return BeginDungeonRun(cityId, dungeonId, string.Empty);
+    }
+
+    public string BeginDungeonRun(string cityId, string dungeonId, string preferredPartyId)
+    {
         if (!TryGetEntity(cityId, out WorldEntityData city) || city.Kind != WorldEntityKind.City ||
-            !TryGetEntity(dungeonId, out WorldEntityData dungeon) || dungeon.Kind != WorldEntityKind.Dungeon)
+            !TryGetEntity(dungeonId, out WorldEntityData dungeon) || dungeon.Kind != WorldEntityKind.Dungeon ||
+            FindActivePartyForCity(cityId) != null)
         {
             return string.Empty;
         }
 
-        PartyRuntimeData party = FindIdleParty(cityId);
+        PartyRuntimeData party = string.IsNullOrEmpty(preferredPartyId)
+            ? FindIdleParty(cityId)
+            : FindIdlePartyById(preferredPartyId, cityId);
         if (party == null)
         {
             return string.Empty;
@@ -563,6 +573,81 @@ public sealed class ManualTradeRuntimeState
     {
         PartyRuntimeData party = FindIdleParty(cityId);
         return party != null ? party.PartyId : string.Empty;
+    }
+
+    public string[] GetPartyIdsInCity(string cityId)
+    {
+        if (string.IsNullOrEmpty(cityId))
+        {
+            return System.Array.Empty<string>();
+        }
+
+        List<string> partyIds = new List<string>();
+        for (int i = 0; i < _parties.Count; i++)
+        {
+            PartyRuntimeData party = _parties[i];
+            if (party != null && party.HomeCityId == cityId && !string.IsNullOrEmpty(party.PartyId))
+            {
+                partyIds.Add(party.PartyId);
+            }
+        }
+
+        return partyIds.ToArray();
+    }
+
+    public int GetPartyCapacityForCity(string cityId)
+    {
+        return !string.IsNullOrEmpty(cityId) && TryGetEntity(cityId, out WorldEntityData city) && city.Kind == WorldEntityKind.City
+            ? MaxPartiesPerCity
+            : 0;
+    }
+
+    public string GetPartyHomeCityId(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null ? party.HomeCityId : string.Empty;
+    }
+
+    public bool IsPartyIdle(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null && party.State == PartyState.Idle;
+    }
+
+    public bool IsPartyOnExpedition(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null && party.State == PartyState.OnExpedition;
+    }
+
+    public string GetPartyTargetDungeonId(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null ? party.TargetDungeonId : string.Empty;
+    }
+
+    public int GetPartyDaysRemaining(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null ? party.DaysRemaining : 0;
+    }
+
+    public string GetPartyLastResultSummary(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null && !string.IsNullOrEmpty(party.LastResultSummary) ? party.LastResultSummary : "None";
+    }
+
+    public int GetPartyPower(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null ? party.Power : 0;
+    }
+
+    public int GetPartyCarryCapacity(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null ? party.CarryCapacity : 0;
     }
 
     public int GetPartyCountInCity(string cityId)
@@ -1813,6 +1898,33 @@ public sealed class ManualTradeRuntimeState
         return null;
     }
 
+    private PartyRuntimeData FindPartyById(string partyId)
+    {
+        if (string.IsNullOrEmpty(partyId))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < _parties.Count; i++)
+        {
+            PartyRuntimeData party = _parties[i];
+            if (party != null && string.Equals(party.PartyId, partyId, StringComparison.Ordinal))
+            {
+                return party;
+            }
+        }
+
+        return null;
+    }
+
+    private PartyRuntimeData FindIdlePartyById(string partyId, string cityId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null && party.State == PartyState.Idle && (string.IsNullOrEmpty(cityId) || party.HomeCityId == cityId)
+            ? party
+            : null;
+    }
+
     private PartyRuntimeData FindIdleParty(string cityId)
     {
         if (string.IsNullOrEmpty(cityId))
@@ -2445,6 +2557,10 @@ public sealed class ManualTradeRuntimeState
         }
     }
 }
+
+
+
+
 
 
 

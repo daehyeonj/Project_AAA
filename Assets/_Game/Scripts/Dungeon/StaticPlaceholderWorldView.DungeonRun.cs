@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -80,6 +80,7 @@ public sealed partial class StaticPlaceholderWorldView
         None,
         Attack,
         Skill,
+        Item,
         Retreat
     }
 
@@ -274,9 +275,36 @@ public sealed partial class StaticPlaceholderWorldView
         public string RoleLabel => RuntimeState != null ? RuntimeState.RoleLabel : "Adventurer";
         public string RoleTag => RuntimeState != null ? RuntimeState.RoleTag : "adventurer";
         public string DefaultSkillId => RuntimeState != null ? RuntimeState.DefaultSkillId : string.Empty;
+        public string GrowthTrackId => RuntimeState != null ? RuntimeState.GrowthTrackId : string.Empty;
+        public string JobId => RuntimeState != null ? RuntimeState.JobId : string.Empty;
+        public string EquipmentLoadoutId => RuntimeState != null ? RuntimeState.EquipmentLoadoutId : string.Empty;
+        public string SkillLoadoutId => RuntimeState != null ? RuntimeState.SkillLoadoutId : string.Empty;
+        public int Level => RuntimeState != null ? RuntimeState.Level : 1;
+        public int CurrentExperience => RuntimeState != null ? RuntimeState.CurrentExperience : 0;
+        public int ExperienceToNextLevel => RuntimeState != null ? RuntimeState.ExperienceToNextLevel : 1;
+        public string DerivedStatSummaryText => RuntimeState != null ? RuntimeState.DerivedStatSummaryText : string.Empty;
+        public string EquipmentSummaryText => RuntimeState != null ? RuntimeState.EquipmentSummaryText : string.Empty;
+        public string GearContributionSummaryText => RuntimeState != null ? RuntimeState.GearContributionSummaryText : string.Empty;
+        public string SkillLoadoutSummaryText => RuntimeState != null ? RuntimeState.SkillLoadoutSummaryText : string.Empty;
+        public string ResolvedSkillSummaryText => RuntimeState != null ? RuntimeState.ResolvedSkillSummaryText : string.Empty;
+        public string InventorySummaryText => RuntimeState != null ? RuntimeState.InventorySummaryText : string.Empty;
+        public string ConsumableSlotSummaryText => RuntimeState != null ? RuntimeState.ConsumableSlotSummaryText : string.Empty;
+        public string ActiveSkillSlotSummaryText => RuntimeState != null ? RuntimeState.ActiveSkillSlotSummaryText : string.Empty;
+        public string SkillCooldownSummaryText => RuntimeState != null ? RuntimeState.SkillCooldownSummaryText : string.Empty;
+        public string SkillResourceSummaryText => RuntimeState != null ? RuntimeState.SkillResourceSummaryText : string.Empty;
+        public string ActionEconomySummaryText => RuntimeState != null ? RuntimeState.ActionEconomySummaryText : string.Empty;
+        public string NextRunActiveSkillPreviewText => RuntimeState != null ? RuntimeState.NextRunActiveSkillPreviewText : string.Empty;
+        public int CurrentSkillResource => RuntimeState != null ? RuntimeState.CurrentSkillResource : 0;
+        public int MaxSkillResource => RuntimeState != null ? RuntimeState.MaxSkillResource : 1;
+        public PrototypeRpgActiveSkillSlotState[] ActiveSkillSlots => RuntimeState != null ? RuntimeState.ActiveSkillSlots : System.Array.Empty<PrototypeRpgActiveSkillSlotState>();
+        public PrototypeRpgStatusRuntimeState[] StatusEffects = System.Array.Empty<PrototypeRpgStatusRuntimeState>();
+        public string StatusEffectSummaryText = string.Empty;
+        public int StatusApplicationsThisEncounter;
+        public int StatusTicksResolvedThisEncounter;
         public string SkillName;
         public string SkillShortText;
         public PartySkillType SkillType;
+        public int SelectedActiveSkillSlotIndex = -1;
         public int PartySlotIndex;
         public int MaxHp => RuntimeState != null ? RuntimeState.MaxHp : 1;
         public int CurrentHp
@@ -309,9 +337,71 @@ public sealed partial class StaticPlaceholderWorldView
 
         public Color ViewColor;
 
-        public DungeonPartyMemberRuntimeData(string memberId, string displayName, string roleLabel, string roleTag, string defaultSkillId, string skillName, string skillShortText, PartySkillType skillType, int partySlotIndex, int maxHp, int attack, int defense, int speed, int skillPower, Color viewColor)
+        public DungeonPartyMemberRuntimeData(
+            string memberId,
+            string displayName,
+            string roleLabel,
+            string roleTag,
+            string defaultSkillId,
+            string skillName,
+            string skillShortText,
+            PartySkillType skillType,
+            int partySlotIndex,
+            int maxHp,
+            int attack,
+            int defense,
+            int speed,
+            int skillPower,
+            Color viewColor,
+            string growthTrackId,
+            string jobId,
+            string equipmentLoadoutId,
+            string skillLoadoutId,
+            int level,
+            int currentExperience,
+            int experienceToNextLevel,
+            string derivedStatSummaryText,
+            string equipmentSummaryText,
+            string gearContributionSummaryText,
+            string skillLoadoutSummaryText,
+            string resolvedSkillSummaryText,
+            string inventorySummaryText,
+            string consumableSlotSummaryText,
+            string activeSkillSlotSummaryText,
+            string skillCooldownSummaryText,
+            string skillResourceSummaryText,
+            string actionEconomySummaryText,
+            string nextRunActiveSkillPreviewText)
         {
-            RuntimeState = new PrototypeRpgPartyMemberRuntimeState(memberId, displayName, roleTag, roleLabel, defaultSkillId, maxHp, attack, defense, speed);
+            RuntimeState = new PrototypeRpgPartyMemberRuntimeState(
+                memberId,
+                displayName,
+                roleTag,
+                roleLabel,
+                defaultSkillId,
+                maxHp,
+                attack,
+                defense,
+                speed,
+                growthTrackId,
+                jobId,
+                equipmentLoadoutId,
+                skillLoadoutId,
+                level,
+                currentExperience,
+                experienceToNextLevel,
+                derivedStatSummaryText,
+                equipmentSummaryText,
+                gearContributionSummaryText,
+                skillLoadoutSummaryText,
+                resolvedSkillSummaryText,
+                inventorySummaryText,
+                consumableSlotSummaryText,
+                activeSkillSlotSummaryText,
+                skillCooldownSummaryText,
+                skillResourceSummaryText,
+                actionEconomySummaryText,
+                nextRunActiveSkillPreviewText);
             SkillName = string.IsNullOrEmpty(skillName) ? "Skill" : skillName;
             SkillShortText = string.IsNullOrEmpty(skillShortText) ? string.Empty : skillShortText;
             SkillType = skillType;
@@ -408,6 +498,18 @@ public sealed partial class StaticPlaceholderWorldView
         public int SpecialAttack;
         public string SpecialActionName;
         public int TurnsActed;
+        public PrototypeRpgEnemySkillRuntimeState[] ActiveSkillSlots = System.Array.Empty<PrototypeRpgEnemySkillRuntimeState>();
+        public int SelectedSkillSlotIndex = -1;
+        public string SkillLoadoutSummaryText = string.Empty;
+        public string SkillCooldownSummaryText = string.Empty;
+        public string ActionEconomySummaryText = string.Empty;
+        public string LastResolvedSkillId = string.Empty;
+        public string LastResolvedSkillLabel = string.Empty;
+        public int SkillUsesThisEncounter;
+        public PrototypeRpgStatusRuntimeState[] StatusEffects = System.Array.Empty<PrototypeRpgStatusRuntimeState>();
+        public string StatusEffectSummaryText = string.Empty;
+        public int StatusApplicationsThisEncounter;
+        public int StatusTicksResolvedThisEncounter;
 
         public DungeonMonsterRuntimeData(string monsterId, string encounterId, int roomIndex, string displayName, string monsterType, int hp, int attack, Vector2Int gridPosition, string rewardResourceId, int rewardAmount, MonsterTargetPattern targetPattern, MonsterEncounterRole encounterRole = MonsterEncounterRole.Bulwark, bool isElite = false, int specialAttack = 0, string specialActionName = "")
         {
@@ -431,6 +533,14 @@ public sealed partial class StaticPlaceholderWorldView
             }
 
             TurnsActed = 0;
+            ActiveSkillSlots = System.Array.Empty<PrototypeRpgEnemySkillRuntimeState>();
+            SelectedSkillSlotIndex = -1;
+            SkillLoadoutSummaryText = string.Empty;
+            SkillCooldownSummaryText = string.Empty;
+            ActionEconomySummaryText = string.Empty;
+            LastResolvedSkillId = string.Empty;
+            LastResolvedSkillLabel = string.Empty;
+            SkillUsesThisEncounter = 0;
         }
     }
 
@@ -513,6 +623,8 @@ public sealed partial class StaticPlaceholderWorldView
     private readonly int[] _runMemberHealingDone = new int[4];
     private readonly int[] _runMemberActionCount = new int[4];
     private readonly int[] _runMemberKillCount = new int[4];
+    private readonly int[] _runMemberStatusApplied = new int[4];
+    private readonly int[] _runMemberStatusTicksResolved = new int[4];
     private GameObject _dungeonRoot;
     private Texture2D _dungeonTexture;
     private Sprite _dungeonSprite;
@@ -548,6 +660,12 @@ public sealed partial class StaticPlaceholderWorldView
     private TestDungeonPartyData _activeDungeonParty;
     private DungeonChestRuntimeData _activeChest;
     private DungeonMonsterRuntimeData _activeBattleMonster;
+    private string _lastResolvedPartyStatusEffectSummaryText = string.Empty;
+    private string _lastResolvedEnemyStatusEffectSummaryText = string.Empty;
+    private string _lastResolvedStatusUsageSummaryText = string.Empty;
+    private string _lastResolvedEnemyIntentSummaryText = string.Empty;
+    private string _lastResolvedEnemySkillUsageSummaryText = string.Empty;
+    private string _lastResolvedEnemyActionEconomySummaryText = string.Empty;
     private Vector2Int _playerGridPosition = new Vector2Int(2, 4);
     private Vector2Int _exitGridPosition = new Vector2Int(14, 4);
     private Vector2Int _eventGridPosition = ShrineEventGridPosition;
@@ -635,8 +753,15 @@ public sealed partial class StaticPlaceholderWorldView
     private int _eliteBonusRewardPending;
     private int _eliteBonusRewardGrantedAmount;
     private int _resultEliteBonusRewardAmount;
+    private int _resultPendingBonusRewardLostAmount;
     private int _pendingEnemyAttackPower;
     private bool _pendingEnemyUsedSpecialAttack;
+    private string _pendingEnemySkillId = string.Empty;
+    private string _pendingEnemySkillLabel = string.Empty;
+    private string _pendingEnemySkillTargetKind = string.Empty;
+    private string _pendingEnemySkillEffectType = string.Empty;
+    private string _pendingEnemyPredictedStatusText = string.Empty;
+    private string _pendingEnemyActionEconomyText = string.Empty;
     private bool _eliteRewardGranted;
     private bool _exitUnlocked;
     private bool _pendingDungeonExit;
@@ -766,8 +891,23 @@ public sealed partial class StaticPlaceholderWorldView
     public string ResultPanelEliteRewardText => _resultEliteRewardAmount > 0 ? BuildLootAmountText(_resultEliteRewardAmount) : "None";
     public string ResultPanelPreEliteChoiceText => string.IsNullOrEmpty(_resultPreEliteChoiceText) ? "Pending" : _resultPreEliteChoiceText;
     public string ResultPanelPreEliteHealAmountText => _resultPreEliteHealAmount > 0 ? BuildRawHpAmountText(_resultPreEliteHealAmount) : "None";
-    public string ResultPanelEliteBonusRewardEarnedText => _runResultState == RunResultState.None ? "None" : _eliteBonusRewardGranted ? "Yes" : "No";
-    public string ResultPanelEliteBonusRewardAmountText => _resultEliteBonusRewardAmount > 0 ? BuildLootAmountText(_resultEliteBonusRewardAmount) : "None";
+    public string ResultPanelEliteBonusRewardEarnedText => _runResultState == RunResultState.None ? "None" : _eliteBonusRewardGranted ? "Yes" : _resultPendingBonusRewardLostAmount > 0 ? "Lost" : "No";
+    public string ResultPanelEliteBonusRewardAmountText => _resultEliteBonusRewardAmount > 0 ? BuildLootAmountText(_resultEliteBonusRewardAmount) : _resultPendingBonusRewardLostAmount > 0 ? "Lost " + BuildLootAmountText(_resultPendingBonusRewardLostAmount) : "None";
+    public string PostRunSummaryHeadlineText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.PostRunHeadlineText) ? "None" : _latestRpgRunResultSnapshot.PostRunHeadlineText);
+    public string PostRunSummarySubheadlineText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.PostRunSubheadlineText) ? "None" : _latestRpgRunResultSnapshot.PostRunSubheadlineText);
+    public string PendingRewardDeltaSummaryText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.PendingRewardDeltaSummaryText) ? "None" : _latestRpgRunResultSnapshot.PendingRewardDeltaSummaryText);
+    public string RewardCarryoverSummaryText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.RewardCarryoverSummaryText) ? "None" : _latestRpgRunResultSnapshot.RewardCarryoverSummaryText);
+    public string ApplyTraceSummaryText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.ApplyTraceSummaryText) ? "None" : _latestRpgRunResultSnapshot.ApplyTraceSummaryText);
+    public string NextOfferBasisSummaryText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.NextOfferBasisSummaryText) ? "None" : _latestRpgRunResultSnapshot.NextOfferBasisSummaryText);
+    public string ResultPanelExperienceGainSummaryText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.ExperienceGainSummaryText) ? "None" : _latestRpgRunResultSnapshot.ExperienceGainSummaryText);
+    public string ResultPanelLevelUpPreviewText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.LevelUpPreviewSummaryText) ? "None" : _latestRpgRunResultSnapshot.LevelUpPreviewSummaryText);
+    public string ResultPanelLevelUpApplyReadyText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.LevelUpApplyReadySummaryText) ? "None" : _latestRpgRunResultSnapshot.LevelUpApplyReadySummaryText);
+    public string ResultPanelActualLevelApplyText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.ActualLevelApplySummaryText) ? "None" : _latestRpgRunResultSnapshot.ActualLevelApplySummaryText);
+    public string ResultPanelDerivedStatHydrateText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.DerivedStatHydrateSummaryText) ? "None" : _latestRpgRunResultSnapshot.DerivedStatHydrateSummaryText);
+    public string ResultPanelNextRunStatProjectionText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.NextRunStatProjectionSummaryText) ? "None" : _latestRpgRunResultSnapshot.NextRunStatProjectionSummaryText);
+    public string ResultPanelSkillLoadoutSummaryText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.SkillLoadoutReadbackSummaryText) ? "None" : _latestRpgRunResultSnapshot.SkillLoadoutReadbackSummaryText);
+    public string ResultPanelConsumableCarrySummaryText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.ConsumableCarrySummaryText) ? "None" : _latestRpgRunResultSnapshot.ConsumableCarrySummaryText);
+    public string ResultPanelConsumableCarryoverPolicyText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_latestRpgRunResultSnapshot.ConsumableCarryoverPolicySummaryText) ? "None" : _latestRpgRunResultSnapshot.ConsumableCarryoverPolicySummaryText);
     public string ResultPanelRoomPathSummaryText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_resultRoomPathSummaryText) ? "None" : _resultRoomPathSummaryText);
     public string ResultPanelPartyHpSummaryText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_resultPartyHpSummaryText) ? "None" : _resultPartyHpSummaryText);
     public string ResultPanelPartyConditionText => _runResultState == RunResultState.None ? "None" : (string.IsNullOrEmpty(_resultPartyConditionText) ? "None" : _resultPartyConditionText);
@@ -829,8 +969,14 @@ public sealed partial class StaticPlaceholderWorldView
         string memberIdText = string.IsNullOrEmpty(member.MemberId) ? "none" : member.MemberId;
         string hpText = includeHp ? " | HP " + member.CurrentHp + " / " + member.MaxHp : string.Empty;
         string skillText = string.IsNullOrEmpty(member.SkillName) ? string.Empty : " | Skill " + member.SkillName;
+        string levelText = member.Level > 0 ? " | Lv " + member.Level + " " + member.CurrentExperience + "/" + member.ExperienceToNextLevel : string.Empty;
+        string loadoutText = string.IsNullOrEmpty(member.ResolvedSkillSummaryText)
+            ? (string.IsNullOrEmpty(member.SkillLoadoutSummaryText) ? string.Empty : " | " + member.SkillLoadoutSummaryText)
+            : " | " + member.ResolvedSkillSummaryText;
+        string consumableText = string.IsNullOrEmpty(member.ConsumableSlotSummaryText) ? string.Empty : " | " + member.ConsumableSlotSummaryText;
+        string statusEffectText = string.IsNullOrEmpty(member.StatusEffectSummaryText) ? string.Empty : " | " + member.StatusEffectSummaryText;
         string safeStatusText = string.IsNullOrEmpty(statusText) ? string.Empty : statusText;
-        return member.DisplayName + " | " + member.RoleLabel + " | ID " + memberIdText + hpText + skillText + " | ATK " + member.Attack + " DEF " + member.Defense + " SPD " + member.Speed + safeStatusText;
+        return member.DisplayName + " | " + member.RoleLabel + " | ID " + memberIdText + hpText + skillText + levelText + loadoutText + consumableText + statusEffectText + " | ATK " + member.Attack + " DEF " + member.Defense + " SPD " + member.Speed + safeStatusText;
     }
 
     public PrototypeBattleUiSurfaceData BuildBattleUiSurfaceData()
@@ -878,12 +1024,27 @@ public sealed partial class StaticPlaceholderWorldView
             actor.ActorId = _activeBattleMonster.MonsterId;
             actor.DisplayName = _activeBattleMonster.DisplayName;
             actor.RoleLabel = GetMonsterRoleText(_activeBattleMonster);
-            actor.SkillLabel = string.IsNullOrEmpty(_activeBattleMonster.SpecialActionName) ? "Attack" : _activeBattleMonster.SpecialActionName;
-            actor.SkillShortText = BuildBattleUiEnemyIntentLabel(_activeBattleMonster);
+            actor.SkillLabel = !string.IsNullOrEmpty(_pendingEnemySkillLabel)
+                ? _pendingEnemySkillLabel
+                : string.IsNullOrEmpty(_activeBattleMonster.SpecialActionName) ? "Attack" : _activeBattleMonster.SpecialActionName;
+            actor.SkillShortText = BuildRpgCompactSummaryText(
+                BuildBattleUiEnemyIntentLabel(_activeBattleMonster),
+                _activeBattleMonster.RuntimeState != null ? _activeBattleMonster.RuntimeState.IntentStatusSummaryText : string.Empty,
+                _activeBattleMonster.RuntimeState != null ? _activeBattleMonster.RuntimeState.IntentActionEconomySummaryText : string.Empty);
+            actor.LevelSummaryText = _activeBattleMonster.IsElite ? "Elite encounter" : "Enemy pattern";
+            actor.LoadoutSummaryText = string.IsNullOrEmpty(_activeBattleMonster.SkillLoadoutSummaryText)
+                ? BuildBattleUiEnemyLoadoutHintText(_activeBattleMonster)
+                : BuildRpgCompactSummaryText(_activeBattleMonster.SkillLoadoutSummaryText, _activeBattleMonster.SkillCooldownSummaryText);
+            actor.ConsumableSlotSummaryText = string.Empty;
+            actor.ActiveSkillSlotSummaryText = _activeBattleMonster.SkillLoadoutSummaryText;
+            actor.SkillCooldownSummaryText = _activeBattleMonster.SkillCooldownSummaryText;
+            actor.ActionEconomySummaryText = _activeBattleMonster.ActionEconomySummaryText;
             actor.CurrentHp = Mathf.Max(0, _activeBattleMonster.CurrentHp);
             actor.MaxHp = Mathf.Max(1, _activeBattleMonster.MaxHp);
             actor.IsEnemy = true;
-            actor.StatusText = "Enemy turn";
+            actor.StatusText = string.IsNullOrEmpty(_activeBattleMonster.StatusEffectSummaryText)
+                ? "Enemy turn"
+                : "Enemy turn | " + _activeBattleMonster.StatusEffectSummaryText;
             return actor;
         }
 
@@ -897,12 +1058,25 @@ public sealed partial class StaticPlaceholderWorldView
         actor.ActorId = string.IsNullOrEmpty(member.MemberId) ? string.Empty : member.MemberId;
         actor.DisplayName = string.IsNullOrEmpty(member.DisplayName) ? "None" : member.DisplayName;
         actor.RoleLabel = string.IsNullOrEmpty(member.RoleLabel) ? "Adventurer" : member.RoleLabel;
-        actor.SkillLabel = string.IsNullOrEmpty(member.SkillName) ? "Skill" : member.SkillName;
-        actor.SkillShortText = string.IsNullOrEmpty(member.SkillShortText) ? string.Empty : member.SkillShortText;
+        PrototypeRpgSkillUseContext skillUseContext = BuildRpgSkillUseContext(member, "skill");
+        actor.SkillLabel = !string.IsNullOrEmpty(skillUseContext.ResolvedSkillLabel) ? skillUseContext.ResolvedSkillLabel : string.IsNullOrEmpty(member.SkillName) ? "Skill" : member.SkillName;
+        actor.SkillShortText = !string.IsNullOrEmpty(skillUseContext.AvailabilitySummaryText) ? skillUseContext.AvailabilitySummaryText + " | " + skillUseContext.EffectSummaryText : string.IsNullOrEmpty(member.SkillShortText) ? string.Empty : member.SkillShortText;
+        actor.LevelSummaryText = member.Level > 0 ? "Lv " + member.Level + " | EXP " + member.CurrentExperience + "/" + member.ExperienceToNextLevel + " | " + RpgSkillResourceLabel + " " + member.CurrentSkillResource + "/" + member.MaxSkillResource : string.Empty;
+        actor.LoadoutSummaryText = !string.IsNullOrEmpty(member.ActiveSkillSlotSummaryText)
+            ? member.ActiveSkillSlotSummaryText + " | " + member.SkillCooldownSummaryText + " | " + member.SkillResourceSummaryText
+            : string.IsNullOrEmpty(member.ResolvedSkillSummaryText) ? member.SkillLoadoutSummaryText : member.ResolvedSkillSummaryText;
+        actor.ConsumableSlotSummaryText = string.IsNullOrEmpty(member.ConsumableSlotSummaryText) ? BuildCurrentBattleConsumableSlotSummaryText() : member.ConsumableSlotSummaryText;
+        actor.ActiveSkillSlotSummaryText = member.ActiveSkillSlotSummaryText;
+        actor.SkillCooldownSummaryText = member.SkillCooldownSummaryText;
+        actor.SkillResourceSummaryText = member.SkillResourceSummaryText;
+        actor.ActionEconomySummaryText = member.ActionEconomySummaryText;
         actor.CurrentHp = Mathf.Max(0, member.CurrentHp);
         actor.MaxHp = Mathf.Max(1, member.MaxHp);
         actor.IsEnemy = false;
-        actor.StatusText = _battleState == BattleState.PartyTargetSelect ? "Selecting target" : _battleState == BattleState.PartyActionSelect ? "Awaiting command" : "Ready";
+        string actorBaseStatusText = _battleState == BattleState.PartyTargetSelect ? "Selecting target" : _battleState == BattleState.PartyActionSelect ? "Awaiting command" : "Ready";
+        actor.StatusText = string.IsNullOrEmpty(member.StatusEffectSummaryText)
+            ? actorBaseStatusText
+            : actorBaseStatusText + " | " + member.StatusEffectSummaryText;
         return actor;
     }
 
@@ -1044,6 +1218,13 @@ public sealed partial class StaticPlaceholderWorldView
         data.RoleLabel = string.IsNullOrEmpty(member.RoleLabel) ? "Adventurer" : member.RoleLabel;
         data.SkillLabel = string.IsNullOrEmpty(member.SkillName) ? "Basic Action" : member.SkillName;
         data.SkillShortText = string.IsNullOrEmpty(member.SkillShortText) ? string.Empty : member.SkillShortText;
+        data.LevelSummaryText = member.Level > 0 ? "Lv " + member.Level + " | EXP " + member.CurrentExperience + "/" + member.ExperienceToNextLevel + " | " + RpgSkillResourceLabel + " " + member.CurrentSkillResource + "/" + member.MaxSkillResource : string.Empty;
+        data.LoadoutSummaryText = !string.IsNullOrEmpty(member.ActiveSkillSlotSummaryText)
+            ? member.ActiveSkillSlotSummaryText + " | " + member.SkillCooldownSummaryText
+            : string.IsNullOrEmpty(member.ResolvedSkillSummaryText) ? member.SkillLoadoutSummaryText : member.ResolvedSkillSummaryText;
+        data.ConsumableSlotSummaryText = string.IsNullOrEmpty(member.ConsumableSlotSummaryText) ? BuildCurrentBattleConsumableSlotSummaryText() : member.ConsumableSlotSummaryText;
+        data.ActiveSkillSlotSummaryText = member.ActiveSkillSlotSummaryText;
+        data.SkillResourceSummaryText = member.SkillResourceSummaryText;
         data.CurrentHp = Mathf.Max(0, member.CurrentHp);
         data.MaxHp = Mathf.Max(1, member.MaxHp);
         data.Attack = member.Attack;
@@ -1052,13 +1233,16 @@ public sealed partial class StaticPlaceholderWorldView
         data.IsActive = isActive;
         data.IsTargeted = isTargeted;
         data.IsKnockedOut = member.IsDefeated || member.CurrentHp <= 0;
-        data.StatusText = data.IsKnockedOut
+        string baseMemberStatusText = data.IsKnockedOut
             ? "KO"
             : data.IsActive
                 ? "Acting"
                 : data.IsTargeted
                     ? "Targeted"
                     : "Ready";
+        data.StatusText = string.IsNullOrEmpty(member.StatusEffectSummaryText)
+            ? baseMemberStatusText
+            : baseMemberStatusText + " | " + member.StatusEffectSummaryText;
         return data;
     }
 
@@ -1113,6 +1297,7 @@ public sealed partial class StaticPlaceholderWorldView
         bool isSelected = !monster.IsDefeated && _battleState == BattleState.PartyTargetSelect && _activeBattleMonsterId == monster.MonsterId;
         bool isHovered = !monster.IsDefeated && _battleState == BattleState.PartyTargetSelect && _hoverBattleMonsterId == monster.MonsterId;
         bool isActing = !monster.IsDefeated && _battleState == BattleState.EnemyTurn && _activeBattleMonsterId == monster.MonsterId;
+        InitializeRpgEnemySkillRuntimeState(monster, false);
         data.MonsterId = string.IsNullOrEmpty(monster.MonsterId) ? string.Empty : monster.MonsterId;
         data.DisplayName = string.IsNullOrEmpty(monster.DisplayName) ? "Monster" : monster.DisplayName;
         data.TypeLabel = string.IsNullOrEmpty(monster.MonsterType) ? "Monster" : monster.MonsterType;
@@ -1127,7 +1312,14 @@ public sealed partial class StaticPlaceholderWorldView
         data.IsHovered = isHovered;
         data.IsActing = isActing;
         data.IsDefeated = monster.IsDefeated;
-        data.StateLabel = monster.IsDefeated ? "Defeated" : isActing ? "Acting" : isHovered ? "Hover" : isSelected ? "Targeted" : "Alive";
+        string baseEnemyStateText = monster.IsDefeated ? "Defeated" : isActing ? "Acting" : isHovered ? "Hover" : isSelected ? "Targeted" : "Alive";
+        data.StateLabel = string.IsNullOrEmpty(monster.StatusEffectSummaryText)
+            ? baseEnemyStateText
+            : baseEnemyStateText + " | " + monster.StatusEffectSummaryText;
+        if (!string.IsNullOrEmpty(monster.StatusEffectSummaryText))
+        {
+            data.TraitText = data.TraitText + " | " + monster.StatusEffectSummaryText;
+        }
         return data;
     }
 
@@ -1170,16 +1362,18 @@ public sealed partial class StaticPlaceholderWorldView
         if (monster.IsElite)
         {
             string eliteTypeText = string.IsNullOrEmpty(_eliteType) ? "Elite pattern" : _eliteType;
-            return string.IsNullOrEmpty(monster.SpecialActionName)
+            string baseText = string.IsNullOrEmpty(monster.SpecialActionName)
                 ? eliteTypeText
                 : eliteTypeText + " | " + monster.SpecialActionName;
+            return BuildRpgCompactSummaryText(baseText, BuildBattleUiEncounterPatternHintText(monster), BuildBattleUiEnemyLoadoutHintText(monster));
         }
 
-        return monster.EncounterRole == MonsterEncounterRole.Striker
+        string roleText = monster.EncounterRole == MonsterEncounterRole.Striker
             ? "Fast pressure"
             : monster.EncounterRole == MonsterEncounterRole.Skirmisher
                 ? "Flexible flank"
                 : "Front guard";
+        return BuildRpgCompactSummaryText(roleText, BuildBattleUiEncounterPatternHintText(monster), BuildBattleUiEnemyLoadoutHintText(monster));
     }
 
     private DungeonMonsterRuntimeData GetBattleUiFocusedMonster()
@@ -1274,20 +1468,57 @@ public sealed partial class StaticPlaceholderWorldView
             : actor != null && !string.IsNullOrEmpty(actor.SkillLabel) && actor.SkillLabel != "None"
                 ? actor.SkillLabel
                 : "Skill";
-        string skillDescription = actor != null && !string.IsNullOrEmpty(actor.SkillShortText)
-            ? actor.SkillShortText
-            : "Uses the active actor's shared skill definition.";
+        string skillDescription = actionContext != null && !string.IsNullOrEmpty(actionContext.ActiveSkillSlotSummaryText)
+            ? actionContext.ActiveSkillSlotSummaryText
+            : actor != null && !string.IsNullOrEmpty(actor.SkillShortText)
+                ? actor.SkillShortText
+                : "Uses the active actor's active skill slots.";
         string skillTargetText = actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedTargetKind)
             ? GetBattleUiTargetTypeLabel(actionContext.ResolvedTargetKind)
             : "Single enemy";
         string skillEffectText = actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedEffectType)
             ? GetBattleUiEffectText(actionContext.ResolvedEffectType, actionContext.ResolvedPowerValue)
             : skillDescription;
+        string skillCostText = actionContext != null && actionContext.IsSkillAction
+            ? RpgSkillResourceLabel + " " + actionContext.ResolvedResourceCost + " | CD " + actionContext.ResolvedCooldownRemaining + "/" + actionContext.ResolvedCooldownTurns + (actionContext.ResolvedMaxEncounterCharges > 0 ? " | Uses " + actionContext.ResolvedEncounterChargesRemaining + "/" + actionContext.ResolvedMaxEncounterCharges : " | Repeat")
+            : "No cost";
+
+        PrototypeRpgBattleConsumableSlot itemSlot = GetCurrentBattleConsumableSlot();
+        bool hasBattleItem = itemSlot != null && !string.IsNullOrEmpty(itemSlot.ItemId) && itemSlot.IsAvailable;
+        bool itemAvailable = IsBattleActionAvailable(BattleActionType.Item);
+        string itemLabel = hasBattleItem && !string.IsNullOrEmpty(itemSlot.DisplayName) ? itemSlot.DisplayName : "Item";
+        string itemDescription = hasBattleItem ? itemSlot.SummaryText : "No battle consumable is ready.";
+        string itemTargetText = hasBattleItem ? GetBattleUiTargetTypeLabel(itemSlot.TargetKind) : "Party";
+        string itemEffectText = hasBattleItem
+            ? itemSlot.TargetKind == "self"
+                ? "Restore " + Mathf.Max(1, itemSlot.PowerValue) + " HP to self."
+                : itemSlot.TargetKind == "all_allies"
+                    ? "Restore " + Mathf.Max(1, itemSlot.PowerValue) + " HP to all allies."
+                    : GetBattleUiEffectText(itemSlot.EffectType, itemSlot.PowerValue)
+            : "No consumable is loaded.";
+        string itemCostText = hasBattleItem ? "Consumes 1" : "No stock";
+        string loadoutSummaryText = actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedLoadoutSummaryText)
+            ? actionContext.ResolvedLoadoutSummaryText
+            : actor != null && !string.IsNullOrEmpty(actor.LoadoutSummaryText)
+                ? actor.LoadoutSummaryText
+                : string.Empty;
+        string itemSummaryText = hasBattleItem && actionContext != null && !string.IsNullOrEmpty(actionContext.ConsumableSlotSummaryText)
+            ? actionContext.ConsumableSlotSummaryText
+            : hasBattleItem
+                ? BuildCurrentBattleConsumableSlotSummaryText()
+                : "No battle consumable slot.";
+        commandSurface.SupplementalSummaryText = selectedActionKey == "item"
+            ? itemSummaryText
+            : selectedActionKey == "skill"
+                ? BuildRpgCompactSummaryText(actionContext != null ? actionContext.ActiveSkillSlotSummaryText : string.Empty, actionContext != null ? actionContext.SkillCooldownSummaryText : string.Empty, actionContext != null ? actionContext.SkillResourceSummaryText : string.Empty, actionContext != null ? actionContext.ActionEconomySummaryText : string.Empty)
+            : !string.IsNullOrEmpty(loadoutSummaryText)
+                ? loadoutSummaryText
+                : itemSummaryText;
 
         List<PrototypeBattleUiCommandDetailData> details = new List<PrototypeBattleUiCommandDetailData>();
         details.Add(BuildBattleUiCommandDetailData("attack", "Attack", "Reliable basic strike.", "Single enemy", "None", "Deal " + basicAttackPower + " damage.", IsBattleActionAvailable(BattleActionType.Attack), selectedActionKey == "attack"));
-        details.Add(BuildBattleUiCommandDetailData("skill", skillLabel, skillDescription, skillTargetText, "No cost", skillEffectText, IsBattleActionAvailable(BattleActionType.Skill), selectedActionKey == "skill"));
-        details.Add(BuildBattleUiCommandDetailData("item", "Item", "Reserved for the later inventory batch.", "Self / ally", "Not available yet", "No consumables are wired in this batch.", false, false));
+        details.Add(BuildBattleUiCommandDetailData("skill", skillLabel, skillDescription, skillTargetText, skillCostText, skillEffectText + (actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedAvailabilitySummaryText) ? " | " + actionContext.ResolvedAvailabilitySummaryText : string.Empty), IsBattleActionAvailable(BattleActionType.Skill), selectedActionKey == "skill"));
+        details.Add(BuildBattleUiCommandDetailData("item", itemLabel, itemDescription, itemTargetText, itemCostText, itemEffectText, itemAvailable, selectedActionKey == "item"));
         details.Add(BuildBattleUiCommandDetailData("retreat", "Retreat", "Leave the run using the current resolution flow.", "Party", "Ends the current run", "Return to WorldSim with the current writeback path.", IsBattleActionAvailable(BattleActionType.Retreat), selectedActionKey == "retreat"));
         details.Add(BuildBattleUiCommandDetailData("retreat_confirm", "Confirm retreat", "Commit to the retreat action.", "Party", "Confirm exit", "Uses the existing retreat resolution.", IsBattleActionAvailable(BattleActionType.Retreat), false));
         details.Add(BuildBattleUiCommandDetailData("back", "Back", "Return to the previous command layer.", "Current menu", "None", "Keeps the battle flow intact.", true, false));
@@ -1353,8 +1584,8 @@ public sealed partial class StaticPlaceholderWorldView
             : "Hover an enemy or click a target.";
         targetSelection.TargetCurrentHp = targetContext != null && targetContext.HasTarget ? targetContext.TargetCurrentHp : 0;
         targetSelection.TargetMaxHp = targetContext != null && targetContext.HasTarget ? Mathf.Max(1, targetContext.TargetMaxHp) : 1;
-        targetSelection.SkillHintText = actionContext != null && actionContext.IsSkillAction && actor != null && !string.IsNullOrEmpty(actor.SkillShortText)
-            ? actor.SkillShortText
+        targetSelection.SkillHintText = actionContext != null && actionContext.IsSkillAction
+            ? BuildRpgCompactSummaryText(actionContext.ResolvedAvailabilitySummaryText, actionContext.SkillCooldownSummaryText, actionContext.SkillResourceSummaryText, actionContext.ActionEconomySummaryText)
             : string.Empty;
         targetSelection.CancelHint = GetBattleCancelHintText();
         return targetSelection;
@@ -1366,9 +1597,11 @@ public sealed partial class StaticPlaceholderWorldView
             ? "attack"
             : _queuedBattleAction == BattleActionType.Skill
                 ? "skill"
-                : _queuedBattleAction == BattleActionType.Retreat
-                    ? "retreat"
-                    : string.Empty;
+                : _queuedBattleAction == BattleActionType.Item
+                    ? "item"
+                    : _queuedBattleAction == BattleActionType.Retreat
+                        ? "retreat"
+                        : string.Empty;
     }
 
     private string GetBattleUiActionDisplayLabel(string actionKey, PrototypeBattleUiActorData actor)
@@ -1380,9 +1613,22 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (actionKey == "skill")
         {
+            DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
+            PrototypeRpgSkillUseContext skillUseContext = BuildRpgSkillUseContext(member, "skill");
+            if (!string.IsNullOrEmpty(skillUseContext.ResolvedSkillLabel))
+            {
+                return skillUseContext.ResolvedSkillLabel;
+            }
+
             return actor != null && !string.IsNullOrEmpty(actor.SkillLabel) && actor.SkillLabel != "None"
                 ? actor.SkillLabel
                 : "Skill";
+        }
+
+        if (actionKey == "item")
+        {
+            PrototypeRpgBattleConsumableSlot slot = GetCurrentBattleConsumableSlot();
+            return slot != null && !string.IsNullOrEmpty(slot.DisplayName) ? slot.DisplayName : "Item";
         }
 
         if (actionKey == "retreat")
@@ -1448,31 +1694,78 @@ public sealed partial class StaticPlaceholderWorldView
             return actionContext;
         }
 
+        actionContext.ResolvedLoadoutId = string.IsNullOrEmpty(member.SkillLoadoutId) ? string.Empty : member.SkillLoadoutId;
+        actionContext.ResolvedLoadoutSummaryText = string.IsNullOrEmpty(member.ResolvedSkillSummaryText) ? member.SkillLoadoutSummaryText : member.ResolvedSkillSummaryText;
+        actionContext.ConsumableSlotSummaryText = string.IsNullOrEmpty(member.ConsumableSlotSummaryText) ? BuildCurrentBattleConsumableSlotSummaryText() : member.ConsumableSlotSummaryText;
+        actionContext.ActiveSkillSlotSummaryText = member.ActiveSkillSlotSummaryText;
+        actionContext.SkillCooldownSummaryText = member.SkillCooldownSummaryText;
+        actionContext.SkillResourceSummaryText = member.SkillResourceSummaryText;
+        actionContext.ActionEconomySummaryText = member.ActionEconomySummaryText;
+
         if (selectedActionKey == "skill")
         {
+            PrototypeRpgSkillUseContext skillUseContext = BuildRpgSkillUseContext(member, selectedActionKey);
             PrototypeRpgSkillDefinition skillDefinition = ResolveMemberSkillDefinition(member);
             actionContext.IsSkillAction = true;
-            actionContext.ResolvedSkillId = skillDefinition != null ? skillDefinition.SkillId : string.Empty;
-            actionContext.ResolvedSkillLabel = GetResolvedSkillDisplayName(member, skillDefinition);
-            actionContext.ResolvedTargetKind = GetResolvedSkillTargetKind(member, skillDefinition);
-            actionContext.ResolvedEffectType = GetResolvedSkillEffectType(member, skillDefinition);
-            actionContext.ResolvedPowerValue = GetResolvedSkillPower(member, skillDefinition);
-            actionContext.RequiresTarget = actionContext.ResolvedTargetKind == "single_enemy";
+            actionContext.ResolvedSlotIndex = skillUseContext.ResolvedSlotIndex;
+            actionContext.ResolvedSlotKey = skillUseContext.ResolvedSlotKey;
+            actionContext.ResolvedLoadoutId = string.IsNullOrEmpty(skillUseContext.LoadoutId) ? actionContext.ResolvedLoadoutId : skillUseContext.LoadoutId;
+            actionContext.ResolvedLoadoutSummaryText = string.IsNullOrEmpty(skillUseContext.ActiveSkillSlotSummaryText) ? actionContext.ResolvedLoadoutSummaryText : skillUseContext.ActiveSkillSlotSummaryText;
+            actionContext.ResolvedSkillId = !string.IsNullOrEmpty(skillUseContext.ResolvedSkillId) ? skillUseContext.ResolvedSkillId : skillDefinition != null ? skillDefinition.SkillId : string.Empty;
+            actionContext.ResolvedSkillLabel = !string.IsNullOrEmpty(skillUseContext.ResolvedSkillLabel) ? skillUseContext.ResolvedSkillLabel : GetResolvedSkillDisplayName(member, skillDefinition);
+            actionContext.ResolvedSkillSegmentKey = string.IsNullOrEmpty(skillUseContext.SkillSegmentKey) ? string.Empty : skillUseContext.SkillSegmentKey;
+            actionContext.ResolvedTargetKind = !string.IsNullOrEmpty(skillUseContext.TargetKind) ? skillUseContext.TargetKind : GetResolvedSkillTargetKind(member, skillDefinition);
+            actionContext.ResolvedEffectBucketKey = !string.IsNullOrEmpty(skillUseContext.EffectBucketKey) ? skillUseContext.EffectBucketKey : ResolveRpgSkillEffectBucketKey(skillDefinition);
+            actionContext.ResolvedEffectType = !string.IsNullOrEmpty(skillUseContext.EffectType) ? skillUseContext.EffectType : GetResolvedSkillEffectType(member, skillDefinition);
+            actionContext.ResolvedPowerValue = skillUseContext.PowerValue > 0 ? skillUseContext.PowerValue : GetResolvedSkillPower(member, skillDefinition);
+            actionContext.ResolvedCooldownTurns = skillUseContext.CooldownTurns;
+            actionContext.ResolvedCooldownRemaining = skillUseContext.CooldownRemaining;
+            actionContext.ResolvedResourceCost = skillUseContext.ResourceCost;
+            actionContext.ResolvedCurrentResource = skillUseContext.CurrentResource;
+            actionContext.ResolvedMaxResource = skillUseContext.MaxResource;
+            actionContext.ResolvedEncounterChargesRemaining = skillUseContext.EncounterChargesRemaining;
+            actionContext.ResolvedMaxEncounterCharges = skillUseContext.MaxEncounterCharges;
+            actionContext.ResolvedAvailabilityStateKey = skillUseContext.AvailabilityStateKey;
+            actionContext.ResolvedAvailabilitySummaryText = skillUseContext.AvailabilitySummaryText;
+            actionContext.ActiveSkillSlotSummaryText = string.IsNullOrEmpty(skillUseContext.ActiveSkillSlotSummaryText) ? actionContext.ActiveSkillSlotSummaryText : skillUseContext.ActiveSkillSlotSummaryText;
+            actionContext.SkillCooldownSummaryText = string.IsNullOrEmpty(skillUseContext.CooldownSummaryText) ? actionContext.SkillCooldownSummaryText : skillUseContext.CooldownSummaryText;
+            actionContext.SkillResourceSummaryText = string.IsNullOrEmpty(skillUseContext.ResourceSummaryText) ? actionContext.SkillResourceSummaryText : skillUseContext.ResourceSummaryText;
+            actionContext.ActionEconomySummaryText = string.IsNullOrEmpty(skillUseContext.ActionEconomySummaryText) ? actionContext.ActionEconomySummaryText : skillUseContext.ActionEconomySummaryText;
+            actionContext.RequiresTarget = actionContext.ResolvedTargetKind == "single_enemy" || actionContext.ResolvedTargetKind == "single_ally";
             return actionContext;
         }
 
         if (selectedActionKey == "attack")
         {
             actionContext.ResolvedTargetKind = "single_enemy";
+            actionContext.ResolvedEffectBucketKey = "core";
             actionContext.ResolvedEffectType = "damage";
             actionContext.ResolvedPowerValue = Mathf.Max(1, member.Attack);
             actionContext.RequiresTarget = true;
             return actionContext;
         }
 
+        if (selectedActionKey == "item")
+        {
+            PrototypeRpgBattleConsumableSlot slot = GetCurrentBattleConsumableSlot();
+            bool hasBattleItem = slot != null && !string.IsNullOrEmpty(slot.ItemId) && slot.IsAvailable;
+            actionContext.ResolvedSkillLabel = hasBattleItem && !string.IsNullOrEmpty(slot.DisplayName) ? slot.DisplayName : "Item";
+            actionContext.ResolvedTargetKind = hasBattleItem ? slot.TargetKind : "party";
+            actionContext.ResolvedEffectBucketKey = "consumable";
+            actionContext.ResolvedEffectType = hasBattleItem ? (slot.EffectType == "damage" && slot.TargetKind == "all_enemies" ? "splash_damage_or_all_enemies" : slot.EffectType == "heal" && slot.TargetKind == "all_allies" ? "party_heal" : slot.EffectType) : string.Empty;
+            actionContext.ResolvedPowerValue = hasBattleItem ? Mathf.Max(0, slot.PowerValue) : 0;
+            actionContext.ResolvedAvailabilityStateKey = hasBattleItem ? "available" : "empty";
+            actionContext.ResolvedAvailabilitySummaryText = hasBattleItem
+                ? slot.DisplayName + " x" + Mathf.Max(0, slot.Quantity) + " ready."
+                : "No battle consumable is ready.";
+            actionContext.RequiresTarget = hasBattleItem && (actionContext.ResolvedTargetKind == "single_enemy" || actionContext.ResolvedTargetKind == "single_ally");
+            return actionContext;
+        }
+
         if (selectedActionKey == "retreat")
         {
             actionContext.ResolvedTargetKind = "party";
+            actionContext.ResolvedEffectBucketKey = "retreat";
             actionContext.ResolvedEffectType = "retreat";
             actionContext.ResolvedPowerValue = 0;
             actionContext.RequiresTarget = false;
@@ -1545,6 +1838,10 @@ public sealed partial class StaticPlaceholderWorldView
                 return "All enemies";
             case "party":
                 return "Party";
+            case "self":
+                return "Self";
+            case "single_ally":
+                return "Single ally";
             case "single_enemy":
                 return "Single enemy";
             default:
@@ -1557,12 +1854,20 @@ public sealed partial class StaticPlaceholderWorldView
         int safePower = powerValue > 0 ? powerValue : 1;
         switch (effectType)
         {
+            case "party_heal":
             case "heal":
                 return "Restore " + safePower + " HP to all allies.";
+            case "protect_heal":
+                return "Restore " + safePower + " HP and reinforce wounded allies.";
+            case "splash_damage_or_all_enemies":
+                return "Deal " + safePower + " damage to all enemies.";
+            case "self_recover_or_guarded_strike":
+                return "Recover " + safePower + " HP and brace for the next exchange.";
             case "finisher_damage":
                 return "Deal " + safePower + " damage. Gains +2 against weakened targets.";
             case "retreat":
                 return "Exit the run using the current resolution flow.";
+            case "direct_damage":
             case "damage":
             default:
                 return "Deal " + safePower + " damage.";
@@ -1577,6 +1882,8 @@ public sealed partial class StaticPlaceholderWorldView
                 return "attack";
             case BattleActionType.Skill:
                 return "skill";
+            case BattleActionType.Item:
+                return "item";
             case BattleActionType.Retreat:
                 return "retreat";
             default:
@@ -1691,7 +1998,12 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         DungeonPartyMemberRuntimeData member = GetPartyMemberById(actorId);
-        return member != null ? member.DefaultSkillId : string.Empty;
+        if (member != null)
+        {
+            return member.DefaultSkillId;
+        }
+
+        return GetMonsterById(actorId) != null ? _pendingEnemySkillId : string.Empty;
     }
 
     private string BuildPartyMembersAtEndSummary()
@@ -1787,6 +2099,11 @@ public sealed partial class StaticPlaceholderWorldView
         copy.TargetPatternKey = source.TargetPatternKey;
         copy.PreviewText = source.PreviewText;
         copy.PredictedValue = source.PredictedValue;
+        copy.SkillId = source.SkillId;
+        copy.SkillLabel = source.SkillLabel;
+        copy.PredictedEffectText = source.PredictedEffectText;
+        copy.PredictedStatusText = source.PredictedStatusText;
+        copy.ActionEconomyText = source.ActionEconomyText;
         copy.TargetId = source.TargetId;
         copy.TargetName = source.TargetName;
         copy.SourceEnemyId = source.SourceEnemyId;
@@ -1940,7 +2257,7 @@ public sealed partial class StaticPlaceholderWorldView
         snapshot.RouteLabel = string.IsNullOrEmpty(_selectedRouteLabel) ? "None" : _selectedRouteLabel;
         snapshot.CurrentDungeonName = string.IsNullOrEmpty(_currentDungeonName) ? "None" : _currentDungeonName;
         snapshot.PartyMembersAtEndSummary = BuildPartyMembersAtEndSummary();
-        snapshot.FinalLootSummary = BuildLootBreakdownSummary();
+        snapshot.FinalLootSummary = _latestRpgRunResultSnapshot != null && _latestRpgRunResultSnapshot.LootOutcome != null && !string.IsNullOrEmpty(_latestRpgRunResultSnapshot.LootOutcome.FinalLootSummary) ? _latestRpgRunResultSnapshot.LootOutcome.FinalLootSummary : BuildLootBreakdownSummary();
         snapshot.EliteEncounterName = string.IsNullOrEmpty(_eliteName) ? "None" : _eliteName;
         snapshot.EliteRewardLabel = string.IsNullOrEmpty(_eliteRewardLabel) ? "None" : _eliteRewardLabel;
         snapshot.PreEliteChoiceSummary = GetSelectedPreEliteChoiceDisplayText();
@@ -1970,13 +2287,54 @@ public sealed partial class StaticPlaceholderWorldView
         copy.TotalTurnsTaken = Mathf.Max(0, source.TotalTurnsTaken);
         copy.ResultSummary = string.IsNullOrEmpty(source.ResultSummary) ? string.Empty : source.ResultSummary;
         copy.SurvivingMembersSummary = string.IsNullOrEmpty(source.SurvivingMembersSummary) ? string.Empty : source.SurvivingMembersSummary;
+        copy.PostRunHeadlineText = string.IsNullOrEmpty(source.PostRunHeadlineText) ? string.Empty : source.PostRunHeadlineText;
+        copy.PostRunSubheadlineText = string.IsNullOrEmpty(source.PostRunSubheadlineText) ? string.Empty : source.PostRunSubheadlineText;
+        copy.PendingRewardDeltaSummaryText = string.IsNullOrEmpty(source.PendingRewardDeltaSummaryText) ? string.Empty : source.PendingRewardDeltaSummaryText;
+        copy.RewardCarryoverSummaryText = string.IsNullOrEmpty(source.RewardCarryoverSummaryText) ? string.Empty : source.RewardCarryoverSummaryText;
+        copy.ExperienceGainSummaryText = string.IsNullOrEmpty(source.ExperienceGainSummaryText) ? string.Empty : source.ExperienceGainSummaryText;
+        copy.LevelUpPreviewSummaryText = string.IsNullOrEmpty(source.LevelUpPreviewSummaryText) ? string.Empty : source.LevelUpPreviewSummaryText;
+        copy.LevelUpApplyReadySummaryText = string.IsNullOrEmpty(source.LevelUpApplyReadySummaryText) ? string.Empty : source.LevelUpApplyReadySummaryText;
+        copy.ActualLevelApplySummaryText = string.IsNullOrEmpty(source.ActualLevelApplySummaryText) ? string.Empty : source.ActualLevelApplySummaryText;
+        copy.DerivedStatHydrateSummaryText = string.IsNullOrEmpty(source.DerivedStatHydrateSummaryText) ? string.Empty : source.DerivedStatHydrateSummaryText;
+        copy.NextRunStatProjectionSummaryText = string.IsNullOrEmpty(source.NextRunStatProjectionSummaryText) ? string.Empty : source.NextRunStatProjectionSummaryText;
+        copy.JobSpecializationSummaryText = string.IsNullOrEmpty(source.JobSpecializationSummaryText) ? string.Empty : source.JobSpecializationSummaryText;
+        copy.PassiveSkillSlotSummaryText = string.IsNullOrEmpty(source.PassiveSkillSlotSummaryText) ? string.Empty : source.PassiveSkillSlotSummaryText;
+        copy.RuntimeSynergySummaryText = string.IsNullOrEmpty(source.RuntimeSynergySummaryText) ? string.Empty : source.RuntimeSynergySummaryText;
+        copy.NextRunSpecializationPreviewText = string.IsNullOrEmpty(source.NextRunSpecializationPreviewText) ? string.Empty : source.NextRunSpecializationPreviewText;
+        copy.ActiveSkillSlotSummaryText = string.IsNullOrEmpty(source.ActiveSkillSlotSummaryText) ? string.Empty : source.ActiveSkillSlotSummaryText;
+        copy.SkillCooldownSummaryText = string.IsNullOrEmpty(source.SkillCooldownSummaryText) ? string.Empty : source.SkillCooldownSummaryText;
+        copy.SkillResourceSummaryText = string.IsNullOrEmpty(source.SkillResourceSummaryText) ? string.Empty : source.SkillResourceSummaryText;
+        copy.ActionEconomySummaryText = string.IsNullOrEmpty(source.ActionEconomySummaryText) ? string.Empty : source.ActionEconomySummaryText;
+        copy.NextRunActiveSkillPreviewText = string.IsNullOrEmpty(source.NextRunActiveSkillPreviewText) ? string.Empty : source.NextRunActiveSkillPreviewText;
+        copy.SkillLoadoutReadbackSummaryText = string.IsNullOrEmpty(source.SkillLoadoutReadbackSummaryText) ? string.Empty : source.SkillLoadoutReadbackSummaryText;
+        copy.EquipmentLoadoutReadbackSummaryText = string.IsNullOrEmpty(source.EquipmentLoadoutReadbackSummaryText) ? string.Empty : source.EquipmentLoadoutReadbackSummaryText;
+        copy.GearContributionSummaryText = string.IsNullOrEmpty(source.GearContributionSummaryText) ? string.Empty : source.GearContributionSummaryText;
+        copy.ConsumableCarrySummaryText = string.IsNullOrEmpty(source.ConsumableCarrySummaryText) ? string.Empty : source.ConsumableCarrySummaryText;
+        copy.ConsumableCarryoverPolicySummaryText = string.IsNullOrEmpty(source.ConsumableCarryoverPolicySummaryText) ? string.Empty : source.ConsumableCarryoverPolicySummaryText;
+        copy.GearRewardCandidateSummaryText = string.IsNullOrEmpty(source.GearRewardCandidateSummaryText) ? string.Empty : source.GearRewardCandidateSummaryText;
+        copy.EquipSwapChoiceSummaryText = string.IsNullOrEmpty(source.EquipSwapChoiceSummaryText) ? string.Empty : source.EquipSwapChoiceSummaryText;
+        copy.GearCarryContinuitySummaryText = string.IsNullOrEmpty(source.GearCarryContinuitySummaryText) ? string.Empty : source.GearCarryContinuitySummaryText;
+        copy.GearRuleSummaryText = string.IsNullOrEmpty(source.GearRuleSummaryText) ? string.Empty : source.GearRuleSummaryText;
+        copy.GearUnlockSummaryText = string.IsNullOrEmpty(source.GearUnlockSummaryText) ? string.Empty : source.GearUnlockSummaryText;
+        copy.GearComparisonSummaryText = string.IsNullOrEmpty(source.GearComparisonSummaryText) ? string.Empty : source.GearComparisonSummaryText;
+        copy.GearAffixLiteSummaryText = string.IsNullOrEmpty(source.GearAffixLiteSummaryText) ? string.Empty : source.GearAffixLiteSummaryText;
+        copy.UnlockedGearPoolSummaryText = string.IsNullOrEmpty(source.UnlockedGearPoolSummaryText) ? string.Empty : source.UnlockedGearPoolSummaryText;
+        copy.LevelBandGearLinkageSummaryText = string.IsNullOrEmpty(source.LevelBandGearLinkageSummaryText) ? string.Empty : source.LevelBandGearLinkageSummaryText;
+        copy.EncounterPhaseSummaryText = string.IsNullOrEmpty(source.EncounterPhaseSummaryText) ? string.Empty : source.EncounterPhaseSummaryText;
+        copy.EncounterWaveSummaryText = string.IsNullOrEmpty(source.EncounterWaveSummaryText) ? string.Empty : source.EncounterWaveSummaryText;
+        copy.BossPatternSummaryText = string.IsNullOrEmpty(source.BossPatternSummaryText) ? string.Empty : source.BossPatternSummaryText;
+        copy.ApplyTraceSummaryText = string.IsNullOrEmpty(source.ApplyTraceSummaryText) ? string.Empty : source.ApplyTraceSummaryText;
+        copy.NextOfferBasisSummaryText = string.IsNullOrEmpty(source.NextOfferBasisSummaryText) ? string.Empty : source.NextOfferBasisSummaryText;
+        copy.CurrentAppliedIdentitySummaryText = string.IsNullOrEmpty(source.CurrentAppliedIdentitySummaryText) ? string.Empty : source.CurrentAppliedIdentitySummaryText;
+        copy.OfferRefreshSummaryText = string.IsNullOrEmpty(source.OfferRefreshSummaryText) ? string.Empty : source.OfferRefreshSummaryText;
+        copy.ApplyReadySummaryText = string.IsNullOrEmpty(source.ApplyReadySummaryText) ? string.Empty : source.ApplyReadySummaryText;
+        copy.OfferContinuitySummaryText = string.IsNullOrEmpty(source.OfferContinuitySummaryText) ? string.Empty : source.OfferContinuitySummaryText;
         copy.PartyOutcome = CopyRpgPartyOutcomeSnapshot(source.PartyOutcome);
         copy.LootOutcome = CopyRpgLootOutcomeSnapshot(source.LootOutcome);
         copy.EliteOutcome = CopyRpgEliteOutcomeSnapshot(source.EliteOutcome);
         copy.EncounterOutcome = CopyRpgEncounterOutcomeSnapshot(source.EncounterOutcome);
         return copy;
     }
-
     private PrototypeRpgPartyOutcomeSnapshot CopyRpgPartyOutcomeSnapshot(PrototypeRpgPartyOutcomeSnapshot source)
     {
         PrototypeRpgPartyOutcomeSnapshot copy = new PrototypeRpgPartyOutcomeSnapshot();
@@ -1988,6 +2346,7 @@ public sealed partial class StaticPlaceholderWorldView
         copy.PartyConditionText = string.IsNullOrEmpty(source.PartyConditionText) ? string.Empty : source.PartyConditionText;
         copy.PartyHpSummaryText = string.IsNullOrEmpty(source.PartyHpSummaryText) ? string.Empty : source.PartyHpSummaryText;
         copy.PartyMembersAtEndSummary = string.IsNullOrEmpty(source.PartyMembersAtEndSummary) ? string.Empty : source.PartyMembersAtEndSummary;
+        copy.ContributionSummaryText = string.IsNullOrEmpty(source.ContributionSummaryText) ? string.Empty : source.ContributionSummaryText;
         copy.SurvivingMemberCount = Mathf.Max(0, source.SurvivingMemberCount);
         copy.KnockedOutMemberCount = Mathf.Max(0, source.KnockedOutMemberCount);
 
@@ -2024,6 +2383,25 @@ public sealed partial class StaticPlaceholderWorldView
         copy.MaxHp = Mathf.Max(1, source.MaxHp);
         copy.Survived = source.Survived;
         copy.KnockedOut = source.KnockedOut;
+        copy.Level = Mathf.Max(1, source.Level);
+        copy.CurrentExperience = Mathf.Max(0, source.CurrentExperience);
+        copy.ExperienceToNextLevel = Mathf.Max(1, source.ExperienceToNextLevel);
+        copy.GainedExperienceThisRun = Mathf.Max(0, source.GainedExperienceThisRun);
+        copy.LeveledUpThisRun = source.LeveledUpThisRun;
+        copy.LevelUpPreviewText = string.IsNullOrEmpty(source.LevelUpPreviewText) ? string.Empty : source.LevelUpPreviewText;
+        copy.JobSpecializationSummaryText = string.IsNullOrEmpty(source.JobSpecializationSummaryText) ? string.Empty : source.JobSpecializationSummaryText;
+        copy.PassiveSkillSlotSummaryText = string.IsNullOrEmpty(source.PassiveSkillSlotSummaryText) ? string.Empty : source.PassiveSkillSlotSummaryText;
+        copy.RuntimeSynergySummaryText = string.IsNullOrEmpty(source.RuntimeSynergySummaryText) ? string.Empty : source.RuntimeSynergySummaryText;
+        copy.ActiveSkillSlotSummaryText = string.IsNullOrEmpty(source.ActiveSkillSlotSummaryText) ? string.Empty : source.ActiveSkillSlotSummaryText;
+        copy.SkillCooldownSummaryText = string.IsNullOrEmpty(source.SkillCooldownSummaryText) ? string.Empty : source.SkillCooldownSummaryText;
+        copy.SkillResourceSummaryText = string.IsNullOrEmpty(source.SkillResourceSummaryText) ? string.Empty : source.SkillResourceSummaryText;
+        copy.ActionEconomySummaryText = string.IsNullOrEmpty(source.ActionEconomySummaryText) ? string.Empty : source.ActionEconomySummaryText;
+        copy.StatusEffectSummaryText = string.IsNullOrEmpty(source.StatusEffectSummaryText) ? string.Empty : source.StatusEffectSummaryText;
+        copy.DerivedStatSummaryText = string.IsNullOrEmpty(source.DerivedStatSummaryText) ? string.Empty : source.DerivedStatSummaryText;
+        copy.EquipmentSummaryText = string.IsNullOrEmpty(source.EquipmentSummaryText) ? string.Empty : source.EquipmentSummaryText;
+        copy.GearContributionSummaryText = string.IsNullOrEmpty(source.GearContributionSummaryText) ? string.Empty : source.GearContributionSummaryText;
+        copy.SkillLoadoutSummaryText = string.IsNullOrEmpty(source.SkillLoadoutSummaryText) ? string.Empty : source.SkillLoadoutSummaryText;
+        copy.ConsumableSlotSummaryText = string.IsNullOrEmpty(source.ConsumableSlotSummaryText) ? string.Empty : source.ConsumableSlotSummaryText;
         return copy;
     }
 
@@ -2041,6 +2419,10 @@ public sealed partial class StaticPlaceholderWorldView
         copy.EventLootGained = Mathf.Max(0, source.EventLootGained);
         copy.EliteRewardAmount = Mathf.Max(0, source.EliteRewardAmount);
         copy.EliteBonusRewardAmount = Mathf.Max(0, source.EliteBonusRewardAmount);
+        copy.PendingBonusRewardLostAmount = Mathf.Max(0, source.PendingBonusRewardLostAmount);
+        copy.PendingRewardDeltaSummaryText = string.IsNullOrEmpty(source.PendingRewardDeltaSummaryText) ? string.Empty : source.PendingRewardDeltaSummaryText;
+        copy.RewardCarryoverSummaryText = string.IsNullOrEmpty(source.RewardCarryoverSummaryText) ? string.Empty : source.RewardCarryoverSummaryText;
+        copy.RewardGrantSummaryText = string.IsNullOrEmpty(source.RewardGrantSummaryText) ? string.Empty : source.RewardGrantSummaryText;
         copy.FinalLootSummary = string.IsNullOrEmpty(source.FinalLootSummary) ? string.Empty : source.FinalLootSummary;
         return copy;
     }
@@ -2073,6 +2455,9 @@ public sealed partial class StaticPlaceholderWorldView
 
         copy.ClearedEncounterCount = Mathf.Max(0, source.ClearedEncounterCount);
         copy.ClearedEncounterSummary = string.IsNullOrEmpty(source.ClearedEncounterSummary) ? string.Empty : source.ClearedEncounterSummary;
+        copy.PhaseReachedSummary = string.IsNullOrEmpty(source.PhaseReachedSummary) ? string.Empty : source.PhaseReachedSummary;
+        copy.WaveSummaryText = string.IsNullOrEmpty(source.WaveSummaryText) ? string.Empty : source.WaveSummaryText;
+        copy.BossPatternSummaryText = string.IsNullOrEmpty(source.BossPatternSummaryText) ? string.Empty : source.BossPatternSummaryText;
         copy.OpenedChestCount = Mathf.Max(0, source.OpenedChestCount);
         copy.RoomPathSummary = string.IsNullOrEmpty(source.RoomPathSummary) ? string.Empty : source.RoomPathSummary;
         copy.SelectedEventChoice = string.IsNullOrEmpty(source.SelectedEventChoice) ? string.Empty : source.SelectedEventChoice;
@@ -2093,16 +2478,429 @@ public sealed partial class StaticPlaceholderWorldView
         int eventLoot = Mathf.Max(0, lootOutcome.EventLootGained);
         int eliteLoot = Mathf.Max(0, lootOutcome.EliteRewardAmount);
         int eliteBonusLoot = Mathf.Max(0, lootOutcome.EliteBonusRewardAmount);
+        int pendingLostLoot = Mathf.Max(0, lootOutcome.PendingBonusRewardLostAmount);
         int totalLoot = Mathf.Max(Mathf.Max(0, lootOutcome.TotalLootGained), battleLoot + chestLoot + eventLoot + eliteLoot + eliteBonusLoot);
-        return "Battle " + battleLoot + " / Chest " + chestLoot + " / Event " + eventLoot + " / Elite " + eliteLoot + " / Elite Bonus " + eliteBonusLoot + " / Total " + totalLoot;
+        string bonusText = pendingLostLoot > 0 ? "Bonus Lost " + pendingLostLoot : "Bonus " + eliteBonusLoot;
+        return "Battle " + battleLoot + " / Chest " + chestLoot + " / Event " + eventLoot + " / Elite " + eliteLoot + " / " + bonusText + " / Returned " + totalLoot;
     }
 
+    private string BuildRpgContributionSummaryText(PrototypeRpgCombatContributionSnapshot contributionSnapshot)
+    {
+        if (contributionSnapshot == null)
+        {
+            return "Contribution: none.";
+        }
+
+        int totalActions = 0;
+        PrototypeRpgMemberContributionSnapshot[] members = contributionSnapshot.Members ?? System.Array.Empty<PrototypeRpgMemberContributionSnapshot>();
+        for (int i = 0; i < members.Length; i++)
+        {
+            PrototypeRpgMemberContributionSnapshot member = members[i];
+            if (member != null)
+            {
+                totalActions += Mathf.Max(0, member.ActionCount);
+            }
+        }
+
+        return "Contribution: D " + contributionSnapshot.TotalDamageDealt + " / T " + contributionSnapshot.TotalDamageTaken + " / H " + contributionSnapshot.TotalHealingDone + " / A " + totalActions + " / KO " + contributionSnapshot.KnockedOutMemberCount;
+    }
+
+    private string BuildRpgMemberContributionSummaryText(PrototypeRpgMemberContributionSnapshot contribution)
+    {
+        if (contribution == null)
+        {
+            return "No contribution recorded.";
+        }
+
+        string stateText = contribution.KnockedOut
+            ? "KO"
+            : contribution.Survived
+                ? "Survived"
+                : "Inactive";
+        return contribution.DisplayName + ": D " + contribution.DamageDealt + " / T " + contribution.DamageTaken + " / H " + contribution.HealingDone + " / A " + contribution.ActionCount + " / K " + contribution.KillCount + " / " + stateText;
+    }
+
+    private PrototypeRpgMemberContributionSnapshot GetPrimaryContributionMember(PrototypeRpgCombatContributionSnapshot contributionSnapshot)
+    {
+        if (contributionSnapshot == null)
+        {
+            return null;
+        }
+
+        PrototypeRpgMemberContributionSnapshot[] members = contributionSnapshot.Members ?? System.Array.Empty<PrototypeRpgMemberContributionSnapshot>();
+        PrototypeRpgMemberContributionSnapshot best = null;
+        int bestScore = int.MinValue;
+        for (int i = 0; i < members.Length; i++)
+        {
+            PrototypeRpgMemberContributionSnapshot member = members[i];
+            if (member == null)
+            {
+                continue;
+            }
+
+            int score = (member.DamageDealt * 3) + (member.HealingDone * 3) + member.DamageTaken + (member.KillCount * 5) + (member.Survived ? 1 : 0);
+            if (best == null || score > bestScore)
+            {
+                best = member;
+                bestScore = score;
+            }
+        }
+
+        return best;
+    }
+
+    private string BuildRpgPendingRewardDeltaSummaryText(PrototypeRpgRunResultSnapshot runResultSnapshot)
+    {
+        PrototypeRpgLootOutcomeSnapshot lootOutcome = runResultSnapshot != null ? runResultSnapshot.LootOutcome : null;
+        if (lootOutcome == null)
+        {
+            return "Reward delta: none.";
+        }
+
+        int battleLoot = Mathf.Max(0, lootOutcome.BattleLootGained);
+        int chestLoot = Mathf.Max(0, lootOutcome.ChestLootGained);
+        int eventLoot = Mathf.Max(0, lootOutcome.EventLootGained);
+        int eliteLoot = Mathf.Max(0, lootOutcome.EliteRewardAmount);
+        int eliteBonusLoot = Mathf.Max(0, lootOutcome.EliteBonusRewardAmount);
+        int pendingLostLoot = Mathf.Max(0, lootOutcome.PendingBonusRewardLostAmount);
+        int totalLoot = Mathf.Max(0, lootOutcome.TotalLootGained);
+        string bonusText = pendingLostLoot > 0
+            ? "bonus lost " + BuildLootAmountText(pendingLostLoot)
+            : "bonus " + BuildLootAmountText(eliteBonusLoot);
+        return "Reward delta: battle " + battleLoot + " / chest " + chestLoot + " / event " + eventLoot + " / elite " + eliteLoot + " / " + bonusText + " / returned " + BuildLootAmountText(totalLoot) + ".";
+    }
+
+    private string BuildRpgRewardCarryoverSummaryText(PrototypeRpgRunResultSnapshot runResultSnapshot)
+    {
+        PrototypeRpgLootOutcomeSnapshot lootOutcome = runResultSnapshot != null ? runResultSnapshot.LootOutcome : null;
+        if (lootOutcome == null)
+        {
+            return "Carryover: none.";
+        }
+
+        int totalLoot = Mathf.Max(0, lootOutcome.TotalLootGained);
+        int pendingLostLoot = Mathf.Max(0, lootOutcome.PendingBonusRewardLostAmount);
+        if (totalLoot > 0)
+        {
+            return "Carryover: " + BuildLootAmountText(totalLoot) + " reached the city stock.";
+        }
+
+        if (pendingLostLoot > 0)
+        {
+            return "Carryover: no loot returned; pending bonus " + BuildLootAmountText(pendingLostLoot) + " was lost.";
+        }
+
+        return "Carryover: no loot returned to city stock.";
+    }
+
+    private string BuildRpgPostRunHeadlineText(PrototypeRpgRunResultSnapshot runResultSnapshot)
+    {
+        string resultStateKey = runResultSnapshot != null ? runResultSnapshot.ResultStateKey : string.Empty;
+        if (resultStateKey == PrototypeBattleOutcomeKeys.RunClear)
+        {
+            return "Run Clear";
+        }
+
+        if (resultStateKey == PrototypeBattleOutcomeKeys.RunDefeat)
+        {
+            return "Run Defeat";
+        }
+
+        if (resultStateKey == PrototypeBattleOutcomeKeys.RunRetreat)
+        {
+            return "Run Retreat";
+        }
+
+        return "Run Ended";
+    }
+
+    private string BuildRpgPostRunSubheadlineText(PrototypeRpgRunResultSnapshot runResultSnapshot)
+    {
+        if (runResultSnapshot == null)
+        {
+            return "No post-run summary available.";
+        }
+
+        string dungeonText = string.IsNullOrEmpty(runResultSnapshot.DungeonLabel) ? "Unknown Dungeon" : runResultSnapshot.DungeonLabel;
+        string routeText = string.IsNullOrEmpty(runResultSnapshot.RouteLabel) ? "Unknown Route" : runResultSnapshot.RouteLabel;
+        return dungeonText + " | " + routeText + " | " + BuildRpgRewardCarryoverSummaryText(runResultSnapshot);
+    }
+
+    private string BuildRpgApplyTraceSummaryText(PrototypeRpgRunResultSnapshot runResultSnapshot, PrototypeRpgCombatContributionSnapshot contributionSnapshot)
+    {
+        string nextBasisText = BuildRpgNextOfferBasisSummaryText(runResultSnapshot, contributionSnapshot);
+        string resultStateKey = runResultSnapshot != null ? runResultSnapshot.ResultStateKey : string.Empty;
+        if (resultStateKey == PrototypeBattleOutcomeKeys.RunDefeat)
+        {
+            return "Trace: defeat preserved the current baseline with no reward carryover. " + nextBasisText;
+        }
+
+        if (resultStateKey == PrototypeBattleOutcomeKeys.RunRetreat)
+        {
+            return "Trace: retreat preserved the current baseline and deferred deeper reward progression. " + nextBasisText;
+        }
+
+        if (resultStateKey == PrototypeBattleOutcomeKeys.RunClear)
+        {
+            return "Trace: clear locked this run in as the new comparison point for the next expedition. " + nextBasisText;
+        }
+
+        return "Trace: post-run summary follows the current result and contribution lineage. " + nextBasisText;
+    }
+
+    private string BuildRpgNextOfferBasisSummaryText(PrototypeRpgRunResultSnapshot runResultSnapshot, PrototypeRpgCombatContributionSnapshot contributionSnapshot)
+    {
+        string basisText;
+        if (runResultSnapshot != null && runResultSnapshot.PartyOutcome != null && runResultSnapshot.PartyOutcome.KnockedOutMemberCount > 0)
+        {
+            basisText = "Next basis: recovery and survivability after " + runResultSnapshot.PartyOutcome.KnockedOutMemberCount + " KO.";
+        }
+        else if (runResultSnapshot != null && runResultSnapshot.ResultStateKey == PrototypeBattleOutcomeKeys.RunRetreat)
+        {
+            basisText = "Next basis: safer continuity after retreat.";
+        }
+        else if (runResultSnapshot != null && runResultSnapshot.EliteOutcome != null && runResultSnapshot.EliteOutcome.IsEliteDefeated)
+        {
+            basisText = "Next basis: elite-clear momentum supports a stronger follow-up.";
+        }
+        else
+        {
+            PrototypeRpgMemberContributionSnapshot bestMember = GetPrimaryContributionMember(contributionSnapshot);
+            if (bestMember != null)
+            {
+                if (bestMember.HealingDone > 0 && bestMember.HealingDone >= bestMember.DamageDealt)
+                {
+                    basisText = "Next basis: " + bestMember.DisplayName + " support momentum is the clearest follow-up.";
+                }
+                else if (bestMember.DamageTaken > bestMember.DamageDealt && bestMember.DamageTaken > 0)
+                {
+                    basisText = "Next basis: " + bestMember.DisplayName + " frontline pressure suggests a sturdier follow-up.";
+                }
+                else if (bestMember.KillCount > 0)
+                {
+                    basisText = "Next basis: " + bestMember.DisplayName + " finisher pressure should be reinforced.";
+                }
+                else if (bestMember.DamageDealt > 0)
+                {
+                    basisText = "Next basis: " + bestMember.DisplayName + " offense pressure is the clearest follow-up.";
+                }
+                else
+                {
+                    basisText = string.Empty;
+                }
+            }
+            else
+            {
+                basisText = string.Empty;
+            }
+
+            if (string.IsNullOrEmpty(basisText))
+            {
+                basisText = runResultSnapshot != null && runResultSnapshot.RouteId == RiskyRouteId
+                    ? "Next basis: risky-route follow-up should stabilize payout risk."
+                    : "Next basis: stable continuation from the current party baseline.";
+            }
+        }
+
+        return basisText + BuildRpgBackboneBasisSuffixText();
+    }
+
+    private string BuildRpgMemberPreviewSummaryText(PrototypeRpgMemberProgressPreview preview)
+    {
+        if (preview == null)
+        {
+            return "No preview.";
+        }
+
+        string notableText = string.IsNullOrEmpty(preview.NotableOutcomeKey)
+            ? string.Empty
+            : " | " + preview.NotableOutcomeKey.Replace('_', ' ');
+        string contributionText = string.IsNullOrEmpty(preview.ContributionSummaryText)
+            ? preview.DisplayName + " summary unavailable"
+            : preview.ContributionSummaryText;
+        string skillEconomyText = BuildRpgCompactSummaryText(preview.ActiveSkillSlotSummaryText, preview.SkillCooldownSummaryText, preview.SkillResourceSummaryText, preview.ActionEconomySummaryText);
+        string statusEffectText = string.IsNullOrEmpty(preview.StatusEffectSummaryText) ? string.Empty : " | " + preview.StatusEffectSummaryText;
+        string backboneText = BuildRpgMemberBackboneSummaryText(preview.MemberId);
+        return contributionText + (string.IsNullOrEmpty(skillEconomyText) ? string.Empty : " | " + skillEconomyText) + statusEffectText + backboneText + notableText;
+    }
+
+    private void ApplyRpgPostRunSummaryConsistency(PrototypeRpgRunResultSnapshot runResultSnapshot, PrototypeRpgCombatContributionSnapshot contributionSnapshot, PrototypeRpgProgressionPreviewSnapshot previewSnapshot)
+    {
+        if (runResultSnapshot == null)
+        {
+            return;
+        }
+
+        string contributionSummaryText = BuildRpgContributionSummaryText(contributionSnapshot);
+        string pendingRewardDeltaSummaryText = BuildRpgPendingRewardDeltaSummaryText(runResultSnapshot);
+        string rewardCarryoverSummaryText = BuildRpgRewardCarryoverSummaryText(runResultSnapshot);
+        string nextOfferBasisSummaryText = BuildRpgNextOfferBasisSummaryText(runResultSnapshot, contributionSnapshot);
+        string applyTraceSummaryText = BuildRpgApplyTraceSummaryText(runResultSnapshot, contributionSnapshot);
+        string levelUpApplyReadySummaryText = string.IsNullOrEmpty(runResultSnapshot.LevelUpApplyReadySummaryText) ? LastRunLevelUpApplyReadySummaryText : runResultSnapshot.LevelUpApplyReadySummaryText;
+        string actualLevelApplySummaryText = string.IsNullOrEmpty(runResultSnapshot.ActualLevelApplySummaryText) ? LastRunActualLevelApplySummaryText : runResultSnapshot.ActualLevelApplySummaryText;
+        string derivedStatHydrateSummaryText = string.IsNullOrEmpty(runResultSnapshot.DerivedStatHydrateSummaryText) ? LastRunDerivedStatHydrateSummaryText : runResultSnapshot.DerivedStatHydrateSummaryText;
+        string nextRunStatProjectionSummaryText = string.IsNullOrEmpty(runResultSnapshot.NextRunStatProjectionSummaryText) ? LastRunNextRunStatProjectionSummaryText : runResultSnapshot.NextRunStatProjectionSummaryText;
+        string jobSpecializationSummaryText = string.IsNullOrEmpty(runResultSnapshot.JobSpecializationSummaryText) ? CurrentPartyJobSpecializationSummaryText : runResultSnapshot.JobSpecializationSummaryText;
+        string passiveSkillSlotSummaryText = string.IsNullOrEmpty(runResultSnapshot.PassiveSkillSlotSummaryText) ? CurrentPartyPassiveSkillSlotSummaryText : runResultSnapshot.PassiveSkillSlotSummaryText;
+        string runtimeSynergySummaryText = string.IsNullOrEmpty(runResultSnapshot.RuntimeSynergySummaryText) ? CurrentPartyRuntimeSynergySummaryText : runResultSnapshot.RuntimeSynergySummaryText;
+        string nextRunSpecializationPreviewText = string.IsNullOrEmpty(runResultSnapshot.NextRunSpecializationPreviewText) ? CurrentNextRunSpecializationPreviewText : runResultSnapshot.NextRunSpecializationPreviewText;
+        string activeSkillSlotSummaryText = string.IsNullOrEmpty(runResultSnapshot.ActiveSkillSlotSummaryText) ? CurrentPartyActiveSkillSlotSummaryText : runResultSnapshot.ActiveSkillSlotSummaryText;
+        string skillCooldownSummaryText = string.IsNullOrEmpty(runResultSnapshot.SkillCooldownSummaryText) ? CurrentPartySkillCooldownSummaryText : runResultSnapshot.SkillCooldownSummaryText;
+        string skillResourceSummaryText = string.IsNullOrEmpty(runResultSnapshot.SkillResourceSummaryText) ? CurrentPartySkillResourceSummaryText : runResultSnapshot.SkillResourceSummaryText;
+        string actionEconomySummaryText = string.IsNullOrEmpty(runResultSnapshot.ActionEconomySummaryText) ? CurrentPartyActionEconomySummaryText : runResultSnapshot.ActionEconomySummaryText;
+        string statusEffectSummaryText = string.IsNullOrEmpty(runResultSnapshot.StatusEffectSummaryText) ? BuildRpgCompactSummaryText(CurrentPartyStatusEffectSummaryText, CurrentEnemyStatusEffectSummaryText) : runResultSnapshot.StatusEffectSummaryText;
+        string notableStatusUsageSummaryText = string.IsNullOrEmpty(runResultSnapshot.NotableStatusUsageSummaryText) ? CurrentStatusUsageSummaryText : runResultSnapshot.NotableStatusUsageSummaryText;
+        string enemyIntentSummaryText = string.IsNullOrEmpty(runResultSnapshot.EnemyIntentSummaryText) ? (string.IsNullOrEmpty(_lastResolvedEnemyIntentSummaryText) ? BuildCurrentEnemyIntentExpansionSummaryText() : _lastResolvedEnemyIntentSummaryText) : runResultSnapshot.EnemyIntentSummaryText;
+        string enemySkillUsageSummaryText = string.IsNullOrEmpty(runResultSnapshot.EnemySkillUsageSummaryText) ? (string.IsNullOrEmpty(_lastResolvedEnemySkillUsageSummaryText) ? BuildCurrentEnemySkillLoadoutSummaryText() : _lastResolvedEnemySkillUsageSummaryText) : runResultSnapshot.EnemySkillUsageSummaryText;
+        string enemyActionEconomySummaryText = string.IsNullOrEmpty(runResultSnapshot.EnemyActionEconomySummaryText) ? (string.IsNullOrEmpty(_lastResolvedEnemyActionEconomySummaryText) ? BuildCurrentEnemyActionEconomySummaryText() : _lastResolvedEnemyActionEconomySummaryText) : runResultSnapshot.EnemyActionEconomySummaryText;
+        string encounterPhaseSummaryText = string.IsNullOrEmpty(runResultSnapshot.EncounterPhaseSummaryText) ? (string.IsNullOrEmpty(_lastResolvedEncounterPhaseSummaryText) ? BuildCurrentEncounterPhaseSummaryText() : _lastResolvedEncounterPhaseSummaryText) : runResultSnapshot.EncounterPhaseSummaryText;
+        string encounterWaveSummaryText = string.IsNullOrEmpty(runResultSnapshot.EncounterWaveSummaryText) ? (string.IsNullOrEmpty(_lastResolvedEncounterWaveSummaryText) ? BuildCurrentEncounterWaveSummaryText() : _lastResolvedEncounterWaveSummaryText) : runResultSnapshot.EncounterWaveSummaryText;
+        string bossPatternSummaryText = string.IsNullOrEmpty(runResultSnapshot.BossPatternSummaryText) ? (string.IsNullOrEmpty(_lastResolvedBossPatternSummaryText) ? BuildCurrentBossPatternSummaryText() : _lastResolvedBossPatternSummaryText) : runResultSnapshot.BossPatternSummaryText;
+        string nextRunActiveSkillPreviewText = string.IsNullOrEmpty(runResultSnapshot.NextRunActiveSkillPreviewText) ? CurrentNextRunActiveSkillPreviewText : runResultSnapshot.NextRunActiveSkillPreviewText;
+        string consumableCarryoverPolicySummaryText = string.IsNullOrEmpty(runResultSnapshot.ConsumableCarryoverPolicySummaryText) ? LastRunConsumableCarryoverPolicySummaryText : runResultSnapshot.ConsumableCarryoverPolicySummaryText;
+
+        if (contributionSnapshot != null)
+        {
+            contributionSnapshot.ContributionSummaryText = contributionSummaryText;
+            PrototypeRpgMemberContributionSnapshot[] contributionMembers = contributionSnapshot.Members ?? System.Array.Empty<PrototypeRpgMemberContributionSnapshot>();
+            for (int i = 0; i < contributionMembers.Length; i++)
+            {
+                PrototypeRpgMemberContributionSnapshot contributionMember = contributionMembers[i];
+                if (contributionMember != null)
+                {
+                    contributionMember.ContributionSummaryText = BuildRpgMemberContributionSummaryText(contributionMember);
+                }
+            }
+        }
+
+        if (runResultSnapshot.PartyOutcome != null)
+        {
+            runResultSnapshot.PartyOutcome.ContributionSummaryText = contributionSummaryText;
+            runResultSnapshot.PartyOutcome.StatusEffectSummaryText = CurrentPartyStatusEffectSummaryText;
+        }
+
+        runResultSnapshot.PendingRewardDeltaSummaryText = pendingRewardDeltaSummaryText;
+        runResultSnapshot.RewardCarryoverSummaryText = rewardCarryoverSummaryText;
+        runResultSnapshot.ApplyTraceSummaryText = applyTraceSummaryText;
+        runResultSnapshot.NextOfferBasisSummaryText = nextOfferBasisSummaryText;
+        runResultSnapshot.LevelUpApplyReadySummaryText = levelUpApplyReadySummaryText;
+        runResultSnapshot.ActualLevelApplySummaryText = actualLevelApplySummaryText;
+        runResultSnapshot.DerivedStatHydrateSummaryText = derivedStatHydrateSummaryText;
+        runResultSnapshot.NextRunStatProjectionSummaryText = nextRunStatProjectionSummaryText;
+        runResultSnapshot.JobSpecializationSummaryText = jobSpecializationSummaryText;
+        runResultSnapshot.PassiveSkillSlotSummaryText = passiveSkillSlotSummaryText;
+        runResultSnapshot.RuntimeSynergySummaryText = runtimeSynergySummaryText;
+        runResultSnapshot.NextRunSpecializationPreviewText = nextRunSpecializationPreviewText;
+        runResultSnapshot.ActiveSkillSlotSummaryText = activeSkillSlotSummaryText;
+        runResultSnapshot.SkillCooldownSummaryText = skillCooldownSummaryText;
+        runResultSnapshot.SkillResourceSummaryText = skillResourceSummaryText;
+        runResultSnapshot.ActionEconomySummaryText = actionEconomySummaryText;
+        runResultSnapshot.StatusEffectSummaryText = statusEffectSummaryText;
+        runResultSnapshot.NotableStatusUsageSummaryText = notableStatusUsageSummaryText;
+        runResultSnapshot.EnemyIntentSummaryText = enemyIntentSummaryText;
+        runResultSnapshot.EnemySkillUsageSummaryText = enemySkillUsageSummaryText;
+        runResultSnapshot.EnemyActionEconomySummaryText = enemyActionEconomySummaryText;
+        runResultSnapshot.EncounterPhaseSummaryText = encounterPhaseSummaryText;
+        runResultSnapshot.EncounterWaveSummaryText = encounterWaveSummaryText;
+        runResultSnapshot.BossPatternSummaryText = bossPatternSummaryText;
+        runResultSnapshot.NextRunActiveSkillPreviewText = nextRunActiveSkillPreviewText;
+        runResultSnapshot.ConsumableCarryoverPolicySummaryText = consumableCarryoverPolicySummaryText;
+        runResultSnapshot.PostRunHeadlineText = BuildRpgPostRunHeadlineText(runResultSnapshot);
+        runResultSnapshot.PostRunSubheadlineText = BuildRpgPostRunSubheadlineText(runResultSnapshot);
+
+        if (runResultSnapshot.LootOutcome != null)
+        {
+            string lootSummaryText = BuildRpgRunResultLootSummary(runResultSnapshot.LootOutcome);
+            if (!string.IsNullOrEmpty(consumableCarryoverPolicySummaryText))
+            {
+                lootSummaryText += " | " + consumableCarryoverPolicySummaryText;
+            }
+
+            runResultSnapshot.LootOutcome.PendingRewardDeltaSummaryText = pendingRewardDeltaSummaryText;
+            runResultSnapshot.LootOutcome.RewardCarryoverSummaryText = rewardCarryoverSummaryText;
+            runResultSnapshot.LootOutcome.RewardGrantSummaryText = lootSummaryText;
+            runResultSnapshot.LootOutcome.FinalLootSummary = lootSummaryText;
+        }
+
+        if (previewSnapshot != null)
+        {
+            previewSnapshot.ContributionSummaryText = contributionSummaryText;
+            previewSnapshot.PendingRewardDeltaSummaryText = pendingRewardDeltaSummaryText;
+            previewSnapshot.RewardCarryoverSummaryText = rewardCarryoverSummaryText;
+            previewSnapshot.ExperienceGainSummaryText = runResultSnapshot.ExperienceGainSummaryText;
+            previewSnapshot.LevelUpPreviewSummaryText = runResultSnapshot.LevelUpPreviewSummaryText;
+            previewSnapshot.LevelUpApplyReadySummaryText = levelUpApplyReadySummaryText;
+            previewSnapshot.ActualLevelApplySummaryText = actualLevelApplySummaryText;
+            previewSnapshot.DerivedStatHydrateSummaryText = derivedStatHydrateSummaryText;
+            previewSnapshot.NextRunStatProjectionSummaryText = nextRunStatProjectionSummaryText;
+            previewSnapshot.JobSpecializationSummaryText = jobSpecializationSummaryText;
+            previewSnapshot.PassiveSkillSlotSummaryText = passiveSkillSlotSummaryText;
+            previewSnapshot.RuntimeSynergySummaryText = runtimeSynergySummaryText;
+            previewSnapshot.NextRunSpecializationPreviewText = nextRunSpecializationPreviewText;
+            previewSnapshot.ActiveSkillSlotSummaryText = activeSkillSlotSummaryText;
+            previewSnapshot.SkillCooldownSummaryText = skillCooldownSummaryText;
+            previewSnapshot.SkillResourceSummaryText = skillResourceSummaryText;
+            previewSnapshot.ActionEconomySummaryText = actionEconomySummaryText;
+            previewSnapshot.StatusEffectSummaryText = statusEffectSummaryText;
+            previewSnapshot.NotableStatusUsageSummaryText = notableStatusUsageSummaryText;
+            previewSnapshot.EnemyIntentSummaryText = enemyIntentSummaryText;
+            previewSnapshot.EnemySkillUsageSummaryText = enemySkillUsageSummaryText;
+            previewSnapshot.EnemyActionEconomySummaryText = enemyActionEconomySummaryText;
+            previewSnapshot.EncounterPhaseSummaryText = encounterPhaseSummaryText;
+            previewSnapshot.EncounterWaveSummaryText = encounterWaveSummaryText;
+            previewSnapshot.BossPatternSummaryText = bossPatternSummaryText;
+            previewSnapshot.NextRunActiveSkillPreviewText = nextRunActiveSkillPreviewText;
+            previewSnapshot.SkillLoadoutReadbackSummaryText = runResultSnapshot.SkillLoadoutReadbackSummaryText;
+            previewSnapshot.EquipmentLoadoutReadbackSummaryText = runResultSnapshot.EquipmentLoadoutReadbackSummaryText;
+            previewSnapshot.GearContributionSummaryText = runResultSnapshot.GearContributionSummaryText;
+            previewSnapshot.ConsumableCarrySummaryText = runResultSnapshot.ConsumableCarrySummaryText;
+            previewSnapshot.ConsumableCarryoverPolicySummaryText = consumableCarryoverPolicySummaryText;
+            previewSnapshot.ApplyTraceSummaryText = applyTraceSummaryText;
+            previewSnapshot.NextOfferBasisSummaryText = nextOfferBasisSummaryText;
+            previewSnapshot.PreviewSummaryText = BuildRpgCompactSummaryText(runResultSnapshot.PostRunHeadlineText, nextOfferBasisSummaryText, encounterPhaseSummaryText, encounterWaveSummaryText, bossPatternSummaryText, actualLevelApplySummaryText, statusEffectSummaryText, notableStatusUsageSummaryText, enemyIntentSummaryText, enemySkillUsageSummaryText, nextRunActiveSkillPreviewText);
+
+            PrototypeRpgMemberProgressPreview[] members = previewSnapshot.Members ?? System.Array.Empty<PrototypeRpgMemberProgressPreview>();
+            PrototypeRpgPartyMemberOutcomeSnapshot[] outcomeMembers = runResultSnapshot.PartyOutcome != null ? (runResultSnapshot.PartyOutcome.Members ?? System.Array.Empty<PrototypeRpgPartyMemberOutcomeSnapshot>()) : System.Array.Empty<PrototypeRpgPartyMemberOutcomeSnapshot>();
+            for (int i = 0; i < members.Length; i++)
+            {
+                PrototypeRpgMemberProgressPreview memberPreview = members[i];
+                if (memberPreview == null)
+                {
+                    continue;
+                }
+
+                memberPreview.ContributionSummaryText = BuildRpgMemberContributionSummaryText(memberPreview.Contribution);
+                PrototypeRpgPartyMemberOutcomeSnapshot outcomeMember = i < outcomeMembers.Length ? outcomeMembers[i] : null;
+                if (outcomeMember != null)
+                {
+                    memberPreview.LevelSummaryText = outcomeMember.Level > 0 ? "Lv " + outcomeMember.Level + " | EXP " + outcomeMember.CurrentExperience + "/" + outcomeMember.ExperienceToNextLevel : string.Empty;
+                    memberPreview.LevelUpPreviewText = string.IsNullOrEmpty(outcomeMember.LevelUpPreviewText) ? string.Empty : outcomeMember.LevelUpPreviewText;
+                    memberPreview.JobSpecializationSummaryText = string.IsNullOrEmpty(outcomeMember.JobSpecializationSummaryText) ? string.Empty : outcomeMember.JobSpecializationSummaryText;
+                    memberPreview.PassiveSkillSlotSummaryText = string.IsNullOrEmpty(outcomeMember.PassiveSkillSlotSummaryText) ? string.Empty : outcomeMember.PassiveSkillSlotSummaryText;
+                    memberPreview.RuntimeSynergySummaryText = string.IsNullOrEmpty(outcomeMember.RuntimeSynergySummaryText) ? string.Empty : outcomeMember.RuntimeSynergySummaryText;
+                    memberPreview.ActiveSkillSlotSummaryText = string.IsNullOrEmpty(outcomeMember.ActiveSkillSlotSummaryText) ? string.Empty : outcomeMember.ActiveSkillSlotSummaryText;
+                    memberPreview.SkillCooldownSummaryText = string.IsNullOrEmpty(outcomeMember.SkillCooldownSummaryText) ? string.Empty : outcomeMember.SkillCooldownSummaryText;
+                    memberPreview.SkillResourceSummaryText = string.IsNullOrEmpty(outcomeMember.SkillResourceSummaryText) ? string.Empty : outcomeMember.SkillResourceSummaryText;
+                    memberPreview.ActionEconomySummaryText = string.IsNullOrEmpty(outcomeMember.ActionEconomySummaryText) ? string.Empty : outcomeMember.ActionEconomySummaryText;
+                    memberPreview.StatusEffectSummaryText = string.IsNullOrEmpty(outcomeMember.StatusEffectSummaryText) ? string.Empty : outcomeMember.StatusEffectSummaryText;
+                    memberPreview.DerivedStatSummaryText = string.IsNullOrEmpty(outcomeMember.DerivedStatSummaryText) ? string.Empty : outcomeMember.DerivedStatSummaryText;
+                    memberPreview.EquipmentSummaryText = string.IsNullOrEmpty(outcomeMember.EquipmentSummaryText) ? string.Empty : outcomeMember.EquipmentSummaryText;
+                    memberPreview.GearContributionSummaryText = string.IsNullOrEmpty(outcomeMember.GearContributionSummaryText) ? string.Empty : outcomeMember.GearContributionSummaryText;
+                    memberPreview.SkillLoadoutSummaryText = string.IsNullOrEmpty(outcomeMember.SkillLoadoutSummaryText) ? string.Empty : outcomeMember.SkillLoadoutSummaryText;
+                    memberPreview.ConsumableSlotSummaryText = string.IsNullOrEmpty(outcomeMember.ConsumableSlotSummaryText) ? string.Empty : outcomeMember.ConsumableSlotSummaryText;
+                }
+
+                memberPreview.PreviewSummaryText = BuildRpgMemberPreviewSummaryText(memberPreview);
+            }
+        }
+    }
     private PrototypeRpgPartyOutcomeSnapshot BuildRpgPartyOutcomeSnapshot()
     {
         PrototypeRpgPartyOutcomeSnapshot snapshot = new PrototypeRpgPartyOutcomeSnapshot();
         snapshot.PartyConditionText = GetPartyConditionText();
         snapshot.PartyHpSummaryText = BuildTotalPartyHpSummary();
         snapshot.PartyMembersAtEndSummary = BuildPartyMembersAtEndSummary();
+        snapshot.StatusEffectSummaryText = CurrentPartyStatusEffectSummaryText;
         snapshot.SurvivingMemberCount = GetLivingPartyMemberCount();
         snapshot.KnockedOutMemberCount = GetKnockedOutMemberCount();
 
@@ -2117,6 +2915,7 @@ public sealed partial class StaticPlaceholderWorldView
         {
             PrototypeRpgPartyMemberOutcomeSnapshot memberSnapshot = new PrototypeRpgPartyMemberOutcomeSnapshot();
             DungeonPartyMemberRuntimeData member = _activeDungeonParty.Members[i];
+            PrototypeRpgPartyMemberLevelRuntimeState memberLevelState = member != null ? GetRpgMemberLevelRuntimeState(_sessionRpgPartyLevelRuntimeState, member.MemberId) : null;
             if (member != null)
             {
                 memberSnapshot.MemberId = string.IsNullOrEmpty(member.MemberId) ? string.Empty : member.MemberId;
@@ -2128,6 +2927,23 @@ public sealed partial class StaticPlaceholderWorldView
                 memberSnapshot.MaxHp = Mathf.Max(1, member.MaxHp);
                 memberSnapshot.Survived = !member.IsDefeated && member.CurrentHp > 0;
                 memberSnapshot.KnockedOut = member.IsDefeated;
+                memberSnapshot.Level = Mathf.Max(1, member.Level);
+                memberSnapshot.CurrentExperience = Mathf.Max(0, member.CurrentExperience);
+                memberSnapshot.ExperienceToNextLevel = Mathf.Max(1, member.ExperienceToNextLevel);
+                memberSnapshot.LevelUpPreviewText = string.Empty;
+                memberSnapshot.JobSpecializationSummaryText = memberLevelState != null && !string.IsNullOrEmpty(memberLevelState.JobSpecializationSummaryText) ? memberLevelState.JobSpecializationSummaryText : string.Empty;
+                memberSnapshot.PassiveSkillSlotSummaryText = memberLevelState != null && !string.IsNullOrEmpty(memberLevelState.PassiveSkillSlotSummaryText) ? memberLevelState.PassiveSkillSlotSummaryText : string.Empty;
+                memberSnapshot.RuntimeSynergySummaryText = memberLevelState != null && !string.IsNullOrEmpty(memberLevelState.RuntimeSynergySummaryText) ? memberLevelState.RuntimeSynergySummaryText : string.Empty;
+                memberSnapshot.ActiveSkillSlotSummaryText = string.IsNullOrEmpty(member.ActiveSkillSlotSummaryText) ? string.Empty : member.ActiveSkillSlotSummaryText;
+                memberSnapshot.SkillCooldownSummaryText = string.IsNullOrEmpty(member.SkillCooldownSummaryText) ? string.Empty : member.SkillCooldownSummaryText;
+                memberSnapshot.SkillResourceSummaryText = string.IsNullOrEmpty(member.SkillResourceSummaryText) ? string.Empty : member.SkillResourceSummaryText;
+                memberSnapshot.ActionEconomySummaryText = string.IsNullOrEmpty(member.ActionEconomySummaryText) ? string.Empty : member.ActionEconomySummaryText;
+                memberSnapshot.StatusEffectSummaryText = string.IsNullOrEmpty(member.StatusEffectSummaryText) ? BuildRpgStatusEffectSummaryText(member.StatusEffects) : member.StatusEffectSummaryText;
+                memberSnapshot.DerivedStatSummaryText = string.IsNullOrEmpty(member.DerivedStatSummaryText) ? string.Empty : member.DerivedStatSummaryText;
+                memberSnapshot.EquipmentSummaryText = string.IsNullOrEmpty(member.EquipmentSummaryText) ? string.Empty : member.EquipmentSummaryText;
+                memberSnapshot.GearContributionSummaryText = string.IsNullOrEmpty(member.GearContributionSummaryText) ? string.Empty : member.GearContributionSummaryText;
+                memberSnapshot.SkillLoadoutSummaryText = string.IsNullOrEmpty(member.ResolvedSkillSummaryText) ? member.SkillLoadoutSummaryText : member.ResolvedSkillSummaryText;
+                memberSnapshot.ConsumableSlotSummaryText = string.IsNullOrEmpty(member.ConsumableSlotSummaryText) ? string.Empty : member.ConsumableSlotSummaryText;
             }
 
             members[i] = memberSnapshot;
@@ -2137,7 +2953,7 @@ public sealed partial class StaticPlaceholderWorldView
         return snapshot;
     }
 
-    private PrototypeRpgRunResultSnapshot BuildRpgRunResultSnapshot(string resultStateKey, int safeReturnedLoot, string safeResultSummary)
+    private PrototypeRpgRunResultSnapshot BuildRpgRunResultSnapshot(string resultStateKey, int safeReturnedLoot, string safeResultSummary, int pendingBonusRewardLostAmount)
     {
         PrototypeRpgRunResultSnapshot snapshot = new PrototypeRpgRunResultSnapshot();
         PrototypeRpgPartyOutcomeSnapshot partyOutcome = BuildRpgPartyOutcomeSnapshot();
@@ -2158,12 +2974,21 @@ public sealed partial class StaticPlaceholderWorldView
         snapshot.TotalTurnsTaken = Mathf.Max(0, _runTurnCount);
         snapshot.ResultSummary = string.IsNullOrEmpty(safeResultSummary) ? "The run ended." : safeResultSummary;
         snapshot.SurvivingMembersSummary = BuildSurvivingMembersSummary();
+        snapshot.StatusEffectSummaryText = BuildRpgCompactSummaryText(_lastResolvedPartyStatusEffectSummaryText, _lastResolvedEnemyStatusEffectSummaryText);
+        snapshot.NotableStatusUsageSummaryText = _lastResolvedStatusUsageSummaryText;
+        snapshot.EnemyIntentSummaryText = string.IsNullOrEmpty(_lastResolvedEnemyIntentSummaryText) ? string.Empty : _lastResolvedEnemyIntentSummaryText;
+        snapshot.EnemySkillUsageSummaryText = string.IsNullOrEmpty(_lastResolvedEnemySkillUsageSummaryText) ? string.Empty : _lastResolvedEnemySkillUsageSummaryText;
+        snapshot.EnemyActionEconomySummaryText = string.IsNullOrEmpty(_lastResolvedEnemyActionEconomySummaryText) ? string.Empty : _lastResolvedEnemyActionEconomySummaryText;
+        snapshot.EncounterPhaseSummaryText = string.IsNullOrEmpty(_lastResolvedEncounterPhaseSummaryText) ? string.Empty : _lastResolvedEncounterPhaseSummaryText;
+        snapshot.EncounterWaveSummaryText = string.IsNullOrEmpty(_lastResolvedEncounterWaveSummaryText) ? string.Empty : _lastResolvedEncounterWaveSummaryText;
+        snapshot.BossPatternSummaryText = string.IsNullOrEmpty(_lastResolvedBossPatternSummaryText) ? string.Empty : _lastResolvedBossPatternSummaryText;
 
         lootOutcome.BattleLootGained = battleLoot;
         lootOutcome.ChestLootGained = chestLoot;
         lootOutcome.EventLootGained = eventLoot;
         lootOutcome.EliteRewardAmount = eliteLoot;
         lootOutcome.EliteBonusRewardAmount = eliteBonusLoot;
+        lootOutcome.PendingBonusRewardLostAmount = Mathf.Max(0, pendingBonusRewardLostAmount);
         lootOutcome.TotalLootGained = Mathf.Max(Mathf.Max(0, safeReturnedLoot), battleLoot + chestLoot + eventLoot + eliteLoot + eliteBonusLoot);
         lootOutcome.FinalLootSummary = BuildRpgRunResultLootSummary(lootOutcome);
 
@@ -2179,6 +3004,9 @@ public sealed partial class StaticPlaceholderWorldView
         encounterOutcome.ClearedEncounterSummary = BuildClearedEncounterSummary();
         encounterOutcome.OpenedChestCount = Mathf.Max(0, _chestOpenedCount);
         encounterOutcome.RoomPathSummary = BuildCurrentRoomPathSummary();
+        encounterOutcome.PhaseReachedSummary = snapshot.EncounterPhaseSummaryText;
+        encounterOutcome.WaveSummaryText = snapshot.EncounterWaveSummaryText;
+        encounterOutcome.BossPatternSummaryText = snapshot.BossPatternSummaryText;
         encounterOutcome.SelectedEventChoice = GetSelectedEventChoiceDisplayText();
         encounterOutcome.SelectedPreEliteChoice = GetSelectedPreEliteChoiceDisplayText();
         encounterOutcome.PreEliteHealAmount = Mathf.Max(0, _preEliteHealAmount);
@@ -2187,6 +3015,10 @@ public sealed partial class StaticPlaceholderWorldView
         snapshot.LootOutcome = lootOutcome;
         snapshot.EliteOutcome = eliteOutcome;
         snapshot.EncounterOutcome = encounterOutcome;
+        snapshot.PostRunHeadlineText = BuildRpgPostRunHeadlineText(snapshot);
+        snapshot.PostRunSubheadlineText = BuildRpgPostRunSubheadlineText(snapshot);
+        snapshot.PendingRewardDeltaSummaryText = BuildRpgPendingRewardDeltaSummaryText(snapshot);
+        snapshot.RewardCarryoverSummaryText = BuildRpgRewardCarryoverSummaryText(snapshot);
         return snapshot;
     }
 
@@ -2216,6 +3048,7 @@ public sealed partial class StaticPlaceholderWorldView
         _resultEliteRewardLabel = string.IsNullOrEmpty(eliteOutcome.EliteRewardLabel) ? string.Empty : eliteOutcome.EliteRewardLabel;
         _resultEliteRewardAmount = Mathf.Max(0, eliteOutcome.EliteRewardAmount);
         _resultEliteBonusRewardAmount = Mathf.Max(0, eliteOutcome.EliteBonusRewardAmount);
+        _resultPendingBonusRewardLostAmount = Mathf.Max(0, lootOutcome.PendingBonusRewardLostAmount);
         _resultRoomPathSummaryText = string.IsNullOrEmpty(encounterOutcome.RoomPathSummary) ? string.Empty : encounterOutcome.RoomPathSummary;
     }
     private PrototypeRpgProgressionSeedSnapshot CopyRpgProgressionSeedSnapshot(PrototypeRpgProgressionSeedSnapshot source)
@@ -2325,6 +3158,7 @@ public sealed partial class StaticPlaceholderWorldView
         _latestRpgProgressionSeedSnapshot = new PrototypeRpgProgressionSeedSnapshot();
         _latestRpgCombatContributionSnapshot = new PrototypeRpgCombatContributionSnapshot();
         _latestRpgProgressionPreviewSnapshot = new PrototypeRpgProgressionPreviewSnapshot();
+        _latestRpgPostRunUpgradeOfferSurface = new PrototypeRpgPostRunUpgradeOfferSurface();
         for (int i = 0; i < _runMemberDamageDealt.Length; i++)
         {
             _runMemberDamageDealt[i] = 0;
@@ -2332,7 +3166,13 @@ public sealed partial class StaticPlaceholderWorldView
             _runMemberHealingDone[i] = 0;
             _runMemberActionCount[i] = 0;
             _runMemberKillCount[i] = 0;
+            _runMemberStatusApplied[i] = 0;
+            _runMemberStatusTicksResolved[i] = 0;
         }
+
+        _lastResolvedPartyStatusEffectSummaryText = string.Empty;
+        _lastResolvedEnemyStatusEffectSummaryText = string.Empty;
+        _lastResolvedStatusUsageSummaryText = string.Empty;
     }
 
     private void AddRunMemberContributionValue(int[] values, int memberIndex, int amount)
@@ -2525,6 +3365,7 @@ public sealed partial class StaticPlaceholderWorldView
         copy.TotalDamageDealt = Mathf.Max(0, source.TotalDamageDealt);
         copy.TotalDamageTaken = Mathf.Max(0, source.TotalDamageTaken);
         copy.TotalHealingDone = Mathf.Max(0, source.TotalHealingDone);
+        copy.ContributionSummaryText = string.IsNullOrEmpty(source.ContributionSummaryText) ? string.Empty : source.ContributionSummaryText;
 
         PrototypeRpgMemberContributionSnapshot[] sourceMembers = source.Members ?? System.Array.Empty<PrototypeRpgMemberContributionSnapshot>();
         if (sourceMembers.Length <= 0)
@@ -2582,6 +3423,7 @@ public sealed partial class StaticPlaceholderWorldView
         copy.KnockedOut = source.KnockedOut;
         copy.Survived = source.Survived;
         copy.EliteVictor = source.EliteVictor;
+        copy.ContributionSummaryText = string.IsNullOrEmpty(source.ContributionSummaryText) ? string.Empty : source.ContributionSummaryText;
         return copy;
     }
 
@@ -2602,6 +3444,48 @@ public sealed partial class StaticPlaceholderWorldView
         copy.RouteRiskLabel = string.IsNullOrEmpty(source.RouteRiskLabel) ? string.Empty : source.RouteRiskLabel;
         copy.EliteDefeated = source.EliteDefeated;
         copy.TotalLootGained = Mathf.Max(0, source.TotalLootGained);
+        copy.ContributionSummaryText = string.IsNullOrEmpty(source.ContributionSummaryText) ? string.Empty : source.ContributionSummaryText;
+        copy.PreviewSummaryText = string.IsNullOrEmpty(source.PreviewSummaryText) ? string.Empty : source.PreviewSummaryText;
+        copy.PendingRewardDeltaSummaryText = string.IsNullOrEmpty(source.PendingRewardDeltaSummaryText) ? string.Empty : source.PendingRewardDeltaSummaryText;
+        copy.RewardCarryoverSummaryText = string.IsNullOrEmpty(source.RewardCarryoverSummaryText) ? string.Empty : source.RewardCarryoverSummaryText;
+        copy.ExperienceGainSummaryText = string.IsNullOrEmpty(source.ExperienceGainSummaryText) ? string.Empty : source.ExperienceGainSummaryText;
+        copy.LevelUpPreviewSummaryText = string.IsNullOrEmpty(source.LevelUpPreviewSummaryText) ? string.Empty : source.LevelUpPreviewSummaryText;
+        copy.LevelUpApplyReadySummaryText = string.IsNullOrEmpty(source.LevelUpApplyReadySummaryText) ? string.Empty : source.LevelUpApplyReadySummaryText;
+        copy.ActualLevelApplySummaryText = string.IsNullOrEmpty(source.ActualLevelApplySummaryText) ? string.Empty : source.ActualLevelApplySummaryText;
+        copy.DerivedStatHydrateSummaryText = string.IsNullOrEmpty(source.DerivedStatHydrateSummaryText) ? string.Empty : source.DerivedStatHydrateSummaryText;
+        copy.NextRunStatProjectionSummaryText = string.IsNullOrEmpty(source.NextRunStatProjectionSummaryText) ? string.Empty : source.NextRunStatProjectionSummaryText;
+        copy.JobSpecializationSummaryText = string.IsNullOrEmpty(source.JobSpecializationSummaryText) ? string.Empty : source.JobSpecializationSummaryText;
+        copy.PassiveSkillSlotSummaryText = string.IsNullOrEmpty(source.PassiveSkillSlotSummaryText) ? string.Empty : source.PassiveSkillSlotSummaryText;
+        copy.RuntimeSynergySummaryText = string.IsNullOrEmpty(source.RuntimeSynergySummaryText) ? string.Empty : source.RuntimeSynergySummaryText;
+        copy.NextRunSpecializationPreviewText = string.IsNullOrEmpty(source.NextRunSpecializationPreviewText) ? string.Empty : source.NextRunSpecializationPreviewText;
+        copy.ActiveSkillSlotSummaryText = string.IsNullOrEmpty(source.ActiveSkillSlotSummaryText) ? string.Empty : source.ActiveSkillSlotSummaryText;
+        copy.SkillCooldownSummaryText = string.IsNullOrEmpty(source.SkillCooldownSummaryText) ? string.Empty : source.SkillCooldownSummaryText;
+        copy.SkillResourceSummaryText = string.IsNullOrEmpty(source.SkillResourceSummaryText) ? string.Empty : source.SkillResourceSummaryText;
+        copy.ActionEconomySummaryText = string.IsNullOrEmpty(source.ActionEconomySummaryText) ? string.Empty : source.ActionEconomySummaryText;
+        copy.NextRunActiveSkillPreviewText = string.IsNullOrEmpty(source.NextRunActiveSkillPreviewText) ? string.Empty : source.NextRunActiveSkillPreviewText;
+        copy.SkillLoadoutReadbackSummaryText = string.IsNullOrEmpty(source.SkillLoadoutReadbackSummaryText) ? string.Empty : source.SkillLoadoutReadbackSummaryText;
+        copy.EquipmentLoadoutReadbackSummaryText = string.IsNullOrEmpty(source.EquipmentLoadoutReadbackSummaryText) ? string.Empty : source.EquipmentLoadoutReadbackSummaryText;
+        copy.GearContributionSummaryText = string.IsNullOrEmpty(source.GearContributionSummaryText) ? string.Empty : source.GearContributionSummaryText;
+        copy.ConsumableCarrySummaryText = string.IsNullOrEmpty(source.ConsumableCarrySummaryText) ? string.Empty : source.ConsumableCarrySummaryText;
+        copy.ConsumableCarryoverPolicySummaryText = string.IsNullOrEmpty(source.ConsumableCarryoverPolicySummaryText) ? string.Empty : source.ConsumableCarryoverPolicySummaryText;
+        copy.GearRewardCandidateSummaryText = string.IsNullOrEmpty(source.GearRewardCandidateSummaryText) ? string.Empty : source.GearRewardCandidateSummaryText;
+        copy.EquipSwapChoiceSummaryText = string.IsNullOrEmpty(source.EquipSwapChoiceSummaryText) ? string.Empty : source.EquipSwapChoiceSummaryText;
+        copy.GearCarryContinuitySummaryText = string.IsNullOrEmpty(source.GearCarryContinuitySummaryText) ? string.Empty : source.GearCarryContinuitySummaryText;
+        copy.GearRuleSummaryText = string.IsNullOrEmpty(source.GearRuleSummaryText) ? string.Empty : source.GearRuleSummaryText;
+        copy.GearUnlockSummaryText = string.IsNullOrEmpty(source.GearUnlockSummaryText) ? string.Empty : source.GearUnlockSummaryText;
+        copy.GearComparisonSummaryText = string.IsNullOrEmpty(source.GearComparisonSummaryText) ? string.Empty : source.GearComparisonSummaryText;
+        copy.GearAffixLiteSummaryText = string.IsNullOrEmpty(source.GearAffixLiteSummaryText) ? string.Empty : source.GearAffixLiteSummaryText;
+        copy.UnlockedGearPoolSummaryText = string.IsNullOrEmpty(source.UnlockedGearPoolSummaryText) ? string.Empty : source.UnlockedGearPoolSummaryText;
+        copy.LevelBandGearLinkageSummaryText = string.IsNullOrEmpty(source.LevelBandGearLinkageSummaryText) ? string.Empty : source.LevelBandGearLinkageSummaryText;
+        copy.EncounterPhaseSummaryText = string.IsNullOrEmpty(source.EncounterPhaseSummaryText) ? string.Empty : source.EncounterPhaseSummaryText;
+        copy.EncounterWaveSummaryText = string.IsNullOrEmpty(source.EncounterWaveSummaryText) ? string.Empty : source.EncounterWaveSummaryText;
+        copy.BossPatternSummaryText = string.IsNullOrEmpty(source.BossPatternSummaryText) ? string.Empty : source.BossPatternSummaryText;
+        copy.ApplyTraceSummaryText = string.IsNullOrEmpty(source.ApplyTraceSummaryText) ? string.Empty : source.ApplyTraceSummaryText;
+        copy.NextOfferBasisSummaryText = string.IsNullOrEmpty(source.NextOfferBasisSummaryText) ? string.Empty : source.NextOfferBasisSummaryText;
+        copy.CurrentAppliedIdentitySummaryText = string.IsNullOrEmpty(source.CurrentAppliedIdentitySummaryText) ? string.Empty : source.CurrentAppliedIdentitySummaryText;
+        copy.OfferRefreshSummaryText = string.IsNullOrEmpty(source.OfferRefreshSummaryText) ? string.Empty : source.OfferRefreshSummaryText;
+        copy.ApplyReadySummaryText = string.IsNullOrEmpty(source.ApplyReadySummaryText) ? string.Empty : source.ApplyReadySummaryText;
+        copy.OfferContinuitySummaryText = string.IsNullOrEmpty(source.OfferContinuitySummaryText) ? string.Empty : source.OfferContinuitySummaryText;
         copy.RewardHintTags = source.RewardHintTags != null && source.RewardHintTags.Length > 0 ? (string[])source.RewardHintTags.Clone() : System.Array.Empty<string>();
         copy.GrowthHintTags = source.GrowthHintTags != null && source.GrowthHintTags.Length > 0 ? (string[])source.GrowthHintTags.Clone() : System.Array.Empty<string>();
 
@@ -2623,7 +3507,6 @@ public sealed partial class StaticPlaceholderWorldView
 
         return copy;
     }
-
     private PrototypeRpgMemberProgressPreview CopyRpgMemberProgressPreview(PrototypeRpgMemberProgressPreview source)
     {
         PrototypeRpgMemberProgressPreview copy = new PrototypeRpgMemberProgressPreview();
@@ -2638,12 +3521,32 @@ public sealed partial class StaticPlaceholderWorldView
         copy.RoleLabel = string.IsNullOrEmpty(source.RoleLabel) ? string.Empty : source.RoleLabel;
         copy.Survived = source.Survived;
         copy.Contribution = CopyRpgMemberContributionSnapshot(source.Contribution);
+        copy.ContributionSummaryText = string.IsNullOrEmpty(source.ContributionSummaryText) ? string.Empty : source.ContributionSummaryText;
+        copy.PreviewSummaryText = string.IsNullOrEmpty(source.PreviewSummaryText) ? string.Empty : source.PreviewSummaryText;
+        copy.LevelSummaryText = string.IsNullOrEmpty(source.LevelSummaryText) ? string.Empty : source.LevelSummaryText;
+        copy.LevelUpPreviewText = string.IsNullOrEmpty(source.LevelUpPreviewText) ? string.Empty : source.LevelUpPreviewText;
+        copy.JobSpecializationSummaryText = string.IsNullOrEmpty(source.JobSpecializationSummaryText) ? string.Empty : source.JobSpecializationSummaryText;
+        copy.PassiveSkillSlotSummaryText = string.IsNullOrEmpty(source.PassiveSkillSlotSummaryText) ? string.Empty : source.PassiveSkillSlotSummaryText;
+        copy.RuntimeSynergySummaryText = string.IsNullOrEmpty(source.RuntimeSynergySummaryText) ? string.Empty : source.RuntimeSynergySummaryText;
+        copy.ActiveSkillSlotSummaryText = string.IsNullOrEmpty(source.ActiveSkillSlotSummaryText) ? string.Empty : source.ActiveSkillSlotSummaryText;
+        copy.SkillCooldownSummaryText = string.IsNullOrEmpty(source.SkillCooldownSummaryText) ? string.Empty : source.SkillCooldownSummaryText;
+        copy.SkillResourceSummaryText = string.IsNullOrEmpty(source.SkillResourceSummaryText) ? string.Empty : source.SkillResourceSummaryText;
+        copy.ActionEconomySummaryText = string.IsNullOrEmpty(source.ActionEconomySummaryText) ? string.Empty : source.ActionEconomySummaryText;
+        copy.DerivedStatSummaryText = string.IsNullOrEmpty(source.DerivedStatSummaryText) ? string.Empty : source.DerivedStatSummaryText;
+        copy.EquipmentSummaryText = string.IsNullOrEmpty(source.EquipmentSummaryText) ? string.Empty : source.EquipmentSummaryText;
+        copy.GearContributionSummaryText = string.IsNullOrEmpty(source.GearContributionSummaryText) ? string.Empty : source.GearContributionSummaryText;
+        copy.SkillLoadoutSummaryText = string.IsNullOrEmpty(source.SkillLoadoutSummaryText) ? string.Empty : source.SkillLoadoutSummaryText;
+        copy.ConsumableSlotSummaryText = string.IsNullOrEmpty(source.ConsumableSlotSummaryText) ? string.Empty : source.ConsumableSlotSummaryText;
+        copy.CurrentAppliedIdentitySummaryText = string.IsNullOrEmpty(source.CurrentAppliedIdentitySummaryText) ? string.Empty : source.CurrentAppliedIdentitySummaryText;
+        copy.NextOfferSummaryText = string.IsNullOrEmpty(source.NextOfferSummaryText) ? string.Empty : source.NextOfferSummaryText;
+        copy.ApplyReadySummaryText = string.IsNullOrEmpty(source.ApplyReadySummaryText) ? string.Empty : source.ApplyReadySummaryText;
+        copy.OfferReasonText = string.IsNullOrEmpty(source.OfferReasonText) ? string.Empty : source.OfferReasonText;
+        copy.OfferContinuitySummaryText = string.IsNullOrEmpty(source.OfferContinuitySummaryText) ? string.Empty : source.OfferContinuitySummaryText;
         copy.SuggestedGrowthHintTags = source.SuggestedGrowthHintTags != null && source.SuggestedGrowthHintTags.Length > 0 ? (string[])source.SuggestedGrowthHintTags.Clone() : System.Array.Empty<string>();
         copy.SuggestedRewardHintTags = source.SuggestedRewardHintTags != null && source.SuggestedRewardHintTags.Length > 0 ? (string[])source.SuggestedRewardHintTags.Clone() : System.Array.Empty<string>();
         copy.NotableOutcomeKey = string.IsNullOrEmpty(source.NotableOutcomeKey) ? string.Empty : source.NotableOutcomeKey;
         return copy;
     }
-
     private PrototypeRpgCombatContributionSnapshot BuildRpgCombatContributionSnapshot(PrototypeRpgRunResultSnapshot runResultSnapshot)
     {
         PrototypeRpgCombatContributionSnapshot snapshot = new PrototypeRpgCombatContributionSnapshot();
@@ -2666,6 +3569,7 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (members.Length <= 0)
         {
+            snapshot.ContributionSummaryText = BuildRpgContributionSummaryText(snapshot);
             snapshot.Members = System.Array.Empty<PrototypeRpgMemberContributionSnapshot>();
             return snapshot;
         }
@@ -2689,10 +3593,12 @@ public sealed partial class StaticPlaceholderWorldView
             memberSnapshot.KnockedOut = memberOutcome.KnockedOut;
             memberSnapshot.Survived = memberOutcome.Survived;
             memberSnapshot.EliteVictor = eliteDefeated && memberOutcome.Survived;
+            memberSnapshot.ContributionSummaryText = BuildRpgMemberContributionSummaryText(memberSnapshot);
             memberSnapshots[i] = memberSnapshot;
         }
 
         snapshot.Members = memberSnapshots;
+        snapshot.ContributionSummaryText = BuildRpgContributionSummaryText(snapshot);
         return snapshot;
     }
     private string[] BuildRpgProgressionPreviewRewardHintTags(PrototypeRpgRunResultSnapshot runResultSnapshot, PrototypeRpgProgressionSeedSnapshot progressionSeedSnapshot)
@@ -2879,6 +3785,7 @@ public sealed partial class StaticPlaceholderWorldView
         PrototypeRpgProgressionSeedSnapshot safeSeed = progressionSeedSnapshot ?? new PrototypeRpgProgressionSeedSnapshot();
         PrototypeRpgCombatContributionSnapshot safeContribution = contributionSnapshot ?? new PrototypeRpgCombatContributionSnapshot();
         PrototypeRpgMemberContributionSnapshot[] contributionMembers = safeContribution.Members ?? System.Array.Empty<PrototypeRpgMemberContributionSnapshot>();
+        PrototypeRpgPartyMemberOutcomeSnapshot[] outcomeMembers = safeRunResult.PartyOutcome != null ? (safeRunResult.PartyOutcome.Members ?? System.Array.Empty<PrototypeRpgPartyMemberOutcomeSnapshot>()) : System.Array.Empty<PrototypeRpgPartyMemberOutcomeSnapshot>();
 
         snapshot.ResultStateKey = string.IsNullOrEmpty(safeRunResult.ResultStateKey) ? string.Empty : safeRunResult.ResultStateKey;
         snapshot.DungeonId = string.IsNullOrEmpty(safeRunResult.DungeonId) ? string.Empty : safeRunResult.DungeonId;
@@ -2891,6 +3798,49 @@ public sealed partial class StaticPlaceholderWorldView
         snapshot.TotalLootGained = safeSeed.Loot != null ? Mathf.Max(0, safeSeed.Loot.TotalLootGained) : 0;
         snapshot.RewardHintTags = BuildRpgProgressionPreviewRewardHintTags(safeRunResult, safeSeed);
         snapshot.GrowthHintTags = BuildRpgProgressionPreviewGrowthHintTags(safeSeed, safeContribution);
+        snapshot.ContributionSummaryText = BuildRpgContributionSummaryText(safeContribution);
+        snapshot.PendingRewardDeltaSummaryText = BuildRpgPendingRewardDeltaSummaryText(safeRunResult);
+        snapshot.RewardCarryoverSummaryText = BuildRpgRewardCarryoverSummaryText(safeRunResult);
+        snapshot.ExperienceGainSummaryText = string.IsNullOrEmpty(safeRunResult.ExperienceGainSummaryText) ? string.Empty : safeRunResult.ExperienceGainSummaryText;
+        snapshot.LevelUpPreviewSummaryText = string.IsNullOrEmpty(safeRunResult.LevelUpPreviewSummaryText) ? string.Empty : safeRunResult.LevelUpPreviewSummaryText;
+        snapshot.LevelUpApplyReadySummaryText = string.IsNullOrEmpty(safeRunResult.LevelUpApplyReadySummaryText) ? string.Empty : safeRunResult.LevelUpApplyReadySummaryText;
+        snapshot.ActualLevelApplySummaryText = string.IsNullOrEmpty(safeRunResult.ActualLevelApplySummaryText) ? string.Empty : safeRunResult.ActualLevelApplySummaryText;
+        snapshot.DerivedStatHydrateSummaryText = string.IsNullOrEmpty(safeRunResult.DerivedStatHydrateSummaryText) ? string.Empty : safeRunResult.DerivedStatHydrateSummaryText;
+        snapshot.NextRunStatProjectionSummaryText = string.IsNullOrEmpty(safeRunResult.NextRunStatProjectionSummaryText) ? string.Empty : safeRunResult.NextRunStatProjectionSummaryText;
+        snapshot.JobSpecializationSummaryText = string.IsNullOrEmpty(safeRunResult.JobSpecializationSummaryText) ? string.Empty : safeRunResult.JobSpecializationSummaryText;
+        snapshot.PassiveSkillSlotSummaryText = string.IsNullOrEmpty(safeRunResult.PassiveSkillSlotSummaryText) ? string.Empty : safeRunResult.PassiveSkillSlotSummaryText;
+        snapshot.RuntimeSynergySummaryText = string.IsNullOrEmpty(safeRunResult.RuntimeSynergySummaryText) ? string.Empty : safeRunResult.RuntimeSynergySummaryText;
+        snapshot.NextRunSpecializationPreviewText = string.IsNullOrEmpty(safeRunResult.NextRunSpecializationPreviewText) ? string.Empty : safeRunResult.NextRunSpecializationPreviewText;
+        snapshot.ActiveSkillSlotSummaryText = string.IsNullOrEmpty(safeRunResult.ActiveSkillSlotSummaryText) ? string.Empty : safeRunResult.ActiveSkillSlotSummaryText;
+        snapshot.SkillCooldownSummaryText = string.IsNullOrEmpty(safeRunResult.SkillCooldownSummaryText) ? string.Empty : safeRunResult.SkillCooldownSummaryText;
+        snapshot.SkillResourceSummaryText = string.IsNullOrEmpty(safeRunResult.SkillResourceSummaryText) ? string.Empty : safeRunResult.SkillResourceSummaryText;
+        snapshot.ActionEconomySummaryText = string.IsNullOrEmpty(safeRunResult.ActionEconomySummaryText) ? string.Empty : safeRunResult.ActionEconomySummaryText;
+        snapshot.StatusEffectSummaryText = string.IsNullOrEmpty(safeRunResult.StatusEffectSummaryText) ? string.Empty : safeRunResult.StatusEffectSummaryText;
+        snapshot.NotableStatusUsageSummaryText = string.IsNullOrEmpty(safeRunResult.NotableStatusUsageSummaryText) ? string.Empty : safeRunResult.NotableStatusUsageSummaryText;
+        snapshot.EnemyIntentSummaryText = string.IsNullOrEmpty(safeRunResult.EnemyIntentSummaryText) ? string.Empty : safeRunResult.EnemyIntentSummaryText;
+        snapshot.EnemySkillUsageSummaryText = string.IsNullOrEmpty(safeRunResult.EnemySkillUsageSummaryText) ? string.Empty : safeRunResult.EnemySkillUsageSummaryText;
+        snapshot.EnemyActionEconomySummaryText = string.IsNullOrEmpty(safeRunResult.EnemyActionEconomySummaryText) ? string.Empty : safeRunResult.EnemyActionEconomySummaryText;
+        snapshot.EncounterPhaseSummaryText = string.IsNullOrEmpty(safeRunResult.EncounterPhaseSummaryText) ? string.Empty : safeRunResult.EncounterPhaseSummaryText;
+        snapshot.EncounterWaveSummaryText = string.IsNullOrEmpty(safeRunResult.EncounterWaveSummaryText) ? string.Empty : safeRunResult.EncounterWaveSummaryText;
+        snapshot.BossPatternSummaryText = string.IsNullOrEmpty(safeRunResult.BossPatternSummaryText) ? string.Empty : safeRunResult.BossPatternSummaryText;
+        snapshot.NextRunActiveSkillPreviewText = string.IsNullOrEmpty(safeRunResult.NextRunActiveSkillPreviewText) ? string.Empty : safeRunResult.NextRunActiveSkillPreviewText;
+        snapshot.SkillLoadoutReadbackSummaryText = string.IsNullOrEmpty(safeRunResult.SkillLoadoutReadbackSummaryText) ? string.Empty : safeRunResult.SkillLoadoutReadbackSummaryText;
+        snapshot.EquipmentLoadoutReadbackSummaryText = string.IsNullOrEmpty(safeRunResult.EquipmentLoadoutReadbackSummaryText) ? string.Empty : safeRunResult.EquipmentLoadoutReadbackSummaryText;
+        snapshot.GearContributionSummaryText = string.IsNullOrEmpty(safeRunResult.GearContributionSummaryText) ? string.Empty : safeRunResult.GearContributionSummaryText;
+        snapshot.ConsumableCarrySummaryText = string.IsNullOrEmpty(safeRunResult.ConsumableCarrySummaryText) ? string.Empty : safeRunResult.ConsumableCarrySummaryText;
+        snapshot.ConsumableCarryoverPolicySummaryText = string.IsNullOrEmpty(safeRunResult.ConsumableCarryoverPolicySummaryText) ? string.Empty : safeRunResult.ConsumableCarryoverPolicySummaryText;
+        snapshot.GearRewardCandidateSummaryText = string.IsNullOrEmpty(safeRunResult.GearRewardCandidateSummaryText) ? string.Empty : safeRunResult.GearRewardCandidateSummaryText;
+        snapshot.EquipSwapChoiceSummaryText = string.IsNullOrEmpty(safeRunResult.EquipSwapChoiceSummaryText) ? string.Empty : safeRunResult.EquipSwapChoiceSummaryText;
+        snapshot.GearCarryContinuitySummaryText = string.IsNullOrEmpty(safeRunResult.GearCarryContinuitySummaryText) ? string.Empty : safeRunResult.GearCarryContinuitySummaryText;
+        snapshot.GearRuleSummaryText = string.IsNullOrEmpty(safeRunResult.GearRuleSummaryText) ? string.Empty : safeRunResult.GearRuleSummaryText;
+        snapshot.GearUnlockSummaryText = string.IsNullOrEmpty(safeRunResult.GearUnlockSummaryText) ? string.Empty : safeRunResult.GearUnlockSummaryText;
+        snapshot.GearComparisonSummaryText = string.IsNullOrEmpty(safeRunResult.GearComparisonSummaryText) ? string.Empty : safeRunResult.GearComparisonSummaryText;
+        snapshot.GearAffixLiteSummaryText = string.IsNullOrEmpty(safeRunResult.GearAffixLiteSummaryText) ? string.Empty : safeRunResult.GearAffixLiteSummaryText;
+        snapshot.UnlockedGearPoolSummaryText = string.IsNullOrEmpty(safeRunResult.UnlockedGearPoolSummaryText) ? string.Empty : safeRunResult.UnlockedGearPoolSummaryText;
+        snapshot.LevelBandGearLinkageSummaryText = string.IsNullOrEmpty(safeRunResult.LevelBandGearLinkageSummaryText) ? string.Empty : safeRunResult.LevelBandGearLinkageSummaryText;
+        snapshot.ApplyTraceSummaryText = BuildRpgApplyTraceSummaryText(safeRunResult, safeContribution);
+        snapshot.NextOfferBasisSummaryText = BuildRpgNextOfferBasisSummaryText(safeRunResult, safeContribution);
+        snapshot.PreviewSummaryText = BuildRpgCompactSummaryText(BuildRpgPostRunHeadlineText(safeRunResult), snapshot.NextOfferBasisSummaryText, snapshot.EncounterPhaseSummaryText, snapshot.EncounterWaveSummaryText, snapshot.BossPatternSummaryText, snapshot.ActualLevelApplySummaryText, snapshot.StatusEffectSummaryText, snapshot.NotableStatusUsageSummaryText, snapshot.EnemyIntentSummaryText, snapshot.EnemySkillUsageSummaryText, snapshot.NextRunActiveSkillPreviewText, snapshot.GearComparisonSummaryText, snapshot.GearAffixLiteSummaryText, snapshot.GearUnlockSummaryText, snapshot.UnlockedGearPoolSummaryText, snapshot.LevelBandGearLinkageSummaryText);
 
         if (contributionMembers.Length <= 0)
         {
@@ -2902,6 +3852,7 @@ public sealed partial class StaticPlaceholderWorldView
         for (int i = 0; i < contributionMembers.Length; i++)
         {
             PrototypeRpgMemberContributionSnapshot contribution = CopyRpgMemberContributionSnapshot(contributionMembers[i]);
+            PrototypeRpgPartyMemberOutcomeSnapshot outcomeMember = i < outcomeMembers.Length ? outcomeMembers[i] : null;
             PrototypeRpgMemberProgressPreview preview = new PrototypeRpgMemberProgressPreview();
             preview.MemberId = string.IsNullOrEmpty(contribution.MemberId) ? string.Empty : contribution.MemberId;
             preview.DisplayName = string.IsNullOrEmpty(contribution.DisplayName) ? string.Empty : contribution.DisplayName;
@@ -2909,16 +3860,33 @@ public sealed partial class StaticPlaceholderWorldView
             preview.RoleLabel = string.IsNullOrEmpty(contribution.RoleLabel) ? string.Empty : contribution.RoleLabel;
             preview.Survived = contribution.Survived;
             preview.Contribution = contribution;
+            preview.ContributionSummaryText = string.IsNullOrEmpty(contribution.ContributionSummaryText) ? BuildRpgMemberContributionSummaryText(contribution) : contribution.ContributionSummaryText;
             preview.SuggestedGrowthHintTags = BuildMemberProgressionGrowthHintTags(contribution);
             preview.SuggestedRewardHintTags = BuildMemberProgressionRewardHintTags(contribution, safeRunResult);
             preview.NotableOutcomeKey = BuildMemberNotableOutcomeKey(contribution, safeRunResult);
+            if (outcomeMember != null)
+            {
+                preview.LevelSummaryText = outcomeMember.Level > 0 ? "Lv " + outcomeMember.Level + " | EXP " + outcomeMember.CurrentExperience + "/" + outcomeMember.ExperienceToNextLevel : string.Empty;
+                preview.LevelUpPreviewText = string.IsNullOrEmpty(outcomeMember.LevelUpPreviewText) ? string.Empty : outcomeMember.LevelUpPreviewText;
+                preview.JobSpecializationSummaryText = string.IsNullOrEmpty(outcomeMember.JobSpecializationSummaryText) ? string.Empty : outcomeMember.JobSpecializationSummaryText;
+                preview.PassiveSkillSlotSummaryText = string.IsNullOrEmpty(outcomeMember.PassiveSkillSlotSummaryText) ? string.Empty : outcomeMember.PassiveSkillSlotSummaryText;
+                preview.RuntimeSynergySummaryText = string.IsNullOrEmpty(outcomeMember.RuntimeSynergySummaryText) ? string.Empty : outcomeMember.RuntimeSynergySummaryText;
+                preview.ActiveSkillSlotSummaryText = string.IsNullOrEmpty(outcomeMember.ActiveSkillSlotSummaryText) ? string.Empty : outcomeMember.ActiveSkillSlotSummaryText;
+                preview.SkillCooldownSummaryText = string.IsNullOrEmpty(outcomeMember.SkillCooldownSummaryText) ? string.Empty : outcomeMember.SkillCooldownSummaryText;
+                preview.SkillResourceSummaryText = string.IsNullOrEmpty(outcomeMember.SkillResourceSummaryText) ? string.Empty : outcomeMember.SkillResourceSummaryText;
+                preview.ActionEconomySummaryText = string.IsNullOrEmpty(outcomeMember.ActionEconomySummaryText) ? string.Empty : outcomeMember.ActionEconomySummaryText;
+                preview.StatusEffectSummaryText = string.IsNullOrEmpty(outcomeMember.StatusEffectSummaryText) ? string.Empty : outcomeMember.StatusEffectSummaryText;
+                preview.DerivedStatSummaryText = string.IsNullOrEmpty(outcomeMember.DerivedStatSummaryText) ? string.Empty : outcomeMember.DerivedStatSummaryText;
+                preview.SkillLoadoutSummaryText = string.IsNullOrEmpty(outcomeMember.SkillLoadoutSummaryText) ? string.Empty : outcomeMember.SkillLoadoutSummaryText;
+                preview.ConsumableSlotSummaryText = string.IsNullOrEmpty(outcomeMember.ConsumableSlotSummaryText) ? string.Empty : outcomeMember.ConsumableSlotSummaryText;
+            }
+            preview.PreviewSummaryText = BuildRpgMemberPreviewSummaryText(preview);
             previews[i] = preview;
         }
 
         snapshot.Members = previews;
         return snapshot;
     }
-
     private int GetDefeatedEnemyCount()
     {
         int count = 0;
@@ -2994,7 +3962,7 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         bool wasDefeated = monster.IsDefeated;
-        int safeDamage = Mathf.Max(1, damage);
+        int safeDamage = ResolveRpgStatusAwareDamage(actor, monster, damage);
         int applied = monster.RuntimeState != null ? monster.RuntimeState.ApplyDamage(safeDamage) : 0;
         if (monster.RuntimeState == null)
         {
@@ -3047,7 +4015,7 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         bool wasKnockedOut = member.IsDefeated;
-        int safeDamage = Mathf.Max(1, damage);
+        int safeDamage = ResolveRpgStatusAwareDamage(monster, member, damage);
         int applied = member.RuntimeState != null ? member.RuntimeState.ApplyDamage(safeDamage) : 0;
         if (member.RuntimeState == null)
         {
@@ -3172,8 +4140,28 @@ public sealed partial class StaticPlaceholderWorldView
         ClearBattleHoverState();
         ClearBattleInputLock();
 
+        DungeonEncounterRuntimeData encounter = GetActiveEncounter();
+        ResolveEncounterPhaseTransition(encounter, "hp_threshold");
+
         if (GetLivingBattleMonsterCount() <= 0)
         {
+            if (TryAdvanceEncounterWave(encounter, "wave_clear"))
+            {
+                int nextIndexAfterWave = Mathf.Max(0, _currentActorIndex + 1);
+                if (TrySelectNextPartyActor(nextIndexAfterWave))
+                {
+                    _battleState = BattleState.PartyActionSelect;
+                    SetActiveBattleMonster(GetFirstLivingBattleMonster());
+                    RecordCurrentPartyTurnStartEvent();
+                    RefreshSelectionPrompt();
+                    RefreshDungeonPresentation();
+                    return;
+                }
+
+                BeginEnemyTurn();
+                return;
+            }
+
             ResolveCurrentEncounterVictory();
             return;
         }
@@ -3196,7 +4184,12 @@ public sealed partial class StaticPlaceholderWorldView
     {
         ResetRoundActions();
         _battleState = BattleState.PartyActionSelect;
-        TrySelectNextPartyActor(Mathf.Max(0, startIndex));
+        if (!TrySelectNextPartyActor(Mathf.Max(0, startIndex)))
+        {
+            FinishDungeonRun(RunResultState.Defeat, BattleState.Defeat, false, 0, ActiveDungeonPartyText + " was defeated in " + _currentDungeonName + ".");
+            return;
+        }
+
         SetActiveBattleMonster(GetFirstLivingBattleMonster());
         ClearEnemyIntentState();
         RecordCurrentPartyTurnStartEvent();
@@ -3254,7 +4247,7 @@ public sealed partial class StaticPlaceholderWorldView
         return monsters;
     }
 
-    private PrototypeEnemyIntentSnapshot BuildEnemyIntentSnapshot(DungeonMonsterRuntimeData monster, int targetIndex, bool useSpecial)
+    private PrototypeEnemyIntentSnapshot BuildEnemyIntentSnapshot(DungeonMonsterRuntimeData monster, int targetIndex, PrototypeRpgEnemySkillRuntimeState skill)
     {
         PrototypeEnemyIntentSnapshot snapshot = new PrototypeEnemyIntentSnapshot();
         if (monster == null)
@@ -3262,23 +4255,40 @@ public sealed partial class StaticPlaceholderWorldView
             return snapshot;
         }
 
-        string targetPatternKey = useSpecial && IsPartyWideEliteSpecial(monster, useSpecial)
-            ? "all_living_allies"
-            : monster.TargetPattern == MonsterTargetPattern.LowestHpLiving
+        bool targetsAllParty = ResolveQueuedEnemySkillTargetsAllParty(skill);
+        bool targetsSelf = ResolveQueuedEnemySkillTargetsSelf(skill);
+        string targetPatternKey = targetsSelf
+            ? "self"
+            : targetsAllParty
+                ? "all_living_allies"
+                : monster.TargetPattern == MonsterTargetPattern.LowestHpLiving
                 ? "lowest_hp_living"
                 : monster.TargetPattern == MonsterTargetPattern.RandomLiving
                     ? "random_living"
                     : "frontmost_living";
         DungeonPartyMemberRuntimeData targetMember = GetPartyMemberAtIndex(targetIndex);
-        snapshot.IntentKey = useSpecial ? "enemy_special_attack" : "enemy_attack";
+        snapshot.IntentKey = skill != null && skill.IsSkillAction
+            ? "enemy_" + skill.ActionBiasKey
+            : "enemy_attack";
         snapshot.TargetPatternKey = targetPatternKey;
-        snapshot.PreviewText = BuildEnemyIntentText(monster, targetIndex, useSpecial);
-        snapshot.PredictedValue = Mathf.Max(1, GetEnemyActionPower(monster, useSpecial));
-        snapshot.TargetId = targetMember != null ? targetMember.MemberId : string.Empty;
-        snapshot.TargetName = targetMember != null ? targetMember.DisplayName : string.Empty;
+        snapshot.PreviewText = BuildEnemyIntentText(monster, targetIndex, skill);
+        snapshot.PredictedValue = Mathf.Max(0, GetEnemyActionPower(monster, skill));
+        snapshot.SkillId = skill != null ? skill.SkillId : string.Empty;
+        snapshot.SkillLabel = skill != null ? skill.DisplayName : GetEnemyActionLabel(monster, null);
+        snapshot.PredictedEffectText = BuildEnemyIntentEffectSummaryText(skill);
+        snapshot.PredictedStatusText = skill != null ? skill.PredictedStatusText : string.Empty;
+        snapshot.ActionEconomyText = BuildEnemyActionEconomySummaryText(skill);
+        snapshot.TargetId = targetsSelf
+            ? monster.MonsterId
+            : targetMember != null ? targetMember.MemberId : string.Empty;
+        snapshot.TargetName = targetsSelf
+            ? monster.DisplayName
+            : targetsAllParty
+                ? "All living allies"
+                : targetMember != null ? targetMember.DisplayName : string.Empty;
         snapshot.SourceEnemyId = monster.MonsterId;
         snapshot.SourceEnemyName = monster.DisplayName;
-        snapshot.ActionKey = useSpecial ? "skill" : "attack";
+        snapshot.ActionKey = skill != null && skill.IsSkillAction ? "skill" : "attack";
         return snapshot;
     }
     private string GetBattleUiNextStepText()
@@ -3386,6 +4396,8 @@ public sealed partial class StaticPlaceholderWorldView
         _selectedRouteLabel = template.RouteLabel;
         _selectedRouteDescription = template.Description;
         _selectedRouteRiskLabel = template.RiskLabel;
+        string partyId = ResolveStagedPartyIdForCity(_currentHomeCityId);
+        CapturePartyDispatchCommit(_currentHomeCityId, partyId, _currentDungeonName, BuildSelectedRouteSummary());
         _followedRecommendation = template.RouteId == _recommendedRouteId;
         _hoverRouteChoiceId = string.Empty;
         SetBattleFeedbackText("Selected " + template.RouteLabel + ".");
@@ -3416,7 +4428,10 @@ public sealed partial class StaticPlaceholderWorldView
             return false;
         }
 
-        string partyId = _runtimeEconomyState.BeginDungeonRun(_currentHomeCityId, _currentDungeonId);
+        string preferredPartyId = _activeDungeonParty != null
+            ? _activeDungeonParty.PartyId
+            : ResolveStagedPartyIdForCity(_currentHomeCityId);
+        string partyId = _runtimeEconomyState.BeginDungeonRun(_currentHomeCityId, _currentDungeonId, preferredPartyId);
         if (string.IsNullOrEmpty(partyId))
         {
             return false;
@@ -3551,6 +4566,7 @@ public sealed partial class StaticPlaceholderWorldView
         _dungeonPartyByCityId.Clear();
         _recentBattleLogs.Clear();
         InitializeDispatchRecoveryState();
+        ResetRpgAppliedProgressState();
         ResetDungeonRunPresentationState();
     }
 
@@ -3610,6 +4626,7 @@ public sealed partial class StaticPlaceholderWorldView
         _dungeonPartyByCityId.Clear();
         _recentBattleLogs.Clear();
         InitializeDispatchRecoveryState();
+        ResetRpgAppliedProgressState();
         ClearMonsterVisuals();
         _activeMonsters.Clear();
         ResetDungeonRunPresentationState();
@@ -3631,6 +4648,7 @@ public sealed partial class StaticPlaceholderWorldView
         _consecutiveDispatchCountByCityId.Clear();
         _lastDispatchReadinessChangeByCityId.Clear();
         _dispatchPolicyByCityId.Clear();
+        ClearLatestReturnAftermathState(false);
 
         if (_worldData == null || _worldData.Entities == null)
         {
@@ -3722,6 +4740,8 @@ public sealed partial class StaticPlaceholderWorldView
         {
             _root.SetActive(isVisible);
         }
+
+        HandleWorldSimVisibilityChanged(isVisible);
     }
 
     public void SetDungeonRunVisible(bool isVisible)
@@ -3760,9 +4780,21 @@ public sealed partial class StaticPlaceholderWorldView
         WorldEntityData city = _selectedMarker.EntityData;
         string dungeonId = GetLinkedDungeonIdForCity(city.Id);
         WorldEntityData dungeon = FindEntity(dungeonId);
-        string partyId = dungeon != null ? _runtimeEconomyState.GetIdlePartyIdInCity(city.Id) : string.Empty;
-        if (dungeon == null || string.IsNullOrEmpty(partyId))
+        if (dungeon == null)
         {
+            return false;
+        }
+
+        if (_runtimeEconomyState.GetPartyCountInCity(city.Id) <= 0)
+        {
+            return false;
+        }
+
+        string partyId = ResolveStagedPartyIdForCity(city.Id);
+        if (!ResolveCanCommitSelectedCityDungeon(city.Id) || string.IsNullOrEmpty(partyId))
+        {
+            TryOpenSelectedCityPartyRosterBoard();
+            RefreshWorldOperationSurface();
             return false;
         }
 
@@ -3886,6 +4918,9 @@ public sealed partial class StaticPlaceholderWorldView
 
         _pendingDungeonExit = false;
         _recentBattleLogs.Clear();
+        ResetRpgEncounterStatusRuntime(true);
+        ResetRpgEncounterEnemySkillRuntime(true);
+        ResetRpgEncounterPhaseRuntime(true);
         ResetDungeonRunPresentationState();
         if (_dungeonRoot != null)
         {
@@ -5649,11 +6684,21 @@ public sealed partial class StaticPlaceholderWorldView
             return null;
         }
 
-        return PrototypeRpgSkillCatalog.ResolveDefinition(member.DefaultSkillId, member.RoleTag);
+        PrototypeRpgSkillUseContext skillUseContext = BuildRpgSkillUseContext(member, "skill");
+        string resolvedSkillId = !string.IsNullOrEmpty(skillUseContext.ResolvedSkillId)
+            ? skillUseContext.ResolvedSkillId
+            : member.DefaultSkillId;
+        return PrototypeRpgSkillCatalog.ResolveDefinition(resolvedSkillId, member.RoleTag);
     }
 
     private string GetResolvedSkillDisplayName(DungeonPartyMemberRuntimeData member, PrototypeRpgSkillDefinition skillDefinition = null)
     {
+        PrototypeRpgSkillUseContext skillUseContext = BuildRpgSkillUseContext(member, "skill");
+        if (!string.IsNullOrEmpty(skillUseContext.ResolvedSkillLabel))
+        {
+            return skillUseContext.ResolvedSkillLabel;
+        }
+
         if (skillDefinition == null)
         {
             skillDefinition = ResolveMemberSkillDefinition(member);
@@ -5669,6 +6714,12 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string GetResolvedSkillTargetKind(DungeonPartyMemberRuntimeData member, PrototypeRpgSkillDefinition skillDefinition = null)
     {
+        PrototypeRpgSkillUseContext skillUseContext = BuildRpgSkillUseContext(member, "skill");
+        if (!string.IsNullOrEmpty(skillUseContext.TargetKind))
+        {
+            return skillUseContext.TargetKind;
+        }
+
         if (skillDefinition == null)
         {
             skillDefinition = ResolveMemberSkillDefinition(member);
@@ -5697,6 +6748,12 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string GetResolvedSkillEffectType(DungeonPartyMemberRuntimeData member, PrototypeRpgSkillDefinition skillDefinition = null)
     {
+        PrototypeRpgSkillUseContext skillUseContext = BuildRpgSkillUseContext(member, "skill");
+        if (!string.IsNullOrEmpty(skillUseContext.EffectType))
+        {
+            return skillUseContext.EffectType;
+        }
+
         if (skillDefinition == null)
         {
             skillDefinition = ResolveMemberSkillDefinition(member);
@@ -5725,6 +6782,12 @@ public sealed partial class StaticPlaceholderWorldView
 
     private int GetResolvedSkillPower(DungeonPartyMemberRuntimeData member, PrototypeRpgSkillDefinition skillDefinition = null)
     {
+        PrototypeRpgSkillUseContext skillUseContext = BuildRpgSkillUseContext(member, "skill");
+        if (skillUseContext.PowerValue > 0)
+        {
+            return skillUseContext.PowerValue;
+        }
+
         if (skillDefinition == null)
         {
             skillDefinition = ResolveMemberSkillDefinition(member);
@@ -5818,6 +6881,12 @@ public sealed partial class StaticPlaceholderWorldView
             return GetFirstLivingPartyMemberIndex();
         }
 
+        int patternTargetIndex = ResolveEncounterPatternTargetIndex(monster);
+        if (patternTargetIndex >= 0)
+        {
+            return patternTargetIndex;
+        }
+
         return monster.TargetPattern == MonsterTargetPattern.RandomLiving
             ? GetRandomLivingPartyMemberIndex()
             : monster.TargetPattern == MonsterTargetPattern.LowestHpLiving
@@ -5840,27 +6909,37 @@ public sealed partial class StaticPlaceholderWorldView
         return monster.EncounterRole == MonsterEncounterRole.Striker && monster.TurnsActed % 2 == 0;
     }
 
-    private int GetEnemyActionPower(DungeonMonsterRuntimeData monster, bool useSpecial)
+    private int GetEnemyActionPower(DungeonMonsterRuntimeData monster, PrototypeRpgEnemySkillRuntimeState skill)
     {
         if (monster == null)
         {
             return 1;
         }
 
-        return useSpecial ? Mathf.Max(1, monster.SpecialAttack) : Mathf.Max(1, monster.Attack);
+        if (skill == null)
+        {
+            return Mathf.Max(1, monster.Attack);
+        }
+
+        return Mathf.Max(0, skill.PowerValue);
     }
 
-    private string GetEnemyActionLabel(DungeonMonsterRuntimeData monster, bool useSpecial)
+    private string GetEnemyActionLabel(DungeonMonsterRuntimeData monster, PrototypeRpgEnemySkillRuntimeState skill)
     {
         if (monster == null)
         {
             return "Attack";
         }
 
-        return useSpecial ? monster.SpecialActionName : "Attack";
+        if (skill != null && !string.IsNullOrEmpty(skill.DisplayName))
+        {
+            return skill.DisplayName;
+        }
+
+        return "Attack";
     }
 
-        private string BuildEnemyIntentText(DungeonMonsterRuntimeData monster, int targetIndex, bool useSpecial)
+    private string BuildEnemyIntentText(DungeonMonsterRuntimeData monster, int targetIndex, PrototypeRpgEnemySkillRuntimeState skill)
     {
         if (monster == null)
         {
@@ -5868,30 +6947,38 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         string targetName = GetPartyMemberDisplayName(targetIndex);
-        string actionLabel = GetEnemyActionLabel(monster, useSpecial);
+        string actionLabel = GetEnemyActionLabel(monster, skill);
         string roleLabel = GetMonsterRoleText(monster);
+        string patternHint = BuildEncounterPatternIntentSuffix(monster);
+        if (ResolveQueuedEnemySkillTargetsSelf(skill))
+        {
+            return BuildRpgCompactSummaryText(monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on self.", patternHint);
+        }
+
+        if (ResolveQueuedEnemySkillTargetsAllParty(skill))
+        {
+            return BuildRpgCompactSummaryText(monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on all living allies.", patternHint);
+        }
+
         if (monster.IsElite)
         {
-            if (IsPartyWideEliteSpecial(monster, useSpecial))
-            {
-                return monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on all living allies.";
-            }
-
-            return useSpecial
+            string baseIntent = skill != null && skill.IsSkillAction
                 ? monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on " + targetName + ". Focused execution incoming."
                 : monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on " + targetName + ".";
+            return BuildRpgCompactSummaryText(baseIntent, patternHint);
         }
 
         if (monster.EncounterRole == MonsterEncounterRole.Striker)
         {
-            return monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on " + targetName + ".";
+            return BuildRpgCompactSummaryText(monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on " + targetName + ".", patternHint);
         }
 
-        return monster.TargetPattern == MonsterTargetPattern.LowestHpLiving
+        string finalIntent = monster.TargetPattern == MonsterTargetPattern.LowestHpLiving
             ? monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on lowest HP target: " + targetName + "."
             : monster.TargetPattern == MonsterTargetPattern.RandomLiving
                 ? monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on random target: " + targetName + "."
                 : monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on " + targetName + ".";
+        return BuildRpgCompactSummaryText(finalIntent, patternHint);
     }
 
     private DungeonEncounterRuntimeData GetActiveEncounter()
@@ -6016,9 +7103,21 @@ public sealed partial class StaticPlaceholderWorldView
 
     private int CalculateActiveEncounterLoot()
     {
-        int total = 0;
         DungeonEncounterRuntimeData encounter = GetActiveEncounter();
-        if (encounter == null || encounter.MonsterIds == null)
+        if (encounter == null)
+        {
+            return 0;
+        }
+
+        if (_currentEncounterWaveRuntimeState != null &&
+            _currentEncounterWaveRuntimeState.EncounterId == encounter.EncounterId &&
+            _currentEncounterWaveRuntimeState.TotalEncounterRewardAmount > 0)
+        {
+            return _currentEncounterWaveRuntimeState.TotalEncounterRewardAmount;
+        }
+
+        int total = 0;
+        if (encounter.MonsterIds == null)
         {
             return 0;
         }
@@ -6084,6 +7183,11 @@ public sealed partial class StaticPlaceholderWorldView
             return BattleActionType.Skill;
         }
 
+        if (normalized == "item")
+        {
+            return BattleActionType.Item;
+        }
+
         if (normalized == "retreat")
         {
             return BattleActionType.Retreat;
@@ -6099,9 +7203,21 @@ public sealed partial class StaticPlaceholderWorldView
             return false;
         }
 
-        if (action == BattleActionType.Attack || action == BattleActionType.Skill)
+        if (action == BattleActionType.Attack)
         {
             return _battleState == BattleState.PartyActionSelect && GetCurrentActorMember() != null;
+        }
+
+        if (action == BattleActionType.Skill)
+        {
+            DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
+            return _battleState == BattleState.PartyActionSelect && member != null && GetSelectedRpgActiveSkillSlot(member) != null;
+        }
+
+        if (action == BattleActionType.Item)
+        {
+            PrototypeRpgBattleConsumableSlot slot = GetCurrentBattleConsumableSlot();
+            return _battleState == BattleState.PartyActionSelect && GetCurrentActorMember() != null && slot != null && slot.IsAvailable;
         }
 
         if (action == BattleActionType.Retreat)
@@ -6223,7 +7339,14 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (action == BattleActionType.Skill)
         {
-            return GetResolvedSkillDisplayName(member);
+            PrototypeRpgSkillUseContext skillUseContext = BuildRpgSkillUseContext(member, "skill");
+            return !string.IsNullOrEmpty(skillUseContext.ResolvedSkillLabel) ? skillUseContext.ResolvedSkillLabel : GetResolvedSkillDisplayName(member);
+        }
+
+        if (action == BattleActionType.Item)
+        {
+            PrototypeRpgBattleConsumableSlot slot = GetCurrentBattleConsumableSlot();
+            return slot != null && slot.IsAvailable && !string.IsNullOrEmpty(slot.DisplayName) ? slot.DisplayName : "Item";
         }
 
         if (action == BattleActionType.Retreat)
@@ -6456,12 +7579,17 @@ public sealed partial class StaticPlaceholderWorldView
             else
             {
                 string hoverActionName = GetBattleActionDisplayName(_hoverBattleAction, member);
-                string skillHintText = string.IsNullOrEmpty(member.SkillShortText) ? string.Empty : " | " + member.SkillShortText;
+                PrototypeRpgSkillUseContext skillUseContext = BuildRpgSkillUseContext(member, "skill");
+                string skillHintText = string.IsNullOrEmpty(skillUseContext.AvailabilitySummaryText) ? string.Empty : " | " + skillUseContext.AvailabilitySummaryText;
+                string itemCommandText = IsBattleActionAvailable(BattleActionType.Item) ? "[4] Item" : "[4] Item (empty)";
+                string itemHintText = string.IsNullOrEmpty(member.ConsumableSlotSummaryText) ? string.Empty : " | " + member.ConsumableSlotSummaryText;
                 _currentSelectionPrompt = string.IsNullOrEmpty(hoverActionName)
-                    ? "Select action for " + member.DisplayName + " (" + member.RoleLabel + "). [1] Attack  [2] " + member.SkillName + "  [3] Retreat" + skillHintText
+                    ? "Select action for " + member.DisplayName + " (" + member.RoleLabel + "). [1] Attack  [2] " + GetResolvedSkillDisplayName(member) + "  [3] Retreat  " + itemCommandText + " | [Tab]/[E] Cycle skill" + skillHintText + itemHintText
                     : _hoverBattleAction == BattleActionType.Skill
-                        ? "Select " + hoverActionName + " for " + member.DisplayName + ". " + (string.IsNullOrEmpty(member.SkillShortText) ? "Click or matching key." : member.SkillShortText + " Click or matching key.")
-                        : "Select " + hoverActionName + " for " + member.DisplayName + " by click or matching key.";
+                        ? "Select " + hoverActionName + " for " + member.DisplayName + ". " + (string.IsNullOrEmpty(skillUseContext.AvailabilitySummaryText) ? "Click, matching key, or [Tab]/[E] cycle." : skillUseContext.AvailabilitySummaryText + " Click, matching key, or [Tab]/[E] cycle.")
+                        : _hoverBattleAction == BattleActionType.Item
+                            ? "Use " + hoverActionName + " for " + member.DisplayName + ". " + (string.IsNullOrEmpty(member.ConsumableSlotSummaryText) ? "Click or matching key." : member.ConsumableSlotSummaryText + " Click or matching key.")
+                            : "Select " + hoverActionName + " for " + member.DisplayName + " by click or matching key.";
             }
 
             return;
@@ -6479,16 +7607,20 @@ public sealed partial class StaticPlaceholderWorldView
     private string BuildTargetSelectionPrompt()
     {
         DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
-        string actionName = _queuedBattleAction == BattleActionType.Skill && member != null ? member.SkillName : "Attack";
+        PrototypeRpgSkillUseContext skillUseContext = _queuedBattleAction == BattleActionType.Skill && member != null ? BuildRpgSkillUseContext(member, "skill") : new PrototypeRpgSkillUseContext();
+        string actionName = _queuedBattleAction == BattleActionType.Skill && member != null
+            ? (string.IsNullOrEmpty(skillUseContext.ResolvedSkillLabel) ? member.SkillName : skillUseContext.ResolvedSkillLabel)
+            : "Attack";
         string hoveredMonsterText = GetHoveredBattleMonsterText();
         string focusText = !string.IsNullOrEmpty(hoveredMonsterText)
             ? " | Hover: " + hoveredMonsterText
             : _activeBattleMonster != null && !_activeBattleMonster.IsDefeated
                 ? " | Target: " + _activeBattleMonster.DisplayName
                 : string.Empty;
-        string skillHintText = _queuedBattleAction == BattleActionType.Skill && member != null && !string.IsNullOrEmpty(member.SkillShortText)
-            ? " | " + member.SkillShortText
+        string skillHintSummaryText = _queuedBattleAction == BattleActionType.Skill && member != null
+            ? BuildRpgCompactSummaryText(skillUseContext.AvailabilitySummaryText, skillUseContext.ResourceSummaryText, skillUseContext.ActionEconomySummaryText)
             : string.Empty;
+        string skillHintText = string.IsNullOrEmpty(skillHintSummaryText) ? string.Empty : " | " + skillHintSummaryText;
         return "Select target for " + actionName + ": [1] " + BuildTargetOptionText(0) + "  [2] " + BuildTargetOptionText(1) + " | Click enemy | [Esc]/Right Click Cancel" + focusText + skillHintText;
     }
 
@@ -6541,7 +7673,7 @@ public sealed partial class StaticPlaceholderWorldView
             return _battleState == BattleState.EnemyTurn ? "Enemy Turn" : "Resolving";
         }
 
-        return _battleState == BattleState.PartyActionSelect
+        string baseText = _battleState == BattleState.PartyActionSelect
             ? "Player Turn"
             : _battleState == BattleState.PartyTargetSelect
                 ? "Target Select"
@@ -6554,6 +7686,12 @@ public sealed partial class StaticPlaceholderWorldView
                             : _battleState == BattleState.Retreat
                                 ? "Retreat"
                                 : "Battle";
+        if (_dungeonRunState == DungeonRunState.Battle)
+        {
+            return BuildRpgCompactSummaryText(baseText, BuildCurrentEncounterPhaseSummaryText(), BuildCurrentEncounterWaveSummaryText());
+        }
+
+        return baseText;
     }
 
     private string GetBattleCancelHintText()
@@ -6616,6 +7754,12 @@ public sealed partial class StaticPlaceholderWorldView
         _pendingEnemyAttackPower = 0;
         _pendingEnemyActionLabel = string.Empty;
         _pendingEnemyUsedSpecialAttack = false;
+        _pendingEnemySkillId = string.Empty;
+        _pendingEnemySkillLabel = string.Empty;
+        _pendingEnemySkillTargetKind = string.Empty;
+        _pendingEnemySkillEffectType = string.Empty;
+        _pendingEnemyPredictedStatusText = string.Empty;
+        _pendingEnemyActionEconomyText = string.Empty;
         _enemyIntentResolveAtTime = 0f;
         _enemyIntentTelegraphActive = false;
         _currentEnemyIntentSnapshot = new PrototypeEnemyIntentSnapshot();
@@ -6948,8 +8092,14 @@ public sealed partial class StaticPlaceholderWorldView
             eliteVictory ? "Elite encounter won." : encounter.DisplayName + " cleared.",
             phaseKey: "victory",
             actorName: ActiveDungeonPartyText,
-            targetName: encounter.DisplayName,
-            shortText: eliteVictory ? "Elite victory" : "Encounter victory");
+                targetName: encounter.DisplayName,
+                shortText: eliteVictory ? "Elite victory" : "Encounter victory");
+        CaptureRpgEncounterPhaseReadback();
+        CaptureRpgEncounterStatusReadback();
+        CaptureRpgEncounterEnemySkillReadback();
+        ResetRpgEncounterPhaseRuntime(false);
+        ResetRpgEncounterStatusRuntime(false);
+        ResetRpgEncounterEnemySkillRuntime(false);
 
         _activeEncounterId = string.Empty;
         _dungeonRunState = DungeonRunState.Explore;
@@ -6980,11 +8130,22 @@ public sealed partial class StaticPlaceholderWorldView
         _hoverBattleAction = BattleActionType.None;
         _queuedBattleAction = BattleActionType.None;
         ClearBattleHoverState();
+        AdvanceRpgEncounterPhaseTurn(GetActiveEncounter());
         if (!TryQueueEnemyIntent(0))
         {
+            if (_dungeonRunState != DungeonRunState.Battle)
+            {
+                return;
+            }
+
             ResetRoundActions();
             _battleState = BattleState.PartyActionSelect;
-            TrySelectNextPartyActor(0);
+            if (!TrySelectNextPartyActor(0))
+            {
+                FinishDungeonRun(RunResultState.Defeat, BattleState.Defeat, false, 0, ActiveDungeonPartyText + " was defeated in " + _currentDungeonName + ".");
+                return;
+            }
+
             SetActiveBattleMonster(GetFirstLivingBattleMonster());
             ClearEnemyIntentState();
             RefreshSelectionPrompt();
@@ -7014,19 +8175,44 @@ public sealed partial class StaticPlaceholderWorldView
                 continue;
             }
 
+            AdvanceRpgStatusTurnStart(monster);
+            AdvanceRpgEnemySkillTurnStart(monster);
+            if (monster.IsDefeated || monster.CurrentHp <= 0)
+            {
+                if (GetLivingBattleMonsterCount() <= 0)
+                {
+                    if (TryAdvanceEncounterWave(encounter, "wave_clear"))
+                    {
+                        return TryQueueEnemyIntent(0);
+                    }
+
+                    ResolveCurrentEncounterVictory();
+                    return false;
+                }
+
+                continue;
+            }
+
             int targetIndex = GetMonsterTargetPartyMemberIndex(monster);
             if (targetIndex < 0)
             {
                 continue;
             }
 
-            bool useSpecial = ShouldUseEliteSpecialAttack(monster);
+            PrototypeRpgEnemySkillRuntimeState selectedSkill = ResolveEnemyAction(monster, targetIndex);
+            bool useSpecial = selectedSkill != null && selectedSkill.IsSkillAction;
             float telegraphDuration = useSpecial ? EnemyIntentTelegraphSeconds + 0.12f : EnemyIntentTelegraphSeconds;
             _enemyTurnMonsterCursor = displayIndex;
             _pendingEnemyTargetIndex = targetIndex;
-            _pendingEnemyAttackPower = GetEnemyActionPower(monster, useSpecial);
-            _pendingEnemyActionLabel = GetEnemyActionLabel(monster, useSpecial);
+            _pendingEnemyAttackPower = GetEnemyActionPower(monster, selectedSkill);
+            _pendingEnemyActionLabel = GetEnemyActionLabel(monster, selectedSkill);
             _pendingEnemyUsedSpecialAttack = useSpecial;
+            _pendingEnemySkillId = selectedSkill != null ? selectedSkill.SkillId : string.Empty;
+            _pendingEnemySkillLabel = selectedSkill != null ? selectedSkill.DisplayName : string.Empty;
+            _pendingEnemySkillTargetKind = selectedSkill != null ? selectedSkill.TargetKind : string.Empty;
+            _pendingEnemySkillEffectType = selectedSkill != null ? selectedSkill.EffectType : string.Empty;
+            _pendingEnemyPredictedStatusText = selectedSkill != null ? selectedSkill.PredictedStatusText : string.Empty;
+            _pendingEnemyActionEconomyText = BuildEnemyActionEconomySummaryText(selectedSkill);
             SetActiveBattleMonster(monster);
             _enemyIntentTelegraphActive = true;
             _enemyIntentResolveAtTime = Time.unscaledTime + telegraphDuration;
@@ -7040,16 +8226,21 @@ public sealed partial class StaticPlaceholderWorldView
             }
 
             RecordEnemyTurnStartEvent(monster);
-            _currentEnemyIntentSnapshot = BuildEnemyIntentSnapshot(monster, targetIndex, useSpecial);
+            _currentEnemyIntentSnapshot = BuildEnemyIntentSnapshot(monster, targetIndex, selectedSkill);
             _enemyIntentText = string.IsNullOrEmpty(_currentEnemyIntentSnapshot.PreviewText)
-                ? BuildEnemyIntentText(monster, targetIndex, useSpecial)
+                ? BuildEnemyIntentText(monster, targetIndex, selectedSkill)
                 : _currentEnemyIntentSnapshot.PreviewText;
             monster.RuntimeState?.SetIntent(
                 _currentEnemyIntentSnapshot.IntentKey,
                 _currentEnemyIntentSnapshot.TargetPatternKey,
                 _enemyIntentText,
                 _currentEnemyIntentSnapshot.PredictedValue,
-                _currentEnemyIntentSnapshot.TargetId);
+                _currentEnemyIntentSnapshot.TargetId,
+                _currentEnemyIntentSnapshot.SkillId,
+                _currentEnemyIntentSnapshot.SkillLabel,
+                _currentEnemyIntentSnapshot.PredictedEffectText,
+                _currentEnemyIntentSnapshot.PredictedStatusText,
+                _currentEnemyIntentSnapshot.ActionEconomyText);
             RecordBattleEvent(
                 PrototypeBattleEventKeys.EnemyIntentShown,
                 monster.MonsterId,
@@ -7057,6 +8248,7 @@ public sealed partial class StaticPlaceholderWorldView
                 _currentEnemyIntentSnapshot.PredictedValue,
                 _enemyIntentText,
                 actionKey: _currentEnemyIntentSnapshot.ActionKey,
+                skillId: _currentEnemyIntentSnapshot.SkillId,
                 phaseKey: "enemy_turn",
                 actorName: monster.DisplayName,
                 targetName: _currentEnemyIntentSnapshot.TargetName,
@@ -7073,7 +8265,7 @@ public sealed partial class StaticPlaceholderWorldView
     }
     private bool TryActivateCurrentBattleAction(BattleActionType action)
     {
-        if (!IsBattleActionAvailable(action))
+        if (action != BattleActionType.Skill && !IsBattleActionAvailable(action))
         {
             return false;
         }
@@ -7085,13 +8277,43 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         PrototypeRpgSkillDefinition resolvedSkillDefinition = action == BattleActionType.Skill ? ResolveCurrentActorSkillDefinition() : null;
-        string resolvedSkillId = action == BattleActionType.Skill && resolvedSkillDefinition != null ? resolvedSkillDefinition.SkillId : member != null ? member.DefaultSkillId : string.Empty;
-        string resolvedSkillName = action == BattleActionType.Skill ? GetResolvedSkillDisplayName(member, resolvedSkillDefinition) : string.Empty;
-        int resolvedSkillPower = action == BattleActionType.Skill ? GetResolvedSkillPower(member, resolvedSkillDefinition) : 0;
-        string resolvedSkillTargetKind = action == BattleActionType.Skill ? GetResolvedSkillTargetKind(member, resolvedSkillDefinition) : string.Empty;
-        string resolvedSkillEffectType = action == BattleActionType.Skill ? GetResolvedSkillEffectType(member, resolvedSkillDefinition) : string.Empty;
+        PrototypeRpgSkillUseContext skillUseContext = action == BattleActionType.Skill ? BuildRpgSkillUseContext(member, "skill") : new PrototypeRpgSkillUseContext();
+        string resolvedSkillId = action == BattleActionType.Skill
+            ? (!string.IsNullOrEmpty(skillUseContext.ResolvedSkillId) ? skillUseContext.ResolvedSkillId : resolvedSkillDefinition != null ? resolvedSkillDefinition.SkillId : member != null ? member.DefaultSkillId : string.Empty)
+            : string.Empty;
+        string resolvedSkillName = action == BattleActionType.Skill
+            ? (!string.IsNullOrEmpty(skillUseContext.ResolvedSkillLabel) ? skillUseContext.ResolvedSkillLabel : GetResolvedSkillDisplayName(member, resolvedSkillDefinition))
+            : string.Empty;
+        int resolvedSkillPower = action == BattleActionType.Skill
+            ? (skillUseContext.PowerValue > 0 ? skillUseContext.PowerValue : GetResolvedSkillPower(member, resolvedSkillDefinition))
+            : 0;
+        string resolvedSkillTargetKind = action == BattleActionType.Skill
+            ? (!string.IsNullOrEmpty(skillUseContext.TargetKind) ? skillUseContext.TargetKind : GetResolvedSkillTargetKind(member, resolvedSkillDefinition))
+            : string.Empty;
+        string resolvedSkillEffectType = action == BattleActionType.Skill
+            ? (!string.IsNullOrEmpty(skillUseContext.EffectType) ? skillUseContext.EffectType : GetResolvedSkillEffectType(member, resolvedSkillDefinition))
+            : string.Empty;
         string actionLabel = GetBattleActionDisplayName(action, member);
         string actionKey = GetBattleActionKey(action);
+
+        if (action == BattleActionType.Skill)
+        {
+            if (member == null || GetSelectedRpgActiveSkillSlot(member) == null)
+            {
+                SetBattleFeedbackText("No active skill slot is ready to use.");
+                RefreshSelectionPrompt();
+                RefreshDungeonPresentation();
+                return false;
+            }
+
+            if (!skillUseContext.IsAvailable)
+            {
+                SetBattleFeedbackText(string.IsNullOrEmpty(skillUseContext.AvailabilitySummaryText) ? "Selected skill is unavailable." : skillUseContext.AvailabilitySummaryText + ".");
+                RefreshSelectionPrompt();
+                RefreshDungeonPresentation();
+                return false;
+            }
+        }
 
         RecordBattleEvent(
             PrototypeBattleEventKeys.ActionSelected,
@@ -7120,7 +8342,26 @@ public sealed partial class StaticPlaceholderWorldView
                 shortText: "Retreat confirmed");
             AppendBattleLog("The party retreats from battle and abandons the run.");
             FinishDungeonRun(RunResultState.Retreat, BattleState.Retreat, false, 0, ActiveDungeonPartyText + " retreated from " + _currentDungeonName + " with no loot.");
-            _pendingDungeonExit = true;
+            return true;
+        }
+
+        if (action == BattleActionType.Item)
+        {
+            ClearBattleHoverState();
+            _hoverBattleAction = action;
+            _queuedBattleAction = action;
+            LockBattleInput();
+            if (!TryUseCurrentBattleConsumable(member))
+            {
+                _queuedBattleAction = BattleActionType.None;
+                _hoverBattleAction = BattleActionType.None;
+                ClearBattleInputLock();
+                SetBattleFeedbackText("No battle consumable is ready.");
+                RefreshSelectionPrompt();
+                RefreshDungeonPresentation();
+                return false;
+            }
+
             return true;
         }
 
@@ -7140,7 +8381,7 @@ public sealed partial class StaticPlaceholderWorldView
             return true;
         }
 
-        if (resolvedSkillTargetKind == "all_enemies" && resolvedSkillEffectType == "damage")
+        if (resolvedSkillEffectType == "splash_damage_or_all_enemies")
         {
             int hitCount = 0;
             int totalDamage = 0;
@@ -7154,6 +8395,7 @@ public sealed partial class StaticPlaceholderWorldView
                     hitCount += 1;
                 }
             }
+            ApplyRpgStatusesForResolvedPartySkill(member, skillUseContext, null, targetMonsters, null);
 
             AppendBattleLog(member.DisplayName + " used " + resolvedSkillName + " on all enemies.");
             SetBattleFeedbackText(resolvedSkillName + " hit " + hitCount + " enemies.");
@@ -7169,8 +8411,9 @@ public sealed partial class StaticPlaceholderWorldView
                 actorName: member.DisplayName,
                 targetName: "All enemies",
                 shortText: resolvedSkillName);
+            CommitRpgBattleSkillUse(member, skillUseContext);
         }
-        else if (resolvedSkillTargetKind == "all_allies" && resolvedSkillEffectType == "heal")
+        else if (resolvedSkillEffectType == "party_heal" || resolvedSkillEffectType == "protect_heal")
         {
             int totalRecovered = 0;
             List<int> livingAllyIndices = GetLivingAllies();
@@ -7178,8 +8421,10 @@ public sealed partial class StaticPlaceholderWorldView
             {
                 int memberIndex = livingAllyIndices[i];
                 DungeonPartyMemberRuntimeData ally = GetPartyMemberAtIndex(memberIndex);
-                totalRecovered += ApplyBattleHealToPartyMember(member, ally, memberIndex, resolvedSkillPower, new Color(0.56f, 1f, 0.68f, 1f));
+                int bonusRecovery = resolvedSkillEffectType == "protect_heal" && ally != null && ally.CurrentHp <= Mathf.Max(1, ally.MaxHp / 2) ? 1 : 0;
+                totalRecovered += ApplyBattleHealToPartyMember(member, ally, memberIndex, resolvedSkillPower + bonusRecovery, new Color(0.56f, 1f, 0.68f, 1f));
             }
+            ApplyRpgStatusesForResolvedPartySkill(member, skillUseContext, null, null, livingAllyIndices);
 
             AppendBattleLog(member.DisplayName + " used " + resolvedSkillName + " and restored " + totalRecovered + " HP.");
             SetBattleFeedbackText(resolvedSkillName + " restored " + totalRecovered + " HP.");
@@ -7195,6 +8440,27 @@ public sealed partial class StaticPlaceholderWorldView
                 actorName: member.DisplayName,
                 targetName: "All allies",
                 shortText: resolvedSkillName);
+            CommitRpgBattleSkillUse(member, skillUseContext);
+        }
+        else if (resolvedSkillEffectType == "self_recover_or_guarded_strike")
+        {
+            int recovered = ApplyBattleHealToPartyMember(member, member, member.PartySlotIndex, Mathf.Max(1, resolvedSkillPower), new Color(0.80f, 0.92f, 1f, 1f));
+            ApplyRpgStatusesForResolvedPartySkill(member, skillUseContext, null, null, null);
+            AppendBattleLog(member.DisplayName + " used " + resolvedSkillName + " and braced for the next exchange.");
+            SetBattleFeedbackText(resolvedSkillName + " recovered " + recovered + " HP.");
+            RecordBattleEvent(
+                PrototypeBattleEventKeys.SkillResolved,
+                member.MemberId,
+                member.MemberId,
+                recovered,
+                member.DisplayName + " resolved " + resolvedSkillName + " on self.",
+                actionKey: "skill",
+                skillId: resolvedSkillId,
+                phaseKey: "resolution",
+                actorName: member.DisplayName,
+                targetName: member.DisplayName,
+                shortText: resolvedSkillName);
+            CommitRpgBattleSkillUse(member, skillUseContext);
         }
         else
         {
@@ -7211,11 +8477,13 @@ public sealed partial class StaticPlaceholderWorldView
                 phaseKey: "resolution",
                 actorName: member.DisplayName,
                 shortText: resolvedSkillName);
+            CommitRpgBattleSkillUse(member, skillUseContext);
         }
 
         AdvanceBattleAfterPartyAction();
         return true;
     }
+
     private void HandleDungeonBattleInput(Keyboard keyboard)
     {
         if (keyboard == null || _dungeonRunState != DungeonRunState.Battle || IsBattleInputLocked())
@@ -7256,6 +8524,12 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
+        if (keyboard.tabKey.wasPressedThisFrame || keyboard.eKey.wasPressedThisFrame)
+        {
+            TryCycleCurrentBattleSkillSlotSelection(1);
+            return;
+        }
+
         if (keyboard.digit1Key.wasPressedThisFrame || keyboard.numpad1Key.wasPressedThisFrame)
         {
             TryActivateCurrentBattleAction(BattleActionType.Attack);
@@ -7264,13 +8538,29 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (keyboard.digit2Key.wasPressedThisFrame || keyboard.numpad2Key.wasPressedThisFrame)
         {
-            TryActivateCurrentBattleAction(BattleActionType.Skill);
+            if (!TryActivateCurrentBattleAction(BattleActionType.Skill))
+            {
+                DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
+                PrototypeRpgSkillUseContext skillUseContext = BuildRpgSkillUseContext(member, "skill");
+                if (!string.IsNullOrEmpty(skillUseContext.AvailabilitySummaryText))
+                {
+                    SetBattleFeedbackText(skillUseContext.AvailabilitySummaryText + ".");
+                    RefreshSelectionPrompt();
+                    RefreshDungeonPresentation();
+                }
+            }
             return;
         }
 
         if (keyboard.digit3Key.wasPressedThisFrame || keyboard.numpad3Key.wasPressedThisFrame || keyboard.qKey.wasPressedThisFrame)
         {
             TryActivateCurrentBattleAction(BattleActionType.Retreat);
+            return;
+        }
+
+        if (keyboard.digit4Key.wasPressedThisFrame || keyboard.numpad4Key.wasPressedThisFrame || keyboard.iKey.wasPressedThisFrame)
+        {
+            TryActivateCurrentBattleAction(BattleActionType.Item);
         }
     }
 
@@ -7321,19 +8611,30 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         SetActiveBattleMonster(targetMonster);
+        PrototypeRpgSkillUseContext skillUseContext = _queuedBattleAction == BattleActionType.Skill ? BuildRpgSkillUseContext(member, "skill") : new PrototypeRpgSkillUseContext();
         PrototypeRpgSkillDefinition resolvedSkillDefinition = _queuedBattleAction == BattleActionType.Skill ? ResolveMemberSkillDefinition(member) : null;
         string actionKey = _queuedBattleAction == BattleActionType.Skill ? "skill" : "attack";
-        string resolvedSkillId = _queuedBattleAction == BattleActionType.Skill && resolvedSkillDefinition != null ? resolvedSkillDefinition.SkillId : string.Empty;
+        string resolvedSkillId = _queuedBattleAction == BattleActionType.Skill
+            ? (!string.IsNullOrEmpty(skillUseContext.ResolvedSkillId) ? skillUseContext.ResolvedSkillId : resolvedSkillDefinition != null ? resolvedSkillDefinition.SkillId : string.Empty)
+            : string.Empty;
         int damage;
         string actionName;
         if (_queuedBattleAction == BattleActionType.Skill)
         {
-            string resolvedSkillEffectType = GetResolvedSkillEffectType(member, resolvedSkillDefinition);
-            int resolvedSkillPower = GetResolvedSkillPower(member, resolvedSkillDefinition);
+            if (!skillUseContext.IsAvailable)
+            {
+                SetBattleFeedbackText(string.IsNullOrEmpty(skillUseContext.AvailabilitySummaryText) ? "Selected skill is unavailable." : skillUseContext.AvailabilitySummaryText + ".");
+                RefreshSelectionPrompt();
+                RefreshDungeonPresentation();
+                return false;
+            }
+
+            string resolvedSkillEffectType = !string.IsNullOrEmpty(skillUseContext.EffectType) ? skillUseContext.EffectType : GetResolvedSkillEffectType(member, resolvedSkillDefinition);
+            int resolvedSkillPower = skillUseContext.PowerValue > 0 ? skillUseContext.PowerValue : GetResolvedSkillPower(member, resolvedSkillDefinition);
             damage = resolvedSkillEffectType == "finisher_damage" && targetMonster.CurrentHp <= member.Attack
                 ? resolvedSkillPower + 2
                 : resolvedSkillPower;
-            actionName = GetResolvedSkillDisplayName(member, resolvedSkillDefinition);
+            actionName = !string.IsNullOrEmpty(skillUseContext.ResolvedSkillLabel) ? skillUseContext.ResolvedSkillLabel : GetResolvedSkillDisplayName(member, resolvedSkillDefinition);
         }
         else
         {
@@ -7354,8 +8655,26 @@ public sealed partial class StaticPlaceholderWorldView
             targetName: targetMonster.DisplayName,
             shortText: "Target locked");
         int appliedDamage = ApplyBattleDamageToMonster(member, targetMonster, damage, new Color(1f, 0.48f, 0.30f, 1f));
-        AppendBattleLog(member.DisplayName + " used " + actionName + " on " + targetMonster.DisplayName + " for " + appliedDamage + " damage.");
-        SetBattleFeedbackText(actionName + " dealt " + appliedDamage + " to " + targetMonster.DisplayName + ".");
+        if (_queuedBattleAction == BattleActionType.Skill)
+        {
+            ApplyRpgStatusesForResolvedPartySkill(member, skillUseContext, targetMonster, null, null);
+        }
+
+        int grantedResource = 0;
+        if (_queuedBattleAction == BattleActionType.Skill)
+        {
+            CommitRpgBattleSkillUse(member, skillUseContext);
+        }
+        else
+        {
+            int previousResource = member.CurrentSkillResource;
+            GrantRpgBattleSkillResource(member, 1);
+            grantedResource = Mathf.Max(0, member.CurrentSkillResource - previousResource);
+        }
+
+        string economyText = _queuedBattleAction == BattleActionType.Attack && grantedResource > 0 ? " | " + RpgSkillResourceLabel + " +" + grantedResource : string.Empty;
+        AppendBattleLog(member.DisplayName + " used " + actionName + " on " + targetMonster.DisplayName + " for " + appliedDamage + " damage." + economyText);
+        SetBattleFeedbackText(actionName + " dealt " + appliedDamage + " to " + targetMonster.DisplayName + "." + economyText);
         RecordBattleEvent(
             _queuedBattleAction == BattleActionType.Skill ? PrototypeBattleEventKeys.SkillResolved : PrototypeBattleEventKeys.AttackResolved,
             member.MemberId,
@@ -7381,35 +8700,70 @@ public sealed partial class StaticPlaceholderWorldView
         _enemyIntentTelegraphActive = false;
         ClearBattleInputLock();
         int targetIndex = _pendingEnemyTargetIndex;
-        bool usePartyWideEliteSpecial = IsPartyWideEliteSpecial(_activeBattleMonster, _pendingEnemyUsedSpecialAttack);
-        if (!usePartyWideEliteSpecial && (_activeDungeonParty == null || _activeDungeonParty.Members == null || targetIndex < 0 || targetIndex >= _activeDungeonParty.Members.Length))
+        PrototypeRpgEnemySkillRuntimeState queuedSkill = GetQueuedEnemySkillState(_activeBattleMonster);
+        bool usePartyWideEliteSpecial = queuedSkill != null ? ResolveQueuedEnemySkillTargetsAllParty(queuedSkill) : IsPartyWideEliteSpecial(_activeBattleMonster, _pendingEnemyUsedSpecialAttack);
+        bool useSelfSkill = queuedSkill != null && ResolveQueuedEnemySkillTargetsSelf(queuedSkill);
+        if (!usePartyWideEliteSpecial && !useSelfSkill && (_activeDungeonParty == null || _activeDungeonParty.Members == null || targetIndex < 0 || targetIndex >= _activeDungeonParty.Members.Length))
         {
             if (!TryQueueEnemyIntent(_enemyTurnMonsterCursor + 1))
             {
+                if (_dungeonRunState != DungeonRunState.Battle)
+                {
+                    return;
+                }
+
                 ResumePlayerTurnFromStartIndex(0);
             }
 
             return;
         }
 
-        DungeonPartyMemberRuntimeData targetMember = (!usePartyWideEliteSpecial && _activeDungeonParty != null && _activeDungeonParty.Members != null && targetIndex >= 0 && targetIndex < _activeDungeonParty.Members.Length)
+        DungeonPartyMemberRuntimeData targetMember = (!usePartyWideEliteSpecial && !useSelfSkill && _activeDungeonParty != null && _activeDungeonParty.Members != null && targetIndex >= 0 && targetIndex < _activeDungeonParty.Members.Length)
             ? _activeDungeonParty.Members[targetIndex]
             : null;
-        if (!usePartyWideEliteSpecial && (targetMember == null || targetMember.IsDefeated || targetMember.CurrentHp <= 0))
+        if (!usePartyWideEliteSpecial && !useSelfSkill && (targetMember == null || targetMember.IsDefeated || targetMember.CurrentHp <= 0))
         {
             if (!TryQueueEnemyIntent(_enemyTurnMonsterCursor + 1))
             {
+                if (_dungeonRunState != DungeonRunState.Battle)
+                {
+                    return;
+                }
+
                 ResumePlayerTurnFromStartIndex(0);
             }
 
             return;
         }
 
-        int damage = Mathf.Max(1, _pendingEnemyAttackPower > 0 ? _pendingEnemyAttackPower : _activeBattleMonster.Attack);
+        int damage = Mathf.Max(0, _pendingEnemyAttackPower > 0 ? _pendingEnemyAttackPower : _activeBattleMonster.Attack);
         string actionLabel = string.IsNullOrEmpty(_pendingEnemyActionLabel) ? "Attack" : _pendingEnemyActionLabel;
-        if (usePartyWideEliteSpecial)
+        if (useSelfSkill)
         {
-            int sweepDamage = Mathf.Max(1, damage - 4);
+            ApplyResolvedEnemySkillEffects(_activeBattleMonster, null, null, queuedSkill);
+            AppendBattleLog(_activeBattleMonster.DisplayName + " used " + actionLabel + " and shifted its stance.");
+            SetBattleFeedbackText(_activeBattleMonster.DisplayName + " used " + actionLabel + ".");
+            RecordBattleEvent(
+                _pendingEnemyUsedSpecialAttack ? PrototypeBattleEventKeys.SkillResolved : PrototypeBattleEventKeys.AttackResolved,
+                _activeBattleMonster.MonsterId,
+                _activeBattleMonster.MonsterId,
+                0,
+                _activeBattleMonster.DisplayName + " resolved " + actionLabel + " on self.",
+                actionKey: _pendingEnemyUsedSpecialAttack ? "skill" : "attack",
+                skillId: _pendingEnemySkillId,
+                phaseKey: "enemy_turn",
+                actorName: _activeBattleMonster.DisplayName,
+                targetName: _activeBattleMonster.DisplayName,
+                shortText: actionLabel);
+            if (queuedSkill != null)
+            {
+                CommitRpgEnemySkillUse(_activeBattleMonster, queuedSkill);
+            }
+            _activeBattleMonster.TurnsActed += 1;
+        }
+        else if (usePartyWideEliteSpecial)
+        {
+            int sweepDamage = Mathf.Max(1, damage > 0 ? damage : _activeBattleMonster.Attack);
             int hitCount = 0;
             int totalDamage = 0;
             List<int> livingAllyIndices = GetLivingAllies();
@@ -7423,6 +8777,7 @@ public sealed partial class StaticPlaceholderWorldView
                     hitCount += 1;
                 }
             }
+            ApplyResolvedEnemySkillEffects(_activeBattleMonster, null, livingAllyIndices, queuedSkill);
 
             AppendBattleLog(_activeBattleMonster.DisplayName + " used " + actionLabel + " on all living allies for " + totalDamage + " total damage.");
             SetBattleFeedbackText(_activeBattleMonster.DisplayName + " unleashed " + actionLabel + " on " + hitCount + " allies.");
@@ -7433,15 +8788,21 @@ public sealed partial class StaticPlaceholderWorldView
                 totalDamage,
                 _activeBattleMonster.DisplayName + " resolved " + actionLabel + " on all allies.",
                 actionKey: _pendingEnemyUsedSpecialAttack ? "skill" : "attack",
+                skillId: _pendingEnemySkillId,
                 phaseKey: "enemy_turn",
                 actorName: _activeBattleMonster.DisplayName,
                 targetName: "All living allies",
                 shortText: actionLabel);
+            if (queuedSkill != null)
+            {
+                CommitRpgEnemySkillUse(_activeBattleMonster, queuedSkill);
+            }
             _activeBattleMonster.TurnsActed += 1;
         }
         else
         {
-            int appliedDamage = ApplyBattleDamageToPartyMember(_activeBattleMonster, targetIndex, damage, new Color(1f, 0.40f, 0.35f, 1f));
+            int appliedDamage = ApplyBattleDamageToPartyMember(_activeBattleMonster, targetIndex, Mathf.Max(1, damage), new Color(1f, 0.40f, 0.35f, 1f));
+            ApplyResolvedEnemySkillEffects(_activeBattleMonster, targetMember, null, queuedSkill);
             AppendBattleLog(_activeBattleMonster.DisplayName + " used " + actionLabel + " on " + targetMember.DisplayName + " for " + appliedDamage + " damage.");
             SetBattleFeedbackText(_activeBattleMonster.DisplayName + " used " + actionLabel + " on " + targetMember.DisplayName + ".");
             RecordBattleEvent(
@@ -7451,10 +8812,15 @@ public sealed partial class StaticPlaceholderWorldView
                 appliedDamage,
                 _activeBattleMonster.DisplayName + " resolved " + actionLabel + " on " + targetMember.DisplayName + ".",
                 actionKey: _pendingEnemyUsedSpecialAttack ? "skill" : "attack",
+                skillId: _pendingEnemySkillId,
                 phaseKey: "enemy_turn",
                 actorName: _activeBattleMonster.DisplayName,
                 targetName: targetMember.DisplayName,
                 shortText: actionLabel);
+            if (queuedSkill != null)
+            {
+                CommitRpgEnemySkillUse(_activeBattleMonster, queuedSkill);
+            }
             _activeBattleMonster.TurnsActed += 1;
         }
 
@@ -7465,6 +8831,11 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         if (TryQueueEnemyIntent(_enemyTurnMonsterCursor + 1))
+        {
+            return;
+        }
+
+        if (_dungeonRunState != DungeonRunState.Battle)
         {
             return;
         }
@@ -7488,7 +8859,7 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string BuildClearedEncounterSummary()
     {
-        return _clearedEncounterCount + " / " + TotalEncounterCount;
+        return BuildRpgCompactSummaryText(_clearedEncounterCount + " / " + TotalEncounterCount, _lastResolvedEncounterPhaseSummaryText, _lastResolvedEncounterWaveSummaryText, _lastResolvedBossPatternSummaryText);
     }
 
     private bool IsReturnToWorldPressed(Keyboard keyboard)
@@ -7510,27 +8881,30 @@ public sealed partial class StaticPlaceholderWorldView
 
     private TestDungeonPartyData CreatePlaceholderDungeonParty(string cityId, string partyId)
     {
-        PrototypeRpgPartyDefinition partyDefinition = PrototypeRpgPartyCatalog.CreateDefaultPlaceholderParty(partyId);
-        return new TestDungeonPartyData(partyId, cityId, partyDefinition, CreateDungeonRuntimeMembers(partyDefinition));
+        PrototypeRpgPartyDefinition partyDefinition = ResolveRecruitedPartyDefinition(partyId) ?? PrototypeRpgPartyCatalog.CreateDefaultPlaceholderParty(partyId);
+        PrototypeRpgAppliedPartyProgressState appliedProgressState = GetOrCreateRpgAppliedPartyProgressState(partyDefinition);
+        return new TestDungeonPartyData(partyId, cityId, partyDefinition, CreateDungeonRuntimeMembers(partyDefinition, appliedProgressState));
     }
 
-    private DungeonPartyMemberRuntimeData[] CreateDungeonRuntimeMembers(PrototypeRpgPartyDefinition partyDefinition)
+    private DungeonPartyMemberRuntimeData[] CreateDungeonRuntimeMembers(PrototypeRpgPartyDefinition partyDefinition, PrototypeRpgAppliedPartyProgressState appliedProgressState)
     {
         if (partyDefinition == null || partyDefinition.Members == null || partyDefinition.Members.Length == 0)
         {
             return System.Array.Empty<DungeonPartyMemberRuntimeData>();
         }
 
+        PrototypeRpgPartyLevelRuntimeState partyLevelState = GetOrCreateRpgPartyLevelRuntimeState(partyDefinition, appliedProgressState);
+        PrototypeRpgInventoryRuntimeState inventoryRuntimeState = GetOrCreateRpgInventoryRuntimeState(partyDefinition);
         DungeonPartyMemberRuntimeData[] members = new DungeonPartyMemberRuntimeData[partyDefinition.Members.Length];
         for (int i = 0; i < members.Length; i++)
         {
-            members[i] = CreateDungeonRuntimeMember(partyDefinition.Members[i], i);
+            members[i] = CreateDungeonRuntimeMember(partyDefinition.Members[i], i, appliedProgressState, partyLevelState, inventoryRuntimeState);
         }
 
         return members;
     }
 
-    private DungeonPartyMemberRuntimeData CreateDungeonRuntimeMember(PrototypeRpgPartyMemberDefinition memberDefinition, int fallbackPartySlotIndex)
+    private DungeonPartyMemberRuntimeData CreateDungeonRuntimeMember(PrototypeRpgPartyMemberDefinition memberDefinition, int fallbackPartySlotIndex, PrototypeRpgAppliedPartyProgressState appliedProgressState, PrototypeRpgPartyLevelRuntimeState partyLevelState, PrototypeRpgInventoryRuntimeState inventoryRuntimeState)
     {
         PrototypeRpgStatBlock baseStats = memberDefinition != null && memberDefinition.BaseStats != null
             ? memberDefinition.BaseStats
@@ -7544,8 +8918,12 @@ public sealed partial class StaticPlaceholderWorldView
         string skillShortText = memberDefinition != null ? memberDefinition.DefaultSkillShortText : string.Empty;
         int partySlotIndex = memberDefinition != null ? memberDefinition.PartySlotIndex : fallbackPartySlotIndex;
 
+        int maxHp = Mathf.Max(1, baseStats.MaxHp);
+        int attack = Mathf.Max(0, baseStats.Attack);
+        int defense = Mathf.Max(0, baseStats.Defense);
+        int speed = Mathf.Max(0, baseStats.Speed);
         PartySkillType skillType = PartySkillType.SingleHeavy;
-        int skillPower = Mathf.Max(1, baseStats.Attack + 1);
+        int skillPower = Mathf.Max(1, attack + 1);
         Color viewColor = Color.white;
 
         PrototypeRpgSkillDefinition sharedSkillDefinition = PrototypeRpgSkillCatalog.ResolveDefinition(defaultSkillId, roleTag);
@@ -7557,6 +8935,60 @@ public sealed partial class StaticPlaceholderWorldView
             ApplySharedSkillDefinition(fallbackDefinition, baseStats, ref roleLabel, ref defaultSkillId, ref skillName, ref skillShortText, ref skillType, ref skillPower, ref viewColor);
         }
 
+        PrototypeRpgAppliedPartyMemberProgressState appliedMemberState = GetRpgAppliedPartyMemberProgressState(appliedProgressState, memberId);
+        ApplyRpgAppliedPartyMemberRuntimeOverrides(memberDefinition, appliedMemberState, ref roleLabel, ref defaultSkillId, ref skillName, ref skillShortText, ref skillType, ref maxHp, ref attack, ref defense, ref speed, ref skillPower, ref viewColor);
+
+        string growthTrackId = ResolveAppliedOrDefinitionId(appliedMemberState != null ? appliedMemberState.AppliedGrowthTrackId : string.Empty, memberDefinition != null ? memberDefinition.GrowthTrackId : string.Empty);
+        string jobId = ResolveAppliedOrDefinitionId(appliedMemberState != null ? appliedMemberState.AppliedJobId : string.Empty, memberDefinition != null ? memberDefinition.JobId : string.Empty);
+        string equipmentLoadoutId = ResolveAppliedOrDefinitionId(appliedMemberState != null ? appliedMemberState.AppliedEquipmentLoadoutId : string.Empty, memberDefinition != null ? memberDefinition.EquipmentLoadoutId : string.Empty);
+        string skillLoadoutId = ResolveAppliedOrDefinitionId(appliedMemberState != null ? appliedMemberState.AppliedSkillLoadoutId : string.Empty, memberDefinition != null ? memberDefinition.SkillLoadoutId : string.Empty);
+
+        PrototypeRpgPartyMemberLevelRuntimeState memberLevelState = GetRpgMemberLevelRuntimeState(partyLevelState, memberId);
+        if (memberLevelState == null)
+        {
+            memberLevelState = new PrototypeRpgPartyMemberLevelRuntimeState();
+            memberLevelState.MemberId = string.IsNullOrEmpty(memberId) ? string.Empty : memberId;
+            memberLevelState.DisplayName = string.IsNullOrEmpty(displayName) ? "Adventurer" : displayName;
+            memberLevelState.GrowthTrackId = growthTrackId;
+            memberLevelState.JobId = jobId;
+            memberLevelState.EquipmentLoadoutId = equipmentLoadoutId;
+            memberLevelState.SkillLoadoutId = skillLoadoutId;
+            memberLevelState.Experience.Level = 1;
+            memberLevelState.Experience.CurrentExperience = 0;
+            memberLevelState.Experience.ExperienceToNextLevel = GetRpgExperienceToNextLevel(1);
+        }
+
+        memberLevelState.GrowthTrackId = growthTrackId;
+        memberLevelState.JobId = jobId;
+        memberLevelState.EquipmentLoadoutId = equipmentLoadoutId;
+        memberLevelState.SkillLoadoutId = skillLoadoutId;
+        memberLevelState.Modifiers = BuildRpgStatModifierBundle(roleTag, jobId, equipmentLoadoutId, growthTrackId);
+        ApplyRpgJobSpecializationAndPassiveBonuses(memberDefinition, appliedMemberState, memberLevelState, memberLevelState.Modifiers);
+        memberLevelState.DerivedStats = BuildRpgDerivedStatSummary(baseStats, roleTag, memberLevelState);
+        RefreshRpgMemberEquipmentReadback(memberLevelState);
+        memberLevelState.LevelSummaryText = BuildRpgLevelSummaryText(memberLevelState);
+
+        PrototypeRpgSkillLoadoutDefinition loadoutDefinition = PrototypeRpgSkillLoadoutCatalog.ResolveDefinition(skillLoadoutId, roleTag, defaultSkillId);
+        PrototypeRpgSkillDefinition runtimePrimarySkill = PrototypeRpgSkillCatalog.ResolveDefinition(loadoutDefinition != null ? loadoutDefinition.PrimarySkillId : defaultSkillId, roleTag);
+        if (runtimePrimarySkill != null)
+        {
+            defaultSkillId = runtimePrimarySkill.SkillId;
+            skillName = string.IsNullOrEmpty(runtimePrimarySkill.DisplayName) ? skillName : runtimePrimarySkill.DisplayName;
+            skillShortText = string.IsNullOrEmpty(runtimePrimarySkill.ShortText) ? skillShortText : runtimePrimarySkill.ShortText;
+            skillType = ResolveSharedSkillType(runtimePrimarySkill);
+            skillPower = runtimePrimarySkill.PowerValue > 0 ? runtimePrimarySkill.PowerValue : Mathf.Max(1, skillPower);
+            viewColor = ResolveSharedSkillViewColor(runtimePrimarySkill);
+        }
+
+        string skillLoadoutSummaryText = BuildRpgSkillLoadoutSummaryText(loadoutDefinition);
+        string resolvedSkillSummaryText = loadoutDefinition != null
+            ? loadoutDefinition.DisplayName + " | " + (runtimePrimarySkill != null ? runtimePrimarySkill.DisplayName : skillName) + " | Seg " + (string.IsNullOrEmpty(loadoutDefinition.SegmentKey) ? "core" : loadoutDefinition.SegmentKey)
+            : (string.IsNullOrEmpty(skillLoadoutSummaryText) ? skillName : skillLoadoutSummaryText);
+        string consumableSlotSummaryText = BuildCurrentBattleConsumableSlotSummaryText(inventoryRuntimeState);
+        string inventorySummaryText = BuildRpgInventoryMemberHintText(inventoryRuntimeState, memberId);
+        string equipmentSummaryText = string.IsNullOrEmpty(memberLevelState.EquipmentSummaryText) ? equipmentLoadoutId : memberLevelState.EquipmentSummaryText;
+        string gearContributionSummaryText = string.IsNullOrEmpty(memberLevelState.GearContributionSummaryText) ? string.Empty : memberLevelState.GearContributionSummaryText;
+
         if (string.IsNullOrEmpty(roleLabel))
         {
             roleLabel = string.IsNullOrEmpty(roleTag) ? "Adventurer" : roleTag;
@@ -7567,7 +8999,79 @@ public sealed partial class StaticPlaceholderWorldView
             skillName = "Skill";
         }
 
-        return new DungeonPartyMemberRuntimeData(memberId, displayName, roleLabel, roleTag, defaultSkillId, skillName, skillShortText, skillType, partySlotIndex, baseStats.MaxHp, baseStats.Attack, baseStats.Defense, baseStats.Speed, skillPower, viewColor);
+        if (!string.IsNullOrEmpty(memberLevelState.BattleLabelHint) && !roleLabel.Contains(memberLevelState.BattleLabelHint))
+        {
+            roleLabel += " | " + memberLevelState.BattleLabelHint;
+        }
+
+        if (!string.IsNullOrEmpty(memberLevelState.PassiveHintText) && !skillShortText.Contains(memberLevelState.PassiveHintText))
+        {
+            skillShortText = string.IsNullOrEmpty(skillShortText) ? memberLevelState.PassiveHintText : skillShortText + " | " + memberLevelState.PassiveHintText;
+        }
+
+        if (!string.IsNullOrEmpty(gearContributionSummaryText) && !resolvedSkillSummaryText.Contains(gearContributionSummaryText))
+        {
+            resolvedSkillSummaryText += " | " + gearContributionSummaryText;
+        }
+
+        if (!string.IsNullOrEmpty(memberLevelState.JobSpecializationSummaryText) && !resolvedSkillSummaryText.Contains(memberLevelState.JobSpecializationSummaryText))
+        {
+            resolvedSkillSummaryText += " | " + memberLevelState.JobSpecializationSummaryText;
+        }
+
+        if (!string.IsNullOrEmpty(memberLevelState.PassiveSkillSlotSummaryText) && !resolvedSkillSummaryText.Contains(memberLevelState.PassiveSkillSlotSummaryText))
+        {
+            resolvedSkillSummaryText += " | " + memberLevelState.PassiveSkillSlotSummaryText;
+        }
+
+        if (!string.IsNullOrEmpty(memberLevelState.RuntimeSynergySummaryText) && !resolvedSkillSummaryText.Contains(memberLevelState.RuntimeSynergySummaryText))
+        {
+            resolvedSkillSummaryText += " | " + memberLevelState.RuntimeSynergySummaryText;
+        }
+
+        maxHp = Mathf.Max(1, memberLevelState.DerivedStats != null ? memberLevelState.DerivedStats.MaxHp : maxHp);
+        attack = Mathf.Max(0, memberLevelState.DerivedStats != null ? memberLevelState.DerivedStats.Attack : attack);
+        defense = Mathf.Max(0, memberLevelState.DerivedStats != null ? memberLevelState.DerivedStats.Defense : defense);
+        speed = Mathf.Max(0, memberLevelState.DerivedStats != null ? memberLevelState.DerivedStats.Speed : speed);
+        skillPower = Mathf.Max(1, skillPower + Mathf.Max(0, memberLevelState.Experience.Level - 1) + Mathf.Max(0, memberLevelState.RuntimeSkillPowerBonus));
+
+        DungeonPartyMemberRuntimeData runtimeMember = new DungeonPartyMemberRuntimeData(
+            memberId,
+            displayName,
+            roleLabel,
+            roleTag,
+            defaultSkillId,
+            skillName,
+            skillShortText,
+            skillType,
+            partySlotIndex,
+            maxHp,
+            attack,
+            defense,
+            speed,
+            skillPower,
+            viewColor,
+            growthTrackId,
+            jobId,
+            equipmentLoadoutId,
+            skillLoadoutId,
+            memberLevelState.Experience.Level,
+            memberLevelState.Experience.CurrentExperience,
+            memberLevelState.Experience.ExperienceToNextLevel,
+            memberLevelState.DerivedStats != null ? memberLevelState.DerivedStats.SummaryText : string.Empty,
+            equipmentSummaryText,
+            gearContributionSummaryText,
+            skillLoadoutSummaryText,
+            resolvedSkillSummaryText,
+            inventorySummaryText,
+            consumableSlotSummaryText,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty);
+        InitializeRpgBattleSkillRuntimeState(runtimeMember, true);
+        return runtimeMember;
     }
 
     private void ApplySharedSkillDefinition(
@@ -7674,12 +9178,10 @@ public sealed partial class StaticPlaceholderWorldView
             party.DisplayName = party.PartyDefinition != null && !string.IsNullOrEmpty(party.PartyDefinition.DisplayName)
                 ? party.PartyDefinition.DisplayName
                 : partyId;
-            if (party.Members == null || party.Members.Length == 0)
-            {
-                party.Members = CreateDungeonRuntimeMembers(party.PartyDefinition);
-            }
         }
 
+        PrototypeRpgAppliedPartyProgressState appliedProgressState = GetOrCreateRpgAppliedPartyProgressState(party.PartyDefinition);
+        party.Members = CreateDungeonRuntimeMembers(party.PartyDefinition, appliedProgressState);
         return party;
     }
 
@@ -7705,8 +9207,8 @@ public sealed partial class StaticPlaceholderWorldView
             return false;
         }
 
-        PrototypeRpgSkillDefinition resolvedSkillDefinition = ResolveMemberSkillDefinition(member);
-        return GetResolvedSkillTargetKind(member, resolvedSkillDefinition) == "single_enemy";
+        PrototypeRpgSkillUseContext skillUseContext = BuildRpgSkillUseContext(member, "skill");
+        return skillUseContext.TargetKind == "single_enemy";
     }
 
     private void HandleDungeonRouteChoiceInput(Keyboard keyboard)
@@ -7812,7 +9314,6 @@ public sealed partial class StaticPlaceholderWorldView
         {
             AppendBattleLog("The party abandons the run before reaching the exit.");
             FinishDungeonRun(RunResultState.Retreat, BattleState.Retreat, false, 0, ActiveDungeonPartyText + " retreated from " + _currentDungeonName + " with no loot.");
-            _pendingDungeonExit = true;
             return;
         }
 
@@ -8009,6 +9510,11 @@ public sealed partial class StaticPlaceholderWorldView
         ClearBattleFloatingPopups();
         ResetCombatRulePipelineState();
         ResetRoundActions();
+        ResetRpgEncounterStatusRuntime(true);
+        ResetRpgEncounterEnemySkillRuntime(true);
+        ResetRpgEncounterPhaseRuntime(true);
+        InitializeRpgEncounterPhaseRuntime(encounter);
+        ResetRpgEncounterSkillRuntimeState(_activeDungeonParty);
         TrySelectNextPartyActor(0);
         SetActiveBattleMonster(GetFirstLivingBattleMonster());
         RecordCurrentPartyTurnStartEvent();
@@ -8133,6 +9639,7 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
+        CaptureWorldOperationBaseline("dispatch_run", template.RouteId);
         _activeDungeonParty = GetOrCreateDungeonParty(_currentHomeCityId, partyId);
         if (_activeDungeonParty == null)
         {
@@ -8143,11 +9650,13 @@ public sealed partial class StaticPlaceholderWorldView
         ResetCombatRulePipelineState();
         _latestRpgRunResultSnapshot = new PrototypeRpgRunResultSnapshot();
         ResetRpgProgressionSeedState();
+        ClearLatestReturnAftermathState(false);
         _selectedRouteChoiceId = template.RouteId;
         _selectedRouteId = template.RouteId;
         _selectedRouteLabel = template.RouteLabel;
         _selectedRouteDescription = template.Description;
         _selectedRouteRiskLabel = template.RiskLabel;
+        CapturePartyDispatchCommit(_currentHomeCityId, partyId, _currentDungeonName, BuildSelectedRouteSummary());
         _followedRecommendation = template.RouteId == _recommendedRouteId;
         _hoverRouteChoiceId = string.Empty;
         _hoverEventChoiceId = string.Empty;
@@ -8180,6 +9689,7 @@ public sealed partial class StaticPlaceholderWorldView
         _eliteBonusRewardPending = 0;
         _eliteBonusRewardGrantedAmount = 0;
         _resultEliteBonusRewardAmount = 0;
+        _resultPendingBonusRewardLostAmount = 0;
         _eliteRewardGranted = false;
         _pendingEnemyUsedSpecialAttack = false;
         _currentRoomIndex = 1;
@@ -8241,7 +9751,10 @@ public sealed partial class StaticPlaceholderWorldView
 
     private void FinishDungeonRun(RunResultState resultState, BattleState battleState, bool success, int lootReturned, string resultSummary)
     {
-        if (!success && _eliteBonusRewardPending > 0 && !_eliteBonusRewardGranted)
+        int pendingBonusRewardLostAmount = !success && _eliteBonusRewardPending > 0 && !_eliteBonusRewardGranted
+            ? _eliteBonusRewardPending
+            : 0;
+        if (pendingBonusRewardLostAmount > 0)
         {
             AppendBattleLog("Pending elite bonus reward was lost.");
             _eliteBonusRewardPending = 0;
@@ -8265,9 +9778,11 @@ public sealed partial class StaticPlaceholderWorldView
                         ? "The party retreated."
                         : "The run ended.";
 
-        _latestRpgRunResultSnapshot = BuildRpgRunResultSnapshot(outcomeKey, safeReturnedLoot, safeResultSummary);
-        ApplyRpgRunResultSnapshotToLegacyFields(_latestRpgRunResultSnapshot);
-
+        CaptureRpgEncounterStatusReadback();
+        CaptureRpgEncounterEnemySkillReadback();
+        _latestRpgRunResultSnapshot = BuildRpgRunResultSnapshot(outcomeKey, safeReturnedLoot, safeResultSummary, pendingBonusRewardLostAmount);
+        ApplyRpgBackboneSessionResult(_latestRpgRunResultSnapshot);
+        ApplyRpgBackboneReadbackConsistency(_latestRpgRunResultSnapshot);
 
         if (resultState == RunResultState.Clear)
         {
@@ -8323,6 +9838,15 @@ public sealed partial class StaticPlaceholderWorldView
         _latestRpgProgressionSeedSnapshot = BuildRpgProgressionSeedSnapshot(_latestRpgRunResultSnapshot);
         _latestRpgCombatContributionSnapshot = BuildRpgCombatContributionSnapshot(_latestRpgRunResultSnapshot);
         _latestRpgProgressionPreviewSnapshot = BuildRpgProgressionPreviewSnapshot(_latestRpgRunResultSnapshot, _latestRpgProgressionSeedSnapshot, _latestRpgCombatContributionSnapshot);
+        ApplyRpgPostRunSummaryConsistency(_latestRpgRunResultSnapshot, _latestRpgCombatContributionSnapshot, _latestRpgProgressionPreviewSnapshot);
+        _latestRpgPostRunUpgradeOfferSurface = RefreshRpgPostRunUpgradeOffers(_latestRpgRunResultSnapshot, _latestRpgCombatContributionSnapshot, _latestRpgProgressionPreviewSnapshot);
+        RefreshRpgPostRunGearRewards(_latestRpgRunResultSnapshot, _latestRpgCombatContributionSnapshot);
+        ApplyRpgGearRewardSurfaceConsistency(_latestRpgRunResultSnapshot, _latestRpgProgressionPreviewSnapshot, _latestRpgPostRunUpgradeOfferSurface);
+        ApplyRpgRunResultSnapshotToLegacyFields(_latestRpgRunResultSnapshot);
+        if (!string.IsNullOrEmpty(_latestRpgPostRunUpgradeOfferSurface.ApplyReadySummaryText) && _latestRpgPostRunUpgradeOfferSurface.ApplyReadySummaryText != "Apply-ready: none.")
+        {
+            AppendBattleLog(_latestRpgPostRunUpgradeOfferSurface.ApplyReadySummaryText);
+        }
         UpdateBattleResultSnapshot(outcomeKey);
         _runResultState = resultState;
         _battleState = battleState;
@@ -8337,11 +9861,120 @@ public sealed partial class StaticPlaceholderWorldView
         ClearEnemyIntentState();
         ClearBattleFloatingPopups();
         AppendBattleLog(safeResultSummary);
-        AppendBattleLog("Party Condition at end: " + _resultPartyConditionText + " | HP: " + _resultPartyHpSummaryText + ".");
+        AppendBattleLog(_latestRpgRunResultSnapshot.PendingRewardDeltaSummaryText);
+        AppendBattleLog(_latestRpgRunResultSnapshot.NextOfferBasisSummaryText);
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.ExperienceGainSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.ExperienceGainSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.LevelUpPreviewSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.LevelUpPreviewSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.LevelUpApplyReadySummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.LevelUpApplyReadySummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.ActualLevelApplySummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.ActualLevelApplySummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.DerivedStatHydrateSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.DerivedStatHydrateSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.NextRunStatProjectionSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.NextRunStatProjectionSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.StatusEffectSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.StatusEffectSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.NotableStatusUsageSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.NotableStatusUsageSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.EnemyIntentSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.EnemyIntentSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.EnemySkillUsageSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.EnemySkillUsageSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.EncounterPhaseSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.EncounterPhaseSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.EncounterWaveSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.EncounterWaveSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.BossPatternSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.BossPatternSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.SkillLoadoutReadbackSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.SkillLoadoutReadbackSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.ConsumableCarrySummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.ConsumableCarrySummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.ConsumableCarryoverPolicySummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.ConsumableCarryoverPolicySummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.GearRewardCandidateSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.GearRewardCandidateSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.EquipSwapChoiceSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.EquipSwapChoiceSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.GearComparisonSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.GearComparisonSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.GearRuleSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.GearRuleSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.GearUnlockSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.GearUnlockSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.GearAffixLiteSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.GearAffixLiteSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.UnlockedGearPoolSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.UnlockedGearPoolSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.LevelBandGearLinkageSummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.LevelBandGearLinkageSummaryText);
+        }
+        if (!string.IsNullOrEmpty(_latestRpgRunResultSnapshot.GearCarryContinuitySummaryText))
+        {
+            AppendBattleLog(_latestRpgRunResultSnapshot.GearCarryContinuitySummaryText);
+        }
+        string runBackboneSummaryText = BuildRpgRunBackboneSummaryText();
+        if (!string.IsNullOrEmpty(runBackboneSummaryText))
+        {
+            AppendBattleLog(runBackboneSummaryText);
+        }
         if (_eliteRewardGranted && _resultEliteRewardAmount > 0)
         {
             AppendBattleLog("Elite reward granted: " + _resultEliteRewardLabel + " (" + BuildLootAmountText(_resultEliteRewardAmount) + ").");
         }
+        ResetRpgEncounterPhaseRuntime(false);
+        ResetRpgEncounterStatusRuntime(false);
+        ResetRpgEncounterEnemySkillRuntime(false);
         SetBattleFeedbackText(resultState == RunResultState.Clear ? "Run clear." : resultState == RunResultState.Defeat ? "The party was defeated." : resultState == RunResultState.Retreat ? "The party retreated." : "Run complete.");
 
         if (_runtimeEconomyState != null && !string.IsNullOrEmpty(_currentHomeCityId) && !string.IsNullOrEmpty(_currentDungeonId))
@@ -8356,6 +9989,26 @@ public sealed partial class StaticPlaceholderWorldView
                 _latestRpgRunResultSnapshot.SurvivingMembersSummary,
                 _latestRpgRunResultSnapshot.EncounterOutcome.ClearedEncounterSummary,
                 _latestRpgRunResultSnapshot.EncounterOutcome.SelectedEventChoice,
+                _latestRpgRunResultSnapshot.LootOutcome.FinalLootSummary,
+                BuildSelectedRouteSummary());
+
+            CaptureWorldReturnAftermath(
+                _currentHomeCityId,
+                GetHomeCityDisplayName(),
+                _currentDungeonId,
+                _currentDungeonName,
+                BuildSelectedRouteSummary(),
+                safeResultSummary,
+                _latestRpgRunResultSnapshot.SurvivingMembersSummary,
+                _latestRpgRunResultSnapshot.LootOutcome.FinalLootSummary,
+                _latestRpgRunResultSnapshot.EncounterOutcome.SelectedEventChoice);
+
+            string activePartyId = _activeDungeonParty != null ? _activeDungeonParty.PartyId : string.Empty;
+            CapturePartyDispatchResidue(
+                _currentHomeCityId,
+                activePartyId,
+                safeResultSummary,
+                _latestRpgRunResultSnapshot.SurvivingMembersSummary,
                 _latestRpgRunResultSnapshot.LootOutcome.FinalLootSummary,
                 BuildSelectedRouteSummary());
         }
@@ -8401,6 +10054,15 @@ public sealed partial class StaticPlaceholderWorldView
         _hoverBattleMonsterId = string.Empty;
         _battleFeedbackText = "None";
         _enemyIntentText = "None";
+        _lastResolvedPartyStatusEffectSummaryText = string.Empty;
+        _lastResolvedEnemyStatusEffectSummaryText = string.Empty;
+        _lastResolvedStatusUsageSummaryText = string.Empty;
+        _lastResolvedEnemyIntentSummaryText = string.Empty;
+        _lastResolvedEnemySkillUsageSummaryText = string.Empty;
+        _lastResolvedEnemyActionEconomySummaryText = string.Empty;
+        _lastResolvedEncounterPhaseSummaryText = string.Empty;
+        _lastResolvedEncounterWaveSummaryText = string.Empty;
+        _lastResolvedBossPatternSummaryText = string.Empty;
         _playerGridPosition = new Vector2Int(2, 4);
         _exitGridPosition = new Vector2Int(14, 4);
         _eventGridPosition = ShrineEventGridPosition;
@@ -8457,6 +10119,7 @@ public sealed partial class StaticPlaceholderWorldView
         _eliteBonusRewardPending = 0;
         _eliteBonusRewardGrantedAmount = 0;
         _resultEliteBonusRewardAmount = 0;
+        _resultPendingBonusRewardLostAmount = 0;
         _currentRoomIndex = 1;
         _clearedEncounterCount = 0;
         _chestOpenedCount = 0;
@@ -8482,6 +10145,12 @@ public sealed partial class StaticPlaceholderWorldView
         _pendingEnemyUsedSpecialAttack = false;
         _eliteRewardGranted = false;
         _pendingEnemyAttackPower = 0;
+        _pendingEnemySkillId = string.Empty;
+        _pendingEnemySkillLabel = string.Empty;
+        _pendingEnemySkillTargetKind = string.Empty;
+        _pendingEnemySkillEffectType = string.Empty;
+        _pendingEnemyPredictedStatusText = string.Empty;
+        _pendingEnemyActionEconomyText = string.Empty;
         _exitUnlocked = false;
         _pendingDungeonExit = false;
         _eventResolved = false;
@@ -8493,9 +10162,13 @@ public sealed partial class StaticPlaceholderWorldView
         _enemyIntentResolveAtTime = 0f;
         _enemyIntentTelegraphActive = false;
         _followedRecommendation = false;
+        ResetRpgGearRewardRuntimeState();
         ResetCombatRulePipelineState();
         _latestRpgRunResultSnapshot = new PrototypeRpgRunResultSnapshot();
         ResetRpgProgressionSeedState();
+        ResetRpgEncounterStatusRuntime(true);
+        ResetRpgEncounterEnemySkillRuntime(true);
+        ResetRpgEncounterPhaseRuntime(true);
         _plannedRooms.Clear();
         _roomPathHistory.Clear();
         _activeMonsters.Clear();
@@ -8542,6 +10215,13 @@ public sealed partial class StaticPlaceholderWorldView
 
             _currentActorIndex = i;
             _selectedPartyMemberIndex = i;
+            AdvanceRpgBattleSkillTurnStart(member);
+            AdvanceRpgStatusTurnStart(member);
+            if (member.IsDefeated || member.CurrentHp <= 0)
+            {
+                continue;
+            }
+
             return true;
         }
 
@@ -9068,6 +10748,9 @@ public sealed partial class StaticPlaceholderWorldView
     }
 
 }
+
+
+
 
 
 

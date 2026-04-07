@@ -17,6 +17,11 @@ public sealed class PrototypeRpgEnemyRuntimeState
     public string IntentTargetPatternKey { get; private set; }
     public string IntentTargetId { get; private set; }
     public int IntentPredictedValue { get; private set; }
+    public string IntentSkillId { get; private set; }
+    public string IntentSkillLabel { get; private set; }
+    public string IntentEffectSummaryText { get; private set; }
+    public string IntentStatusSummaryText { get; private set; }
+    public string IntentActionEconomySummaryText { get; private set; }
 
     public PrototypeRpgEnemyRuntimeState(
         string enemyId,
@@ -76,15 +81,25 @@ public sealed class PrototypeRpgEnemyRuntimeState
         IntentTargetPatternKey = string.Empty;
         IntentTargetId = string.Empty;
         IntentPredictedValue = 0;
+        IntentSkillId = string.Empty;
+        IntentSkillLabel = string.Empty;
+        IntentEffectSummaryText = string.Empty;
+        IntentStatusSummaryText = string.Empty;
+        IntentActionEconomySummaryText = string.Empty;
     }
 
-    public void SetIntent(string intentKey, string targetPatternKey, string previewText, int predictedValue, string targetId)
+    public void SetIntent(string intentKey, string targetPatternKey, string previewText, int predictedValue, string targetId, string skillId = "", string skillLabel = "", string effectSummaryText = "", string statusSummaryText = "", string actionEconomySummaryText = "")
     {
         IntentKey = string.IsNullOrWhiteSpace(intentKey) ? string.Empty : intentKey.Trim();
         IntentTargetPatternKey = string.IsNullOrWhiteSpace(targetPatternKey) ? string.Empty : targetPatternKey.Trim();
         IntentLabel = string.IsNullOrWhiteSpace(previewText) ? string.Empty : previewText.Trim();
         IntentPredictedValue = Mathf.Max(0, predictedValue);
         IntentTargetId = string.IsNullOrWhiteSpace(targetId) ? string.Empty : targetId.Trim();
+        IntentSkillId = string.IsNullOrWhiteSpace(skillId) ? string.Empty : skillId.Trim();
+        IntentSkillLabel = string.IsNullOrWhiteSpace(skillLabel) ? string.Empty : skillLabel.Trim();
+        IntentEffectSummaryText = string.IsNullOrWhiteSpace(effectSummaryText) ? string.Empty : effectSummaryText.Trim();
+        IntentStatusSummaryText = string.IsNullOrWhiteSpace(statusSummaryText) ? string.Empty : statusSummaryText.Trim();
+        IntentActionEconomySummaryText = string.IsNullOrWhiteSpace(actionEconomySummaryText) ? string.Empty : actionEconomySummaryText.Trim();
     }
 
     public void SetIntentLabel(string intentLabel)

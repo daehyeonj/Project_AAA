@@ -1,0 +1,73 @@
+public sealed class ExpeditionPrepRouteOptionData
+{
+    public string OptionKey = string.Empty;
+    public string OptionLabel = "None";
+    public string RouteRiskText = "None";
+    public string RoutePreviewText = "None";
+    public string RewardPreviewText = "None";
+    public bool IsSelected;
+    public bool IsRecommended;
+}
+
+public sealed class ExpeditionPrepSurfaceData
+{
+    public string OwnerStageKey = "expedition_prep";
+    public string OwnerStageLabel = "ExpeditionPrep";
+    public string TargetStageKey = "dungeon_run";
+    public string TargetStageLabel = "DungeonRun";
+    public bool IsBoardOpen;
+    public bool CanOpenBoard;
+    public bool CanCycleDispatchPolicy;
+    public bool HasStagedParty;
+    public bool CanLaunch;
+    public bool CanConfirmLaunch;
+    public string BoardTitleText = "Expedition Prep";
+    public string BoardSummaryText = "None";
+    public string FeedbackText = "None";
+    public string CityId = string.Empty;
+    public string CityLabel = "None";
+    public string DungeonId = string.Empty;
+    public string DungeonLabel = "None";
+    public string PartyId = string.Empty;
+    public string PartyLabel = "None";
+    public string StagedPartyId = string.Empty;
+    public string StagedPartyLabel = "None";
+    public string StagedPartySummaryText = "None";
+    public int TotalPartyCount;
+    public int IdlePartyCount;
+    public int ActiveExpeditionCount;
+    public string PartyLoadoutSummaryText = "None";
+    public string DispatchPolicyText = "None";
+    public string NeedPressureText = "None";
+    public string DispatchReadinessText = "None";
+    public string RecoveryProgressText = "None";
+    public string RecoveryEtaText = "None";
+    public string SelectedRouteId = string.Empty;
+    public string SelectedRouteLabel = "None";
+    public string RecommendedRouteId = string.Empty;
+    public string RecommendedRouteLabel = "None";
+    public string RecommendedRouteSummaryText = "None";
+    public string RecommendationReasonText = "None";
+    public string ExpectedNeedImpactText = "None";
+    public string DispatchBriefingSummaryText = "None";
+    public string RouteFitSummaryText = "None";
+    public string ProjectedOutcomeSummaryText = "None";
+    public string ConsequencePreviewText = "None";
+    public string RoutePreviewSummaryText = "None";
+    public string RewardPreviewText = "None";
+    public string EventPreviewText = "None";
+    public string BlockedReasonText = "None";
+    public string LaunchGateSummaryText = "None";
+    public string ConfirmationStateText = "None";
+    public string CommitReasonText = "None";
+    public string AlternateMoveText = "None";
+    public string RecommendedNextActionText = "None";
+    public string CityVacancyText = "None";
+    public string ReturnEtaText = "None";
+    public string ReturnWindowText = "None";
+    public string RecoveryAfterReturnText = "None";
+    public ExpeditionResult LatestExpeditionResult = new ExpeditionResult();
+    public LaunchReadiness LaunchReadiness = new LaunchReadiness();
+    public ExpeditionStartContext StartContext = new ExpeditionStartContext();
+    public ExpeditionPrepRouteOptionData[] RouteOptions = new ExpeditionPrepRouteOptionData[0];
+}

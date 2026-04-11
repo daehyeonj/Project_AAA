@@ -1,0 +1,40 @@
+public sealed class OutcomeReadback
+{
+    public string CityId = string.Empty;
+    public string CityLabel = "None";
+    public string ResultStateKey = string.Empty;
+    public string AcknowledgementText = "None";
+    public string LatestReturnAftermathText = "None";
+    public string PostRunSummaryText = "None";
+    public string NextSuggestedActionText = "None";
+    public string FollowUpHintText = "None";
+    public string LastExpeditionResultText = "None";
+    public string WorldWritebackSummaryText = "None";
+    public string SelectedWorldWritebackText = "None";
+    public string DungeonStatusText = "None";
+    public string DungeonAvailabilityText = "None";
+    public string DungeonLastOutcomeText = "None";
+    public string SurvivingMembersSummaryText = "None";
+    public string ClearedEncountersSummaryText = "None";
+    public string EventChoiceSummaryText = "None";
+    public string LootBreakdownSummaryText = "None";
+    public string DungeonSummaryText = "None";
+    public string RouteSummaryText = "None";
+    public string StockBeforeText = "None";
+    public string StockAfterText = "None";
+    public string StockDeltaText = "None";
+    public string NeedPressureBeforeText = "None";
+    public string NeedPressureAfterText = "None";
+    public string DispatchReadinessBeforeText = "None";
+    public string DispatchReadinessAfterText = "None";
+    public string RecoveryEtaText = "None";
+    public string GearRewardSummaryText = "None";
+    public string EquipSwapSummaryText = "None";
+    public string GearContinuitySummaryText = "None";
+    public string RecentExpeditionLog1Text = "None";
+    public string RecentExpeditionLog2Text = "None";
+    public string RecentExpeditionLog3Text = "None";
+    public string RecentWorldWritebackLog1Text = "None";
+    public string RecentWorldWritebackLog2Text = "None";
+    public string RecentWorldWritebackLog3Text = "None";
+}

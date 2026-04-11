@@ -1,157 +1,46 @@
 using System;
 
-public sealed class PrototypeRpgGearAffixLiteDefinition
+public sealed class PrototypeRpgEquipmentDefinition
 {
-    public string AffixId = string.Empty;
-    public string DisplayLabel = string.Empty;
-    public string RoleTag = string.Empty;
-    public string SlotKey = string.Empty;
-    public string TierKey = string.Empty;
-    public string RarityKey = string.Empty;
-    public int BonusMaxHp;
-    public int BonusAttack;
-    public int BonusDefense;
-    public int BonusSpeed;
-    public string SkillPowerHintText = string.Empty;
-    public string HealPowerHintText = string.Empty;
-    public string SummaryText = string.Empty;
-}
+    public string LoadoutId { get; }
+    public string DisplayName { get; }
+    public string RoleTag { get; }
+    public string SlotLabel { get; }
+    public string TierLabel { get; }
+    public int TierRank { get; }
+    public int MaxHpBonus { get; }
+    public int AttackBonus { get; }
+    public int DefenseBonus { get; }
+    public int SpeedBonus { get; }
 
-public sealed class PrototypeRpgGearAffixLiteContribution
-{
-    public string AffixId = string.Empty;
-    public string DisplayLabel = string.Empty;
-    public int BonusMaxHp;
-    public int BonusAttack;
-    public int BonusDefense;
-    public int BonusSpeed;
-    public string HintText = string.Empty;
-    public string SummaryText = string.Empty;
-}
-
-public static class PrototypeRpgGearAffixLiteCatalog
-{
-    public static PrototypeRpgGearAffixLiteDefinition GetDefinition(string affixId)
+    public PrototypeRpgEquipmentDefinition(
+        string loadoutId,
+        string displayName,
+        string roleTag,
+        string slotLabel,
+        string tierLabel,
+        int tierRank,
+        int maxHpBonus,
+        int attackBonus,
+        int defenseBonus,
+        int speedBonus)
     {
-        switch (NormalizeKey(affixId))
-        {
-            case "flat_max_hp_small":
-                return CreateDefinition("flat_max_hp_small", "Stalwart", string.Empty, string.Empty, "tier_1", "uncommon", 2, 0, 0, 0, string.Empty, string.Empty, "Affix HP+2");
-            case "flat_attack_small":
-                return CreateDefinition("flat_attack_small", "Sharpened", string.Empty, string.Empty, "tier_1", "uncommon", 0, 1, 0, 0, string.Empty, string.Empty, "Affix ATK+1");
-            case "flat_defense_small":
-                return CreateDefinition("flat_defense_small", "Guarded", string.Empty, string.Empty, "tier_1", "uncommon", 0, 0, 1, 0, string.Empty, string.Empty, "Affix DEF+1");
-            case "flat_speed_small":
-                return CreateDefinition("flat_speed_small", "Quickstep", string.Empty, string.Empty, "tier_1", "uncommon", 0, 0, 0, 1, string.Empty, string.Empty, "Affix SPD+1");
-            case "skill_power_hint_small":
-                return CreateDefinition("skill_power_hint_small", "Focused", string.Empty, string.Empty, "tier_2", "rare", 0, 1, 0, 0, "Skill edge", string.Empty, "Affix ATK+1 | Skill edge");
-            case "heal_power_hint_small":
-                return CreateDefinition("heal_power_hint_small", "Restoring", string.Empty, string.Empty, "tier_2", "rare", 1, 0, 1, 0, string.Empty, "Heal edge", "Affix HP+1 DEF+1 | Heal edge");
-            default:
-                return null;
-        }
+        LoadoutId = string.IsNullOrWhiteSpace(loadoutId) ? string.Empty : loadoutId.Trim();
+        DisplayName = string.IsNullOrWhiteSpace(displayName) ? "Gear" : displayName.Trim();
+        RoleTag = string.IsNullOrWhiteSpace(roleTag) ? string.Empty : roleTag.Trim().ToLowerInvariant();
+        SlotLabel = string.IsNullOrWhiteSpace(slotLabel) ? "Loadout" : slotLabel.Trim();
+        TierLabel = string.IsNullOrWhiteSpace(tierLabel) ? "Base" : tierLabel.Trim();
+        TierRank = tierRank > 0 ? tierRank : 1;
+        MaxHpBonus = maxHpBonus;
+        AttackBonus = attackBonus;
+        DefenseBonus = defenseBonus;
+        SpeedBonus = speedBonus;
     }
 
-    private static PrototypeRpgGearAffixLiteDefinition CreateDefinition(string affixId, string displayLabel, string roleTag, string slotKey, string tierKey, string rarityKey, int bonusMaxHp, int bonusAttack, int bonusDefense, int bonusSpeed, string skillPowerHintText, string healPowerHintText, string summaryText)
+    public int GetScore()
     {
-        PrototypeRpgGearAffixLiteDefinition definition = new PrototypeRpgGearAffixLiteDefinition();
-        definition.AffixId = NormalizeKey(affixId);
-        definition.DisplayLabel = string.IsNullOrWhiteSpace(displayLabel) ? "Affix" : displayLabel.Trim();
-        definition.RoleTag = NormalizeKey(roleTag);
-        definition.SlotKey = NormalizeKey(slotKey);
-        definition.TierKey = NormalizeKey(tierKey);
-        definition.RarityKey = NormalizeKey(rarityKey);
-        definition.BonusMaxHp = bonusMaxHp;
-        definition.BonusAttack = bonusAttack;
-        definition.BonusDefense = bonusDefense;
-        definition.BonusSpeed = bonusSpeed;
-        definition.SkillPowerHintText = string.IsNullOrWhiteSpace(skillPowerHintText) ? string.Empty : skillPowerHintText.Trim();
-        definition.HealPowerHintText = string.IsNullOrWhiteSpace(healPowerHintText) ? string.Empty : healPowerHintText.Trim();
-        definition.SummaryText = string.IsNullOrWhiteSpace(summaryText) ? string.Empty : summaryText.Trim();
-        return definition;
+        return (MaxHpBonus * 2) + (AttackBonus * 4) + (DefenseBonus * 3) + (SpeedBonus * 3) + TierRank;
     }
-
-    private static string NormalizeKey(string value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
-    }
-}
-
-public sealed class PrototypeRpgGearDefinition
-{
-    public string GearDefinitionId = string.Empty;
-    public string EquipmentLoadoutId = string.Empty;
-    public string SlotKey = string.Empty;
-    public string TierKey = string.Empty;
-    public string RarityKey = string.Empty;
-    public string UnlockStateKey = string.Empty;
-    public string GroupKey = string.Empty;
-    public string DisplayLabel = string.Empty;
-    public string EffectPreviewText = string.Empty;
-    public string ComparisonHintText = string.Empty;
-}
-
-public sealed class PrototypeRpgGearSlotRule
-{
-    public string SlotKey = string.Empty;
-    public string SlotLabel = string.Empty;
-    public string CurrentEquipmentLoadoutId = string.Empty;
-    public string CurrentEquipmentDisplayLabel = string.Empty;
-    public string CandidateEquipmentLoadoutId = string.Empty;
-    public string CandidateEquipmentDisplayLabel = string.Empty;
-    public string AllowedTierKey = string.Empty;
-    public string AllowedRarityKey = string.Empty;
-    public string ConflictSummaryText = string.Empty;
-    public string ReplacementSummaryText = string.Empty;
-    public string SummaryText = string.Empty;
-}
-
-public sealed class PrototypeRpgGearUnlockState
-{
-    public string PartyId = string.Empty;
-    public string LastRunIdentity = string.Empty;
-    public string HighestUnlockedTierKey = string.Empty;
-    public string HighestUnlockedRarityKey = string.Empty;
-    public string HighestUnlockedLevelBandKey = string.Empty;
-    public string UnlockSummaryText = string.Empty;
-    public string UnlockedPoolSummaryText = string.Empty;
-    public string[] UnlockedTierKeys = Array.Empty<string>();
-    public string[] UnlockedGearDefinitionIds = Array.Empty<string>();
-    public string[] RecentlySeenGearGroupKeys = Array.Empty<string>();
-}
-
-public sealed class PrototypeRpgGearComparisonSummary
-{
-    public string MemberId = string.Empty;
-    public string MemberDisplayName = string.Empty;
-    public string CurrentEquipmentLoadoutId = string.Empty;
-    public string CurrentEquipmentDisplayLabel = string.Empty;
-    public string CandidateEquipmentLoadoutId = string.Empty;
-    public string CandidateEquipmentDisplayLabel = string.Empty;
-    public string SlotKey = string.Empty;
-    public string TierKey = string.Empty;
-    public string RarityKey = string.Empty;
-    public string StatDeltaPreviewText = string.Empty;
-    public string SkillHintDeltaText = string.Empty;
-    public string SwapReasonText = string.Empty;
-    public string AffixLiteSummaryText = string.Empty;
-    public string ComparisonHintText = string.Empty;
-    public string SummaryText = string.Empty;
-}
-
-public sealed class PrototypeRpgEquipmentRewardDefinition
-{
-    public string RewardId = string.Empty;
-    public string EquipmentLoadoutId = string.Empty;
-    public string GearDefinitionId = string.Empty;
-    public string SlotKey = string.Empty;
-    public string TierKey = string.Empty;
-    public string RarityKey = string.Empty;
-    public string UnlockStateKey = string.Empty;
-    public string GearGroupKey = string.Empty;
-    public string DisplayLabel = string.Empty;
-    public string EffectPreviewText = string.Empty;
-    public string CandidateSourceKey = string.Empty;
 }
 
 public sealed class PrototypeRpgEquipmentRewardCandidate
@@ -159,74 +48,199 @@ public sealed class PrototypeRpgEquipmentRewardCandidate
     public string RewardId = string.Empty;
     public string MemberId = string.Empty;
     public string MemberDisplayName = string.Empty;
-    public string EquipmentLoadoutId = string.Empty;
+    public string RoleTag = string.Empty;
+    public string TargetSlotLabel = string.Empty;
+    public string TierLabel = string.Empty;
     public string CurrentEquipmentLoadoutId = string.Empty;
-    public string CurrentEquipmentDisplayLabel = string.Empty;
-    public string DisplayLabel = string.Empty;
-    public string SlotKey = string.Empty;
-    public string TierKey = string.Empty;
-    public string RarityKey = string.Empty;
-    public string UnlockStateKey = string.Empty;
-    public string GearGroupKey = string.Empty;
-    public string CandidateSourceKey = string.Empty;
-    public string EffectPreviewText = string.Empty;
-    public string DerivedStatDeltaSummaryText = string.Empty;
-    public string SkillHintText = string.Empty;
-    public string RoleHintText = string.Empty;
-    public string AffixLiteSummaryText = string.Empty;
-    public string LevelBandSummaryText = string.Empty;
-    public string UnlockedPoolSummaryText = string.Empty;
+    public string RewardEquipmentLoadoutId = string.Empty;
+    public string CurrentEquipmentSummaryText = string.Empty;
+    public string RewardEquipmentSummaryText = string.Empty;
+    public string RewardStatSummaryText = string.Empty;
     public string ComparisonSummaryText = string.Empty;
-    public string RuleSummaryText = string.Empty;
-    public string UnlockSummaryText = string.Empty;
-    public string SummaryText = string.Empty;
     public bool IsRecommended;
 }
 
-public sealed class PrototypeRpgEquipSwapChoice
+public sealed class PrototypeRpgEquipmentRewardChoice
 {
-    public string RewardId = string.Empty;
     public string MemberId = string.Empty;
-    public string MemberDisplayName = string.Empty;
+    public string ChoiceKey = string.Empty;
+    public string ChoiceLabel = string.Empty;
     public string CurrentEquipmentLoadoutId = string.Empty;
-    public string CurrentEquipmentDisplayLabel = string.Empty;
     public string TargetEquipmentLoadoutId = string.Empty;
-    public string TargetEquipmentDisplayLabel = string.Empty;
-    public string SlotKey = string.Empty;
-    public string ReplacementSummaryText = string.Empty;
-    public string ComparisonSummaryText = string.Empty;
-    public string AffixLiteSummaryText = string.Empty;
-    public string EffectPreviewText = string.Empty;
-    public string ContinuitySummaryText = string.Empty;
-    public string SummaryText = string.Empty;
-    public bool ApplyReady;
+    public string ChoiceSummaryText = string.Empty;
     public bool HasChanges;
 }
 
-public sealed class PrototypeRpgRuntimeGearInventoryState
+public static class PrototypeRpgEquipmentCatalog
 {
-    public string PartyId = string.Empty;
-    public string DisplayName = string.Empty;
-    public string LastRunIdentity = string.Empty;
-    public string LastAppliedRewardId = string.Empty;
-    public string RewardCandidateSummaryText = string.Empty;
-    public string EquipSwapSummaryText = string.Empty;
-    public string GearCarryContinuitySummaryText = string.Empty;
-    public string GearRuleSummaryText = string.Empty;
-    public string GearUnlockSummaryText = string.Empty;
-    public string GearComparisonSummaryText = string.Empty;
-    public string GearAffixLiteSummaryText = string.Empty;
-    public string UnlockedGearPoolSummaryText = string.Empty;
-    public string LevelBandGearLinkageSummaryText = string.Empty;
-    public string ActiveEquippedSummaryText = string.Empty;
-    public string HudSummaryText = string.Empty;
-    public PrototypeRpgGearDefinition[] GearDefinitions = Array.Empty<PrototypeRpgGearDefinition>();
-    public PrototypeRpgGearSlotRule[] SlotRules = Array.Empty<PrototypeRpgGearSlotRule>();
-    public PrototypeRpgGearUnlockState UnlockState = new PrototypeRpgGearUnlockState();
-    public PrototypeRpgGearComparisonSummary[] ComparisonSummaries = Array.Empty<PrototypeRpgGearComparisonSummary>();
-    public PrototypeRpgGearAffixLiteDefinition[] AffixDefinitions = Array.Empty<PrototypeRpgGearAffixLiteDefinition>();
-    public PrototypeRpgGearAffixLiteContribution[] AffixContributions = Array.Empty<PrototypeRpgGearAffixLiteContribution>();
-    public PrototypeRpgEquipmentRewardDefinition[] RewardDefinitions = Array.Empty<PrototypeRpgEquipmentRewardDefinition>();
-    public PrototypeRpgEquipmentRewardCandidate[] RewardCandidates = Array.Empty<PrototypeRpgEquipmentRewardCandidate>();
-    public PrototypeRpgEquipSwapChoice[] EquipSwapChoices = Array.Empty<PrototypeRpgEquipSwapChoice>();
+    private static readonly PrototypeRpgEquipmentDefinition[] Definitions =
+    {
+        new PrototypeRpgEquipmentDefinition("equip_warrior_placeholder", "Recruit Harness", "warrior", "Armor", "Base", 1, 0, 0, 0, 0),
+        new PrototypeRpgEquipmentDefinition("equip_rogue_placeholder", "Scout Wraps", "rogue", "Blades", "Base", 1, 0, 0, 0, 0),
+        new PrototypeRpgEquipmentDefinition("equip_mage_placeholder", "Apprentice Focus", "mage", "Catalyst", "Base", 1, 0, 0, 0, 0),
+        new PrototypeRpgEquipmentDefinition("equip_cleric_placeholder", "Pilgrim Vestments", "cleric", "Relic", "Base", 1, 0, 0, 0, 0),
+
+        new PrototypeRpgEquipmentDefinition("equip_warrior_fieldkit", "Bulwark Harness", "warrior", "Armor", "Field", 2, 4, 0, 1, 0),
+        new PrototypeRpgEquipmentDefinition("equip_rogue_fieldkit", "Shadow Fang Set", "rogue", "Blades", "Field", 2, 0, 1, 0, 1),
+        new PrototypeRpgEquipmentDefinition("equip_mage_fieldkit", "Stormglass Focus", "mage", "Catalyst", "Field", 2, 0, 1, 0, 1),
+        new PrototypeRpgEquipmentDefinition("equip_cleric_fieldkit", "Sanctum Vestments", "cleric", "Relic", "Field", 2, 3, 0, 1, 0),
+
+        new PrototypeRpgEquipmentDefinition("equip_warrior_elite", "Vanguard Bulwark", "warrior", "Armor", "Elite", 3, 6, 1, 2, 0),
+        new PrototypeRpgEquipmentDefinition("equip_rogue_elite", "Nightblade Array", "rogue", "Blades", "Elite", 3, 0, 2, 0, 2),
+        new PrototypeRpgEquipmentDefinition("equip_mage_elite", "Emberwake Focus", "mage", "Catalyst", "Elite", 3, 0, 3, 0, 1),
+        new PrototypeRpgEquipmentDefinition("equip_cleric_elite", "Sunwell Relic", "cleric", "Relic", "Elite", 3, 4, 1, 2, 0)
+    };
+
+    public static PrototypeRpgEquipmentDefinition ResolveDefinition(string loadoutId, string roleTag)
+    {
+        string normalizedLoadoutId = Normalize(loadoutId);
+        string normalizedRoleTag = Normalize(roleTag);
+
+        for (int i = 0; i < Definitions.Length; i++)
+        {
+            PrototypeRpgEquipmentDefinition definition = Definitions[i];
+            if (definition != null && Normalize(definition.LoadoutId) == normalizedLoadoutId)
+            {
+                return definition;
+            }
+        }
+
+        return GetFallbackDefinitionForRoleTag(normalizedRoleTag);
+    }
+
+    public static PrototypeRpgEquipmentDefinition GetFallbackDefinitionForRoleTag(string roleTag)
+    {
+        string normalizedRoleTag = Normalize(roleTag);
+        string fallbackId = normalizedRoleTag switch
+        {
+            "warrior" => "equip_warrior_placeholder",
+            "rogue" => "equip_rogue_placeholder",
+            "mage" => "equip_mage_placeholder",
+            "cleric" => "equip_cleric_placeholder",
+            _ => string.Empty
+        };
+
+        for (int i = 0; i < Definitions.Length; i++)
+        {
+            PrototypeRpgEquipmentDefinition definition = Definitions[i];
+            if (definition != null && Normalize(definition.LoadoutId) == fallbackId)
+            {
+                return definition;
+            }
+        }
+
+        return null;
+    }
+
+    public static PrototypeRpgEquipmentDefinition GetRewardDefinition(string currentLoadoutId, string roleTag, bool eliteDefeated, string routeId, int openedChestCount)
+    {
+        string normalizedRoleTag = Normalize(roleTag);
+        PrototypeRpgEquipmentDefinition currentDefinition = ResolveDefinition(currentLoadoutId, normalizedRoleTag);
+        bool highPressureReward = eliteDefeated || Normalize(routeId) == "risky" || openedChestCount > 0;
+        bool alreadyFieldTier = currentDefinition != null && currentDefinition.TierRank >= 2;
+        string targetId;
+
+        if (highPressureReward && alreadyFieldTier)
+        {
+            targetId = normalizedRoleTag switch
+            {
+                "warrior" => "equip_warrior_elite",
+                "rogue" => "equip_rogue_elite",
+                "mage" => "equip_mage_elite",
+                "cleric" => "equip_cleric_elite",
+                _ => string.Empty
+            };
+        }
+        else if (highPressureReward && currentDefinition != null && currentDefinition.TierRank < 2)
+        {
+            targetId = normalizedRoleTag switch
+            {
+                "warrior" => "equip_warrior_elite",
+                "rogue" => "equip_rogue_elite",
+                "mage" => "equip_mage_elite",
+                "cleric" => "equip_cleric_elite",
+                _ => string.Empty
+            };
+        }
+        else
+        {
+            targetId = normalizedRoleTag switch
+            {
+                "warrior" => "equip_warrior_fieldkit",
+                "rogue" => "equip_rogue_fieldkit",
+                "mage" => "equip_mage_fieldkit",
+                "cleric" => "equip_cleric_fieldkit",
+                _ => string.Empty
+            };
+        }
+
+        return ResolveDefinition(targetId, normalizedRoleTag);
+    }
+
+    public static string BuildEquipmentSummaryText(PrototypeRpgEquipmentDefinition definition)
+    {
+        if (definition == null)
+        {
+            return "No gear";
+        }
+
+        return definition.DisplayName + " (" + definition.TierLabel + " " + definition.SlotLabel + ")";
+    }
+
+    public static string BuildStatContributionSummary(PrototypeRpgEquipmentDefinition definition)
+    {
+        if (definition == null)
+        {
+            return "No bonus";
+        }
+
+        string summary = BuildSignedSegment("HP", definition.MaxHpBonus);
+        summary = AppendSegment(summary, BuildSignedSegment("ATK", definition.AttackBonus));
+        summary = AppendSegment(summary, BuildSignedSegment("DEF", definition.DefenseBonus));
+        summary = AppendSegment(summary, BuildSignedSegment("SPD", definition.SpeedBonus));
+        return string.IsNullOrEmpty(summary) ? "No bonus" : summary;
+    }
+
+    public static string BuildComparisonSummary(PrototypeRpgEquipmentDefinition currentDefinition, PrototypeRpgEquipmentDefinition rewardDefinition)
+    {
+        if (rewardDefinition == null)
+        {
+            return "No comparison";
+        }
+
+        int hpDelta = rewardDefinition.MaxHpBonus - (currentDefinition != null ? currentDefinition.MaxHpBonus : 0);
+        int attackDelta = rewardDefinition.AttackBonus - (currentDefinition != null ? currentDefinition.AttackBonus : 0);
+        int defenseDelta = rewardDefinition.DefenseBonus - (currentDefinition != null ? currentDefinition.DefenseBonus : 0);
+        int speedDelta = rewardDefinition.SpeedBonus - (currentDefinition != null ? currentDefinition.SpeedBonus : 0);
+        string summary = BuildSignedSegment("HP", hpDelta);
+        summary = AppendSegment(summary, BuildSignedSegment("ATK", attackDelta));
+        summary = AppendSegment(summary, BuildSignedSegment("DEF", defenseDelta));
+        summary = AppendSegment(summary, BuildSignedSegment("SPD", speedDelta));
+        return string.IsNullOrEmpty(summary) ? "No change" : summary;
+    }
+
+    private static string AppendSegment(string existing, string segment)
+    {
+        if (string.IsNullOrEmpty(segment))
+        {
+            return existing;
+        }
+
+        return string.IsNullOrEmpty(existing) ? segment : existing + " " + segment;
+    }
+
+    private static string BuildSignedSegment(string label, int value)
+    {
+        if (value == 0)
+        {
+            return string.Empty;
+        }
+
+        return label + " " + (value > 0 ? "+" : string.Empty) + value;
+    }
+
+    private static string Normalize(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
+    }
 }

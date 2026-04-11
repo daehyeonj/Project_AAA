@@ -103,9 +103,18 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         SyncBattleHudState();
         RefreshBattleUiSurface();
 
+        if (_bootEntry.IsDungeonRunHudMode)
+        {
+            _isSearchFieldFocused = false;
+            _battleFlyoutMode = BattleHudFlyoutMode.None;
+            _pendingConfirmActionKey = string.Empty;
+            _battleHudHoverDetailKey = string.Empty;
+            return;
+        }
+
         List<HudPanel> panels = BuildPanels();
         bool dungeonHudMode = _bootEntry.IsDungeonRunHudMode;
-        bool overlayMode = _bootEntry.IsDungeonBattleViewActive || _bootEntry.IsDungeonRouteChoiceVisible || _bootEntry.IsDungeonEventChoiceVisible || _bootEntry.IsDungeonPreEliteChoiceVisible || _bootEntry.IsDungeonResultPanelVisible;
+        bool overlayMode = _bootEntry.IsDungeonBattleViewActive || _bootEntry.IsLegacyDungeonRouteChoiceVisible || _bootEntry.IsDungeonRunEventDecisionVisible || _bootEntry.IsDungeonRunPreEliteDecisionVisible || _bootEntry.IsDungeonResultPanelVisible;
         bool frontendDockMode = _bootEntry.IsMainMenuActive || _bootEntry.IsWorldSimActive;
 
         float panelWidth = overlayMode
@@ -199,14 +208,14 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         GUI.color = Color.white;
         string overlayTitle = _bootEntry.IsDungeonResultPanelVisible
             ? "Victory Summary"
-            : _bootEntry.IsDungeonRouteChoiceVisible
-                ? T("PanelDungeonRouteChoice")
-                : _bootEntry.IsDungeonEventChoiceVisible
-                    ? V(_bootEntry.EventTitleLabel)
-                    : T("PanelDungeonPreElite");
+            : _bootEntry.IsLegacyDungeonRouteChoiceVisible
+                ? "Legacy Dispatch Fallback"
+                : _bootEntry.IsDungeonRunEventDecisionVisible
+                    ? "Dungeon Event Decision"
+                    : "Dungeon Elite Decision";
         GUI.Label(new Rect(titleRect.x + PanelPadding, titleRect.y + 4f, titleRect.width - (PanelPadding * 2f), titleRect.height), overlayTitle, _titleStyle);
         Rect contentRectLegacy = new Rect(rectLegacy.x + PanelPadding, rectLegacy.y + HeaderHeight + 8f, rectLegacy.width - (PanelPadding * 2f), rectLegacy.height - HeaderHeight - 16f);
-        if (_bootEntry.IsDungeonRouteChoiceVisible)
+        if (_bootEntry.IsLegacyDungeonRouteChoiceVisible)
         {
             float leftWidth = (contentRectLegacy.width - (OverlaySectionGap * 2f)) * 0.30f;
             float centerWidth = (contentRectLegacy.width - (OverlaySectionGap * 2f)) * 0.26f;
@@ -219,6 +228,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("RunState", V(_bootEntry.DungeonRunStateLabel)),
                 Line("SelectedCity", V(_bootEntry.CurrentCityRunLabel)),
                 Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel)),
+                Line("NormalLaunchOwner", "ExpeditionPrep confirm seam"),
                 Line("DungeonDanger", V(_bootEntry.CurrentDungeonDangerLabel)),
                 Line("CityManaShardStock", V(_bootEntry.CurrentCityManaShardStockRunLabel)),
                 Line("NeedPressure", V(_bootEntry.CurrentNeedPressureRunLabel)),
@@ -232,12 +242,13 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("ExpectedNeedImpact", V(_bootEntry.ExpectedNeedImpactRunLabel)),
                 Line("ActiveParty", V(_bootEntry.ActiveDungeonPartyLabel)),
                 Line("DungeonRouteControls", _bootEntry.DungeonRunRouteControlsLabel),
-                V(_bootEntry.RouteChoiceDescriptionLabel),
-                V(_bootEntry.RouteChoicePromptLabel)), new Color(0.08f, 0.12f, 0.16f, 0.94f));
+                Line("FallbackScope", "Legacy fallback only"),
+                V(_bootEntry.LegacyDungeonRouteChoiceDescriptionLabel),
+                V(_bootEntry.LegacyDungeonRouteChoicePromptLabel)), new Color(0.08f, 0.12f, 0.16f, 0.94f));
             DrawRouteChoiceSection(centerRect);
             DrawScrollableOverlaySection("route_planner_detail", rightRect, BuildPanelBody(
-                Line("RouteOption1", V(_bootEntry.RouteOption1Label)),
-                Line("RouteOption2", V(_bootEntry.RouteOption2Label)),
+                Line("RouteOption1", V(_bootEntry.LegacyDungeonRouteOption1Label)),
+                Line("RouteOption2", V(_bootEntry.LegacyDungeonRouteOption2Label)),
                 Line("RecommendedRoute", V(_bootEntry.RecommendedRouteRunLabel)),
                 Line("CurrentRoute", V(_bootEntry.CurrentRouteLabel)),
                 Line("RouteRisk", V(_bootEntry.RouteRiskLabel)),
@@ -245,35 +256,37 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("SelectedPreview2", V(_bootEntry.SelectedRoutePreview2Label)),
                 Line("SelectedRecommendedRoute", V(_bootEntry.SelectedRecommendedRouteSummaryLabel)),
                 Line("SelectedRecommendedRouteForCity", V(_bootEntry.SelectedRecommendedRouteForLinkedCityLabel)),
-                V(_bootEntry.RouteChoiceDescriptionLabel)), new Color(0.08f, 0.12f, 0.16f, 0.94f));
+                V(_bootEntry.LegacyDungeonRouteChoiceDescriptionLabel)), new Color(0.08f, 0.12f, 0.16f, 0.94f));
         }
-        else if (_bootEntry.IsDungeonEventChoiceVisible)
+        else if (_bootEntry.IsDungeonRunEventDecisionVisible)
         {
             float leftWidth = (contentRectLegacy.width - OverlaySectionGap) * 0.46f;
             Rect leftRect = new Rect(contentRectLegacy.x, contentRectLegacy.y, leftWidth, contentRectLegacy.height);
             Rect rightRect = new Rect(leftRect.xMax + OverlaySectionGap, contentRectLegacy.y, contentRectLegacy.width - leftWidth - OverlaySectionGap, contentRectLegacy.height);
-            DrawNamedScrollableOverlaySection("event_choice_info", leftRect, "Event", BuildPanelBody(
-                Line("EventPrompt", V(_bootEntry.EventPromptLabel)),
+            DrawNamedScrollableOverlaySection("event_choice_info", leftRect, "Dungeon Event Decision", BuildPanelBody(
+                Line("DecisionScope", "DungeonRun internal event decision"),
+                Line("EventPrompt", V(_bootEntry.DungeonRunEventDecisionPromptLabel)),
                 Line("EventStatus", V(_bootEntry.EventStatusLabel)),
-                Line("EventChoice", V(_bootEntry.EventChoiceLabel)),
-                Line("OptionA", V(_bootEntry.EventOptionALabel)),
-                Line("OptionB", V(_bootEntry.EventOptionBLabel))), new Color(0.08f, 0.12f, 0.16f, 0.94f));
+                Line("EventChoice", V(_bootEntry.DungeonRunEventDecisionLabel)),
+                Line("OptionA", V(_bootEntry.DungeonRunEventDecisionOptionALabel)),
+                Line("OptionB", V(_bootEntry.DungeonRunEventDecisionOptionBLabel))), new Color(0.08f, 0.12f, 0.16f, 0.94f));
             DrawEventChoiceSection(rightRect);
         }
-        else if (_bootEntry.IsDungeonPreEliteChoiceVisible)
+        else if (_bootEntry.IsDungeonRunPreEliteDecisionVisible)
         {
             float leftWidth = (contentRectLegacy.width - OverlaySectionGap) * 0.46f;
             Rect leftRect = new Rect(contentRectLegacy.x, contentRectLegacy.y, leftWidth, contentRectLegacy.height);
             Rect rightRect = new Rect(leftRect.xMax + OverlaySectionGap, contentRectLegacy.y, contentRectLegacy.width - leftWidth - OverlaySectionGap, contentRectLegacy.height);
-            DrawNamedScrollableOverlaySection("pre_elite_info", leftRect, "Elite Decision", BuildPanelBody(
+            DrawNamedScrollableOverlaySection("pre_elite_info", leftRect, "Dungeon Elite Decision", BuildPanelBody(
+                Line("DecisionScope", "DungeonRun internal elite decision"),
                 Line("EliteEncounter", V(_bootEntry.EliteEncounterNameLabel)),
                 Line("EliteType", V(_bootEntry.EliteTypeLabel)),
                 Line("EliteHp", V(_bootEntry.EliteHpLabel)),
                 Line("EliteDefeated", V(_bootEntry.EliteDefeatedLabel)),
                 Line("EliteRewardStatus", V(_bootEntry.EliteRewardStatusLabel)),
                 Line("EliteRewardHint", V(_bootEntry.EliteRewardHintLabel)),
-                Line("PreElitePrompt", V(_bootEntry.PreElitePromptLabel)),
-                Line("PreEliteChoice", V(_bootEntry.PreEliteChoiceRunLabel)),
+                Line("PreElitePrompt", V(_bootEntry.DungeonRunPreEliteDecisionPromptLabel)),
+                Line("PreEliteChoice", V(_bootEntry.DungeonRunPreEliteDecisionLabel)),
                 Line("PartyCondition", V(_bootEntry.PartyConditionLabel)),
                 Line("TotalPartyHp", V(_bootEntry.TotalPartyHpLabel))), new Color(0.11f, 0.10f, 0.17f, 0.94f));
             DrawPreEliteChoiceSection(rightRect);
@@ -288,41 +301,30 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             Rect rightRect = new Rect(centerRect.xMax + OverlaySectionGap, contentRectLegacy.y, rightWidth, contentRectLegacy.height);
 
             DrawNamedScrollableOverlaySection("victory_party_panel", leftRect, "Party Outcome", BuildPanelBody(
-                Line("ActiveParty", V(_bootEntry.ActiveDungeonPartyLabel)),
-                Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel)),
+                Line("PartyHpSummary", V(_bootEntry.ResultPanelPartyHpSummaryLabel)),
+                Line("PartyConditionAtEnd", V(_bootEntry.ResultPanelPartyConditionLabel)),
+                Line("SurvivingMembers", V(_bootEntry.ResultPanelSurvivingMembersLabel)),
                 Line("CurrentRoute", V(_bootEntry.CurrentRouteLabel)),
-                SpacerLine(),
-                Block(T("PartyHpSummary"), V(_bootEntry.ResultPanelPartyHpSummaryLabel)),
-                Block(T("PartyConditionAtEnd"), V(_bootEntry.ResultPanelPartyConditionLabel)),
-                Block(T("SurvivingMembers"), V(_bootEntry.ResultPanelSurvivingMembersLabel)),
-                SpacerLine(),
-                Block("Progression Summary", V(_bootEntry.ResultPanelProgressionSummaryLabel))), new Color(0.08f, 0.12f, 0.16f, 0.94f));
+                Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel))), new Color(0.08f, 0.12f, 0.16f, 0.94f));
             DrawNamedScrollableOverlaySection("victory_reward_panel", centerRect, "Victory Summary", BuildPanelBody(
-                Line("Result", V(_bootEntry.ResultPanelStateLabel)),
-                Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel)),
-                Line("CurrentRoute", V(_bootEntry.CurrentRouteLabel)),
                 Line("EliteRewardIdentity", V(_bootEntry.ResultPanelEliteRewardIdentityLabel)),
                 Line("EliteRewardAmount", V(_bootEntry.ResultPanelEliteRewardAmountLabel)),
                 Line("EliteBonusRewardAmount", V(_bootEntry.ResultPanelEliteBonusRewardAmountLabel)),
                 Line("RoomPathSummary", V(_bootEntry.ResultPanelRoomPathSummaryLabel)),
+                Line("PartyHpSummary", V(_bootEntry.ResultPanelPartyHpSummaryLabel)),
+                Line("PartyConditionAtEnd", V(_bootEntry.ResultPanelPartyConditionLabel)),
+                Line("SurvivingMembers", V(_bootEntry.ResultPanelSurvivingMembersLabel)),
                 Line("ClearedEncounters", V(_bootEntry.ResultPanelClearedEncountersLabel)),
                 Line("OpenedChests", V(_bootEntry.ResultPanelOpenedChestsLabel)),
-                SpacerLine(),
-                Block("Post-Run Summary", V(_bootEntry.ResultPanelPostRunSummaryLabel)),
-                Block("Gear Reward", V(_bootEntry.ResultPanelGearRewardSummaryLabel)),
                 Line("ReturnToWorldPrompt", V(_bootEntry.ResultPanelReturnPromptLabel))), new Color(0.08f, 0.12f, 0.16f, 0.94f));
             DrawNamedScrollableOverlaySection("victory_support_panel", rightRect, "Battle Result Feed", BuildPanelBody(
+                Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel)),
+                Line("CurrentRoute", V(_bootEntry.CurrentRouteLabel)),
+                Line("RoomPathSummary", V(_bootEntry.ResultPanelRoomPathSummaryLabel)),
+                Line("PartyHpSummary", V(_bootEntry.ResultPanelPartyHpSummaryLabel)),
+                Line("PartyConditionAtEnd", V(_bootEntry.ResultPanelPartyConditionLabel)),
                 Line("ActiveParty", V(_bootEntry.ActiveDungeonPartyLabel)),
-                Line("EncounterPhase", V(_bootEntry.EncounterPhaseSummaryLabel)),
-                Line("EncounterWave", V(_bootEntry.EncounterWaveSummaryLabel)),
-                Line("BossPattern", V(_bootEntry.BossPatternSummaryLabel)),
-                SpacerLine(),
-                Block("Offer & Apply", V(_bootEntry.ResultPanelOfferAndApplySummaryLabel)),
-                SpacerLine(),
-                Block("Strategy", V(_bootEntry.ResultPanelStrategySummaryLabel)),
-                SpacerLine(),
-                Block("Loot Breakdown", V(_bootEntry.LootBreakdownLabel)),
-                SpacerLine(),
+                Line("LootBreakdown", V(_bootEntry.LootBreakdownLabel)),
                 Line("LastBattleLog1", V(_bootEntry.LastBattleLog1Label)),
                 Line("LastBattleLog2", V(_bootEntry.LastBattleLog2Label)),
                 Line("LastBattleLog3", V(_bootEntry.LastBattleLog3Label))), new Color(0.09f, 0.11f, 0.14f, 0.94f));
@@ -390,15 +392,12 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         string stateLine = HasMeaningfulText(surface.TotalPartyHp) || HasMeaningfulText(surface.PartyCondition)
             ? GetCompactHudText(surface.TotalPartyHp + " | " + surface.PartyCondition, 56, false)
             : "Party state pending";
-        string orchestrationLine = BuildBattleOrchestrationSummaryText();
         Rect titleRect = new Rect(summaryRect.x + 14f, summaryRect.y + 10f, summaryRect.width - 28f, 22f);
         Rect subRect = new Rect(summaryRect.x + 14f, titleRect.yMax + 5f, summaryRect.width - 28f, 18f);
         Rect stateRect = new Rect(summaryRect.x + 14f, subRect.yMax + 4f, summaryRect.width - 28f, 18f);
-        Rect orchestrationRect = new Rect(summaryRect.x + 14f, stateRect.yMax + 4f, summaryRect.width - 28f, Mathf.Max(18f, summaryRect.yMax - stateRect.yMax - 12f));
         DrawFittedLabel(titleRect, GetBattleHudHeaderTitle(), _titleStyle, 15, 11, false);
         DrawFittedLabel(subRect, dungeonLine, _bodyStyle, 11, 9, false);
         DrawFittedLabel(stateRect, stateLine, _bodyStyle, 11, 9, false);
-        DrawFittedLabel(orchestrationRect, orchestrationLine, _bodyStyle, 10, 8, true);
 
         DrawOverlaySectionBackground(actorRect, new Color(0.11f, 0.17f, 0.24f, 0.90f));
         Rect actorTitleRect = new Rect(actorRect.x + 12f, actorRect.y + 10f, actorRect.width - 24f, 16f);
@@ -409,35 +408,6 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         DrawFittedLabel(actorRoleRect, GetCompactHudText(GetCurrentActorRoleLabel(), 22, false), _bodyStyle, 11, 9, false);
 
         DrawTurnOrderTimeline(timelineRect);
-    }
-
-    private string BuildBattleOrchestrationSummaryText()
-    {
-        if (_bootEntry == null)
-        {
-            return "Phase / wave / pattern pending";
-        }
-
-        List<string> tokens = new List<string>();
-        string phaseText = V(_bootEntry.EncounterPhaseSummaryLabel);
-        string waveText = V(_bootEntry.EncounterWaveSummaryLabel);
-        string patternText = V(_bootEntry.BossPatternSummaryLabel);
-        if (HasMeaningfulText(phaseText))
-        {
-            tokens.Add(phaseText);
-        }
-        if (HasMeaningfulText(waveText))
-        {
-            tokens.Add(waveText);
-        }
-        if (HasMeaningfulText(patternText))
-        {
-            tokens.Add(patternText);
-        }
-
-        return tokens.Count > 0
-            ? GetCompactHudText(string.Join(" | ", tokens), 108, false)
-            : "Phase / wave / pattern pending";
     }
 
     private void DrawTurnOrderTimeline(Rect rect)
@@ -1816,19 +1786,20 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         Rect confirmRect = new Rect(policyRect.xMax + ActionButtonGap, actionRowY, innerRect.width - policyWidth - ActionButtonGap, 44f);
 
         GUI.Label(promptRect, BuildPanelBody(
-            V(_bootEntry.RouteChoiceTitleLabel),
-            V(_bootEntry.RouteChoicePromptLabel)), _bodyStyle);
+            V(_bootEntry.LegacyDungeonRouteChoiceTitleLabel),
+            "Legacy fallback only. ExpeditionPrep owns the normal launch seam.",
+            V(_bootEntry.LegacyDungeonRouteChoicePromptLabel)), _bodyStyle);
 
         Event current = Event.current;
         Vector2 mousePosition = current != null ? current.mousePosition : Vector2.zero;
         string hoveredChoiceKey = string.Empty;
 
-        DrawRouteChoiceButton(optionARect, "safe", "[1] " + V(_bootEntry.RouteOption1Label), mousePosition, ref hoveredChoiceKey);
-        DrawRouteChoiceButton(optionBRect, "risky", "[2] " + V(_bootEntry.RouteOption2Label), mousePosition, ref hoveredChoiceKey);
+        DrawRouteChoiceButton(optionARect, "safe", "[1] " + V(_bootEntry.LegacyDungeonRouteOption1Label), mousePosition, ref hoveredChoiceKey);
+        DrawRouteChoiceButton(optionBRect, "risky", "[2] " + V(_bootEntry.LegacyDungeonRouteOption2Label), mousePosition, ref hoveredChoiceKey);
 
         if (string.IsNullOrEmpty(hoveredChoiceKey))
         {
-            _bootEntry.SetRouteChoiceHover(string.Empty);
+            _bootEntry.SetLegacyDungeonRouteChoiceHover(string.Empty);
         }
 
         bool policyHovered = policyRect.Contains(mousePosition);
@@ -1838,28 +1809,28 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             _bootEntry.TryCycleCurrentDispatchPolicy();
         }
 
-        bool canConfirm = _bootEntry.CanConfirmRouteChoice();
+        bool canConfirm = _bootEntry.CanConfirmLegacyDungeonRouteChoice();
         bool confirmHovered = canConfirm && confirmRect.Contains(mousePosition);
-        if (DrawInteractiveButton(confirmRect, "[Enter] Dispatch", canConfirm, confirmHovered, false))
+        if (DrawInteractiveButton(confirmRect, "[Enter] Continue Fallback", canConfirm, confirmHovered, false))
         {
-            _bootEntry.TryConfirmRouteChoice();
+            _bootEntry.TryConfirmLegacyDungeonRouteChoice();
         }
     }
 
     private void DrawRouteChoiceButton(Rect rect, string optionKey, string label, Vector2 mousePosition, ref string hoveredChoiceKey)
     {
-        bool available = _bootEntry.IsRouteChoiceAvailable(optionKey);
-        bool selected = _bootEntry.IsRouteChoiceSelected(optionKey);
+        bool available = _bootEntry.IsLegacyDungeonRouteChoiceAvailable(optionKey);
+        bool selected = _bootEntry.IsLegacyDungeonRouteChoiceSelected(optionKey);
         bool hovered = available && rect.Contains(mousePosition);
         if (hovered)
         {
             hoveredChoiceKey = optionKey;
-            _bootEntry.SetRouteChoiceHover(optionKey);
+            _bootEntry.SetLegacyDungeonRouteChoiceHover(optionKey);
         }
 
         if (DrawInteractiveButton(rect, label, available, hovered, selected))
         {
-            _bootEntry.TryTriggerRouteChoice(optionKey);
+            _bootEntry.TryTriggerLegacyDungeonRouteChoice(optionKey);
         }
     }
 
@@ -1873,37 +1844,38 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         Rect optionBRect = new Rect(innerRect.x, optionARect.yMax + 10f, innerRect.width, 48f);
 
         GUI.Label(promptRect, BuildPanelBody(
-            V(_bootEntry.EventPromptLabel),
+            "DungeonRun internal event decision.",
+            V(_bootEntry.DungeonRunEventDecisionPromptLabel),
             Line("EventStatus", V(_bootEntry.EventStatusLabel)),
-            Line("EventChoice", V(_bootEntry.EventChoiceLabel))), _bodyStyle);
+            Line("EventChoice", V(_bootEntry.DungeonRunEventDecisionLabel))), _bodyStyle);
 
         Event current = Event.current;
         Vector2 mousePosition = current != null ? current.mousePosition : Vector2.zero;
         string hoveredChoiceKey = string.Empty;
 
-        DrawEventChoiceButton(optionARect, "recover", "[1] " + V(_bootEntry.EventOptionALabel), mousePosition, ref hoveredChoiceKey);
-        DrawEventChoiceButton(optionBRect, "loot", "[2] " + V(_bootEntry.EventOptionBLabel), mousePosition, ref hoveredChoiceKey);
+        DrawEventChoiceButton(optionARect, "recover", "[1] " + V(_bootEntry.DungeonRunEventDecisionOptionALabel), mousePosition, ref hoveredChoiceKey);
+        DrawEventChoiceButton(optionBRect, "loot", "[2] " + V(_bootEntry.DungeonRunEventDecisionOptionBLabel), mousePosition, ref hoveredChoiceKey);
 
         if (string.IsNullOrEmpty(hoveredChoiceKey))
         {
-            _bootEntry.SetEventChoiceHover(string.Empty);
+            _bootEntry.SetDungeonRunEventDecisionHover(string.Empty);
         }
     }
 
     private void DrawEventChoiceButton(Rect rect, string optionKey, string label, Vector2 mousePosition, ref string hoveredChoiceKey)
     {
-        bool available = _bootEntry.IsEventChoiceAvailable(optionKey);
-        bool selected = _bootEntry.IsEventChoiceSelected(optionKey);
+        bool available = _bootEntry.IsDungeonRunEventDecisionAvailable(optionKey);
+        bool selected = _bootEntry.IsDungeonRunEventDecisionSelected(optionKey);
         bool hovered = available && rect.Contains(mousePosition);
         if (hovered)
         {
             hoveredChoiceKey = optionKey;
-            _bootEntry.SetEventChoiceHover(optionKey);
+            _bootEntry.SetDungeonRunEventDecisionHover(optionKey);
         }
 
         if (DrawInteractiveButton(rect, label, available, hovered, selected))
         {
-            _bootEntry.TryTriggerEventChoice(optionKey);
+            _bootEntry.TryTriggerDungeonRunEventDecision(optionKey);
         }
     }
 
@@ -1917,8 +1889,9 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         Rect optionBRect = new Rect(innerRect.x, optionARect.yMax + 12f, innerRect.width, 54f);
 
         GUI.Label(promptRect, BuildPanelBody(
-            V(_bootEntry.PreElitePromptLabel),
-            Line("PreEliteChoice", V(_bootEntry.PreEliteChoiceRunLabel)),
+            "DungeonRun internal elite decision.",
+            V(_bootEntry.DungeonRunPreEliteDecisionPromptLabel),
+            Line("PreEliteChoice", V(_bootEntry.DungeonRunPreEliteDecisionLabel)),
             Line("TotalPartyHp", V(_bootEntry.TotalPartyHpLabel)),
             Line("PartyCondition", V(_bootEntry.PartyConditionLabel)),
             Line("EliteEncounter", V(_bootEntry.EliteEncounterNameLabel))), _bodyStyle);
@@ -1927,29 +1900,29 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         Vector2 mousePosition = current != null ? current.mousePosition : Vector2.zero;
         string hoveredChoiceKey = string.Empty;
 
-        DrawPreEliteChoiceButton(optionARect, "recover", "[1] " + V(_bootEntry.PreEliteOptionALabel), mousePosition, ref hoveredChoiceKey);
-        DrawPreEliteChoiceButton(optionBRect, "bonus", "[2] " + V(_bootEntry.PreEliteOptionBLabel), mousePosition, ref hoveredChoiceKey);
+        DrawPreEliteChoiceButton(optionARect, "recover", "[1] " + V(_bootEntry.DungeonRunPreEliteDecisionOptionALabel), mousePosition, ref hoveredChoiceKey);
+        DrawPreEliteChoiceButton(optionBRect, "bonus", "[2] " + V(_bootEntry.DungeonRunPreEliteDecisionOptionBLabel), mousePosition, ref hoveredChoiceKey);
 
         if (string.IsNullOrEmpty(hoveredChoiceKey))
         {
-            _bootEntry.SetPreEliteChoiceHover(string.Empty);
+            _bootEntry.SetDungeonRunPreEliteDecisionHover(string.Empty);
         }
     }
 
     private void DrawPreEliteChoiceButton(Rect rect, string optionKey, string label, Vector2 mousePosition, ref string hoveredChoiceKey)
     {
-        bool available = _bootEntry.IsPreEliteChoiceAvailable(optionKey);
-        bool selected = _bootEntry.IsPreEliteChoiceSelected(optionKey);
+        bool available = _bootEntry.IsDungeonRunPreEliteDecisionAvailable(optionKey);
+        bool selected = _bootEntry.IsDungeonRunPreEliteDecisionSelected(optionKey);
         bool hovered = available && rect.Contains(mousePosition);
         if (hovered)
         {
             hoveredChoiceKey = optionKey;
-            _bootEntry.SetPreEliteChoiceHover(optionKey);
+            _bootEntry.SetDungeonRunPreEliteDecisionHover(optionKey);
         }
 
         if (DrawInteractiveButton(rect, label, available, hovered, selected))
         {
-            _bootEntry.TryTriggerPreEliteChoice(optionKey);
+            _bootEntry.TryTriggerDungeonRunPreEliteDecision(optionKey);
         }
     }
 
@@ -2250,55 +2223,25 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     }
     private List<HudPanel> BuildPanels()
     {
+        PrototypeDungeonRunShellSurfaceData dungeonShellSurface = new PrototypeDungeonRunShellSurfaceData();
+        ExpeditionStartContext expeditionStartContext = new ExpeditionStartContext();
+        PrototypeDungeonPanelContext dungeonPanelContext = new PrototypeDungeonPanelContext();
+        PrototypeDungeonRunResultContext dungeonRunResultContext = new PrototypeDungeonRunResultContext();
+
         if (_bootEntry != null && _bootEntry.IsDungeonRunHudMode)
         {
-            if (_bootEntry.IsDungeonBattleViewActive || _bootEntry.IsDungeonRouteChoiceVisible || _bootEntry.IsDungeonEventChoiceVisible || _bootEntry.IsDungeonResultPanelVisible)
+            dungeonShellSurface = _bootEntry.GetDungeonRunShellSurfaceData();
+            expeditionStartContext = dungeonShellSurface.ExpeditionStartContext ?? new ExpeditionStartContext();
+            dungeonPanelContext = dungeonShellSurface.PanelContext ?? new PrototypeDungeonPanelContext();
+            dungeonRunResultContext = dungeonShellSurface.ResultContext ?? new PrototypeDungeonRunResultContext();
+            if (_bootEntry.IsDungeonBattleViewActive || _bootEntry.IsLegacyDungeonRouteChoiceVisible || _bootEntry.IsDungeonRunEventDecisionVisible || _bootEntry.IsDungeonRunPreEliteDecisionVisible || _bootEntry.IsDungeonResultPanelVisible)
             {
                 return new List<HudPanel>();
             }
 
             return new List<HudPanel>
             {
-                new HudPanel("dungeon_run", T("PanelDungeonRun"), BuildPanelBody(
-                    Line("Step", _bootEntry.DebugStepLabel),
-                    Line("WorldSimControls", _bootEntry.DungeonRunWorldControlsLabel),
-                    Line("DungeonExploreControls", _bootEntry.DungeonRunExploreControlsLabel),
-                    Line("DungeonBattleControls", _bootEntry.DungeonRunBattleControlsLabel),
-                    Line("DungeonTargetControls", _bootEntry.DungeonRunTargetControlsLabel),
-                    Line("DungeonRouteControls", _bootEntry.DungeonRunRouteControlsLabel),
-                    Line("RunState", V(_bootEntry.DungeonRunStateLabel)),
-                    Line("CurrentCity", V(_bootEntry.CurrentCityRunLabel)),
-                    Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel)),
-                    Line("DungeonDanger", V(_bootEntry.CurrentDungeonDangerLabel)),
-                    Line("CityManaShardStock", V(_bootEntry.CurrentCityManaShardStockRunLabel)),
-                    Line("NeedPressure", V(_bootEntry.CurrentNeedPressureRunLabel)),
-                    Line("DispatchPolicy", V(_bootEntry.CurrentDispatchPolicyRunLabel)),
-                        Line("RecommendedRoute", V(_bootEntry.RecommendedRouteRunLabel)),
-                    Line("RecommendationReason", V(_bootEntry.RecommendationReasonRunLabel)),
-                    Line("ExpectedNeedImpact", V(_bootEntry.ExpectedNeedImpactRunLabel)),
-                    Line("ActiveParty", V(_bootEntry.ActiveDungeonPartyLabel)),
-                    Line("CurrentRoom", V(_bootEntry.CurrentRoomLabel)),
-                    Line("CurrentRoomType", V(_bootEntry.CurrentRoomTypeLabel)),
-                    Line("RoomProgress", V(_bootEntry.RoomProgressLabel)),
-                    Line("NextMajorGoal", V(_bootEntry.NextMajorGoalLabel)),
-                    Line("TotalPartyHp", V(_bootEntry.TotalPartyHpLabel)),
-                    Line("PartyCondition", V(_bootEntry.PartyConditionLabel)),
-                    Line("SustainPressure", V(_bootEntry.SustainPressureLabel)),
-                    Line("CurrentRoute", V(_bootEntry.CurrentRouteLabel)),
-                    Line("RouteRisk", V(_bootEntry.RouteRiskLabel)),
-                    Line("CarriedLoot", V(_bootEntry.CarriedLootRunLabel)),
-                    Line("RunTurnCount", _bootEntry.DungeonRunTurnCount),
-                    Line("EncounterProgress", V(_bootEntry.EncounterProgressLabel)),
-                    Line("EliteStatus", V(_bootEntry.EliteStatusLabel)),
-                    Line("ExitUnlocked", V(_bootEntry.ExitUnlockedLabel)),
-                    Line("ChestOpened", V(_bootEntry.ChestOpenedLabel)),
-                    Line("EventStatus", V(_bootEntry.EventStatusLabel)),
-                    Line("EventChoice", V(_bootEntry.EventChoiceLabel)),
-                Line("PreEliteChoice", V(_bootEntry.PreEliteChoiceRunLabel)),
-                    Line("LootBreakdown", V(_bootEntry.LootBreakdownLabel)),
-                    Line("LastBattleLog1", V(_bootEntry.LastBattleLog1Label)),
-                    Line("LastBattleLog2", V(_bootEntry.LastBattleLog2Label)),
-                    Line("LastBattleLog3", V(_bootEntry.LastBattleLog3Label))), HudFilter.Simulation)
+                BuildDungeonRunSummaryPanel(dungeonShellSurface, expeditionStartContext, dungeonPanelContext)
             };
         }
 
@@ -2352,49 +2295,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("RecentExpeditionLog1", V(_bootEntry.RecentExpeditionLog1Label)),
                 Line("RecentExpeditionLog2", V(_bootEntry.RecentExpeditionLog2Label)),
                 Line("RecentExpeditionLog3", V(_bootEntry.RecentExpeditionLog3Label))), HudFilter.Economy),
-            new HudPanel("dungeon_run", T("PanelDungeonRun"), BuildPanelBody(
-                Line("Step", _bootEntry.DebugStepLabel),
-                Line("WorldSimControls", _bootEntry.DungeonRunWorldControlsLabel),
-                Line("DungeonExploreControls", _bootEntry.DungeonRunExploreControlsLabel),
-                Line("DungeonBattleControls", _bootEntry.DungeonRunBattleControlsLabel),
-                Line("DungeonTargetControls", _bootEntry.DungeonRunTargetControlsLabel),
-                Line("DungeonRouteControls", _bootEntry.DungeonRunRouteControlsLabel),
-                Line("RunState", V(_bootEntry.DungeonRunStateLabel)),
-                Line("CurrentCity", V(_bootEntry.CurrentCityRunLabel)),
-                Line("CurrentDungeon", V(_bootEntry.CurrentDungeonRunLabel)),
-                Line("DungeonDanger", V(_bootEntry.CurrentDungeonDangerLabel)),
-                Line("CityManaShardStock", V(_bootEntry.CurrentCityManaShardStockRunLabel)),
-                Line("NeedPressure", V(_bootEntry.CurrentNeedPressureRunLabel)),
-                Line("DispatchReadiness", V(_bootEntry.CurrentDispatchReadinessRunLabel)),
-                Line("RecoveryProgress", V(_bootEntry.CurrentDispatchRecoveryProgressRunLabel)),
-                Line("ConsecutiveDispatches", V(_bootEntry.CurrentDispatchConsecutiveRunLabel)),
-                Line("DispatchPolicy", V(_bootEntry.CurrentDispatchPolicyRunLabel)),
-                Line("RecommendedRoute", V(_bootEntry.RecommendedRouteRunLabel)),
-                Line("RecommendationReason", V(_bootEntry.RecommendationReasonRunLabel)),
-                Line("RecoveryAdvice", V(_bootEntry.RecoveryAdviceRunLabel)),
-                Line("ExpectedNeedImpact", V(_bootEntry.ExpectedNeedImpactRunLabel)),
-                Line("ActiveParty", V(_bootEntry.ActiveDungeonPartyLabel)),
-                Line("CurrentRoom", V(_bootEntry.CurrentRoomLabel)),
-                Line("CurrentRoomType", V(_bootEntry.CurrentRoomTypeLabel)),
-                Line("RoomProgress", V(_bootEntry.RoomProgressLabel)),
-                Line("NextMajorGoal", V(_bootEntry.NextMajorGoalLabel)),
-                    Line("TotalPartyHp", V(_bootEntry.TotalPartyHpLabel)),
-                    Line("PartyCondition", V(_bootEntry.PartyConditionLabel)),
-                    Line("SustainPressure", V(_bootEntry.SustainPressureLabel)),
-                Line("CurrentRoute", V(_bootEntry.CurrentRouteLabel)),
-                Line("RouteRisk", V(_bootEntry.RouteRiskLabel)),
-                Line("CarriedLoot", V(_bootEntry.CarriedLootRunLabel)),
-                Line("RunTurnCount", _bootEntry.DungeonRunTurnCount),
-                Line("EncounterProgress", V(_bootEntry.EncounterProgressLabel)),
-                Line("ExitUnlocked", V(_bootEntry.ExitUnlockedLabel)),
-                Line("ChestOpened", V(_bootEntry.ChestOpenedLabel)),
-                Line("EventStatus", V(_bootEntry.EventStatusLabel)),
-                Line("EventChoice", V(_bootEntry.EventChoiceLabel)),
-                Line("PreEliteChoice", V(_bootEntry.PreEliteChoiceRunLabel)),
-                Line("LootBreakdown", V(_bootEntry.LootBreakdownLabel)),
-                Line("LastBattleLog1", V(_bootEntry.LastBattleLog1Label)),
-                Line("LastBattleLog2", V(_bootEntry.LastBattleLog2Label)),
-                Line("LastBattleLog3", V(_bootEntry.LastBattleLog3Label))), HudFilter.Simulation),
+            BuildDungeonRunSummaryPanel(dungeonShellSurface, expeditionStartContext, dungeonPanelContext),
             new HudPanel("dungeon_battle", T("PanelDungeonBattle"), BuildPanelBody(
                 "Battle View: " + V(_bootEntry.BattleViewStateLabel),
                 "Encounter: " + V(_bootEntry.EncounterNameLabel),
@@ -2416,50 +2317,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("Party4Hp", V(_bootEntry.Party4HpLabel)),
                 "Feedback: " + V(_bootEntry.BattleFeedbackLabel),
                 Line("CurrentSelectionPrompt", V(_bootEntry.CurrentSelectionPromptLabel))), HudFilter.Logs),
-            new HudPanel("dungeon_result", T("PanelDungeonResult"), BuildPanelBody(
-                Line("Result", V(_bootEntry.ResultPanelStateLabel)),
-                Line("CityDispatchedFrom", V(_bootEntry.ResultPanelCityDispatchedFromLabel)),
-                Line("DungeonChosen", V(_bootEntry.ResultPanelDungeonChosenLabel)),
-                Line("DungeonDanger", V(_bootEntry.ResultPanelDungeonDangerLabel)),
-                Line("RouteChosen", V(_bootEntry.ResultPanelRouteChosenLabel)),
-                Line("RouteRisk", V(_bootEntry.ResultPanelRouteRiskLabel)),
-                Line("RecommendedRoute", V(_bootEntry.ResultPanelRecommendedRouteLabel)),
-                Line("FollowedRecommendation", V(_bootEntry.ResultPanelFollowedRecommendationLabel)),
-                Line("TurnsTaken", V(_bootEntry.ResultPanelTurnsTakenLabel)),
-                SpacerLine(),
-                Block(T("PartyHpSummary"), V(_bootEntry.ResultPanelPartyHpSummaryLabel)),
-                Block(T("PartyConditionAtEnd"), V(_bootEntry.ResultPanelPartyConditionLabel)),
-                Block(T("SurvivingMembers"), V(_bootEntry.ResultPanelSurvivingMembersLabel)),
-                Block("Progression Summary", V(_bootEntry.ResultPanelProgressionSummaryLabel)),
-                SpacerLine(),
-                Line("LootGained", V(_bootEntry.ResultPanelLootGainedLabel)),
-                Line("ManaShardsReturned", V(_bootEntry.ResultPanelManaShardsReturnedLabel)),
-                Line("BattleLoot", V(_bootEntry.ResultPanelBattleLootLabel)),
-                Line("ChestLoot", V(_bootEntry.ResultPanelChestLootLabel)),
-                Line("EventLoot", V(_bootEntry.ResultPanelEventLootLabel)),
-                Line("StockBefore", V(_bootEntry.ResultPanelStockBeforeLabel)),
-                Line("StockAfter", V(_bootEntry.ResultPanelStockAfterLabel)),
-                Line("StockDelta", V(_bootEntry.ResultPanelStockDeltaLabel)),
-                Line("NeedPressureBefore", V(_bootEntry.ResultPanelNeedPressureBeforeLabel)),
-                Line("NeedPressureAfter", V(_bootEntry.ResultPanelNeedPressureAfterLabel)),
-                Line("EventChoice", V(_bootEntry.ResultPanelEventChoiceLabel)),
-                Line("PreEliteChoice", V(_bootEntry.ResultPanelPreEliteChoiceLabel)),
-                Line("PreEliteHealAmount", V(_bootEntry.ResultPanelPreEliteHealAmountLabel)),
-                Line("EliteBonusRewardEarned", V(_bootEntry.ResultPanelEliteBonusRewardEarnedLabel)),
-                Line("EliteBonusRewardAmount", V(_bootEntry.ResultPanelEliteBonusRewardAmountLabel)),
-                Line("RoomPathSummary", V(_bootEntry.ResultPanelRoomPathSummaryLabel)),
-                Line("EliteDefeated", V(_bootEntry.ResultPanelEliteDefeatedLabel)),
-                Line("EliteName", V(_bootEntry.ResultPanelEliteNameLabel)),
-                Line("EliteRewardIdentity", V(_bootEntry.ResultPanelEliteRewardIdentityLabel)),
-                Line("EliteRewardAmount", V(_bootEntry.ResultPanelEliteRewardAmountLabel)),
-                Line("ClearedEncounters", V(_bootEntry.ResultPanelClearedEncountersLabel)),
-                Line("OpenedChests", V(_bootEntry.ResultPanelOpenedChestsLabel)),
-                SpacerLine(),
-                Block("Post-Run Summary", V(_bootEntry.ResultPanelPostRunSummaryLabel)),
-                Block("Offer & Apply", V(_bootEntry.ResultPanelOfferAndApplySummaryLabel)),
-                Block("Strategy", V(_bootEntry.ResultPanelStrategySummaryLabel)),
-                Block("Gear Reward", V(_bootEntry.ResultPanelGearRewardSummaryLabel)),
-                Line("ReturnToWorldPrompt", V(_bootEntry.ResultPanelReturnPromptLabel))), HudFilter.Logs),
+            BuildDungeonResultSummaryPanel(dungeonRunResultContext),
             new HudPanel("economy_pressure", T("PanelEconomyPressure"), BuildPanelBody(
                 Line("ProducedTotal", _bootEntry.ProducedTotal),
                 Line("ClaimedDungeonOutputs", _bootEntry.ClaimedDungeonOutputsTotal),
@@ -2576,6 +2434,118 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         };
     }
 
+    private HudPanel BuildDungeonRunSummaryPanel(PrototypeDungeonRunShellSurfaceData shellSurface, ExpeditionStartContext expeditionStartContext, PrototypeDungeonPanelContext dungeonPanelContext)
+    {
+        PrototypeDungeonRunShellSurfaceData safeShellSurface = shellSurface ?? new PrototypeDungeonRunShellSurfaceData();
+        ExpeditionStartContext safeExpeditionStartContext = expeditionStartContext ?? new ExpeditionStartContext();
+        PrototypeDungeonPanelContext safeDungeonPanelContext = dungeonPanelContext ?? new PrototypeDungeonPanelContext();
+        return new HudPanel("dungeon_run", T("PanelDungeonRun"), BuildPanelBody(
+            Line("Step", _bootEntry.DebugStepLabel),
+            Line("WorldSimControls", _bootEntry.DungeonRunWorldControlsLabel),
+            Line("DungeonExploreControls", _bootEntry.DungeonRunExploreControlsLabel),
+            Line("DungeonBattleControls", _bootEntry.DungeonRunBattleControlsLabel),
+            Line("DungeonTargetControls", _bootEntry.DungeonRunTargetControlsLabel),
+            Line("DungeonRouteControls", _bootEntry.DungeonRunRouteControlsLabel),
+            Line("RunState", V(safeShellSurface.RunStateLabel)),
+            Line("CurrentCity", V(safeShellSurface.CurrentCityLabel)),
+            Line("CurrentDungeon", V(safeShellSurface.CurrentDungeonLabel)),
+            Line("DungeonDanger", V(safeShellSurface.DungeonDangerLabel)),
+            Line("DispatchPolicy", V(safeShellSurface.DispatchPolicyText)),
+            Line("RecommendedRoute", V(safeShellSurface.RecommendedRouteText)),
+            Line("RecommendationReason", V(safeShellSurface.RecommendationReasonText)),
+            Line("RecoveryAdvice", V(safeShellSurface.RecoveryAdviceText)),
+            Line("ExpectedNeedImpact", V(safeShellSurface.ExpectedNeedImpactText)),
+            "Start Supply: " + V(safeExpeditionStartContext.SupplyPressureSummaryText),
+            "Supply Pressure: " + V(safeDungeonPanelContext.SupplyPressureSummaryText),
+            "Time Pressure: " + V(safeDungeonPanelContext.TimePressureSummaryText),
+            "Threat Pressure: " + V(safeDungeonPanelContext.ThreatPressureSummaryText),
+            "Discovery: " + V(safeDungeonPanelContext.DiscoverySummaryText),
+            "Extraction Pressure: " + V(safeDungeonPanelContext.ExtractionPressureSummaryText),
+            "Choice Outcome: " + V(safeDungeonPanelContext.LatestChoiceOutcomeSummaryText),
+            "Event Resolution: " + V(safeDungeonPanelContext.EventResolutionSummaryText),
+            "Extraction Summary: " + V(safeDungeonPanelContext.ExtractionSummaryText),
+            "Encounter Request: " + V(safeDungeonPanelContext.EncounterRequestSummaryText),
+            Line("ActiveParty", V(safeShellSurface.ActivePartyLabel)),
+            Line("CurrentRoom", V(safeShellSurface.CurrentRoomLabel)),
+            Line("CurrentRoomType", V(safeShellSurface.CurrentRoomTypeLabel)),
+            Line("RoomProgress", V(safeShellSurface.RoomProgressText)),
+            Line("NextMajorGoal", V(safeShellSurface.NextMajorGoalText)),
+            Line("TotalPartyHp", V(safeShellSurface.TotalPartyHpText)),
+            Line("PartyCondition", V(safeShellSurface.PartyConditionText)),
+            Line("SustainPressure", V(safeShellSurface.SustainPressureText)),
+            Line("CurrentRoute", V(safeShellSurface.CurrentRouteLabel)),
+            Line("RouteRisk", V(safeShellSurface.RouteRiskLabel)),
+            Line("CarriedLoot", V(safeShellSurface.CarriedLootText)),
+            Line("RunTurnCount", safeShellSurface.TurnCount),
+            Line("EncounterProgress", V(safeShellSurface.EncounterProgressText)),
+            Line("EliteStatus", V(safeShellSurface.EliteStatusText)),
+            Line("ExitUnlocked", V(safeShellSurface.ExitUnlockedText)),
+            Line("EventStatus", V(safeShellSurface.EventStatusText)),
+            Line("EventChoice", V(safeShellSurface.EventChoiceText)),
+            Line("PreEliteChoice", V(safeShellSurface.PreEliteChoiceText)),
+            Line("LootBreakdown", V(safeShellSurface.LootBreakdownText)),
+            Line("LastBattleLog1", V(safeShellSurface.RecentBattleLog1Text)),
+            Line("LastBattleLog2", V(safeShellSurface.RecentBattleLog2Text)),
+            Line("LastBattleLog3", V(safeShellSurface.RecentBattleLog3Text))), HudFilter.Simulation);
+    }
+
+    private HudPanel BuildDungeonResultSummaryPanel(PrototypeDungeonRunResultContext resultContext)
+    {
+        PrototypeDungeonRunResultContext safeResultContext = resultContext ?? new PrototypeDungeonRunResultContext();
+        return new HudPanel("dungeon_result", T("PanelDungeonResult"), BuildPanelBody(
+            Line("Result", V(safeResultContext.ResultStateText)),
+            Line("CityDispatchedFrom", V(safeResultContext.CityDispatchedFromText)),
+            Line("DungeonChosen", V(safeResultContext.DungeonLabel)),
+            Line("DungeonDanger", V(safeResultContext.DungeonDangerText)),
+            Line("RecommendedRoute", V(safeResultContext.RecommendedRouteText)),
+            Line("FollowedRecommendation", V(safeResultContext.FollowedRecommendationText)),
+            Line("ManaShardsReturned", V(safeResultContext.ManaShardsReturnedText)),
+            Line("StockBefore", V(safeResultContext.StockBeforeText)),
+            Line("StockAfter", V(safeResultContext.StockAfterText)),
+            Line("StockDelta", V(safeResultContext.StockDeltaText)),
+            Line("NeedPressureBefore", V(safeResultContext.NeedPressureBeforeText)),
+            Line("NeedPressureAfter", V(safeResultContext.NeedPressureAfterText)),
+            Line("TurnsTaken", V(safeResultContext.TurnsTakenText)),
+            "Time Cost Summary: " + V(safeResultContext.TimeCostSummaryText),
+            "Resource Delta Summary: " + V(safeResultContext.ResourceDeltaSummaryText),
+            "Supply Pressure Summary: " + V(safeResultContext.SupplyPressureSummaryText),
+            "Discovered Flags: " + V(safeResultContext.DiscoveredFlagsSummaryText),
+            "Threat Progress: " + V(safeResultContext.ThreatProgressSummaryText),
+            "Extraction Pressure: " + V(safeResultContext.ExtractionPressureSummaryText),
+            "Battles Fought: " + safeResultContext.BattlesFoughtCount,
+            "Key Encounters: " + V(safeResultContext.KeyEncounterSummaryText),
+            "Choice Outcome Summary: " + V(safeResultContext.ChoiceOutcomeSummaryText),
+            "Event Resolution Summary: " + V(safeResultContext.EventResolutionSummaryText),
+            "Extraction Summary: " + V(safeResultContext.ExtractionSummaryText),
+            "Encounter Request Summary: " + V(safeResultContext.EncounterRequestSummaryText),
+            "Battle Absorb Summary: " + V(safeResultContext.BattleAbsorbSummaryText),
+            Line("LootGained", V(safeResultContext.LootGainedText)),
+            Line("RouteChosen", V(safeResultContext.RouteLabel)),
+            Line("RouteRisk", V(safeResultContext.RouteRiskText)),
+            Line("BattleLoot", V(safeResultContext.BattleLootText)),
+            Line("ChestLoot", V(safeResultContext.ChestLootText)),
+            Line("EventLoot", V(safeResultContext.EventLootText)),
+            Line("EventChoice", V(safeResultContext.EventChoiceText)),
+            Line("PreEliteChoice", V(safeResultContext.PreEliteChoiceText)),
+            Line("PreEliteHealAmount", V(safeResultContext.PreEliteHealAmountText)),
+            Line("EliteBonusRewardEarned", V(safeResultContext.EliteBonusRewardEarnedText)),
+            Line("EliteBonusRewardAmount", V(safeResultContext.EliteBonusRewardAmountText)),
+            Line("RoomPathSummary", V(safeResultContext.RoomPathSummaryText)),
+            Line("PartyHpSummary", V(safeResultContext.PartyHpSummaryText)),
+            Line("PartyConditionAtEnd", V(safeResultContext.PartyConditionText)),
+            Line("EliteDefeated", V(safeResultContext.EliteDefeatedText)),
+            Line("EliteName", V(safeResultContext.EliteNameText)),
+            Line("EliteRewardIdentity", V(safeResultContext.EliteRewardIdentityText)),
+            Line("EliteRewardAmount", V(safeResultContext.EliteRewardAmountText)),
+            Line("SurvivingMembers", V(safeResultContext.SurvivingMembersSummaryText)),
+            Line("ClearedEncounters", V(safeResultContext.ClearedEncountersText)),
+            Line("OpenedChests", V(safeResultContext.OpenedChestsText)),
+            "Latest Return Aftermath: " + V(safeResultContext.WorldOutcomeReadbackPreview.LatestReturnAftermathText),
+            "Outcome Readback: " + V(safeResultContext.WorldOutcomeReadbackPreview.PostRunSummaryText),
+            "Corrective Follow-Up: " + V(safeResultContext.WorldOutcomeReadbackPreview.NextSuggestedActionText),
+            Line("ReturnToWorldPrompt", V(safeResultContext.ReturnPromptText))), HudFilter.Logs);
+    }
+
     private string T(string key)
     {
         return _bootEntry != null ? _bootEntry.GetText(key) : key;
@@ -2589,32 +2559,6 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     private string Line(string labelKey, string value)
     {
         return T(labelKey) + ": " + value;
-    }
-
-    private static string SpacerLine()
-    {
-        return " ";
-    }
-
-    private static string Block(string label, string value)
-    {
-        if (string.IsNullOrEmpty(label) || !HasMeaningfulText(value))
-        {
-            return null;
-        }
-
-        List<string> parts = SplitBlockParts(value);
-        if (parts.Count <= 0)
-        {
-            return null;
-        }
-
-        if (parts.Count == 1)
-        {
-            return label + ": " + parts[0];
-        }
-
-        return label + ":\n  " + string.Join("\n  ", parts.ToArray());
     }
 
     private string Line(string labelKey, int value)
@@ -2664,38 +2608,6 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         }
 
         return filtered.Count == 0 ? "None" : string.Join("\n", filtered.ToArray());
-    }
-
-    private static List<string> SplitBlockParts(string value)
-    {
-        List<string> parts = new List<string>();
-        if (string.IsNullOrEmpty(value))
-        {
-            return parts;
-        }
-
-        string normalized = value.Replace("\r\n", "\n");
-        string[] lines = normalized.Split('\n');
-        for (int i = 0; i < lines.Length; i++)
-        {
-            string line = lines[i];
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
-
-            string[] subParts = line.Split(new[] { " | " }, System.StringSplitOptions.RemoveEmptyEntries);
-            for (int j = 0; j < subParts.Length; j++)
-            {
-                string part = subParts[j].Trim();
-                if (!string.IsNullOrEmpty(part))
-                {
-                    parts.Add(part);
-                }
-            }
-        }
-
-        return parts;
     }
 
     private void AddOptionalSummaryLine(List<string> lines, string prefix, string value)
@@ -2873,6 +2785,8 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         return mainCamera.orthographicSize.ToString("0.00");
     }
 }
+
+
 
 
 

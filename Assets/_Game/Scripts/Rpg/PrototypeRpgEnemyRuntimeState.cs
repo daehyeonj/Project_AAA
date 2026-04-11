@@ -12,16 +12,22 @@ public sealed class PrototypeRpgEnemyRuntimeState
 
     public int CurrentHp { get; private set; }
     public bool IsDefeated { get; private set; }
+    public string LaneKey { get; private set; }
+    public string LaneLabel { get; private set; }
+    public string PositionRuleText { get; private set; }
+    public string StanceKey { get; private set; }
     public string IntentLabel { get; private set; }
     public string IntentKey { get; private set; }
     public string IntentTargetPatternKey { get; private set; }
     public string IntentTargetId { get; private set; }
     public int IntentPredictedValue { get; private set; }
-    public string IntentSkillId { get; private set; }
-    public string IntentSkillLabel { get; private set; }
-    public string IntentEffectSummaryText { get; private set; }
-    public string IntentStatusSummaryText { get; private set; }
-    public string IntentActionEconomySummaryText { get; private set; }
+    public string IntentRangeKey { get; private set; }
+    public string IntentLaneRuleKey { get; private set; }
+    public string IntentThreatLaneKey { get; private set; }
+    public string IntentThreatLaneLabel { get; private set; }
+    public string IntentRangeText { get; private set; }
+    public string IntentPredictedReachabilityText { get; private set; }
+    public string IntentTargetRuleText { get; private set; }
 
     public PrototypeRpgEnemyRuntimeState(
         string enemyId,
@@ -39,7 +45,19 @@ public sealed class PrototypeRpgEnemyRuntimeState
         MaxHp = maxHp > 0 ? maxHp : 1;
         AttackPower = attackPower > 0 ? attackPower : 1;
         IsElite = isElite;
+        LaneKey = string.Empty;
+        LaneLabel = string.Empty;
+        PositionRuleText = string.Empty;
+        StanceKey = string.Empty;
         ResetForEncounter();
+    }
+
+    public void SetBattleLaneContext(string laneKey, string laneLabel, string positionRuleText, string stanceKey = "")
+    {
+        LaneKey = string.IsNullOrWhiteSpace(laneKey) ? string.Empty : laneKey.Trim();
+        LaneLabel = string.IsNullOrWhiteSpace(laneLabel) ? string.Empty : laneLabel.Trim();
+        PositionRuleText = string.IsNullOrWhiteSpace(positionRuleText) ? string.Empty : positionRuleText.Trim();
+        StanceKey = string.IsNullOrWhiteSpace(stanceKey) ? string.Empty : stanceKey.Trim();
     }
 
     public void ResetForEncounter()
@@ -81,25 +99,29 @@ public sealed class PrototypeRpgEnemyRuntimeState
         IntentTargetPatternKey = string.Empty;
         IntentTargetId = string.Empty;
         IntentPredictedValue = 0;
-        IntentSkillId = string.Empty;
-        IntentSkillLabel = string.Empty;
-        IntentEffectSummaryText = string.Empty;
-        IntentStatusSummaryText = string.Empty;
-        IntentActionEconomySummaryText = string.Empty;
+        IntentRangeKey = string.Empty;
+        IntentLaneRuleKey = string.Empty;
+        IntentThreatLaneKey = string.Empty;
+        IntentThreatLaneLabel = string.Empty;
+        IntentRangeText = string.Empty;
+        IntentPredictedReachabilityText = string.Empty;
+        IntentTargetRuleText = string.Empty;
     }
 
-    public void SetIntent(string intentKey, string targetPatternKey, string previewText, int predictedValue, string targetId, string skillId = "", string skillLabel = "", string effectSummaryText = "", string statusSummaryText = "", string actionEconomySummaryText = "")
+    public void SetIntent(string intentKey, string targetPatternKey, string previewText, int predictedValue, string targetId, string rangeKey = "", string laneRuleKey = "", string threatLaneKey = "", string threatLaneLabel = "", string rangeText = "", string predictedReachabilityText = "", string targetRuleText = "")
     {
         IntentKey = string.IsNullOrWhiteSpace(intentKey) ? string.Empty : intentKey.Trim();
         IntentTargetPatternKey = string.IsNullOrWhiteSpace(targetPatternKey) ? string.Empty : targetPatternKey.Trim();
         IntentLabel = string.IsNullOrWhiteSpace(previewText) ? string.Empty : previewText.Trim();
         IntentPredictedValue = Mathf.Max(0, predictedValue);
         IntentTargetId = string.IsNullOrWhiteSpace(targetId) ? string.Empty : targetId.Trim();
-        IntentSkillId = string.IsNullOrWhiteSpace(skillId) ? string.Empty : skillId.Trim();
-        IntentSkillLabel = string.IsNullOrWhiteSpace(skillLabel) ? string.Empty : skillLabel.Trim();
-        IntentEffectSummaryText = string.IsNullOrWhiteSpace(effectSummaryText) ? string.Empty : effectSummaryText.Trim();
-        IntentStatusSummaryText = string.IsNullOrWhiteSpace(statusSummaryText) ? string.Empty : statusSummaryText.Trim();
-        IntentActionEconomySummaryText = string.IsNullOrWhiteSpace(actionEconomySummaryText) ? string.Empty : actionEconomySummaryText.Trim();
+        IntentRangeKey = string.IsNullOrWhiteSpace(rangeKey) ? string.Empty : rangeKey.Trim();
+        IntentLaneRuleKey = string.IsNullOrWhiteSpace(laneRuleKey) ? string.Empty : laneRuleKey.Trim();
+        IntentThreatLaneKey = string.IsNullOrWhiteSpace(threatLaneKey) ? string.Empty : threatLaneKey.Trim();
+        IntentThreatLaneLabel = string.IsNullOrWhiteSpace(threatLaneLabel) ? string.Empty : threatLaneLabel.Trim();
+        IntentRangeText = string.IsNullOrWhiteSpace(rangeText) ? string.Empty : rangeText.Trim();
+        IntentPredictedReachabilityText = string.IsNullOrWhiteSpace(predictedReachabilityText) ? string.Empty : predictedReachabilityText.Trim();
+        IntentTargetRuleText = string.IsNullOrWhiteSpace(targetRuleText) ? string.Empty : targetRuleText.Trim();
     }
 
     public void SetIntentLabel(string intentLabel)

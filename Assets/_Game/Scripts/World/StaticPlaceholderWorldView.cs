@@ -8,6 +8,8 @@ public sealed partial class StaticPlaceholderWorldView
 
     private readonly WorldData _worldData;
     private readonly ManualTradeRuntimeState _runtimeEconomyState;
+    private readonly System.Collections.Generic.Dictionary<string, WorldSelectableMarker> _markersByEntityId = new System.Collections.Generic.Dictionary<string, WorldSelectableMarker>();
+    private readonly System.Collections.Generic.Dictionary<string, WorldLinkedLaneVisual> _linkedLaneVisualsByKey = new System.Collections.Generic.Dictionary<string, WorldLinkedLaneVisual>();
     private GameObject _root;
     private Sprite _sprite;
     private Texture2D _texture;
@@ -175,6 +177,9 @@ public sealed partial class StaticPlaceholderWorldView
     public string SelectedLastRunLootBreakdownText => GetSelectedLastRunLootBreakdownText();
     public string SelectedLastRunDungeonText => GetSelectedLastRunDungeonText();
     public string SelectedLastRunRouteText => GetSelectedLastRunRouteText();
+    public string SelectedLastRunGearRewardText => GetSelectedLastRunGearRewardText();
+    public string SelectedLastRunEquipSwapText => GetSelectedLastRunEquipSwapText();
+    public string SelectedLastRunGearContinuityText => GetSelectedLastRunGearContinuityText();
     private DirectTradeScanResult CurrentTradeScanResult => _runtimeEconomyState != null
         ? _runtimeEconomyState.CurrentTradeScanResult
         : DirectTradeScanResult.Empty;
@@ -238,11 +243,9 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
-        CaptureWorldOperationBaseline("run_day");
         int previousWorldDayCount = _runtimeEconomyState.WorldDayCount;
         _runtimeEconomyState.RunEconomyDay();
         AdvanceDispatchRecoveryForEconomyDays(previousWorldDayCount, _runtimeEconomyState.WorldDayCount);
-        RefreshWorldOperationSurface();
     }
 
     public void UpdateAutoTick(float deltaTime)
@@ -252,11 +255,9 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
-        CaptureWorldOperationBaseline("run_day");
         int previousWorldDayCount = _runtimeEconomyState.WorldDayCount;
         _runtimeEconomyState.UpdateAutoTick(deltaTime);
         AdvanceDispatchRecoveryForEconomyDays(previousWorldDayCount, _runtimeEconomyState.WorldDayCount);
-        RefreshWorldOperationSurface();
     }
 
     public void ToggleAutoTickEnabled()
@@ -267,7 +268,6 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         _runtimeEconomyState.ToggleAutoTickEnabled();
-        RefreshWorldOperationSurface();
     }
 
     public void ToggleAutoTickPaused()
@@ -278,7 +278,6 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         _runtimeEconomyState.ToggleAutoTickPaused();
-        RefreshWorldOperationSurface();
     }
 
     public void ResetRuntimeEconomy()
@@ -288,28 +287,27 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
-        ResetWorldOutcomeReadbackState();
+        CancelExpeditionPrepBoard();
         _runtimeEconomyState.Reset();
+        ResetWorldSnapshotProjectionState();
         ResetDungeonRunSystems();
-        ResetWorldRecruitmentRuntimeState();
-        ResetWorldPartyRosterRuntimeState();
-        RefreshWorldOperationSurface();
     }
 
     public void RecruitSelectedCityParty()
     {
-        if (_selectedMarker == null || _selectedMarker.EntityData.Kind != WorldEntityKind.City)
+        if (_runtimeEconomyState == null || _selectedMarker == null || _selectedMarker.EntityData.Kind != WorldEntityKind.City)
         {
             return;
         }
 
-        if (!_isRecruitmentBoardOpen)
+        string cityId = _selectedMarker.EntityData.Id;
+        if (!_runtimeEconomyState.RecruitParty(cityId))
         {
-            TryOpenSelectedCityRecruitmentBoard();
             return;
         }
 
-        TryConfirmSelectedRecruitOffer();
+        string partyId = _runtimeEconomyState.GetIdlePartyIdInCity(cityId);
+        GetOrCreateDungeonParty(cityId, partyId);
     }
 
     public void DispatchSelectedCityExpedition()
@@ -332,6 +330,9 @@ public sealed partial class StaticPlaceholderWorldView
             _root = null;
         }
 
+        _markersByEntityId.Clear();
+        _linkedLaneVisualsByKey.Clear();
+
         if (_sprite != null)
         {
             Object.Destroy(_sprite);
@@ -344,7 +345,6 @@ public sealed partial class StaticPlaceholderWorldView
             _texture = null;
         }
 
-        ClearWorldOperationVisualRegistry();
         DisposeDungeonRunSystems();
     }
 
@@ -366,6 +366,8 @@ public sealed partial class StaticPlaceholderWorldView
         _sprite.name = "PlaceholderWorldSprite";
 
         _root = new GameObject("StaticPlaceholderWorld");
+        _markersByEntityId.Clear();
+        _linkedLaneVisualsByKey.Clear();
 
         if (_worldData == null)
         {
@@ -389,11 +391,25 @@ public sealed partial class StaticPlaceholderWorldView
 
         for (int i = 0; i < _worldData.Entities.Length; i++)
         {
-            CreateSelectableMarker(_worldData.Entities[i]);
+            WorldEntityData entity = _worldData.Entities[i];
+            if (entity == null || entity.Kind != WorldEntityKind.Dungeon || string.IsNullOrEmpty(entity.LinkedCityId))
+            {
+                continue;
+            }
+
+            WorldEntityData linkedCity = FindEntity(entity.LinkedCityId);
+            if (linkedCity == null)
+            {
+                continue;
+            }
+
+            CreateLinkedExpeditionLane(linkedCity, entity);
         }
 
-        EnsureWorldOperationSurfaceVisuals();
-        RefreshWorldOperationSurface();
+        for (int i = 0; i < _worldData.Entities.Length; i++)
+        {
+            CreateSelectableMarker(_worldData.Entities[i]);
+        }
     }
 
     private WorldRouteData GetFirstRoute()
@@ -988,6 +1004,27 @@ public sealed partial class StaticPlaceholderWorldView
             : "None";
     }
 
+    private string GetSelectedLastRunGearRewardText()
+    {
+        return _selectedMarker != null && _runtimeEconomyState != null && _selectedMarker.EntityData.Kind == WorldEntityKind.City
+            ? _runtimeEconomyState.GetLastRunGearRewardSummaryForCity(_selectedMarker.EntityData.Id)
+            : "None";
+    }
+
+    private string GetSelectedLastRunEquipSwapText()
+    {
+        return _selectedMarker != null && _runtimeEconomyState != null && _selectedMarker.EntityData.Kind == WorldEntityKind.City
+            ? _runtimeEconomyState.GetLastRunEquipSwapSummaryForCity(_selectedMarker.EntityData.Id)
+            : "None";
+    }
+
+    private string GetSelectedLastRunGearContinuityText()
+    {
+        return _selectedMarker != null && _runtimeEconomyState != null && _selectedMarker.EntityData.Kind == WorldEntityKind.City
+            ? _runtimeEconomyState.GetLastRunGearContinuitySummaryForCity(_selectedMarker.EntityData.Id)
+            : "None";
+    }
+
     private string GetSelectedExpeditionDungeonId()
     {
         if (_selectedMarker == null)
@@ -1020,6 +1057,19 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         return string.Empty;
+    }
+
+    private string GetLinkedCityIdForDungeon(string dungeonId)
+    {
+        if (_worldData == null || string.IsNullOrEmpty(dungeonId))
+        {
+            return string.Empty;
+        }
+
+        WorldEntityData dungeon = FindEntity(dungeonId);
+        return dungeon != null && dungeon.Kind == WorldEntityKind.Dungeon
+            ? dungeon.LinkedCityId ?? string.Empty
+            : string.Empty;
     }
 
     private string GetSelectedSurplusText()
@@ -1637,7 +1687,11 @@ public sealed partial class StaticPlaceholderWorldView
         CreateWorldVisual(marker.transform, "Plate", Vector2.zero, new Vector2(1.38f, 1.02f), surfaceColor, 6, markerRotation);
         SpriteRenderer renderer = CreateWorldVisual(marker.transform, "Core", Vector2.zero, new Vector2(0.92f, 0.92f), accentColor, 7, markerRotation).GetComponent<SpriteRenderer>();
         SpriteRenderer selectionRenderer = CreateWorldVisual(marker.transform, "Selection", Vector2.zero, new Vector2(1.95f, 1.46f), new Color(trimColor.r, trimColor.g, trimColor.b, 0.26f), 9, markerRotation).GetComponent<SpriteRenderer>();
+        SpriteRenderer aftermathRenderer = CreateWorldVisual(marker.transform, "Aftermath", Vector2.zero, new Vector2(2.18f, 1.66f), new Color(trimColor.r, trimColor.g, trimColor.b, 0f), 8, markerRotation).GetComponent<SpriteRenderer>();
+        SpriteRenderer pinRenderer = CreateWorldVisual(marker.transform, "AftermathPin", isDungeon ? new Vector2(0.62f, 0.82f) : new Vector2(0.72f, 0.78f), new Vector2(0.20f, 0.20f), new Color(trimColor.r, trimColor.g, trimColor.b, 0f), 11, 45f).GetComponent<SpriteRenderer>();
         selectionRenderer.enabled = false;
+        aftermathRenderer.enabled = false;
+        pinRenderer.enabled = false;
 
         if (isDungeon)
         {
@@ -1661,8 +1715,51 @@ public sealed partial class StaticPlaceholderWorldView
         collider.size = new Vector2(1.8f, 1.8f);
 
         WorldSelectableMarker selectableMarker = marker.AddComponent<WorldSelectableMarker>();
-        selectableMarker.Initialize(entity, renderer, glowRenderer, selectionRenderer, labelText, detailText);
-        RegisterWorldMarker(selectableMarker);
+        selectableMarker.Initialize(entity, renderer, glowRenderer, selectionRenderer, aftermathRenderer, pinRenderer, labelText, detailText);
+        _markersByEntityId[entity.Id] = selectableMarker;
+    }
+
+    private void CreateLinkedExpeditionLane(WorldEntityData cityEntity, WorldEntityData dungeonEntity)
+    {
+        if (_root == null || _sprite == null || cityEntity == null || dungeonEntity == null)
+        {
+            return;
+        }
+
+        string laneKey = BuildLinkedLaneKey(cityEntity.Id, dungeonEntity.Id);
+        if (_linkedLaneVisualsByKey.ContainsKey(laneKey))
+        {
+            return;
+        }
+
+        GameObject lane = new GameObject(laneKey + "_LinkedLane");
+        lane.transform.SetParent(_root.transform, false);
+        lane.transform.localPosition = Vector3.zero;
+        lane.transform.localRotation = Quaternion.identity;
+        lane.transform.localScale = Vector3.one;
+
+        Vector2 start = cityEntity.Position;
+        Vector2 end = dungeonEntity.Position;
+        Vector2 delta = end - start;
+        float length = Mathf.Max(0.01f, delta.magnitude);
+        float angle = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
+        Vector2 midpoint = (start + end) * 0.5f;
+
+        SpriteRenderer baseRenderer = CreateWorldVisual(lane.transform, "Base", midpoint, new Vector2(length, 0.14f), new Color(0.28f, 0.34f, 0.38f, 0.24f), 2, angle).GetComponent<SpriteRenderer>();
+        SpriteRenderer coreRenderer = CreateWorldVisual(lane.transform, "Core", midpoint, new Vector2(Mathf.Max(0.12f, length - 0.16f), 0.05f), new Color(0.54f, 0.64f, 0.70f, 0.16f), 3, angle).GetComponent<SpriteRenderer>();
+        SpriteRenderer pulseRenderer = CreateWorldVisual(lane.transform, "Pulse", midpoint, new Vector2(Mathf.Max(0.16f, length - 0.08f), 0.09f), new Color(0.70f, 0.78f, 0.84f, 0f), 4, angle).GetComponent<SpriteRenderer>();
+        SpriteRenderer pinRenderer = CreateWorldVisual(lane.transform, "Pin", midpoint, new Vector2(0.18f, 0.18f), new Color(0.90f, 0.78f, 0.42f, 0f), 5, 45f).GetComponent<SpriteRenderer>();
+        pulseRenderer.enabled = false;
+        pinRenderer.enabled = false;
+
+        WorldLinkedLaneVisual laneVisual = lane.AddComponent<WorldLinkedLaneVisual>();
+        laneVisual.Initialize(laneKey, cityEntity.Id, dungeonEntity.Id, baseRenderer, coreRenderer, pulseRenderer, pinRenderer);
+        _linkedLaneVisualsByKey[laneKey] = laneVisual;
+    }
+
+    private string BuildLinkedLaneKey(string cityId, string dungeonId)
+    {
+        return (string.IsNullOrEmpty(cityId) ? "none" : cityId) + "->" + (string.IsNullOrEmpty(dungeonId) ? "none" : dungeonId);
     }
 
     private void CreateRoad(WorldRouteData route, Vector2 start, Vector2 end, Color color)
@@ -1679,17 +1776,150 @@ public sealed partial class StaticPlaceholderWorldView
         Vector2 normal = delta.sqrMagnitude > 0.0001f ? new Vector2(-delta.y, delta.x).normalized : Vector2.up;
 
         CreateWorldVisual(_root.transform, route.Id + "_Shadow", midpoint + new Vector2(0.08f, -0.08f), new Vector2(length, 0.30f), new Color(0f, 0f, 0f, 0.34f), 0, angle);
-        SpriteRenderer baseRenderer = CreateWorldVisual(_root.transform, route.Id + "_Base", midpoint, new Vector2(length, 0.22f), new Color(0.26f, 0.24f, 0.22f, 0.96f), 1, angle).GetComponent<SpriteRenderer>();
-        SpriteRenderer innerRenderer = CreateWorldVisual(_root.transform, route.Id + "_Inner", midpoint, new Vector2(Mathf.Max(0.12f, length - 0.10f), 0.08f), new Color(0.72f, 0.62f, 0.42f, 0.78f), 2, angle).GetComponent<SpriteRenderer>();
-        SpriteRenderer sealRenderer = CreateWorldVisual(_root.transform, route.Id + "_Seal", midpoint, new Vector2(0.34f, 0.34f), new Color(color.r, color.g, color.b, 0.92f), 3, 45f).GetComponent<SpriteRenderer>();
-        TextMesh labelText = CreateWorldText(_root.transform, route.Id + "_Label", midpoint + (normal * 0.34f), BuildRouteVisualLabel(route), 34, 0.07f, new Color(0.90f, 0.84f, 0.76f, 0.96f), 4);
-        RegisterWorldRoutePulse(route.Id, new WorldBoardRoutePressureVisual(baseRenderer, innerRenderer, sealRenderer, labelText));
+        CreateWorldVisual(_root.transform, route.Id + "_Base", midpoint, new Vector2(length, 0.22f), new Color(0.26f, 0.24f, 0.22f, 0.96f), 1, angle);
+        CreateWorldVisual(_root.transform, route.Id + "_Inner", midpoint, new Vector2(Mathf.Max(0.12f, length - 0.10f), 0.08f), new Color(0.72f, 0.62f, 0.42f, 0.78f), 2, angle);
+        CreateWorldVisual(_root.transform, route.Id + "_Seal", midpoint, new Vector2(0.34f, 0.34f), new Color(color.r, color.g, color.b, 0.92f), 3, 45f);
+        CreateWorldText(_root.transform, route.Id + "_Label", midpoint + (normal * 0.34f), BuildRouteVisualLabel(route), 34, 0.07f, new Color(0.90f, 0.84f, 0.76f, 0.96f), 4);
     }
+
+    public void ApplyWorldBoardEmphasis(WorldObservationSurfaceData observation)
+    {
+        if (_root == null || observation == null)
+        {
+            return;
+        }
+
+        ResolveSelectedBoardChain(observation, out string selectedCityId, out string selectedDungeonId);
+        ResolveLatestReturnBoardChain(observation, out string latestCityId, out string latestDungeonId, out string latestStateKey);
+        bool latestMatchesSelected =
+            !string.IsNullOrEmpty(selectedCityId) &&
+            !string.IsNullOrEmpty(selectedDungeonId) &&
+            selectedCityId == latestCityId &&
+            selectedDungeonId == latestDungeonId;
+        bool isRelievedHotspot = latestStateKey == "clear";
+        bool isReboundHotspot = latestStateKey == "retreat" || latestStateKey == "defeat";
+
+        foreach (System.Collections.Generic.KeyValuePair<string, WorldSelectableMarker> pair in _markersByEntityId)
+        {
+            WorldSelectableMarker marker = pair.Value;
+            if (marker == null)
+            {
+                continue;
+            }
+
+            bool isSelectedFocus = _selectedMarker == marker;
+            bool isSelectedChain = pair.Key == selectedCityId || pair.Key == selectedDungeonId;
+            bool isLatestChain = pair.Key == latestCityId || pair.Key == latestDungeonId;
+            marker.ApplyBoardState(
+                isSelectedFocus,
+                isSelectedChain,
+                isLatestChain,
+                isLatestChain && isRelievedHotspot,
+                isLatestChain && isReboundHotspot,
+                latestMatchesSelected);
+        }
+
+        foreach (System.Collections.Generic.KeyValuePair<string, WorldLinkedLaneVisual> pair in _linkedLaneVisualsByKey)
+        {
+            WorldLinkedLaneVisual laneVisual = pair.Value;
+            if (laneVisual == null)
+            {
+                continue;
+            }
+
+            bool isSelectedChain = laneVisual.MatchesChain(selectedCityId, selectedDungeonId);
+            bool isLatestChain = laneVisual.MatchesChain(latestCityId, latestDungeonId);
+            laneVisual.ApplyBoardState(
+                isSelectedChain,
+                isLatestChain,
+                isLatestChain && isRelievedHotspot,
+                isLatestChain && isReboundHotspot,
+                latestMatchesSelected);
+        }
+    }
+
+    private void ResolveSelectedBoardChain(WorldObservationSurfaceData observation, out string cityId, out string dungeonId)
+    {
+        cityId = string.Empty;
+        dungeonId = string.Empty;
+
+        if (_selectedMarker != null && _selectedMarker.EntityData != null)
+        {
+            if (_selectedMarker.EntityData.Kind == WorldEntityKind.City)
+            {
+                cityId = _selectedMarker.EntityData.Id;
+                dungeonId = GetLinkedDungeonIdForCity(cityId);
+            }
+            else if (_selectedMarker.EntityData.Kind == WorldEntityKind.Dungeon)
+            {
+                dungeonId = _selectedMarker.EntityData.Id;
+                cityId = _selectedMarker.EntityData.LinkedCityId;
+            }
+        }
+
+        if (string.IsNullOrEmpty(cityId) && observation.SelectedEntity != null)
+        {
+            cityId = observation.SelectedEntity.SelectedCityId;
+        }
+
+        if (string.IsNullOrEmpty(dungeonId) && observation.SelectedEntity != null)
+        {
+            dungeonId = observation.SelectedEntity.SelectedDungeonId;
+        }
+
+        if (string.IsNullOrEmpty(cityId) && observation.CurrentContext != null)
+        {
+            cityId = observation.CurrentContext.CityId;
+        }
+
+        if (string.IsNullOrEmpty(dungeonId) && observation.CurrentContext != null)
+        {
+            dungeonId = observation.CurrentContext.DungeonId;
+        }
+
+        if (string.IsNullOrEmpty(cityId) && !string.IsNullOrEmpty(dungeonId))
+        {
+            cityId = GetLinkedCityIdForDungeon(dungeonId);
+        }
+
+        if (string.IsNullOrEmpty(dungeonId) && !string.IsNullOrEmpty(cityId))
+        {
+            dungeonId = GetLinkedDungeonIdForCity(cityId);
+        }
+    }
+
+    private void ResolveLatestReturnBoardChain(WorldObservationSurfaceData observation, out string cityId, out string dungeonId, out string resultStateKey)
+    {
+        cityId = string.Empty;
+        dungeonId = string.Empty;
+        resultStateKey = string.Empty;
+
+        if (observation == null || observation.RecentOutcome == null || observation.RecentOutcome.LatestWorldWriteback == null)
+        {
+            return;
+        }
+
+        global::WorldWriteback writeback = observation.RecentOutcome.LatestWorldWriteback;
+        if (writeback == null || string.IsNullOrEmpty(writeback.RunResultStateKey) || writeback.RunResultStateKey == "none")
+        {
+            return;
+        }
+
+        cityId = writeback.SourceCityId ?? string.Empty;
+        dungeonId = writeback.TargetDungeonId ?? string.Empty;
+        resultStateKey = writeback.RunResultStateKey ?? string.Empty;
+    }
+
     private void SetSelected(WorldSelectableMarker nextMarker)
     {
         if (_selectedMarker == nextMarker)
         {
             return;
+        }
+
+        if (_isExpeditionPrepBoardOpen)
+        {
+            CancelExpeditionPrepBoard();
         }
 
         if (_selectedMarker != null)
@@ -1704,9 +1934,7 @@ public sealed partial class StaticPlaceholderWorldView
             _selectedMarker.SetSelected(true);
         }
 
-        HandleWorldRecruitmentSelectionChanged();
-        HandleWorldPartyRosterSelectionChanged();
-        RefreshWorldOperationSurface();
+        ApplyWorldBoardEmphasis(BuildWorldObservationSurfaceData());
     }
 
     private Color GetEntityColor(WorldEntityData entity)
@@ -1736,191 +1964,155 @@ public sealed class WorldSelectableMarker : MonoBehaviour
     private SpriteRenderer _renderer;
     private SpriteRenderer _glowRenderer;
     private SpriteRenderer _selectionRenderer;
+    private SpriteRenderer _aftermathRenderer;
+    private SpriteRenderer _pinRenderer;
     private TextMesh _labelText;
     private TextMesh _detailText;
     private Vector3 _baseScale;
     private Color _baseColor;
     private Color _glowColor;
     private Color _selectionColor;
+    private Color _aftermathColor;
+    private Color _pinColor;
     private Color _labelColor;
     private Color _detailColor;
-    private bool _isSelected;
-    private bool _isLinkedFocus;
-    private bool _hasOutcomePin;
-    private bool _isActionReady;
-    private string _pressureStateKey = string.Empty;
-    private bool _isOpportunityPulse;
+    private float _pulseOffset;
 
-    public void Initialize(WorldEntityData entityData, SpriteRenderer renderer, SpriteRenderer glowRenderer, SpriteRenderer selectionRenderer, TextMesh labelText, TextMesh detailText)
+    public void Initialize(
+        WorldEntityData entityData,
+        SpriteRenderer renderer,
+        SpriteRenderer glowRenderer,
+        SpriteRenderer selectionRenderer,
+        SpriteRenderer aftermathRenderer,
+        SpriteRenderer pinRenderer,
+        TextMesh labelText,
+        TextMesh detailText)
     {
         EntityData = entityData;
         _renderer = renderer;
         _glowRenderer = glowRenderer;
         _selectionRenderer = selectionRenderer;
+        _aftermathRenderer = aftermathRenderer;
+        _pinRenderer = pinRenderer;
         _labelText = labelText;
         _detailText = detailText;
         _baseScale = transform.localScale;
         _baseColor = renderer != null ? renderer.color : Color.white;
         _glowColor = glowRenderer != null ? glowRenderer.color : Color.clear;
         _selectionColor = selectionRenderer != null ? selectionRenderer.color : Color.clear;
+        _aftermathColor = aftermathRenderer != null ? aftermathRenderer.color : Color.clear;
+        _pinColor = pinRenderer != null ? pinRenderer.color : Color.clear;
         _labelColor = labelText != null ? labelText.color : Color.white;
         _detailColor = detailText != null ? detailText.color : Color.white;
+        _pulseOffset = EntityData != null && !string.IsNullOrEmpty(EntityData.Id)
+            ? Mathf.Abs(EntityData.Id.GetHashCode() % 37) * 0.17f
+            : 0f;
 
         if (_selectionRenderer != null)
         {
             _selectionRenderer.enabled = false;
         }
 
-        RefreshPresentationState();
+        if (_aftermathRenderer != null)
+        {
+            _aftermathRenderer.enabled = false;
+        }
+
+        if (_pinRenderer != null)
+        {
+            _pinRenderer.enabled = false;
+        }
     }
 
     public void SetSelected(bool isSelected)
     {
-        _isSelected = isSelected;
-        RefreshPresentationState();
+        ApplyBoardState(isSelected, isSelected, false, false, false, false);
     }
 
-    public void SetLinkedFocus(bool isLinkedFocus)
+    public void ApplyBoardState(bool isPrimarySelected, bool isSelectedChain, bool isLatestReturnChain, bool isRelievedHotspot, bool isReboundHotspot, bool latestMatchesSelected)
     {
-        _isLinkedFocus = isLinkedFocus;
-        RefreshPresentationState();
-    }
-
-    public void SetOutcomePinned(bool hasOutcomePin)
-    {
-        _hasOutcomePin = hasOutcomePin;
-        RefreshPresentationState();
-    }
-
-    public void SetActionReady(bool isActionReady)
-    {
-        _isActionReady = isActionReady;
-        RefreshPresentationState();
-    }
-
-    public void SetPressureState(string pressureStateKey, bool isOpportunityPulse)
-    {
-        _pressureStateKey = string.IsNullOrEmpty(pressureStateKey) ? string.Empty : pressureStateKey;
-        _isOpportunityPulse = isOpportunityPulse;
-        RefreshPresentationState();
-    }
-
-    private void RefreshPresentationState()
-    {
-        bool hasPressureState = !string.IsNullOrEmpty(_pressureStateKey);
-        float pressureScale = _pressureStateKey == "critical" ? 1.035f : _pressureStateKey == "strained" ? 1.028f : _pressureStateKey == "recovering" ? 1.018f : _pressureStateKey == "watch" ? 1.012f : 1f;
-        float scaleMultiplier = _isSelected ? 1.08f : _isLinkedFocus ? 1.04f : _hasOutcomePin ? 1.02f : hasPressureState ? pressureScale : 1f;
+        float pulse = 0.5f + (0.5f * Mathf.Sin((Time.time * 1.8f) + _pulseOffset));
+        float selectedWeight = isPrimarySelected ? 1f : isSelectedChain ? 0.55f : 0f;
+        float latestWeight = isLatestReturnChain ? 1f : 0f;
+        float scaleMultiplier = isPrimarySelected
+            ? 1.08f
+            : isSelectedChain
+                ? 1.04f
+                : isLatestReturnChain
+                    ? 1.02f
+                    : 1f;
         transform.localScale = _baseScale * scaleMultiplier;
 
-        Color pressureTint = _isOpportunityPulse
-            ? new Color(0.52f, 0.82f, 0.60f, 1f)
-            : _pressureStateKey == "critical"
-                ? new Color(0.94f, 0.56f, 0.38f, 1f)
-                : _pressureStateKey == "strained"
-                    ? new Color(0.90f, 0.74f, 0.34f, 1f)
-                    : _pressureStateKey == "recovering"
-                        ? new Color(0.46f, 0.74f, 0.92f, 1f)
-                        : _pressureStateKey == "watch"
-                            ? new Color(0.58f, 0.80f, 0.82f, 1f)
-                            : _baseColor;
-        float pressureMix = _isOpportunityPulse ? 0.20f : _pressureStateKey == "critical" ? 0.28f : _pressureStateKey == "strained" ? 0.22f : _pressureStateKey == "recovering" ? 0.16f : _pressureStateKey == "watch" ? 0.12f : 0f;
+        Color priorityColor = isReboundHotspot
+            ? new Color(0.92f, 0.58f, 0.34f, 1f)
+            : isRelievedHotspot
+                ? new Color(0.46f, 0.80f, 0.56f, 1f)
+                : new Color(0.88f, 0.76f, 0.42f, 1f);
+        Color selectedColor = new Color(0.72f, 0.86f, 0.94f, 1f);
 
         if (_renderer != null)
         {
-            Color target = pressureMix > 0f ? Color.Lerp(_baseColor, pressureTint, pressureMix) : _baseColor;
-            if (_isLinkedFocus)
+            Color markerColor = _baseColor;
+            if (isLatestReturnChain)
             {
-                target = Color.Lerp(target, Color.white, 0.12f);
+                markerColor = Color.Lerp(markerColor, priorityColor, latestMatchesSelected ? 0.12f : 0.20f);
             }
 
-            if (_hasOutcomePin)
+            if (selectedWeight > 0f)
             {
-                target = Color.Lerp(target, new Color(0.96f, 0.84f, 0.54f, 1f), 0.18f);
+                markerColor = Color.Lerp(markerColor, Color.Lerp(selectedColor, Color.white, 0.28f), 0.16f + (selectedWeight * 0.16f));
             }
 
-            if (_isSelected)
-            {
-                target = Color.Lerp(target, _isActionReady ? new Color(0.92f, 0.98f, 0.92f, 1f) : Color.white, _isActionReady ? 0.30f : 0.28f);
-            }
-
-            _renderer.color = target;
+            _renderer.color = markerColor;
         }
 
         if (_glowRenderer != null)
         {
-            Color glowTarget = pressureMix > 0f ? Color.Lerp(_glowColor, new Color(pressureTint.r, pressureTint.g, pressureTint.b, _glowColor.a), 0.34f) : _glowColor;
-            float alpha = glowTarget.a;
-            if (hasPressureState)
+            Color glowColor = _glowColor;
+            float glowAlpha = _glowColor.a;
+            if (isLatestReturnChain)
             {
-                alpha = Mathf.Max(alpha, _pressureStateKey == "critical" ? 0.34f : _pressureStateKey == "strained" ? 0.26f : _pressureStateKey == "recovering" ? 0.20f : 0.18f);
+                Color toneGlow = new Color(priorityColor.r, priorityColor.g, priorityColor.b, 1f);
+                glowColor = Color.Lerp(glowColor, toneGlow, latestMatchesSelected ? 0.28f : 0.48f);
+                glowAlpha = Mathf.Max(glowAlpha, latestMatchesSelected ? 0.22f : 0.28f + (pulse * 0.05f));
             }
 
-            if (_isOpportunityPulse)
+            if (selectedWeight > 0f)
             {
-                alpha = Mathf.Max(alpha, 0.26f);
+                glowColor = Color.Lerp(glowColor, selectedColor, 0.42f);
+                glowAlpha = Mathf.Max(glowAlpha, 0.24f + (selectedWeight * 0.14f));
             }
 
-            if (_isLinkedFocus)
-            {
-                alpha = Mathf.Max(alpha, 0.24f);
-            }
-
-            if (_hasOutcomePin)
-            {
-                alpha = Mathf.Max(alpha, 0.30f);
-            }
-
-            if (_isSelected)
-            {
-                alpha = Mathf.Max(alpha, _isActionReady ? 0.48f : 0.34f);
-            }
-
-            _glowRenderer.color = new Color(glowTarget.r, glowTarget.g, glowTarget.b, alpha);
+            _glowRenderer.color = new Color(glowColor.r, glowColor.g, glowColor.b, glowAlpha);
         }
 
         if (_selectionRenderer != null)
         {
-            _selectionRenderer.enabled = _isSelected || _isLinkedFocus || _hasOutcomePin;
-            if (_selectionRenderer.enabled)
+            bool showSelection = isPrimarySelected || isSelectedChain;
+            _selectionRenderer.enabled = showSelection;
+            if (showSelection)
             {
-                Color highlight = _selectionColor;
-                if (_isSelected && _isActionReady)
-                {
-                    highlight = new Color(0.58f, 0.84f, 0.62f, 0.38f);
-                }
-                else if (_isSelected)
-                {
-                    highlight = new Color(0.92f, 0.96f, 1f, 0.32f);
-                }
-                else if (_hasOutcomePin)
-                {
-                    highlight = new Color(0.96f, 0.82f, 0.46f, 0.24f);
-                }
-                else if (_isLinkedFocus)
-                {
-                    highlight = new Color(0.46f, 0.72f, 0.88f, 0.20f);
-                }
-
-                _selectionRenderer.color = highlight;
+                Color selectionTint = Color.Lerp(_selectionColor, selectedColor, isPrimarySelected ? 0.68f : 0.42f);
+                float alpha = isPrimarySelected
+                    ? 0.48f
+                    : latestMatchesSelected
+                        ? 0.22f
+                        : 0.28f;
+                _selectionRenderer.color = new Color(selectionTint.r, selectionTint.g, selectionTint.b, alpha);
             }
         }
 
         if (_labelText != null)
         {
-            Color labelColor = pressureMix > 0f ? Color.Lerp(_labelColor, pressureTint, pressureMix) : _labelColor;
-            if (_isLinkedFocus)
+            Color labelColor = _labelColor;
+            if (isLatestReturnChain)
             {
-                labelColor = Color.Lerp(labelColor, Color.white, 0.14f);
+                labelColor = Color.Lerp(labelColor, priorityColor, latestMatchesSelected ? 0.14f : 0.22f);
             }
 
-            if (_hasOutcomePin)
+            if (selectedWeight > 0f)
             {
-                labelColor = Color.Lerp(labelColor, new Color(1f, 0.92f, 0.70f, 1f), 0.18f);
-            }
-
-            if (_isSelected)
-            {
-                labelColor = Color.Lerp(labelColor, Color.white, 0.25f);
+                labelColor = Color.Lerp(labelColor, Color.white, 0.16f + (selectedWeight * 0.12f));
             }
 
             _labelText.color = labelColor;
@@ -1928,21 +2120,157 @@ public sealed class WorldSelectableMarker : MonoBehaviour
 
         if (_detailText != null)
         {
-            Color detailColor = pressureMix > 0f ? Color.Lerp(_detailColor, pressureTint, pressureMix * 0.8f) : _detailColor;
-            if (_hasOutcomePin)
+            Color detailColor = _detailColor;
+            if (isLatestReturnChain)
             {
-                detailColor = Color.Lerp(detailColor, new Color(0.98f, 0.90f, 0.72f, 1f), 0.20f);
+                detailColor = Color.Lerp(detailColor, priorityColor, latestMatchesSelected ? 0.18f : 0.26f);
             }
 
-            if (_isSelected || _isLinkedFocus)
+            if (selectedWeight > 0f)
             {
-                detailColor = Color.Lerp(detailColor, Color.white, _isSelected ? 0.18f : 0.10f);
+                detailColor = Color.Lerp(detailColor, Color.white, 0.12f + (selectedWeight * 0.08f));
             }
 
             _detailText.color = detailColor;
         }
+
+        if (_aftermathRenderer != null)
+        {
+            _aftermathRenderer.enabled = isLatestReturnChain;
+            if (isLatestReturnChain)
+            {
+                float alpha = latestMatchesSelected ? 0.12f : 0.18f + (pulse * 0.05f);
+                Color aftermathTint = Color.Lerp(_aftermathColor, priorityColor, 0.72f);
+                _aftermathRenderer.color = new Color(aftermathTint.r, aftermathTint.g, aftermathTint.b, alpha);
+            }
+        }
+
+        if (_pinRenderer != null)
+        {
+            _pinRenderer.enabled = isLatestReturnChain;
+            if (isLatestReturnChain)
+            {
+                float alpha = latestMatchesSelected ? 0.58f : 0.70f + (pulse * 0.08f);
+                Color pinTint = Color.Lerp(_pinColor, priorityColor, 0.82f);
+                _pinRenderer.color = new Color(pinTint.r, pinTint.g, pinTint.b, alpha);
+            }
+        }
     }
 }
 
+public sealed class WorldLinkedLaneVisual : MonoBehaviour
+{
+    public string LaneKey { get; private set; }
+    public string CityId { get; private set; }
+    public string DungeonId { get; private set; }
 
+    private SpriteRenderer _baseRenderer;
+    private SpriteRenderer _coreRenderer;
+    private SpriteRenderer _pulseRenderer;
+    private SpriteRenderer _pinRenderer;
+    private Color _baseColor;
+    private Color _coreColor;
+    private Color _pulseColor;
+    private Color _pinColor;
+    private float _pulseOffset;
+
+    public void Initialize(string laneKey, string cityId, string dungeonId, SpriteRenderer baseRenderer, SpriteRenderer coreRenderer, SpriteRenderer pulseRenderer, SpriteRenderer pinRenderer)
+    {
+        LaneKey = laneKey ?? string.Empty;
+        CityId = cityId ?? string.Empty;
+        DungeonId = dungeonId ?? string.Empty;
+        _baseRenderer = baseRenderer;
+        _coreRenderer = coreRenderer;
+        _pulseRenderer = pulseRenderer;
+        _pinRenderer = pinRenderer;
+        _baseColor = baseRenderer != null ? baseRenderer.color : Color.clear;
+        _coreColor = coreRenderer != null ? coreRenderer.color : Color.clear;
+        _pulseColor = pulseRenderer != null ? pulseRenderer.color : Color.clear;
+        _pinColor = pinRenderer != null ? pinRenderer.color : Color.clear;
+        _pulseOffset = Mathf.Abs(LaneKey.GetHashCode() % 41) * 0.11f;
+    }
+
+    public bool MatchesChain(string cityId, string dungeonId)
+    {
+        return !string.IsNullOrEmpty(cityId) &&
+               !string.IsNullOrEmpty(dungeonId) &&
+               CityId == cityId &&
+               DungeonId == dungeonId;
+    }
+
+    public void ApplyBoardState(bool isSelectedChain, bool isLatestReturnChain, bool isRelievedHotspot, bool isReboundHotspot, bool latestMatchesSelected)
+    {
+        float pulse = 0.5f + (0.5f * Mathf.Sin((Time.time * 1.5f) + _pulseOffset));
+        Color selectedColor = new Color(0.54f, 0.74f, 0.84f, 1f);
+        Color toneColor = isReboundHotspot
+            ? new Color(0.92f, 0.56f, 0.30f, 1f)
+            : isRelievedHotspot
+                ? new Color(0.44f, 0.78f, 0.56f, 1f)
+                : new Color(0.88f, 0.76f, 0.42f, 1f);
+
+        if (_baseRenderer != null)
+        {
+            Color baseColor = _baseColor;
+            float alpha = _baseColor.a;
+            if (isLatestReturnChain)
+            {
+                baseColor = Color.Lerp(baseColor, toneColor, latestMatchesSelected ? 0.20f : 0.36f);
+                alpha = Mathf.Max(alpha, latestMatchesSelected ? 0.22f : 0.28f);
+            }
+
+            if (isSelectedChain)
+            {
+                baseColor = Color.Lerp(baseColor, selectedColor, 0.40f);
+                alpha = Mathf.Max(alpha, 0.34f);
+            }
+
+            _baseRenderer.color = new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
+        }
+
+        if (_coreRenderer != null)
+        {
+            Color coreColor = _coreColor;
+            float alpha = _coreColor.a;
+            if (isLatestReturnChain)
+            {
+                coreColor = Color.Lerp(coreColor, toneColor, latestMatchesSelected ? 0.26f : 0.46f);
+                alpha = Mathf.Max(alpha, latestMatchesSelected ? 0.16f : 0.22f);
+            }
+
+            if (isSelectedChain)
+            {
+                coreColor = Color.Lerp(coreColor, selectedColor, 0.58f);
+                alpha = Mathf.Max(alpha, 0.28f);
+            }
+
+            _coreRenderer.color = new Color(coreColor.r, coreColor.g, coreColor.b, alpha);
+        }
+
+        if (_pulseRenderer != null)
+        {
+            _pulseRenderer.enabled = isLatestReturnChain || isSelectedChain;
+            if (_pulseRenderer.enabled)
+            {
+                Color pulseColor = isLatestReturnChain ? toneColor : selectedColor;
+                float alpha = isLatestReturnChain
+                    ? latestMatchesSelected
+                        ? 0.05f + (pulse * 0.03f)
+                        : 0.10f + (pulse * 0.06f)
+                    : 0.06f + (pulse * 0.03f);
+                _pulseRenderer.color = new Color(pulseColor.r, pulseColor.g, pulseColor.b, alpha);
+            }
+        }
+
+        if (_pinRenderer != null)
+        {
+            _pinRenderer.enabled = isLatestReturnChain;
+            if (isLatestReturnChain)
+            {
+                float alpha = latestMatchesSelected ? 0.46f : 0.62f + (pulse * 0.06f);
+                Color pinColor = Color.Lerp(_pinColor, toneColor, 0.82f);
+                _pinRenderer.color = new Color(pinColor.r, pinColor.g, pinColor.b, alpha);
+            }
+        }
+    }
+}
 

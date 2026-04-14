@@ -1,0 +1,7 @@
+{
+  "OutcomeMeaningId": "outcome-mana-shard-city-b-processing",
+  "RewardResourceId": "mana_shard",
+  "RewardMeaningText": "mana_shard from Dungeon Beta helps reopen blocked processing lines for City B.",
+  "CityImpactMeaningText": "Reopens refined_mana processing, but the greedy route leaves more recovery strain behind.",
+  "RecommendationShiftText": "Processing can restart, but City B should pace the next dispatch before recovery strain stacks."
+}

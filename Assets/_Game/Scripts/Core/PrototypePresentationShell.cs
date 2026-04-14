@@ -225,19 +225,22 @@ public sealed class PrototypePresentationShell : MonoBehaviour
 
     private Rect DrawWorldTopBar(Rect rect)
     {
+        WorldBoardReadModel board = GetWorldBoard();
         DrawPanel(rect, new Color(0.07f, 0.10f, 0.14f, 0.98f), new Color(0.10f, 0.14f, 0.18f, 0.94f));
 
-        string selectionName = HasMeaningfulValue(_bootEntry.SelectedDisplayName) ? V(_bootEntry.SelectedDisplayName) : T("FrontWorldHeadline");
+        string selectionName = board.Selection != null && board.Selection.HasSelection && HasMeaningfulValue(board.Selection.DisplayName)
+            ? V(board.Selection.DisplayName)
+            : T("FrontWorldHeadline");
         GUI.Label(new Rect(rect.x + 16f, rect.y + 10f, 300f, 24f), selectionName, _panelTitleStyle);
         GUI.Label(new Rect(rect.x + 16f, rect.y + 34f, 320f, 18f), V(_bootEntry.LastTransitionLabel), _captionStyle);
 
         float metricsX = rect.x + 338f;
         float metricWidth = 132f;
         float metricGap = 8f;
-        DrawMetricPill(new Rect(metricsX, rect.y + 10f, metricWidth, 42f), T("WorldDay"), _bootEntry.WorldDayCount.ToString(), new Color(0.15f, 0.23f, 0.28f, 0.94f));
-        DrawMetricPill(new Rect(metricsX + metricWidth + metricGap, rect.y + 10f, metricWidth, 42f), T("FrontActionAutoTick"), _bootEntry.AutoTickEnabled ? T("BoolOn") : T("BoolOff"), new Color(0.13f, 0.20f, 0.18f, 0.94f));
-        DrawMetricPill(new Rect(metricsX + ((metricWidth + metricGap) * 2f), rect.y + 10f, metricWidth, 42f), T("ActiveExpeditions"), _bootEntry.ActiveExpeditions.ToString(), new Color(0.18f, 0.16f, 0.12f, 0.94f));
-        DrawMetricPill(new Rect(metricsX + ((metricWidth + metricGap) * 3f), rect.y + 10f, metricWidth, 42f), T("IdleParties"), _bootEntry.IdleParties.ToString(), new Color(0.14f, 0.17f, 0.22f, 0.94f));
+        DrawMetricPill(new Rect(metricsX, rect.y + 10f, metricWidth, 42f), T("WorldDay"), board.WorldDayCount.ToString(), new Color(0.15f, 0.23f, 0.28f, 0.94f));
+        DrawMetricPill(new Rect(metricsX + metricWidth + metricGap, rect.y + 10f, metricWidth, 42f), T("FrontActionAutoTick"), board.AutoTickEnabled ? T("BoolOn") : T("BoolOff"), new Color(0.13f, 0.20f, 0.18f, 0.94f));
+        DrawMetricPill(new Rect(metricsX + ((metricWidth + metricGap) * 2f), rect.y + 10f, metricWidth, 42f), T("ActiveExpeditions"), board.ActiveExpeditions.ToString(), new Color(0.18f, 0.16f, 0.12f, 0.94f));
+        DrawMetricPill(new Rect(metricsX + ((metricWidth + metricGap) * 3f), rect.y + 10f, metricWidth, 42f), T("IdleParties"), board.IdleParties.ToString(), new Color(0.14f, 0.17f, 0.22f, 0.94f));
 
         float utilityRight = rect.xMax - 16f;
         Rect langRect = new Rect(utilityRight - 118f, rect.y + 12f, 118f, 30f);
@@ -400,8 +403,10 @@ public sealed class PrototypePresentationShell : MonoBehaviour
 
     private void DrawWorldActionSheet(Rect rect)
     {
-        bool hasCitySelection = _bootEntry.SelectedTypeLabel == "City";
-        bool canEnterDungeon = hasCitySelection && HasMeaningfulValue(_bootEntry.SelectedLinkedDungeonLabel);
+        WorldBoardReadModel board = GetWorldBoard();
+        CityStatusReadModel selectedCity = GetSelectedCity(board);
+        bool hasCitySelection = selectedCity != null;
+        bool canEnterDungeon = selectedCity != null && HasMeaningfulValue(selectedCity.LinkedDungeonId);
         bool autoTickEnabled = _bootEntry.AutoTickEnabled;
         float gap = 10f;
         float width = (rect.width - (gap * 5f)) / 6f;
@@ -444,6 +449,12 @@ public sealed class PrototypePresentationShell : MonoBehaviour
             _bootEntry.ResetWorldSimulation();
         }
 
+        if (selectedCity != null)
+        {
+            DrawCityDecisionActionHint(hintRect, selectedCity);
+            return;
+        }
+
         GUI.Label(hintRect, V(_bootEntry.EconomyControlsLabel) + "\n" + V(_bootEntry.ExpeditionControlsLabel), _captionStyle);
     }
 
@@ -484,104 +495,578 @@ public sealed class PrototypePresentationShell : MonoBehaviour
 
     private string BuildWorldSnapshotBody()
     {
-        return Line(T("Visible"), _bootEntry.VisibleCityCount + " / " + _bootEntry.VisibleDungeonCount + " / " + _bootEntry.VisibleRoadCount) + "\n" +
-               Line(T("WorldDay"), _bootEntry.WorldDayCount.ToString()) + "\n" +
-               Line(T("TradeStepCount"), _bootEntry.TradeStepCount.ToString()) + "\n" +
-               Line(T("AutoTickEnabled"), _bootEntry.AutoTickEnabled ? T("BoolOn") : T("BoolOff")) + "\n" +
-               Line(T("RouteCapacityUsed"), V(_bootEntry.RouteCapacityUsedLabel)) + "\n" +
-               Line(T("CitiesWithShortages"), V(_bootEntry.CitiesWithShortagesLabel)) + "\n\n" +
+        WorldBoardReadModel board = GetWorldBoard();
+        return Line(T("Visible"), board.VisibleCityCount + " / " + board.VisibleDungeonCount + " / " + board.VisibleRoadCount) + "\n" +
+               Line(T("WorldDay"), board.WorldDayCount.ToString()) + "\n" +
+               Line(T("TradeStepCount"), board.TradeStepCount.ToString()) + "\n" +
+               Line(T("AutoTickEnabled"), board.AutoTickEnabled ? T("BoolOn") : T("BoolOff")) + "\n" +
+               Line(T("RouteCapacityUsed"), BuildRoadCapacitySummary(board)) + "\n" +
+               Line(T("CitiesWithShortages"), BuildShortageCitySummary(board, 2)) + "\n\n" +
                V(_bootEntry.ControlsLabel);
     }
 
     private string BuildWorldOperationsBody()
     {
+        WorldBoardReadModel board = GetWorldBoard();
         return Line(T("EconomyControls"), V(_bootEntry.EconomyControlsLabel)) + "\n" +
                Line(T("ExpeditionControls"), V(_bootEntry.ExpeditionControlsLabel)) + "\n" +
-               Line(T("ActiveExpeditions"), _bootEntry.ActiveExpeditions.ToString()) + "\n" +
-               Line(T("IdleParties"), _bootEntry.IdleParties.ToString()) + "\n" +
-               Line(T("UnmetTotal"), _bootEntry.UnmetTotal.ToString()) + "\n\n" +
+               Line(T("ActiveExpeditions"), board.ActiveExpeditions.ToString()) + "\n" +
+               Line(T("IdleParties"), board.IdleParties.ToString()) + "\n" +
+               Line(T("UnmetTotal"), board.LastDayUnmetTotal.ToString()) + "\n" +
+               Line(T("LastExpeditionResult"), BuildLatestResultSummary(board.LatestResult)) + "\n\n" +
                Line(T("LastTransition"), V(_bootEntry.LastTransitionLabel));
     }
 
     private string BuildWorldSelectionBriefBody()
     {
-        if (!HasMeaningfulValue(_bootEntry.SelectedDisplayName))
+        WorldBoardReadModel board = GetWorldBoard();
+        CityStatusReadModel selectedCity = GetSelectedCity(board);
+        if (selectedCity != null)
+        {
+            return BuildCityDecisionBriefBody(selectedCity);
+        }
+
+        DungeonStatusReadModel selectedDungeon = GetSelectedDungeon(board);
+        if (selectedDungeon == null)
         {
             return T("FrontWorldNoSelection");
         }
 
-        if (_bootEntry.SelectedTypeLabel == "City")
-        {
-            return V(_bootEntry.SelectedDisplayName) + "\n" +
-                   Line(T("CityManaShardStock"), V(_bootEntry.SelectedCityManaShardStockLabel)) + "\n" +
-                   Line(T("NeedPressure"), V(_bootEntry.SelectedNeedPressureLabel)) + "\n" +
-                   Line(T("DispatchReadiness"), V(_bootEntry.SelectedDispatchReadinessLabel)) + "\n" +
-                   Line(T("DispatchPolicy"), V(_bootEntry.SelectedDispatchPolicyLabel)) + "\n" +
-                   Line(T("LinkedDungeon"), V(_bootEntry.SelectedLinkedDungeonLabel)) + "\n" +
-                   Line(T("RecommendedRoute"), V(_bootEntry.SelectedRecommendedRouteSummaryLabel));
-        }
-
-        return V(_bootEntry.SelectedDisplayName) + "\n" +
-               Line(T("DungeonDanger"), V(_bootEntry.SelectedDungeonDangerLabel)) + "\n" +
-               Line(T("LinkedCity"), V(_bootEntry.SelectedLinkedCityLabel)) + "\n" +
-               Line(T("RewardPreview"), V(_bootEntry.SelectedRewardPreviewLabel)) + "\n" +
-               Line(T("RoutePreview1"), V(_bootEntry.SelectedRoutePreview1Label));
+        return BuildDungeonSelectionBriefBody(board, selectedDungeon);
     }
 
     private string BuildWorldSelectionDetailBody()
     {
-        if (!HasMeaningfulValue(_bootEntry.SelectedDisplayName))
+        WorldBoardReadModel board = GetWorldBoard();
+        CityStatusReadModel selectedCity = GetSelectedCity(board);
+        if (selectedCity != null)
+        {
+            return BuildCityDecisionDetailBody(board, selectedCity);
+        }
+
+        DungeonStatusReadModel selectedDungeon = GetSelectedDungeon(board);
+        if (selectedDungeon == null)
         {
             return T("FrontWorldNoSelection");
         }
 
-        if (_bootEntry.SelectedTypeLabel == "City")
-        {
-            return V(_bootEntry.SelectedDisplayName) + "\n" +
-                   Line(T("SelectedType"), V(_bootEntry.SelectedTypeLabel)) + "\n" +
-                   Line(T("CityManaShardStock"), V(_bootEntry.SelectedCityManaShardStockLabel)) + "\n" +
-                   Line(T("NeedPressure"), V(_bootEntry.SelectedNeedPressureLabel)) + "\n" +
-                   Line(T("DispatchReadiness"), V(_bootEntry.SelectedDispatchReadinessLabel)) + "\n" +
-                   Line(T("RecoveryProgress"), V(_bootEntry.SelectedDispatchRecoveryProgressLabel)) + "\n" +
-                   Line(T("DispatchPolicy"), V(_bootEntry.SelectedDispatchPolicyLabel)) + "\n" +
-                   Line(T("LinkedDungeon"), V(_bootEntry.SelectedLinkedDungeonLabel)) + "\n" +
-                   Line(T("RecommendedRoute"), V(_bootEntry.SelectedRecommendedRouteSummaryLabel)) + "\n" +
-                   V(_bootEntry.SelectedRecommendationReasonLabel);
-        }
-
-        return V(_bootEntry.SelectedDisplayName) + "\n" +
-               Line(T("SelectedType"), V(_bootEntry.SelectedTypeLabel)) + "\n" +
-               Line(T("DungeonDanger"), V(_bootEntry.SelectedDungeonDangerLabel)) + "\n" +
-               Line(T("LinkedCity"), V(_bootEntry.SelectedLinkedCityLabel)) + "\n" +
-               Line(T("RewardPreview"), V(_bootEntry.SelectedRewardPreviewLabel)) + "\n" +
-               Line(T("EventPreview"), V(_bootEntry.SelectedEventPreviewLabel)) + "\n" +
-               Line(T("RoutePreview1"), V(_bootEntry.SelectedRoutePreview1Label)) + "\n" +
-               Line(T("RoutePreview2"), V(_bootEntry.SelectedRoutePreview2Label));
+        return BuildDungeonSelectionDetailBody(board, selectedDungeon);
     }
 
     private string BuildWorldOverviewBriefBody()
     {
-        return Line(T("WorldDay"), _bootEntry.WorldDayCount.ToString()) + "\n" +
-               Line(T("TradeStepCount"), _bootEntry.TradeStepCount.ToString()) + "\n" +
-               Line(T("TotalParties"), _bootEntry.TotalParties.ToString()) + "\n" +
-               Line(T("IdleParties"), _bootEntry.IdleParties.ToString()) + "\n" +
-               Line(T("ActiveExpeditions"), _bootEntry.ActiveExpeditions.ToString()) + "\n" +
-               Line(T("UnmetTotal"), _bootEntry.UnmetTotal.ToString()) + "\n" +
-               Line(T("CitiesWithShortages"), V(_bootEntry.CitiesWithShortagesLabel));
+        WorldBoardReadModel board = GetWorldBoard();
+        return Line(T("WorldDay"), board.WorldDayCount.ToString()) + "\n" +
+               Line(T("TradeStepCount"), board.TradeStepCount.ToString()) + "\n" +
+               Line(T("TotalParties"), board.TotalParties.ToString()) + "\n" +
+               Line(T("IdleParties"), board.IdleParties.ToString()) + "\n" +
+               Line(T("ActiveExpeditions"), board.ActiveExpeditions.ToString()) + "\n" +
+               Line(T("UnmetTotal"), board.LastDayUnmetTotal.ToString()) + "\n" +
+               Line(T("CitiesWithShortages"), BuildShortageCitySummary(board, 3));
     }
 
     private string BuildWorldLogBody()
     {
-        return Line(T("RecentExpeditionLog1"), V(_bootEntry.RecentExpeditionLog1Label)) + "\n" +
-               Line(T("RecentExpeditionLog2"), V(_bootEntry.RecentExpeditionLog2Label)) + "\n" +
-               Line(T("RecentExpeditionLog3"), V(_bootEntry.RecentExpeditionLog3Label)) + "\n\n" +
-               Line(T("RecentDayLog1"), V(_bootEntry.RecentDayLog1Label)) + "\n" +
-               Line(T("RecentDayLog2"), V(_bootEntry.RecentDayLog2Label));
+        WorldBoardReadModel board = GetWorldBoard();
+        return Line(T("RecentExpeditionLog1"), GetLogLine(board.RecentExpeditionLogs, 0)) + "\n" +
+               Line(T("RecentExpeditionLog2"), GetLogLine(board.RecentExpeditionLogs, 1)) + "\n" +
+               Line(T("RecentExpeditionLog3"), GetLogLine(board.RecentExpeditionLogs, 2)) + "\n\n" +
+               Line(T("RecentDayLog1"), GetLogLine(board.RecentDayLogs, 0)) + "\n" +
+               Line(T("RecentDayLog2"), GetLogLine(board.RecentDayLogs, 1)) + "\n" +
+               Line(T("RecentDayLog3"), GetLogLine(board.RecentDayLogs, 2));
     }
 
     private string BuildWorldLegendText()
     {
         return T("FrontMenuPillarNetwork") + "  |  " + T("FrontMenuPillarDispatch") + "  |  " + T("FrontMenuPillarEconomy");
+    }
+
+    private string BuildCityDecisionBriefBody(CityStatusReadModel city)
+    {
+        CityDecisionReadModel decision = GetCityDecision(city);
+        return city.DisplayName + "\n" +
+               Line(T("NeedPressure"), decision.NeedPressureStateId) + "\n" +
+               Line(T("DispatchReadiness"), decision.DispatchReadinessStateId) + "\n" +
+               Line(T("CityHubWhyNow"), decision.WhyCityMattersText) + "\n" +
+               Line(T("CityHubBottleneck"), BuildCityBottleneckSummary(decision.Bottlenecks, 1)) + "\n" +
+               Line(T("CityHubOpportunity"), BuildCityOpportunitySummary(decision.Opportunities, 1)) + "\n" +
+               Line(T("CityHubRecentImpact"), BuildRecentImpactSummary(decision.RecentImpacts, 1)) + "\n" +
+               Line(T("CityHubRecommendedAction"), BuildCityRecommendationSummary(decision.RecommendedActions, 1));
+    }
+
+    private string BuildCityDecisionDetailBody(WorldBoardReadModel board, CityStatusReadModel city)
+    {
+        CityDecisionReadModel decision = GetCityDecision(city);
+        return city.DisplayName + "\n" +
+               Line(T("SelectedType"), board.Selection.Kind.ToString()) + "\n" +
+               Line(T("NeedPressure"), decision.NeedPressureStateId) + "\n" +
+               Line(T("DispatchReadiness"), decision.DispatchReadinessStateId) + "\n" +
+               Line(T("DispatchPolicy"), decision.DispatchPolicyStateId) + "\n" +
+               Line(T("LinkedDungeon"), city.LinkedDungeonDisplayName) + "\n" +
+               Line(T("RecommendedRoute"), HasMeaningfulValue(city.RecommendedRouteSummaryText) ? city.RecommendedRouteSummaryText : "None") + "\n" +
+               Line(T("CityHubWhyNow"), decision.WhyCityMattersText) + "\n" +
+               Line(T("CityHubBottleneck"), BuildCityBottleneckSummary(decision.Bottlenecks, 3)) + "\n" +
+               Line(T("CityHubOpportunity"), BuildCityOpportunitySummary(decision.Opportunities, 2)) + "\n" +
+               Line(T("CityHubRecentImpact"), BuildRecentImpactSummary(decision.RecentImpacts, 2)) + "\n" +
+               Line(T("CityHubRecommendedAction"), BuildCityRecommendationSummary(decision.RecommendedActions, 3)) + "\n" +
+               Line(T("SelectedStocks"), BuildResourceSummary(city.KeyStocks, 4)) + "\n" +
+               Line(T("AvailableContract"), city.AvailableContractSlots + "/" + city.MaxActiveExpeditionSlots);
+    }
+
+    private string BuildDungeonSelectionBriefBody(WorldBoardReadModel board, DungeonStatusReadModel dungeon)
+    {
+        return dungeon.DisplayName + "\n" +
+               Line(T("DungeonDanger"), dungeon.DangerLevel.ToString()) + "\n" +
+               Line(T("LinkedCity"), dungeon.LinkedCityDisplayName) + "\n" +
+               Line(T("RewardPreview"), BuildStringArraySummary(dungeon.OutputResourceIds, 2)) + "\n" +
+               Line(T("CityHubWhyNow"), BuildDungeonWhyItMatters(board, dungeon)) + "\n" +
+               Line(T("LastExpeditionResult"), BuildLatestResultSummary(dungeon.LatestResult));
+    }
+
+    private string BuildDungeonSelectionDetailBody(WorldBoardReadModel board, DungeonStatusReadModel dungeon)
+    {
+        return dungeon.DisplayName + "\n" +
+               Line(T("SelectedType"), board.Selection.Kind.ToString()) + "\n" +
+               Line(T("DungeonDanger"), dungeon.DangerLevel.ToString()) + "\n" +
+               Line(T("LinkedCity"), dungeon.LinkedCityDisplayName) + "\n" +
+               Line(T("RewardPreview"), BuildStringArraySummary(dungeon.OutputResourceIds, 3)) + "\n" +
+               Line(T("RecommendedPower"), dungeon.RecommendedPower.ToString()) + "\n" +
+               Line(T("ExpeditionDurationDays"), dungeon.ExpeditionDurationDays.ToString()) + "\n" +
+               Line(T("CityHubWhyNow"), BuildDungeonWhyItMatters(board, dungeon)) + "\n" +
+               Line(T("CityHubOpportunity"), BuildDungeonOpportunitySummary(board, dungeon)) + "\n" +
+               Line(T("LastExpeditionResult"), BuildLatestResultSummary(dungeon.LatestResult));
+    }
+
+    private WorldBoardReadModel GetWorldBoard()
+    {
+        return _bootEntry != null ? _bootEntry.GetWorldBoardReadModel() : WorldBoardReadModel.Empty;
+    }
+
+    private CityStatusReadModel GetSelectedCity(WorldBoardReadModel board)
+    {
+        if (board == null || board.Selection == null || !board.Selection.HasSelection || board.Selection.Kind != WorldEntityKind.City)
+        {
+            return null;
+        }
+
+        string cityId = board.Selection.EntityId;
+        return FindCityById(board, cityId);
+    }
+
+    private CityStatusReadModel FindCityById(WorldBoardReadModel board, string cityId)
+    {
+        if (!HasMeaningfulValue(cityId))
+        {
+            return null;
+        }
+
+        CityStatusReadModel[] cities = board.Cities ?? System.Array.Empty<CityStatusReadModel>();
+        for (int i = 0; i < cities.Length; i++)
+        {
+            CityStatusReadModel city = cities[i];
+            if (city != null && city.CityId == cityId)
+            {
+                return city;
+            }
+        }
+
+        return null;
+    }
+
+    private DungeonStatusReadModel GetSelectedDungeon(WorldBoardReadModel board)
+    {
+        if (board == null || board.Selection == null || !board.Selection.HasSelection)
+        {
+            return null;
+        }
+
+        string dungeonId = board.Selection.Kind == WorldEntityKind.Dungeon
+            ? board.Selection.EntityId
+            : board.Selection.LinkedDungeonId;
+        DungeonStatusReadModel[] dungeons = board.Dungeons ?? System.Array.Empty<DungeonStatusReadModel>();
+        for (int i = 0; i < dungeons.Length; i++)
+        {
+            DungeonStatusReadModel dungeon = dungeons[i];
+            if (dungeon != null && dungeon.DungeonId == dungeonId)
+            {
+                return dungeon;
+            }
+        }
+
+        return null;
+    }
+
+    private string BuildRoadCapacitySummary(WorldBoardReadModel board)
+    {
+        return board != null ? board.LastDayRouteCapacityUsedTotal + "/" + board.TotalRouteCapacityPerDay : "None";
+    }
+
+    private string BuildShortageCitySummary(WorldBoardReadModel board, int maxCount)
+    {
+        if (board == null || board.Cities == null || board.Cities.Length == 0)
+        {
+            return "None";
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder();
+        int written = 0;
+        for (int i = 0; i < board.Cities.Length && written < maxCount; i++)
+        {
+            CityStatusReadModel city = board.Cities[i];
+            if (city == null || city.LastDayShortages < 1)
+            {
+                continue;
+            }
+
+            if (written > 0)
+            {
+                builder.Append(" | ");
+            }
+
+            builder.Append(city.DisplayName);
+            builder.Append(" (");
+            builder.Append(city.LastDayShortages);
+            builder.Append(")");
+            written += 1;
+        }
+
+        return written > 0 ? builder.ToString() : "None";
+    }
+
+    private string BuildStringArraySummary(string[] values, int maxCount)
+    {
+        if (values == null || values.Length == 0)
+        {
+            return "None";
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder();
+        int written = 0;
+        for (int i = 0; i < values.Length && written < maxCount; i++)
+        {
+            string value = values[i];
+            if (!HasMeaningfulValue(value))
+            {
+                continue;
+            }
+
+            if (written > 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(value);
+            written += 1;
+        }
+
+        return written > 0 ? builder.ToString() : "None";
+    }
+
+    private string BuildResourceSummary(ResourceAmountReadModel[] resources, int maxCount)
+    {
+        if (resources == null || resources.Length == 0)
+        {
+            return "None";
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder();
+        int written = 0;
+        for (int i = 0; i < resources.Length && written < maxCount; i++)
+        {
+            ResourceAmountReadModel resource = resources[i];
+            if (resource == null || !HasMeaningfulValue(resource.ResourceId))
+            {
+                continue;
+            }
+
+            if (written > 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(resource.ResourceId);
+            builder.Append(" x");
+            builder.Append(resource.Amount);
+            written += 1;
+        }
+
+        return written > 0 ? builder.ToString() : "None";
+    }
+
+    private string BuildLatestResultSummary(ExpeditionResultReadModel result)
+    {
+        if (result == null || !result.HasResult)
+        {
+            return "None";
+        }
+
+        if (HasMeaningfulValue(result.WorldReturnSummaryText))
+        {
+            return result.WorldReturnSummaryText;
+        }
+
+        if (HasMeaningfulValue(result.SummaryText))
+        {
+            return result.SummaryText;
+        }
+
+        if (HasMeaningfulValue(result.ResultStateKey))
+        {
+            return result.ResultStateKey;
+        }
+
+        return result.SourceCityDisplayName + " -> " + result.TargetDungeonDisplayName;
+    }
+
+    private string BuildSignalSummary(WorldDecisionSignalReadModel[] signals, int maxCount)
+    {
+        if (signals == null || signals.Length == 0)
+        {
+            return "None";
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder();
+        int written = 0;
+        for (int i = 0; i < signals.Length && written < maxCount; i++)
+        {
+            WorldDecisionSignalReadModel signal = signals[i];
+            if (signal == null)
+            {
+                continue;
+            }
+
+            if (written > 0)
+            {
+                builder.Append(" | ");
+            }
+
+            builder.Append(DescribeSignal(signal));
+            written += 1;
+        }
+
+        return written > 0 ? builder.ToString() : "None";
+    }
+
+    private string BuildCityBottleneckSummary(CityBottleneckSignal[] signals, int maxCount)
+    {
+        if (signals == null || signals.Length == 0)
+        {
+            return "None";
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder();
+        int written = 0;
+        for (int i = 0; i < signals.Length && written < maxCount; i++)
+        {
+            CityBottleneckSignal signal = signals[i];
+            if (signal == null || !HasMeaningfulValue(signal.SummaryText))
+            {
+                continue;
+            }
+
+            if (written > 0)
+            {
+                builder.Append(" | ");
+            }
+
+            builder.Append(signal.SummaryText);
+            written += 1;
+        }
+
+        return written > 0 ? builder.ToString() : "None";
+    }
+
+    private string BuildCityOpportunitySummary(CityOpportunitySignal[] signals, int maxCount)
+    {
+        if (signals == null || signals.Length == 0)
+        {
+            return "None";
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder();
+        int written = 0;
+        for (int i = 0; i < signals.Length && written < maxCount; i++)
+        {
+            CityOpportunitySignal signal = signals[i];
+            if (signal == null || !HasMeaningfulValue(signal.SummaryText))
+            {
+                continue;
+            }
+
+            if (written > 0)
+            {
+                builder.Append(" | ");
+            }
+
+            builder.Append(signal.SummaryText);
+            written += 1;
+        }
+
+        return written > 0 ? builder.ToString() : "None";
+    }
+
+    private string BuildRecentImpactSummary(RecentImpactSummary[] impacts, int maxCount)
+    {
+        if (impacts == null || impacts.Length == 0)
+        {
+            return "None";
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder();
+        int written = 0;
+        for (int i = 0; i < impacts.Length && written < maxCount; i++)
+        {
+            RecentImpactSummary impact = impacts[i];
+            if (impact == null || !HasMeaningfulValue(impact.SummaryText))
+            {
+                continue;
+            }
+
+            if (written > 0)
+            {
+                builder.Append(" | ");
+            }
+
+            builder.Append(impact.SummaryText);
+            written += 1;
+        }
+
+        return written > 0 ? builder.ToString() : "None";
+    }
+
+    private string BuildCityRecommendationSummary(CityActionRecommendation[] recommendations, int maxCount)
+    {
+        if (recommendations == null || recommendations.Length == 0)
+        {
+            return "None";
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder();
+        int written = 0;
+        for (int i = 0; i < recommendations.Length && written < maxCount; i++)
+        {
+            CityActionRecommendation recommendation = recommendations[i];
+            if (recommendation == null || !HasMeaningfulValue(recommendation.SummaryText))
+            {
+                continue;
+            }
+
+            if (written > 0)
+            {
+                builder.Append(" | ");
+            }
+
+            builder.Append(recommendation.SummaryText);
+            written += 1;
+        }
+
+        return written > 0 ? builder.ToString() : "None";
+    }
+
+    private string BuildDungeonWhyItMatters(WorldBoardReadModel board, DungeonStatusReadModel dungeon)
+    {
+        CityStatusReadModel linkedCity = dungeon != null ? FindCityById(board, dungeon.LinkedCityId) : null;
+        CityDecisionReadModel decision = GetCityDecision(linkedCity);
+        if (decision.Opportunities != null)
+        {
+            for (int i = 0; i < decision.Opportunities.Length; i++)
+            {
+                CityOpportunitySignal opportunity = decision.Opportunities[i];
+                if (opportunity != null && opportunity.DungeonId == dungeon.DungeonId && HasMeaningfulValue(opportunity.WhyItMattersText))
+                {
+                    return opportunity.WhyItMattersText;
+                }
+            }
+        }
+
+        return decision.WhyCityMattersText;
+    }
+
+    private string BuildDungeonOpportunitySummary(WorldBoardReadModel board, DungeonStatusReadModel dungeon)
+    {
+        CityStatusReadModel linkedCity = dungeon != null ? FindCityById(board, dungeon.LinkedCityId) : null;
+        CityDecisionReadModel decision = GetCityDecision(linkedCity);
+        if (decision.Opportunities != null)
+        {
+            for (int i = 0; i < decision.Opportunities.Length; i++)
+            {
+                CityOpportunitySignal opportunity = decision.Opportunities[i];
+                if (opportunity != null && opportunity.DungeonId == dungeon.DungeonId && HasMeaningfulValue(opportunity.SummaryText))
+                {
+                    return opportunity.SummaryText;
+                }
+            }
+        }
+
+        return "None";
+    }
+
+    private CityDecisionReadModel GetCityDecision(CityStatusReadModel city)
+    {
+        return city != null && city.Decision != null ? city.Decision : new CityDecisionReadModel();
+    }
+
+    private void DrawCityDecisionActionHint(Rect rect, CityStatusReadModel city)
+    {
+        CityDecisionReadModel decision = GetCityDecision(city);
+        string summaryText =
+            ShortenText(decision.WhyCityMattersText, 120) + "\n" +
+            T("CityHubBottleneck") + ": " + ShortenText(BuildCityBottleneckSummary(decision.Bottlenecks, 1), 70) +
+            "  |  " + T("CityHubOpportunity") + ": " + ShortenText(BuildCityOpportunitySummary(decision.Opportunities, 1), 70) + "\n" +
+            T("CityHubRecentImpact") + ": " + ShortenText(BuildRecentImpactSummary(decision.RecentImpacts, 1), 64) +
+            "  |  " + T("CityHubRecommendedAction") + ": " + ShortenText(BuildCityRecommendationSummary(decision.RecommendedActions, 1), 64);
+        GUI.Label(rect, summaryText, _captionStyle);
+    }
+
+    private string ShortenText(string value, int maxLength)
+    {
+        if (!HasMeaningfulValue(value) || maxLength < 4)
+        {
+            return "None";
+        }
+
+        return value.Length <= maxLength ? value : value.Substring(0, maxLength - 3) + "...";
+    }
+
+    private string DescribeSignal(WorldDecisionSignalReadModel signal)
+    {
+        if (signal == null)
+        {
+            return "None";
+        }
+
+        if (signal.Kind == WorldDecisionSignalKind.CityShortage)
+        {
+            string resourceText = HasMeaningfulValue(signal.ResourceId) ? signal.ResourceId : T("LastDayProcessingBlocked");
+            return signal.EntityDisplayName + " " + resourceText + " x" + signal.Magnitude;
+        }
+
+        if (signal.Kind == WorldDecisionSignalKind.CitySurplus)
+        {
+            return signal.EntityDisplayName + " " + signal.ResourceId + " x" + signal.Magnitude;
+        }
+
+        if (signal.Kind == WorldDecisionSignalKind.RoadCapacity)
+        {
+            return signal.EntityDisplayName + " " + signal.Magnitude + "%";
+        }
+
+        if (signal.Kind == WorldDecisionSignalKind.ActiveExpedition)
+        {
+            return signal.EntityDisplayName + " -> " + signal.RelatedEntityDisplayName + " (" + signal.Magnitude + "d)";
+        }
+
+        if (signal.Kind == WorldDecisionSignalKind.RecentResult)
+        {
+            return signal.EntityDisplayName + " " + signal.ResultStateKey;
+        }
+
+        return signal.EntityDisplayName + " " + signal.ResourceId;
+    }
+
+    private string GetLogLine(string[] logs, int index)
+    {
+        return logs != null && index >= 0 && index < logs.Length && HasMeaningfulValue(logs[index]) ? logs[index] : "None";
     }
 
     private bool DrawNavToggle(Rect rect, string label, bool active)

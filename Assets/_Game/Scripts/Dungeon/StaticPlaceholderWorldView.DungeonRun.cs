@@ -690,7 +690,7 @@ public sealed partial class StaticPlaceholderWorldView
     public string EncounterProgressText => _clearedEncounterCount + " / " + TotalEncounterCount;
     public string ExitUnlockedText => _exitUnlocked ? "Unlocked" : "Locked";
     public string ChestOpenedText => _chestOpenedCount + " / " + TotalChestCount;
-    public string RouteChoiceTitleText => "Dispatch Planner";
+    public string RouteChoiceTitleText => "Expedition Prep";
     public string RouteChoiceDescriptionText => GetRouteChoiceDescriptionText();
     public string RouteChoicePromptText => GetRouteChoicePromptText();
     public string RouteOption1Text => BuildRouteButtonLabel(_currentDungeonId, SafeRouteId);
@@ -835,39 +835,7 @@ public sealed partial class StaticPlaceholderWorldView
 
     public PrototypeBattleUiSurfaceData BuildBattleUiSurfaceData()
     {
-        PrototypeBattleUiSurfaceData surface = new PrototypeBattleUiSurfaceData();
-        surface.IsBattleActive = _dungeonRunState == DungeonRunState.Battle;
-        surface.IsTargetSelectionActive = _battleState == BattleState.PartyTargetSelect;
-        surface.BattleStateKey = GetBattleStateKey();
-        surface.CurrentDungeonName = string.IsNullOrEmpty(_currentDungeonName) ? "None" : _currentDungeonName;
-        surface.CurrentRouteLabel = string.IsNullOrEmpty(_selectedRouteLabel) ? "None" : _selectedRouteLabel;
-        surface.EncounterName = GetCurrentEncounterNameText();
-        surface.EncounterRoomType = GetEncounterRoomTypeText();
-        surface.PartyCondition = GetPartyConditionText();
-        surface.TotalPartyHp = BuildTotalPartyHpSummary();
-        surface.EliteStatusText = GetEliteStatusText();
-        surface.EliteEncounterName = GetEliteEncounterNameText();
-        surface.EliteTypeText = string.IsNullOrEmpty(_eliteType) ? "None" : _eliteType;
-        surface.EliteRewardHintText = GetEliteRewardHintText();
-        surface.CurrentActor = BuildBattleUiCurrentActorData();
-        surface.Timeline = BuildBattleUiTimelineData();
-        surface.PartyMembers = BuildBattleUiPartyMembers();
-        surface.SelectedEnemy = BuildSelectedBattleUiEnemyData();
-        surface.EnemyRoster = BuildBattleUiEnemyRoster();
-        if ((surface.SelectedEnemy == null || string.IsNullOrEmpty(surface.SelectedEnemy.MonsterId)) && surface.EnemyRoster.Length > 0)
-        {
-            surface.SelectedEnemy = surface.EnemyRoster[0];
-        }
-
-        surface.ActionContext = BuildBattleUiActionContextData(surface.CurrentActor, surface.SelectedEnemy);
-        surface.TargetContext = BuildBattleUiTargetContextData(surface.SelectedEnemy);
-        surface.CommandSurface = BuildBattleUiCommandSurfaceData(surface.CurrentActor, surface.ActionContext);
-        surface.MessageSurface = BuildBattleUiMessageSurfaceData();
-        surface.TargetSelection = BuildBattleUiTargetSelectionData(surface.CurrentActor, surface.ActionContext, surface.TargetContext);
-        surface.EnemyIntent = BuildCurrentEnemyIntentSnapshotView();
-        surface.RecentEvents = BuildRecentBattleEventRecords();
-        surface.ResultSnapshot = BuildCurrentBattleResultSnapshotView();
-        return surface;
+        return GetBattleViewModel().HudSurface ?? new PrototypeBattleUiSurfaceData();
     }
 
     private PrototypeBattleUiActorData BuildBattleUiCurrentActorData()
@@ -1889,6 +1857,11 @@ public sealed partial class StaticPlaceholderWorldView
 
     private PrototypeBattleResultSnapshot BuildCurrentBattleResultSnapshotView()
     {
+        if (HasMeaningfulBattleResolution(_latestBattleResolution) && _latestBattleResolution.ResultSnapshot != null)
+        {
+            return CopyBattleResultSnapshot(_latestBattleResolution.ResultSnapshot);
+        }
+
         if (_currentBattleResultSnapshot != null &&
             ((!string.IsNullOrEmpty(_currentBattleResultSnapshot.ResultStateKey) && _currentBattleResultSnapshot.ResultStateKey != PrototypeBattleOutcomeKeys.None) ||
              !string.IsNullOrEmpty(_currentBattleResultSnapshot.EncounterName)))
@@ -1916,6 +1889,7 @@ public sealed partial class StaticPlaceholderWorldView
         _totalDamageDealt = 0;
         _totalDamageTaken = 0;
         _totalHealingDone = 0;
+        ResetBattleContractState();
     }
 
     private void UpdateBattleResultSnapshot(string outcomeKey)
@@ -2155,8 +2129,14 @@ public sealed partial class StaticPlaceholderWorldView
         snapshot.DungeonLabel = string.IsNullOrEmpty(_currentDungeonName) ? string.Empty : _currentDungeonName;
         snapshot.RouteId = string.IsNullOrEmpty(_selectedRouteId) ? string.Empty : _selectedRouteId;
         snapshot.RouteLabel = string.IsNullOrEmpty(_selectedRouteLabel) ? string.Empty : _selectedRouteLabel;
-        snapshot.TotalTurnsTaken = Mathf.Max(0, _runTurnCount);
-        snapshot.ResultSummary = string.IsNullOrEmpty(safeResultSummary) ? "The run ended." : safeResultSummary;
+        snapshot.TotalTurnsTaken = HasMeaningfulBattleResolution(_latestBattleResolution)
+            ? Mathf.Max(0, _latestBattleResolution.TurnsTaken)
+            : Mathf.Max(_runTurnCount, _battleTurnIndex);
+        snapshot.ResultSummary = HasMeaningfulBattleResolution(_latestBattleResolution) && HasText(_latestBattleResolution.SummaryText)
+            ? _latestBattleResolution.SummaryText
+            : string.IsNullOrEmpty(safeResultSummary)
+                ? "The run ended."
+                : safeResultSummary;
         snapshot.SurvivingMembersSummary = BuildSurvivingMembersSummary();
 
         lootOutcome.BattleLootGained = battleLoot;
@@ -3167,6 +3147,7 @@ public sealed partial class StaticPlaceholderWorldView
     {
         AddRunMemberContributionValue(_runMemberActionCount, _currentActorIndex, 1);
         _partyActedThisRound[_currentActorIndex] = true;
+        _pendingBattleCommand = new PrototypeBattleCommand();
         _queuedBattleAction = BattleActionType.None;
         _hoverBattleAction = BattleActionType.None;
         ClearBattleHoverState();
@@ -3195,6 +3176,7 @@ public sealed partial class StaticPlaceholderWorldView
     private void ResumePlayerTurnFromStartIndex(int startIndex)
     {
         ResetRoundActions();
+        _pendingBattleCommand = new PrototypeBattleCommand();
         _battleState = BattleState.PartyActionSelect;
         TrySelectNextPartyActor(Mathf.Max(0, startIndex));
         SetActiveBattleMonster(GetFirstLivingBattleMonster());
@@ -3396,33 +3378,54 @@ public sealed partial class StaticPlaceholderWorldView
 
     public bool CanConfirmRouteChoice()
     {
-        return _dungeonRunState == DungeonRunState.RouteChoice &&
-               _runtimeEconomyState != null &&
-               !string.IsNullOrEmpty(_currentHomeCityId) &&
-               !string.IsNullOrEmpty(_currentDungeonId) &&
-               !string.IsNullOrEmpty(_selectedRouteChoiceId);
+        if (_dungeonRunState != DungeonRunState.RouteChoice || _runtimeEconomyState == null)
+        {
+            return false;
+        }
+
+        ExpeditionPrepReadModel prepReadModel = GetCurrentExpeditionPrepReadModel();
+        return ExpeditionLaunchCoordinator.CanLaunch(prepReadModel, out _);
     }
 
     public bool TryConfirmRouteChoice()
     {
-        if (!CanConfirmRouteChoice())
+        ExpeditionPrepReadModel prepReadModel = GetCurrentExpeditionPrepReadModel();
+        if (!ExpeditionLaunchCoordinator.CanLaunch(prepReadModel, out string failureSummary))
         {
+            SetBattleFeedbackText(HasText(failureSummary) ? failureSummary : "Launch is blocked.");
+            RefreshSelectionPrompt();
+            RefreshDungeonPresentation();
             return false;
         }
 
         DungeonRouteTemplate template = GetRouteTemplateById(_selectedRouteChoiceId);
         if (template == null)
         {
+            SetBattleFeedbackText("Select a route before confirming the expedition.");
+            return false;
+        }
+
+        if (_runtimeEconomyState == null)
+        {
+            SetBattleFeedbackText("Runtime economy state is missing.");
             return false;
         }
 
         string partyId = _runtimeEconomyState.BeginDungeonRun(_currentHomeCityId, _currentDungeonId);
         if (string.IsNullOrEmpty(partyId))
         {
+            SetBattleFeedbackText("No idle party was reserved for this expedition.");
             return false;
         }
 
-        StartDungeonRunForRoute(template, partyId);
+        string partySummaryText = _activeDungeonParty != null && HasText(_activeDungeonParty.DisplayName)
+            ? _activeDungeonParty.DisplayName
+            : HasText(prepReadModel.PartySummaryText)
+                ? prepReadModel.PartySummaryText
+                : partyId;
+        ExpeditionPlan launchPlan = ExpeditionLaunchCoordinator.BuildConfirmedPlan(prepReadModel, WorldDayCount, partyId, partySummaryText);
+        _confirmedExpeditionPlan = launchPlan;
+        StartDungeonRunForRoute(template, partyId, launchPlan);
         return true;
     }
 
@@ -3793,6 +3796,7 @@ public sealed partial class StaticPlaceholderWorldView
             TryTriggerRouteChoice(_recommendedRouteId);
         }
 
+        CacheCurrentExpeditionPrepReadModel();
         SetBattleFeedbackText("Review the dispatch plan before entering the dungeon.");
         EnsureDungeonVisuals();
         RefreshSelectionPrompt();
@@ -3918,7 +3922,8 @@ public sealed partial class StaticPlaceholderWorldView
 
     private DungeonIdentityTemplate GetDungeonTemplateById(string dungeonId)
     {
-        return dungeonId == "dungeon-beta" ? BetaDungeonTemplate : AlphaDungeonTemplate;
+        DungeonIdentityTemplate fallbackTemplate = dungeonId == "dungeon-beta" ? BetaDungeonTemplate : AlphaDungeonTemplate;
+        return TryBuildDungeonTemplateFromContent(dungeonId, fallbackTemplate);
     }
 
     private DungeonRouteTemplate GetSelectedRouteTemplate()
@@ -4059,6 +4064,10 @@ public sealed partial class StaticPlaceholderWorldView
 
         string dungeonId = string.IsNullOrEmpty(_currentDungeonId) ? AlphaDungeonTemplate.DungeonId : _currentDungeonId;
         string routeId = string.IsNullOrEmpty(_selectedRouteId) ? SafeRouteId : _selectedRouteId;
+        if (TryBuildPlannedRoomSequenceFromContent(_currentHomeCityId, dungeonId, routeId))
+        {
+            return;
+        }
 
         if (dungeonId == "dungeon-beta")
         {
@@ -4101,6 +4110,12 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string BuildRoomPathPreviewText(string dungeonId, string routeId)
     {
+        string contentPreview = TryBuildRoomPathPreviewFromContent(_currentHomeCityId, dungeonId, routeId);
+        if (!string.IsNullOrEmpty(contentPreview))
+        {
+            return contentPreview;
+        }
+
         bool isBeta = dungeonId == "dungeon-beta";
         bool isRisky = NormalizeRouteChoiceId(routeId) == RiskyRouteId;
 
@@ -4394,7 +4409,7 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (_dungeonRunState == DungeonRunState.RouteChoice)
         {
-            return "Planner";
+            return "Expedition Prep";
         }
 
         if (_dungeonRunState == DungeonRunState.ResultPanel)
@@ -4933,6 +4948,12 @@ public sealed partial class StaticPlaceholderWorldView
             return "None";
         }
 
+        string contentImpactText = TryBuildExpectedNeedImpactFromContent(cityId, dungeonId, routeId);
+        if (!string.IsNullOrEmpty(contentImpactText))
+        {
+            return contentImpactText;
+        }
+
         string needPressure = BuildNeedPressureText(cityId);
         DispatchReadinessState readiness = GetDispatchReadinessState(cityId);
         string balancedRouteId = GetBalancedRouteId(dungeonId);
@@ -5169,25 +5190,35 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string GetRouteChoiceDescriptionText()
     {
-        DungeonRouteTemplate template = GetRouteTemplateById(_currentDungeonId, _hoverRouteChoiceId);
-        if (template == null)
-        {
-            template = GetRouteTemplateById(_currentDungeonId, _selectedRouteChoiceId);
-        }
-
-        if (template == null)
+        ExpeditionPrepReadModel prepReadModel = GetCurrentExpeditionPrepReadModel();
+        RouteChoice previewRoute = GetPreviewRouteChoice(prepReadModel);
+        if (prepReadModel == null || !HasText(prepReadModel.OriginCityId) || !HasText(prepReadModel.TargetDungeonId))
         {
             DungeonIdentityTemplate dungeonTemplate = GetCurrentDungeonTemplate();
             return dungeonTemplate == null
-                ? "Review the linked dungeon and select a route before dispatching."
+                ? "Review the linked dungeon and confirm an expedition plan before launching."
                 : GetHomeCityDisplayName() + " -> " + dungeonTemplate.DungeonLabel + " | " + dungeonTemplate.DangerLabel + " | " + dungeonTemplate.StyleLabel;
         }
 
-        return template.RouteLabel + " | " + template.Description + " | " + template.EncounterPreview + " | " + template.RewardPreview;
+        string recentImpactSuffix = HasText(prepReadModel.RecentImpactSummaryText)
+            ? " | Recent: " + prepReadModel.RecentImpactSummaryText
+            : string.Empty;
+        string decisionSignalText = BuildPrepDecisionSignalText(prepReadModel);
+        string decisionSignalSuffix = HasText(decisionSignalText)
+            ? " | Signal: " + decisionSignalText
+            : string.Empty;
+
+        if (previewRoute != null && HasText(previewRoute.RouteId))
+        {
+            return prepReadModel.ObjectiveText + recentImpactSuffix + " | Why now: " + prepReadModel.WhyNowText + decisionSignalSuffix + " | " + previewRoute.RouteLabel + " | " + previewRoute.DescriptionText + " | Reward: " + previewRoute.RewardPreviewText;
+        }
+
+        return prepReadModel.ObjectiveText + recentImpactSuffix + " | Why now: " + prepReadModel.WhyNowText + decisionSignalSuffix + " | " + prepReadModel.ExpectedUsefulnessText;
     }
 
     private string GetRouteChoicePromptText()
     {
+        ExpeditionPrepReadModel prepReadModel = GetCurrentExpeditionPrepReadModel();
         string option1 = BuildRouteButtonLabel(_currentDungeonId, SafeRouteId);
         string option2 = BuildRouteButtonLabel(_currentDungeonId, RiskyRouteId);
         string selectedRouteLabel = string.IsNullOrEmpty(_selectedRouteChoiceId)
@@ -5197,9 +5228,65 @@ public sealed partial class StaticPlaceholderWorldView
             ? string.Empty
             : BuildRouteButtonLabel(_currentDungeonId, _hoverRouteChoiceId);
         string hoverSuffix = string.IsNullOrEmpty(hoverRouteLabel) ? string.Empty : " | Hover: " + hoverRouteLabel;
-        string dispatchHint = CanConfirmRouteChoice() ? "[Enter] Dispatch" : "Select a route, then [Enter] Dispatch";
-        string policyText = BuildDispatchPolicyText(GetDispatchPolicyState(_currentHomeCityId));
-        return dispatchHint + " | [Q] Policy: " + policyText + " | [1] " + option1 + "  [2] " + option2 + "  [Esc] Return | Recommended: " + _recommendedRouteLabel + " | Selected: " + selectedRouteLabel + hoverSuffix;
+        LaunchReadiness readiness = prepReadModel != null ? prepReadModel.LaunchReadiness : GetCurrentLaunchReadiness();
+        string readinessText = readiness != null && HasText(readiness.SummaryText)
+            ? readiness.SummaryText
+            : "Select a route, then [Enter] Confirm Plan";
+        string blockerText = BuildPrepIssueSummary(readiness, true, 1);
+        string warningText = BuildPrepIssueSummary(readiness, false, 1);
+        string approachText = prepReadModel != null && prepReadModel.ApproachChoice != null && HasText(prepReadModel.ApproachChoice.ApproachLabel)
+            ? prepReadModel.ApproachChoice.ApproachLabel
+            : BuildDispatchPolicyText(GetDispatchPolicyState(_currentHomeCityId));
+        string partyText = prepReadModel != null && HasText(prepReadModel.PartySummaryText) ? prepReadModel.PartySummaryText : "None";
+        string signalText = prepReadModel != null ? BuildPrepDecisionSignalText(prepReadModel) : "None";
+        string whyNowText = prepReadModel != null && HasText(prepReadModel.WhyNowText)
+            ? CompactPrepPromptText(prepReadModel.WhyNowText, 120)
+            : "None";
+        string previewText = prepReadModel != null && HasText(prepReadModel.RiskRewardPreviewText) ? prepReadModel.RiskRewardPreviewText : "Pick a route to preview the launch.";
+        string dispatchHint = CanConfirmRouteChoice() ? "[Enter] Confirm Plan | " + readinessText : readinessText;
+        string warningSuffix = HasText(warningText) && warningText != "None" ? " | Warning: " + warningText : string.Empty;
+        string blockerSuffix = HasText(blockerText) && blockerText != "None" ? " | Blocker: " + blockerText : string.Empty;
+        return dispatchHint + " | Signal: " + signalText + " | Why: " + whyNowText + " | Party: " + partyText + " | Approach: " + approachText + " | Preview: " + previewText + " | [Q] Policy  [1] " + option1 + "  [2] " + option2 + "  [Esc] Return | Recommended: " + _recommendedRouteLabel + " | Selected: " + selectedRouteLabel + blockerSuffix + warningSuffix + hoverSuffix;
+    }
+
+    private string BuildPrepDecisionSignalText(ExpeditionPrepReadModel prepReadModel)
+    {
+        if (prepReadModel == null)
+        {
+            return "None";
+        }
+
+        if (HasText(prepReadModel.RecommendedActionSummaryText))
+        {
+            return prepReadModel.RecommendedActionSummaryText;
+        }
+
+        if (HasText(prepReadModel.RecommendedActionReasonText))
+        {
+            return CompactPrepPromptText(prepReadModel.RecommendedActionReasonText, 84);
+        }
+
+        if (HasText(prepReadModel.RecentImpactHintText))
+        {
+            return CompactPrepPromptText(prepReadModel.RecentImpactHintText, 84);
+        }
+
+        if (HasText(prepReadModel.RecentImpactSummaryText))
+        {
+            return CompactPrepPromptText(prepReadModel.RecentImpactSummaryText, 84);
+        }
+
+        return "None";
+    }
+
+    private string CompactPrepPromptText(string text, int maxLength)
+    {
+        if (!HasText(text) || maxLength < 8 || text.Length <= maxLength)
+        {
+            return HasText(text) ? text : "None";
+        }
+
+        return text.Substring(0, maxLength - 3).TrimEnd() + "...";
     }
 
     private string BuildRouteButtonLabel(string routeId)
@@ -5237,7 +5324,7 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (_dungeonRunState == DungeonRunState.RouteChoice)
         {
-            return "Dispatch Planner";
+            return "Expedition Prep";
         }
 
         if (_dungeonRunState == DungeonRunState.PreEliteChoice)
@@ -5257,7 +5344,7 @@ public sealed partial class StaticPlaceholderWorldView
     {
         if (_dungeonRunState == DungeonRunState.RouteChoice)
         {
-            return "Dispatch Planner";
+            return "Expedition Prep";
         }
 
         if (_dungeonRunState == DungeonRunState.ResultPanel)
@@ -6513,7 +6600,7 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (_dungeonRunState == DungeonRunState.RouteChoice)
         {
-            return "Dispatch Planner";
+            return "Expedition Prep";
         }
 
         if (_dungeonRunState == DungeonRunState.Explore)
@@ -6637,6 +6724,7 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         ClearBattleHoverState();
+        _pendingBattleCommand = new PrototypeBattleCommand();
         _queuedBattleAction = BattleActionType.None;
         _battleState = BattleState.PartyActionSelect;
         SetActiveBattleMonster(GetFirstLivingBattleMonster());
@@ -6951,9 +7039,15 @@ public sealed partial class StaticPlaceholderWorldView
             targetName: encounter.DisplayName,
             shortText: eliteVictory ? "Elite victory" : "Encounter victory");
 
+        string eliteFeedback = eliteVictory
+            ? "Final elite defeated. " + _eliteRewardLabel + " secured." + (_eliteBonusRewardGrantedAmount > 0 ? " Bonus granted." : string.Empty) + " Reach the exit."
+            : encounter.DisplayName + " defeated. Continue exploring.";
+        CaptureBattleResolutionContract(PrototypeBattleOutcomeKeys.EncounterVictory, grantedLoot, eliteFeedback);
+
         _activeEncounterId = string.Empty;
         _dungeonRunState = DungeonRunState.Explore;
         _battleState = BattleState.None;
+        _pendingBattleCommand = new PrototypeBattleCommand();
         _queuedBattleAction = BattleActionType.None;
         _hoverBattleAction = BattleActionType.None;
         _battleTurnIndex = 0;
@@ -6964,9 +7058,6 @@ public sealed partial class StaticPlaceholderWorldView
         ClearEnemyIntentState();
         ResetRoundActions();
         SetActiveBattleMonster(null);
-        string eliteFeedback = eliteVictory
-            ? "Final elite defeated. " + _eliteRewardLabel + " secured." + (_eliteBonusRewardGrantedAmount > 0 ? " Bonus granted." : string.Empty) + " Reach the exit."
-            : encounter.DisplayName + " defeated. Continue exploring.";
         SetBattleFeedbackText(eliteFeedback);
         RefreshRoomSequenceState(true);
         RefreshSelectionPrompt();
@@ -6977,6 +7068,7 @@ public sealed partial class StaticPlaceholderWorldView
         _battleState = BattleState.EnemyTurn;
         _currentActorIndex = -1;
         _selectedPartyMemberIndex = -1;
+        _pendingBattleCommand = new PrototypeBattleCommand();
         _hoverBattleAction = BattleActionType.None;
         _queuedBattleAction = BattleActionType.None;
         ClearBattleHoverState();
@@ -7091,7 +7183,22 @@ public sealed partial class StaticPlaceholderWorldView
         string resolvedSkillTargetKind = action == BattleActionType.Skill ? GetResolvedSkillTargetKind(member, resolvedSkillDefinition) : string.Empty;
         string resolvedSkillEffectType = action == BattleActionType.Skill ? GetResolvedSkillEffectType(member, resolvedSkillDefinition) : string.Empty;
         string actionLabel = GetBattleActionDisplayName(action, member);
-        string actionKey = GetBattleActionKey(action);
+        PrototypeBattleCommand battleCommand = member != null
+            ? CreateBattleCommandSnapshot(action, member)
+            : PrototypeBattleCommandResolver.CreateCommand(
+                action == BattleActionType.Attack ? PrototypeBattleCommandType.Attack : action == BattleActionType.Skill ? PrototypeBattleCommandType.Skill : PrototypeBattleCommandType.Retreat,
+                string.Empty,
+                ActiveDungeonPartyText,
+                _currentActorIndex,
+                resolvedSkillId,
+                actionLabel,
+                action == BattleActionType.Retreat ? "party" : string.Empty,
+                action == BattleActionType.Retreat ? "retreat" : string.Empty,
+                0,
+                false,
+                ActiveDungeonPartyText + " -> " + actionLabel);
+        _pendingBattleCommand = battleCommand;
+        string actionKey = battleCommand.CommandKey;
 
         RecordBattleEvent(
             PrototypeBattleEventKeys.ActionSelected,
@@ -7321,9 +7428,22 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         SetActiveBattleMonster(targetMonster);
+        _pendingBattleCommand = PrototypeBattleCommandResolver.BindTarget(
+            _pendingBattleCommand,
+            targetMonster.MonsterId,
+            targetMonster.DisplayName,
+            GetBattleMonsterDisplayIndex(targetMonster.MonsterId));
         PrototypeRpgSkillDefinition resolvedSkillDefinition = _queuedBattleAction == BattleActionType.Skill ? ResolveMemberSkillDefinition(member) : null;
-        string actionKey = _queuedBattleAction == BattleActionType.Skill ? "skill" : "attack";
-        string resolvedSkillId = _queuedBattleAction == BattleActionType.Skill && resolvedSkillDefinition != null ? resolvedSkillDefinition.SkillId : string.Empty;
+        string actionKey = _pendingBattleCommand != null && HasText(_pendingBattleCommand.CommandKey)
+            ? _pendingBattleCommand.CommandKey
+            : _queuedBattleAction == BattleActionType.Skill
+                ? "skill"
+                : "attack";
+        string resolvedSkillId = _pendingBattleCommand != null && HasText(_pendingBattleCommand.SkillId)
+            ? _pendingBattleCommand.SkillId
+            : _queuedBattleAction == BattleActionType.Skill && resolvedSkillDefinition != null
+                ? resolvedSkillDefinition.SkillId
+                : string.Empty;
         int damage;
         string actionName;
         if (_queuedBattleAction == BattleActionType.Skill)
@@ -8012,6 +8132,7 @@ public sealed partial class StaticPlaceholderWorldView
         TrySelectNextPartyActor(0);
         SetActiveBattleMonster(GetFirstLivingBattleMonster());
         RecordCurrentPartyTurnStartEvent();
+        CaptureBattleRequestContract();
 
         if (encounter.IsEliteEncounter)
         {
@@ -8126,7 +8247,7 @@ public sealed partial class StaticPlaceholderWorldView
         EnsureDungeonVisuals();
         SyncMonsterVisuals();
     }
-    private void StartDungeonRunForRoute(DungeonRouteTemplate template, string partyId)
+    private void StartDungeonRunForRoute(DungeonRouteTemplate template, string partyId, ExpeditionPlan launchPlan)
     {
         if (template == null || string.IsNullOrEmpty(partyId))
         {
@@ -8231,10 +8352,37 @@ public sealed partial class StaticPlaceholderWorldView
         RefreshRoomSequenceState(true);
         RefreshExpectedNeedImpact();
         _recentBattleLogs.Clear();
-        AppendBattleLog("Dispatched from " + GetHomeCityDisplayName() + " to " + _currentDungeonName + ".");
+        AppendBattleLog(launchPlan != null && HasText(launchPlan.ObjectiveText)
+            ? "Objective: " + launchPlan.ObjectiveText
+            : "Dispatched from " + GetHomeCityDisplayName() + " to " + _currentDungeonName + ".");
+        if (launchPlan != null && HasText(launchPlan.WhyNowText))
+        {
+            AppendBattleLog("Why now: " + launchPlan.WhyNowText);
+        }
+
+        if (launchPlan != null && HasText(launchPlan.SummaryText))
+        {
+            AppendBattleLog("Plan: " + launchPlan.SummaryText);
+        }
+
+        if (launchPlan != null && launchPlan.LaunchReadiness != null && HasText(launchPlan.LaunchReadiness.SummaryText))
+        {
+            AppendBattleLog("Launch readiness: " + launchPlan.LaunchReadiness.SummaryText);
+        }
+
+        if (launchPlan != null)
+        {
+            string requirementSummary = BuildExpeditionStringListSummary(launchPlan.RequirementSummary, 2);
+            if (HasText(requirementSummary) && requirementSummary != "None")
+            {
+                AppendBattleLog("Locked inputs: " + requirementSummary + ".");
+            }
+        }
+
         AppendBattleLog("Selected " + _selectedRouteLabel + ". Room plan: " + BuildRoomPathPreviewText(_currentDungeonId, _selectedRouteId) + ".");
         AppendBattleLog("Need Pressure: " + _preRunNeedPressureText + " | Stock: " + BuildLootAmountText(_preRunManaShardStock) + " | Readiness: " + _preRunDispatchReadinessText + " -> " + GetDispatchReadinessText(_currentHomeCityId) + ".");
         SetBattleFeedbackText(GetHomeCityDisplayName() + " -> " + _currentDungeonName + " via " + _selectedRouteLabel + ".");
+        RefreshDungeonRunContracts();
         RefreshSelectionPrompt();
         RefreshDungeonPresentation();
     }
@@ -8264,10 +8412,6 @@ public sealed partial class StaticPlaceholderWorldView
                     : resultState == RunResultState.Retreat
                         ? "The party retreated."
                         : "The run ended.";
-
-        _latestRpgRunResultSnapshot = BuildRpgRunResultSnapshot(outcomeKey, safeReturnedLoot, safeResultSummary);
-        ApplyRpgRunResultSnapshotToLegacyFields(_latestRpgRunResultSnapshot);
-
 
         if (resultState == RunResultState.Clear)
         {
@@ -8320,6 +8464,9 @@ public sealed partial class StaticPlaceholderWorldView
             actorName: ActiveDungeonPartyText,
             targetName: _currentDungeonName,
             shortText: "Battle end");
+        CaptureBattleResolutionContract(outcomeKey, safeReturnedLoot, safeResultSummary);
+        _latestRpgRunResultSnapshot = BuildRpgRunResultSnapshot(outcomeKey, safeReturnedLoot, _latestBattleResolution.SummaryText);
+        ApplyRpgRunResultSnapshotToLegacyFields(_latestRpgRunResultSnapshot);
         _latestRpgProgressionSeedSnapshot = BuildRpgProgressionSeedSnapshot(_latestRpgRunResultSnapshot);
         _latestRpgCombatContributionSnapshot = BuildRpgCombatContributionSnapshot(_latestRpgRunResultSnapshot);
         _latestRpgProgressionPreviewSnapshot = BuildRpgProgressionPreviewSnapshot(_latestRpgRunResultSnapshot, _latestRpgProgressionSeedSnapshot, _latestRpgCombatContributionSnapshot);
@@ -8327,6 +8474,7 @@ public sealed partial class StaticPlaceholderWorldView
         _runResultState = resultState;
         _battleState = battleState;
         _dungeonRunState = DungeonRunState.ResultPanel;
+        _pendingBattleCommand = new PrototypeBattleCommand();
         _queuedBattleAction = BattleActionType.None;
         _hoverBattleAction = BattleActionType.None;
         _currentActorIndex = -1;
@@ -8346,18 +8494,8 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (_runtimeEconomyState != null && !string.IsNullOrEmpty(_currentHomeCityId) && !string.IsNullOrEmpty(_currentDungeonId))
         {
-            _runtimeEconomyState.ResolveDungeonRun(
-                _currentHomeCityId,
-                _currentDungeonId,
-                DungeonRewardResourceId,
-                safeReturnedLoot,
-                success,
-                safeResultSummary,
-                _latestRpgRunResultSnapshot.SurvivingMembersSummary,
-                _latestRpgRunResultSnapshot.EncounterOutcome.ClearedEncounterSummary,
-                _latestRpgRunResultSnapshot.EncounterOutcome.SelectedEventChoice,
-                _latestRpgRunResultSnapshot.LootOutcome.FinalLootSummary,
-                BuildSelectedRouteSummary());
+            ExpeditionOutcome expeditionOutcome = BuildCurrentExpeditionOutcome(success, safeReturnedLoot, safeResultSummary);
+            _runtimeEconomyState.ResolveDungeonRun(expeditionOutcome);
         }
 
         _resultStockBefore = _preRunManaShardStock;
@@ -8384,12 +8522,27 @@ public sealed partial class StaticPlaceholderWorldView
         {
             AppendBattleLog("Elite bonus reward earned: " + BuildLootAmountText(_resultEliteBonusRewardAmount) + ".");
         }
+        RefreshDungeonRunContracts();
         RefreshSelectionPrompt();
         RefreshDungeonPresentation();
     }
 
+    private ExpeditionOutcome BuildCurrentExpeditionOutcome(bool success, int safeReturnedLoot, string safeResultSummary)
+    {
+        ExpeditionRunState runState = BuildExpeditionRunStateInternal();
+        return ResultPipeline.BuildExpeditionOutcome(
+            runState,
+            DungeonRewardResourceId,
+            safeReturnedLoot,
+            success,
+            safeResultSummary,
+            _latestRpgRunResultSnapshot);
+    }
+
     private void ResetDungeonRunPresentationState()
     {
+        ResetExpeditionPrepContracts();
+        ResetDungeonRunStateContracts();
         _activeDungeonParty = null;
         _activeChest = null;
         _activeBattleMonster = null;

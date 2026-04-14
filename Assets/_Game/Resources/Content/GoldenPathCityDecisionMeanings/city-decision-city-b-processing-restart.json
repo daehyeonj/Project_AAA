@@ -1,0 +1,7 @@
+{
+  "CityDecisionMeaningId": "city-decision-city-b-processing-restart",
+  "BottleneckSummaryText": "City B's refined_mana line stalls whenever mana_shard inputs stop reaching the processors.",
+  "OpportunityReasonText": "Dungeon Beta is City B's fastest expedition lever for reopening stalled refined_mana processing.",
+  "RecommendationRationaleText": "Use the recovered mana_shard window to restart processing, then pace the next dispatch before recovery strain stacks.",
+  "WhyCityMattersText": "City B matters because a single mana_shard return can reopen processing and immediately change the city's next expedition priority."
+}

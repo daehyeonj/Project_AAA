@@ -1,0 +1,10 @@
+{
+  "BattleSetupId": "battle-setup-beta-risky-elite",
+  "EnemyGroupLabel": "Raider Chief",
+  "SetupSummaryText": "A solo raider elite guarding the final payout room.",
+  "RetreatAllowed": true,
+  "WinRelevanceText": "Defeating the chief converts the risky route into the strongest mana_shard return for City B.",
+  "LossRelevanceText": "Failing here leaves the processing bottleneck unresolved after taking the route's highest risk.",
+  "EliteTypeText": "Goblin Elite | Focused Execution",
+  "RewardHintText": "Raider War Spoils"
+}

@@ -1,0 +1,8 @@
+{
+  "BattleSetupId": "battle-setup-beta-risky-room2",
+  "EnemyGroupLabel": "Raider Ambush Pair",
+  "SetupSummaryText": "A guard and striker trying to collapse the run before the war-table prep room.",
+  "RetreatAllowed": true,
+  "WinRelevanceText": "Breaking the ambush preserves the route's big-shard upside.",
+  "LossRelevanceText": "Losing tempo here makes the greedy path pay the risk without reaching the reward."
+}

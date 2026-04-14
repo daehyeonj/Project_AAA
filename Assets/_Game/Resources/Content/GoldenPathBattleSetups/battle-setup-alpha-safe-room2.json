@@ -1,0 +1,8 @@
+{
+  "BattleSetupId": "battle-setup-alpha-safe-room2",
+  "EnemyGroupLabel": "Slime Watch Pair",
+  "SetupSummaryText": "A guard slime and skirmisher trying to hold the watch hall.",
+  "RetreatAllowed": true,
+  "WinRelevanceText": "Winning here keeps the run on track for the monarch chamber.",
+  "LossRelevanceText": "Getting stalled here leaves the safe route short of its final payout."
+}

@@ -1,0 +1,6 @@
+{
+  "EncounterProfileId": "encounter-profile-opening-skirmish",
+  "EncounterRoleTagsText": "frontline, first-check",
+  "MissionRelevanceText": "The first resistance point decides whether the route can keep moving toward the dungeon objective.",
+  "BattleContextText": "Opening guard line for the current expedition route."
+}

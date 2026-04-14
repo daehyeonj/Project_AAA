@@ -1,0 +1,8 @@
+{
+  "BattleSetupId": "battle-setup-beta-safe-room1",
+  "EnemyGroupLabel": "Slime Scout + Goblin Watch",
+  "SetupSummaryText": "A mixed scout pair screening the guarded entry before the vault rooms.",
+  "RetreatAllowed": true,
+  "WinRelevanceText": "Clearing the gate keeps the guarded route steady without ceding the vault.",
+  "LossRelevanceText": "Stalling here gives up the safer restart before City B even reaches the guarded payout rooms."
+}

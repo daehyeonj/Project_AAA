@@ -1,0 +1,7 @@
+{
+  "RouteMeaningId": "route-balanced-volatile",
+  "RiskLabel": "Medium",
+  "EventFocus": "Balanced recover or shard choice.",
+  "RewardPreview": "Balanced shards with a sharper elite payout spike.",
+  "ExpectedNeedImpactText": "Balances shard gains with a rougher follow-up dispatch."
+}

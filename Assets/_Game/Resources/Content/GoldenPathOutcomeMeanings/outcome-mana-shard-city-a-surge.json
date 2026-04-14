@@ -1,0 +1,7 @@
+{
+  "OutcomeMeaningId": "outcome-mana-shard-city-a-surge",
+  "RewardResourceId": "mana_shard",
+  "RewardMeaningText": "The Standard Path turns Dungeon Alpha into a sharper mana_shard spike, but only if City A can absorb the extra recovery strain.",
+  "CityImpactMeaningText": "Creates a bigger mana_shard cushion for City A, but the mixed route leaves less dispatch stability behind than the Rest Path.",
+  "RecommendationShiftText": "City A can press its shard advantage after the Standard Path, but the next dispatch should account for the rougher recovery window."
+}

@@ -10,6 +10,7 @@ public sealed class BootEntry : MonoBehaviour
     private static readonly Color DungeonRunColor = new Color(0.1f, 0.1f, 0.14f, 1f);
 
     private GameState _gameState;
+    private AppFlowCoordinator _appFlowCoordinator;
     private StaticPlaceholderWorldView _worldView;
     private WorldCameraController _worldCameraController;
     private PrototypeDebugHUD _debugHud;
@@ -19,14 +20,20 @@ public sealed class BootEntry : MonoBehaviour
     private PrototypeLanguage _currentLanguage = PrototypeLanguage.English;
 
     public PrototypeLanguage CurrentLanguage => _currentLanguage;
+    public AppFlowStage CurrentAppFlowStage => _appFlowCoordinator != null ? _appFlowCoordinator.CurrentStage : AppFlowStage.Boot;
+    public AppFlowContext CurrentAppFlowContext => _appFlowCoordinator != null ? _appFlowCoordinator.Context : new AppFlowContext();
     public bool IsBootActive => _gameState != null && _gameState.CurrentState == GameStateId.Boot;
     public bool IsMainMenuActive => _gameState != null && _gameState.CurrentState == GameStateId.MainMenu;
     public bool IsWorldSimActive => _gameState != null && _gameState.CurrentState == GameStateId.WorldSim;
+    public bool IsCityHubActive => CurrentAppFlowStage == AppFlowStage.CityHub;
+    public bool IsExpeditionPrepActive => CurrentAppFlowStage == AppFlowStage.ExpeditionPrep;
+    public bool IsBattleSceneActive => CurrentAppFlowStage == AppFlowStage.BattleScene;
+    public bool IsResultPipelineActive => CurrentAppFlowStage == AppFlowStage.ResultPipeline;
     public string CurrentLanguageLabel => PrototypeLocalization.GetLanguageDisplayName(_currentLanguage);
     public string PrototypeNameLabel => GetText("PrototypeName");
     public string DebugStepLabel => GetText("StepLabel");
-    public string CurrentStateLabel => _gameState != null ? _gameState.CurrentState.ToString() : "(missing)";
-    public string LastTransitionLabel => _gameState != null ? _gameState.LastTransition : "(missing)";
+    public string CurrentStateLabel => CurrentAppFlowStage.ToString();
+    public string LastTransitionLabel => _appFlowCoordinator != null ? _appFlowCoordinator.LastTransition : "(missing)";
     public int VisibleCityCount => StaticPlaceholderWorldView.CityCount;
     public int VisibleDungeonCount => StaticPlaceholderWorldView.DungeonCount;
     public int VisibleRoadCount => StaticPlaceholderWorldView.RoadCount;
@@ -316,18 +323,37 @@ public sealed class BootEntry : MonoBehaviour
         return _worldView != null ? _worldView.BuildBattleUiSurfaceData() : new PrototypeBattleUiSurfaceData();
     }
 
+    public PrototypeBattleRequest GetBattleRequest()
+    {
+        return _worldView != null ? _worldView.GetBattleRequest() : new PrototypeBattleRequest();
+    }
+
+    public PrototypeBattleRuntimeState GetBattleRuntimeState()
+    {
+        return _worldView != null ? _worldView.GetBattleRuntimeState() : new PrototypeBattleRuntimeState();
+    }
+
+    public PrototypeBattleResolution GetBattleResolution()
+    {
+        return _worldView != null ? _worldView.GetLatestBattleResolution() : new PrototypeBattleResolution();
+    }
+
+    public PrototypeBattleViewModel GetBattleViewModel()
+    {
+        return _worldView != null ? _worldView.GetBattleViewModel() : new PrototypeBattleViewModel();
+    }
+
     private void Awake()
     {
         _gameState = new GameState(GameStateId.Boot);
+        _appFlowCoordinator = new AppFlowCoordinator();
         _resources = PlaceholderResourceDataFactory.Create();
         _worldView = new StaticPlaceholderWorldView(_resources);
         EnsureDebugHUD();
         EnsurePresentationShell();
         EnsureWorldCameraController();
         Debug.Log("[Boot] Boot scene started successfully.");
-        ApplyBackgroundColor(GameStateId.Boot);
-        UpdateWorldVisibility(GameStateId.Boot);
-        UpdateCameraControl(GameStateId.Boot);
+        ApplyCurrentAppFlowPresentation(false);
     }
 
     private void OnDestroy()
@@ -348,7 +374,7 @@ public sealed class BootEntry : MonoBehaviour
 
         if (!_hasTransitioned && Time.unscaledTime >= MainMenuDelaySeconds)
         {
-            ChangeState(GameStateId.MainMenu);
+            TryEnterMainMenu();
             _hasTransitioned = true;
             return;
         }
@@ -368,13 +394,13 @@ public sealed class BootEntry : MonoBehaviour
                  keyboard.numpadEnterKey.wasPressedThisFrame ||
                  keyboard.spaceKey.wasPressedThisFrame))
             {
-                ChangeState(GameStateId.WorldSim);
+                EnterWorldSimFromMenu();
                 return;
             }
 
             if (!blockKeyboardShortcuts && _gameState.CurrentState == GameStateId.WorldSim && keyboard.escapeKey.wasPressedThisFrame)
             {
-                ChangeState(GameStateId.MainMenu);
+                ReturnToMainMenu();
                 return;
             }
 
@@ -392,6 +418,7 @@ public sealed class BootEntry : MonoBehaviour
             }
 
             HandleSelectionInput();
+            SynchronizeWorldAppFlow();
             return;
         }
 
@@ -399,9 +426,17 @@ public sealed class BootEntry : MonoBehaviour
         {
             Keyboard dungeonKeyboard = blockDungeonInput ? null : keyboard;
             _worldView.UpdateDungeonRun(dungeonKeyboard, Mouse.current, Camera.main);
-            if (_worldView.ConsumeDungeonRunExitRequest())
+            AppFlowObservedSnapshot snapshot = _worldView.BuildAppFlowSnapshot();
+            bool stageChanged = _appFlowCoordinator != null && _appFlowCoordinator.Synchronize(snapshot);
+            if (snapshot.HasPendingWorldReturn && _worldView.ConsumeDungeonRunExitRequest() && _appFlowCoordinator != null && _appFlowCoordinator.TryReturnToWorld(snapshot))
             {
-                ChangeState(GameStateId.WorldSim);
+                ApplyCurrentAppFlowPresentation(true);
+                return;
+            }
+
+            if (stageChanged)
+            {
+                ApplyCurrentAppFlowPresentation(true);
             }
         }
     }
@@ -409,6 +444,11 @@ public sealed class BootEntry : MonoBehaviour
     public string GetText(string key)
     {
         return PrototypeLocalization.Get(_currentLanguage, key);
+    }
+
+    public WorldBoardReadModel GetWorldBoardReadModel()
+    {
+        return _worldView != null ? _worldView.BuildWorldBoardReadModel() : WorldBoardReadModel.Empty;
     }
 
     public string TranslateValue(string text)
@@ -430,17 +470,21 @@ public sealed class BootEntry : MonoBehaviour
 
     public void EnterWorldSimFromMenu()
     {
-        if (IsMainMenuActive)
+        if (IsMainMenuActive && _appFlowCoordinator != null)
         {
-            ChangeState(GameStateId.WorldSim);
+            AppFlowObservedSnapshot snapshot = _worldView != null ? _worldView.BuildAppFlowSnapshot() : new AppFlowObservedSnapshot();
+            if (_appFlowCoordinator.TryEnterWorldSim(snapshot))
+            {
+                ApplyCurrentAppFlowPresentation(true);
+            }
         }
     }
 
     public void ReturnToMainMenu()
     {
-        if (IsWorldSimActive)
+        if (IsWorldSimActive && _appFlowCoordinator != null && _appFlowCoordinator.TryEnterMainMenu())
         {
-            ChangeState(GameStateId.MainMenu);
+            ApplyCurrentAppFlowPresentation(true);
         }
     }
 
@@ -491,7 +535,12 @@ public sealed class BootEntry : MonoBehaviour
             return false;
         }
 
-        ChangeState(GameStateId.DungeonRun);
+        AppFlowObservedSnapshot snapshot = _worldView.BuildAppFlowSnapshot();
+        if (_appFlowCoordinator != null && _appFlowCoordinator.TryEnterExpeditionPrep(snapshot))
+        {
+            ApplyCurrentAppFlowPresentation(true);
+        }
+
         return true;
     }
 
@@ -626,17 +675,14 @@ public sealed class BootEntry : MonoBehaviour
     {
         return _worldView != null && _worldView.TryTriggerPreEliteChoice(optionKey);
     }
-    private void ChangeState(GameStateId nextState)
+    private void TryEnterMainMenu()
     {
-        if (_gameState == null || !_gameState.ChangeState(nextState))
+        if (_appFlowCoordinator == null || !_appFlowCoordinator.TryEnterMainMenu())
         {
             return;
         }
 
-        Debug.Log("[GameState] " + _gameState.LastTransition);
-        ApplyBackgroundColor(nextState);
-        UpdateCameraControl(nextState);
-        UpdateWorldVisibility(nextState);
+        ApplyCurrentAppFlowPresentation(true);
     }
 
     private void UpdateWorldVisibility(GameStateId state)
@@ -696,11 +742,53 @@ public sealed class BootEntry : MonoBehaviour
             _worldView.RecruitSelectedCityParty();
         }
 
-
-        if (keyboard.xKey.wasPressedThisFrame && _worldView.TryEnterSelectedCityDungeon(Camera.main))
+        if (keyboard.xKey.wasPressedThisFrame)
         {
-            ChangeState(GameStateId.DungeonRun);
+            TryEnterSelectedWorldDungeon();
         }
+    }
+
+    private void SynchronizeWorldAppFlow()
+    {
+        if (_worldView == null || _appFlowCoordinator == null)
+        {
+            return;
+        }
+
+        if (_appFlowCoordinator.Synchronize(_worldView.BuildAppFlowSnapshot()))
+        {
+            ApplyCurrentAppFlowPresentation(true);
+        }
+    }
+
+    private void ApplyCurrentAppFlowPresentation(bool logTransition)
+    {
+        if (_gameState == null)
+        {
+            return;
+        }
+
+        GameStateId mappedState = MapStageToGameState(CurrentAppFlowStage);
+        _gameState.ChangeState(mappedState);
+        if (logTransition && _appFlowCoordinator != null)
+        {
+            Debug.Log("[AppFlow] " + _appFlowCoordinator.LastTransition);
+        }
+
+        ApplyBackgroundColor(mappedState);
+        UpdateCameraControl(mappedState);
+        UpdateWorldVisibility(mappedState);
+    }
+
+    private static GameStateId MapStageToGameState(AppFlowStage stage)
+    {
+        return stage == AppFlowStage.Boot
+            ? GameStateId.Boot
+            : stage == AppFlowStage.MainMenu
+                ? GameStateId.MainMenu
+                : stage == AppFlowStage.WorldSim || stage == AppFlowStage.CityHub
+                    ? GameStateId.WorldSim
+                    : GameStateId.DungeonRun;
     }
 
     private void HandleSelectionInput()

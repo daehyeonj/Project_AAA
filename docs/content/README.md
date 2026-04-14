@@ -269,6 +269,29 @@
   - would promoting the draft require widening runtime route surfacing instead of only moving JSON?
 - If you need the shortest status snapshot for GitHub handoff or GPT branching, read `docs/post-slice-batch-status.md` first.
 
+## What Batch 46 Clarifies
+
+- Draft promotion preflight helper: `Tools/Project AAA/Show Draft Promotion Preflight`
+- Batch helper entry point: `GoldenPathAuthoringDraftHelper.RunDraftPromotionPreflightSummary`
+- The helper now also reports the current supported surfaced rail itself:
+  - `SupportedRailSlots=...`
+  - `OccupiedSupportedRailSlots=...`
+  - `OpenSupportedRailSlots=...`
+  - `OpenSupportedResolverKeys=...`
+- The current expected preflight state on the Alpha/Beta rail is:
+  - `SupportedRailSlots=4`
+  - `OccupiedSupportedRailSlots=4`
+  - `OpenSupportedRailSlots=None`
+  - `OpenSupportedResolverKeys=None`
+  - `PreflightRecommendation=supported-safe-risky-rail-is-saturated-retarget-beyond-current-surface-or-widen-rail`
+- For the current batch-template draft, the expected state is:
+  - `BatchTemplateDraftResolverKey=city-a::dungeon-alpha::safe`
+  - `BatchTemplateDraftState=blocked:resolver-key-already-owned`
+  - `BatchTemplateDraftRailFit=supported-slot-owned-and-current-rail-saturated`
+- Treat batch 46 as a preflight/diagnostic close-out, not as a fake surfaced-expansion batch:
+  - if the rail is saturated, do not pretend a retargetable helper or a new non-colliding seed already exists on the current surface
+  - use the preflight output to justify either retargeting the draft off the current rail or widening the surfaced seam on purpose
+
 ## How The Representative Chain Is Authored
 
 The current data-driven samples are:
@@ -334,11 +357,16 @@ The shared meaning assets currently own:
 - Run `Tools/Project AAA/Quick Open Surfaced Opportunity Assets` when you want the chain asset plus linked shared route/outcome/city/encounter/battle assets selected in one step before editing
 - Run `Tools/Project AAA/Create Draft From Selected Golden Path Chain` after selecting one canonical chain asset when you want a safe starting scaffold outside the canonical `Resources` path
 - Run `Tools/Project AAA/Show Draft Promotion Readiness` before moving a draft into `Resources/Content/GoldenPathChains`; it tells you whether the draft collides with an existing canonical resolver key or still needs runtime surfacing support
+- Run `Tools/Project AAA/Show Draft Promotion Preflight` when you need the shortest honest answer to "is there any open supported resolver key on the current surfaced rail at all?"
 - Run `Tools/Project AAA/Quick Open Draft Promotion Context` after the readiness check when you need the blocked/promotable draft, the canonical owner, and the linked shared assets selected together for a real edit pass
 - Read `BlockedByCanonicalOwner=` / `BlockedByRouteSurfaceExpansion=` / `PromotionRecommendation=` in the draft readiness summary before opening another surfaced-expansion batch:
   - `BlockedByCanonicalOwner>0` means the current surfaced/canonical rail already owns that resolver key
   - `BlockedByRouteSurfaceExpansion>0` means the draft sits outside the current `safe/risky` surfaced seam
-  - `PromotionRecommendation=retarget-the-draft-resolver-key-before-promotion` means the helper is usable, but there is no honest open surfaced slot on the current rail for that draft as written
+  - `PromotionRecommendation=retarget-the-draft-resolver-key-before-promotion` means there is still at least one open supported slot, but the draft is currently pointing at the wrong owned key
+  - `PromotionRecommendation=no-open-supported-resolver-key-on-current-rail` means the current surfaced rail is saturated and the next honest step is retarget-or-widen, not silent promotion
+- Read `SupportedRailSlots=` / `OpenSupportedRailSlots=` / `OpenSupportedResolverKeys=` in the preflight or context summary when you need the rail-capacity answer instead of only the selected-draft answer:
+  - `OpenSupportedRailSlots=None` plus `OpenSupportedResolverKeys=None` means the current Alpha/Beta `safe/risky` surfaced seam has no honest promotion slot left
+  - `SupportedRailFit=supported-slot-owned-and-current-rail-saturated` means the selected draft is not just colliding with an owner, it is colliding on a currently full supported rail
 - Read `SurfacedExpansionGate=` in the draft readiness or draft context summary when you want the draft helper and surfaced-portfolio tooling to answer the same question about current promotion headroom
 - Read `Consumer=` and `ConsumerSource=` in the surfaced matrix summary before treating a canonicalized route as truly surfaced; asset flags alone are no longer enough for surfaced promotion work
 - Read `Status=` / `StatusWhy=` in the surfaced matrix summary before promoting or debugging a route:
@@ -386,6 +414,7 @@ The shared meaning assets currently own:
 - In batch mode, run `GoldenPathAuthoringValidationRunner.RunRepresentativeChainReferenceTrace` when you need the tracked representative/surfaced routes with asset paths plus per-route issue drill-down in one log
 - In batch mode, run `GoldenPathAuthoringDraftHelper.RunCreateRepresentativeDraftTemplate` when you want to verify the draft-scaffold helper against the baseline safe representative chain without touching the canonical surfaced set
 - In batch mode, run `GoldenPathAuthoringDraftHelper.RunDraftPromotionReadinessSummary` when you want a draft-folder audit that explains whether each hidden draft is promotable, colliding with an existing canonical route, or blocked by the current surfaced-route rail
+- In batch mode, run `GoldenPathAuthoringDraftHelper.RunDraftPromotionPreflightSummary` when you need the supported-rail slot inventory and the batch-template draft's fit against that rail in one log
 - In batch mode, run `GoldenPathAuthoringDraftHelper.RunBatchTemplateDraftPromotionContextSummary` when you want the current template draft plus its canonical owner/shared-asset comparison context summarized in one log
 - Treat validator `FAIL` as a broken canonical rail:
   - missing chain definition

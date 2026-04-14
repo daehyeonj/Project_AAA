@@ -130,6 +130,10 @@ Batch 22 locked the baseline with representative chain #1, and batch 23 proves t
   - the current surfaced Alpha/Beta rail still has no canonical-but-not-surfaced supported route on the existing `safe/risky` seam
   - draft readiness now echoes the surfaced-expansion gate and blocked-draft cause counts, so authors can tell whether they need a new resolver key, a wider surfaced route seam, or only manual content review
   - treat `PromotionRecommendation=retarget-the-draft-resolver-key-before-promotion` plus `ExpansionGate=C:tooling-next` as proof that the current helper is usable but the current surfaced rail is already saturated for that draft as written
+- Batch 46 draft-preflight note:
+  - draft-promotion tooling now also reports supported-rail slot inventory directly instead of forcing operators to infer saturation from the blocked draft alone
+  - the current Alpha/Beta surfaced rail reports `SupportedRailSlots=4`, `OccupiedSupportedRailSlots=4`, `OpenSupportedRailSlots=None`, and `OpenSupportedResolverKeys=None`
+  - the current template draft still resolves to `city-a::dungeon-alpha::safe`, but the helper can now say that this is a collision on a saturated supported rail, not only a generic canonical-owner clash
 
 ## Baseline Compatibility Note
 
@@ -156,6 +160,7 @@ Batch 22 locked the baseline with representative chain #1, and batch 23 proves t
 - Batch 43 keeps gameplay behavior intact while aligning validator wording with the surfaced portfolio reality: the current four Alpha/Beta routes are still the official surfaced set, but primary chains no longer read as `hidden` in validation output.
 - Batch 44 keeps gameplay behavior intact while adding an explicit surfaced-expansion gate summary: it does not widen the player-facing set, but it makes the next-step decision readable from one tooling pass instead of a manual three-log comparison.
 - Batch 45 keeps gameplay behavior intact while aligning draft-promotion tooling with the surfaced-expansion gate: it does not widen the player-facing set, but it makes "no open surfaced slot on the current rail" explicit before someone tries to promote a colliding draft.
+- Batch 46 keeps gameplay behavior intact while strengthening draft-promotion preflight: it does not widen the player-facing set, but it makes supported-rail saturation explicit with slot counts and resolver-key inventory before anyone pretends a blocked draft can still promote on the current rail.
 
 ## Batch 22 Guardrail
 

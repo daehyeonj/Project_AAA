@@ -9,6 +9,7 @@ public static class GoldenPathAuthoringDraftHelper
 {
     private const string CreateDraftMenuPath = "Tools/Project AAA/Create Draft From Selected Golden Path Chain";
     private const string DraftPromotionReadinessMenuPath = "Tools/Project AAA/Show Draft Promotion Readiness";
+    private const string DraftPromotionPreflightMenuPath = "Tools/Project AAA/Show Draft Promotion Preflight";
     private const string QuickOpenDraftPromotionContextMenuPath = "Tools/Project AAA/Quick Open Draft Promotion Context";
     private const string DraftFolderAssetPath = "Assets/_Game/AuthoringDrafts/GoldenPathChains";
     private const string BatchTemplateSourceAssetPath = "Assets/_Game/Resources/Content/GoldenPathChains/city-a-dungeon-alpha-rest-path.json";
@@ -21,6 +22,27 @@ public static class GoldenPathAuthoringDraftHelper
         public string CurrentCanonicalOwnerAssetPath = string.Empty;
         public string PromotionState = string.Empty;
         public string ManualNext = string.Empty;
+        public string SupportedRailFit = string.Empty;
+        public int OpenSupportedRailSlotCount;
+        public string OpenSupportedResolverKeys = string.Empty;
+    }
+
+    private sealed class DraftSupportedRailSlot
+    {
+        public string ResolverKey = string.Empty;
+        public string CityId = string.Empty;
+        public string DungeonId = string.Empty;
+        public string RouteId = string.Empty;
+        public bool IsOccupied;
+        public string OwnerChainId = string.Empty;
+        public string OwnerAssetPath = string.Empty;
+    }
+
+    private sealed class DraftSupportedRailSnapshot
+    {
+        public readonly List<DraftSupportedRailSlot> Slots = new List<DraftSupportedRailSlot>();
+        public int OccupiedCount;
+        public int OpenCount;
     }
 
     [MenuItem(CreateDraftMenuPath, true)]
@@ -47,6 +69,12 @@ public static class GoldenPathAuthoringDraftHelper
     private static void ShowDraftPromotionReadinessMenu()
     {
         LogDraftPromotionReadinessSummary(false);
+    }
+
+    [MenuItem(DraftPromotionPreflightMenuPath)]
+    private static void ShowDraftPromotionPreflightMenu()
+    {
+        LogDraftPromotionPreflightSummary(false);
     }
 
     [MenuItem(QuickOpenDraftPromotionContextMenuPath, true)]
@@ -104,6 +132,11 @@ public static class GoldenPathAuthoringDraftHelper
     public static void RunDraftPromotionReadinessSummary()
     {
         LogDraftPromotionReadinessSummary(true);
+    }
+
+    public static void RunDraftPromotionPreflightSummary()
+    {
+        LogDraftPromotionPreflightSummary(true);
     }
 
     public static void RunBatchTemplateDraftPromotionContextSummary()
@@ -340,9 +373,20 @@ public static class GoldenPathAuthoringDraftHelper
         }
     }
 
+    private static void LogDraftPromotionPreflightSummary(bool exitWhenBatchCompletes)
+    {
+        Debug.Log(BuildDraftPromotionPreflightSummary());
+
+        if (exitWhenBatchCompletes && Application.isBatchMode)
+        {
+            EditorApplication.Exit(0);
+        }
+    }
+
     private static string BuildDraftPromotionReadinessSummary()
     {
         TextAsset[] draftAssets = LoadDraftAssets();
+        DraftSupportedRailSnapshot supportedRail = BuildSupportedRailSnapshot();
         int promotableCount = 0;
         int blockedCount = 0;
         int blockedByCanonicalOwnerCount = 0;
@@ -354,6 +398,10 @@ public static class GoldenPathAuthoringDraftHelper
         StringBuilder summary = new StringBuilder();
         summary.AppendLine("[AuthoringTooling] Draft promotion readiness");
         summary.AppendLine("- DraftCount=" + draftAssets.Length);
+        summary.AppendLine("- SupportedRailSlots=" + supportedRail.Slots.Count);
+        summary.AppendLine("- OccupiedSupportedRailSlots=" + supportedRail.OccupiedCount);
+        summary.AppendLine("- OpenSupportedRailSlots=" + FormatCountOrNone(supportedRail.OpenCount));
+        summary.AppendLine("- OpenSupportedResolverKeys=" + BuildOpenSupportedResolverKeySummary(supportedRail));
 
         for (int i = 0; i < draftAssets.Length; i++)
         {
@@ -428,8 +476,47 @@ public static class GoldenPathAuthoringDraftHelper
             blockedByCanonicalOwnerCount,
             blockedByRouteSurfaceExpansionCount,
             blockedByMissingIdentityCount,
-            blockedByInvalidJsonCount));
+            blockedByInvalidJsonCount,
+            supportedRail.OpenCount));
         summary.AppendLine("- SaturationHint=The current Alpha/Beta surfaced matrix already occupies the supported safe/risky slots. Use this summary before trying to promote a draft as if it were a new surfaced opportunity.");
+        return summary.ToString();
+    }
+
+    private static string BuildDraftPromotionPreflightSummary()
+    {
+        DraftSupportedRailSnapshot supportedRail = BuildSupportedRailSnapshot();
+        StringBuilder summary = new StringBuilder();
+        summary.AppendLine("[AuthoringTooling] Draft promotion preflight");
+        summary.AppendLine("- SupportedRailSlots=" + supportedRail.Slots.Count);
+        summary.AppendLine("- OccupiedSupportedRailSlots=" + supportedRail.OccupiedCount);
+        summary.AppendLine("- OpenSupportedRailSlots=" + FormatCountOrNone(supportedRail.OpenCount));
+        summary.AppendLine("- OpenSupportedResolverKeys=" + BuildOpenSupportedResolverKeySummary(supportedRail));
+        summary.AppendLine("- PreflightRecommendation=" + BuildDraftPreflightRecommendation(supportedRail));
+
+        for (int i = 0; i < supportedRail.Slots.Count; i++)
+        {
+            DraftSupportedRailSlot slot = supportedRail.Slots[i];
+            summary.AppendLine(
+                "- " + SafeText(slot.ResolverKey) +
+                " | State=" + (slot.IsOccupied ? "occupied" : "open") +
+                " | Owner=" + (slot.IsOccupied ? SafeText(slot.OwnerChainId) : "None") +
+                " | Asset=" + (slot.IsOccupied ? SafeText(slot.OwnerAssetPath) : "None"));
+        }
+
+        TextAsset draftAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(BatchTemplateDraftAssetPath);
+        if (draftAsset != null && !string.IsNullOrWhiteSpace(draftAsset.text))
+        {
+            GoldenPathChainDefinition draftDefinition = JsonUtility.FromJson<GoldenPathChainDefinition>(draftAsset.text);
+            if (draftDefinition != null)
+            {
+                DraftPromotionAssessment assessment = AssessDraftPromotion(draftDefinition);
+                summary.AppendLine("- BatchTemplateDraftResolverKey=" + SafeText(assessment.DraftResolverKey));
+                summary.AppendLine("- BatchTemplateDraftState=" + SafeText(assessment.PromotionState));
+                summary.AppendLine("- BatchTemplateDraftRailFit=" + SafeText(assessment.SupportedRailFit));
+                summary.AppendLine("- BatchTemplateDraftManualNext=" + SafeText(assessment.ManualNext));
+            }
+        }
+
         return summary.ToString();
     }
 
@@ -484,6 +571,9 @@ public static class GoldenPathAuthoringDraftHelper
         summary.AppendLine("- SharedRefs=" + BuildSharedReferenceSummary(draftDefinition, routeDefinition, representativeRoom));
         summary.AppendLine("- SharedAssetPaths=" + BuildSharedAssetPathSummary(draftDefinition, representativeRoom));
         summary.AppendLine("- DraftPromotionFit=" + BuildDraftPromotionFitSummary(assessment));
+        summary.AppendLine("- SupportedRailFit=" + SafeText(assessment.SupportedRailFit));
+        summary.AppendLine("- OpenSupportedRailSlots=" + FormatCountOrNone(assessment.OpenSupportedRailSlotCount));
+        summary.AppendLine("- OpenSupportedResolverKeys=" + SafeText(assessment.OpenSupportedResolverKeys));
         summary.AppendLine("- SurfacedExpansionGate=" + GoldenPathAuthoringValidationRunner.BuildSurfacedOpportunityExpansionGateInlineSummary());
         summary.AppendLine("- ManualNext=" + SafeText(assessment.ManualNext));
         summary.AppendLine("- QuickOpenHint=Selection now includes the draft, the current canonical owner if any, and the linked shared definition assets.");
@@ -555,6 +645,10 @@ public static class GoldenPathAuthoringDraftHelper
             draftDefinition != null ? draftDefinition.CityId : string.Empty,
             draftDefinition != null ? draftDefinition.DungeonId : string.Empty,
             draftDefinition != null && draftDefinition.CanonicalRoute != null ? draftDefinition.CanonicalRoute.RouteId : string.Empty);
+        DraftSupportedRailSnapshot supportedRail = BuildSupportedRailSnapshot();
+        assessment.OpenSupportedRailSlotCount = supportedRail.OpenCount;
+        assessment.OpenSupportedResolverKeys = BuildOpenSupportedResolverKeySummary(supportedRail);
+        assessment.SupportedRailFit = BuildSupportedRailFit(supportedRail, assessment.DraftResolverKey);
 
         if (draftDefinition == null)
         {
@@ -576,7 +670,9 @@ public static class GoldenPathAuthoringDraftHelper
             assessment.CurrentCanonicalOwnerChainId = canonicalOwnerChainId;
             assessment.CurrentCanonicalOwnerAssetPath = canonicalOwnerAssetPath;
             assessment.PromotionState = "blocked:resolver-key-already-owned";
-            assessment.ManualNext = "Change the city/dungeon/route identity or keep the draft hidden; moving this JSON into Resources as-is would collide with the current canonical route owner.";
+            assessment.ManualNext = supportedRail.OpenCount > 0
+                ? "Change the city/dungeon/route identity to an open supported resolver key or keep the draft hidden; moving this JSON into Resources as-is would collide with the current canonical route owner."
+                : "The current supported safe/risky rail has no open resolver key. Keep this draft hidden, retarget it beyond the current surfaced rail, or widen the rail before promotion.";
             return assessment;
         }
 
@@ -686,7 +782,9 @@ public static class GoldenPathAuthoringDraftHelper
             case "candidate:manual-promotion-review":
                 return "candidate-on-current-safe-risky-surface-rail";
             case "blocked:resolver-key-already-owned":
-                return "collides-with-existing-canonical-surfaced-slot";
+                return assessment.OpenSupportedRailSlotCount > 0
+                    ? "collides-with-existing-canonical-surfaced-slot"
+                    : "collides-with-existing-canonical-surfaced-slot-on-saturated-supported-rail";
             case "blocked:requires-runtime-route-surface-expansion":
                 return "outside-current-safe-risky-surface-rail";
             case "blocked:missing-city-dungeon-route":
@@ -703,7 +801,8 @@ public static class GoldenPathAuthoringDraftHelper
         int blockedByCanonicalOwnerCount,
         int blockedByRouteSurfaceExpansionCount,
         int blockedByMissingIdentityCount,
-        int blockedByInvalidJsonCount)
+        int blockedByInvalidJsonCount,
+        int openSupportedRailSlotCount)
     {
         if (promotableCount > 0)
         {
@@ -715,7 +814,9 @@ public static class GoldenPathAuthoringDraftHelper
             blockedByMissingIdentityCount == 0 &&
             blockedByInvalidJsonCount == 0)
         {
-            return "retarget-the-draft-resolver-key-before-promotion";
+            return openSupportedRailSlotCount > 0
+                ? "retarget-the-draft-resolver-key-before-promotion"
+                : "no-open-supported-resolver-key-on-current-rail";
         }
 
         if (blockedByRouteSurfaceExpansionCount > 0)
@@ -729,6 +830,140 @@ public static class GoldenPathAuthoringDraftHelper
         }
 
         return "no-promotable-draft-on-current-surfaced-rail";
+    }
+
+    private static string BuildDraftPreflightRecommendation(DraftSupportedRailSnapshot supportedRail)
+    {
+        if (supportedRail == null)
+        {
+            return "preflight-unavailable";
+        }
+
+        if (supportedRail.OpenCount > 0)
+        {
+            return "open-supported-slot-exists-review-retarget-before-promotion";
+        }
+
+        return "supported-safe-risky-rail-is-saturated-retarget-beyond-current-surface-or-widen-rail";
+    }
+
+    private static DraftSupportedRailSnapshot BuildSupportedRailSnapshot()
+    {
+        DraftSupportedRailSnapshot snapshot = new DraftSupportedRailSnapshot();
+        StaticPlaceholderWorldView worldView = new StaticPlaceholderWorldView(PlaceholderResourceDataFactory.Create());
+        WorldBoardReadModel board = worldView.BuildWorldBoardReadModel();
+        CityStatusReadModel[] cities = board != null && board.Cities != null ? board.Cities : Array.Empty<CityStatusReadModel>();
+        HashSet<string> seenResolverKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        for (int i = 0; i < cities.Length; i++)
+        {
+            CityStatusReadModel city = cities[i];
+            if (city == null || !HasText(city.CityId) || !HasText(city.LinkedDungeonId))
+            {
+                continue;
+            }
+
+            AddSupportedRailSlot(snapshot, seenResolverKeys, city.CityId, city.LinkedDungeonId, "safe");
+            AddSupportedRailSlot(snapshot, seenResolverKeys, city.CityId, city.LinkedDungeonId, "risky");
+        }
+
+        snapshot.Slots.Sort((left, right) => string.CompareOrdinal(left.ResolverKey, right.ResolverKey));
+        return snapshot;
+    }
+
+    private static void AddSupportedRailSlot(
+        DraftSupportedRailSnapshot snapshot,
+        HashSet<string> seenResolverKeys,
+        string cityId,
+        string dungeonId,
+        string routeId)
+    {
+        if (snapshot == null ||
+            seenResolverKeys == null ||
+            !HasText(cityId) ||
+            !HasText(dungeonId) ||
+            !HasText(routeId))
+        {
+            return;
+        }
+
+        string resolverKey = BuildResolverKey(cityId, dungeonId, routeId);
+        if (!seenResolverKeys.Add(resolverKey))
+        {
+            return;
+        }
+
+        DraftSupportedRailSlot slot = new DraftSupportedRailSlot
+        {
+            ResolverKey = resolverKey,
+            CityId = cityId,
+            DungeonId = dungeonId,
+            RouteId = routeId
+        };
+
+        if (TryFindCanonicalOwner(cityId, dungeonId, routeId, out string ownerChainId, out string ownerAssetPath))
+        {
+            slot.IsOccupied = true;
+            slot.OwnerChainId = ownerChainId;
+            slot.OwnerAssetPath = ownerAssetPath;
+            snapshot.OccupiedCount++;
+        }
+        else
+        {
+            snapshot.OpenCount++;
+        }
+
+        snapshot.Slots.Add(slot);
+    }
+
+    private static string BuildOpenSupportedResolverKeySummary(DraftSupportedRailSnapshot supportedRail)
+    {
+        if (supportedRail == null || supportedRail.OpenCount < 1)
+        {
+            return "None";
+        }
+
+        List<string> resolverKeys = new List<string>();
+        for (int i = 0; i < supportedRail.Slots.Count; i++)
+        {
+            DraftSupportedRailSlot slot = supportedRail.Slots[i];
+            if (slot != null && !slot.IsOccupied && HasText(slot.ResolverKey))
+            {
+                resolverKeys.Add(slot.ResolverKey);
+            }
+        }
+
+        return resolverKeys.Count > 0 ? string.Join(", ", resolverKeys.ToArray()) : "None";
+    }
+
+    private static string BuildSupportedRailFit(DraftSupportedRailSnapshot supportedRail, string draftResolverKey)
+    {
+        if (supportedRail == null || !HasText(draftResolverKey))
+        {
+            return "unknown";
+        }
+
+        for (int i = 0; i < supportedRail.Slots.Count; i++)
+        {
+            DraftSupportedRailSlot slot = supportedRail.Slots[i];
+            if (slot == null || !string.Equals(slot.ResolverKey, draftResolverKey, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            return slot.IsOccupied
+                ? supportedRail.OpenCount > 0
+                    ? "supported-slot-owned-by-canonical-chain"
+                    : "supported-slot-owned-and-current-rail-saturated"
+                : "open-supported-slot";
+        }
+
+        return "outside-current-supported-linked-dungeon-rail";
+    }
+
+    private static string FormatCountOrNone(int count)
+    {
+        return count > 0 ? count.ToString() : "None";
     }
 
     private static string BuildSharedAssetPathSummary(

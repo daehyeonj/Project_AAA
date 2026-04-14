@@ -2,11 +2,11 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 45`
+- Latest closed batch: `Batch 46`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
-- Next honest bottleneck: draft/helper-driven promotion workflow, not fallback cleanup
+- Next honest bottleneck: retarget-or-widen draft promotion workflow, not fallback cleanup
 
 ## GPT Quick Judge
 
@@ -32,27 +32,33 @@
 - Promotable drafts on current surfaced rail: `0`
 - Blocked drafts: `1`
 - Blocked by canonical owner: `1`
-- Promotion recommendation: `retarget-the-draft-resolver-key-before-promotion`
+- Supported rail slots: `4`
+- Occupied supported rail slots: `4`
+- Open supported rail slots: `None`
+- Open supported resolver keys: `None`
+- Promotion recommendation: `no-open-supported-resolver-key-on-current-rail`
 
-## Batch 45 Close-Out
+## Batch 46 Close-Out
 
-- Batch 45 did not add a new surfaced opportunity.
-- Batch 45 aligned the draft helper with the surfaced-expansion gate.
-- Draft readiness now reports:
-  - blocked-draft cause counts
-  - inline surfaced-expansion gate summary
-  - promotion recommendation
-  - whether a selected draft fits the current surfaced rail
+- Batch 46 did not add a new surfaced opportunity.
+- Batch 46 adds a draft-promotion preflight summary on top of readiness/context.
+- Draft tooling now reports:
+  - supported rail slot inventory
+  - occupied vs open supported slot counts
+  - open supported resolver keys
+  - whether the selected draft sits on an already-owned supported slot or outside the current rail
+  - a saturated-rail recommendation when `Promotable drafts on current rail` honestly remains `0`
 
 ## Validation Snapshot
 
 - Compile: `PASS`
 - Validator: `PASS`
 - Draft readiness summary: `PASS`
+- Draft promotion preflight summary: `PASS`
 - Draft promotion context summary: `PASS`
 - Smoke: `DEFERRED` because this batch only changed editor/debug/helper and docs
 
 ## Batch 46 Recommendation
 
-- Recommended direction: `retargetable draft helper` or `new non-colliding draft seed`
-- Do not open another surfaced-expansion batch on the current Alpha/Beta rail until a draft no longer collides with an already-owned canonical route key.
+- Recommended direction: `retarget the draft beyond the current surfaced rail` or `widen the surfaced route seam intentionally`
+- Do not open another surfaced-expansion batch on the current Alpha/Beta rail until the draft helper reports an open supported resolver key or the surfaced seam itself is deliberately widened.

@@ -10,6 +10,16 @@ public sealed class PrototypeRpgRunResultSnapshot
     public int TotalTurnsTaken;
     public string ResultSummary = string.Empty;
     public string SurvivingMembersSummary = string.Empty;
+    public string BattleContextSummaryText = string.Empty;
+    public string EncounterRequestSummaryText = string.Empty;
+    public string BattleRuntimeSummaryText = string.Empty;
+    public string BattleRuleSummaryText = string.Empty;
+    public string BattleResultCoreSummaryText = string.Empty;
+    public string BattleAbsorbSummaryText = string.Empty;
+    public string NotableBattleEventsSummaryText = string.Empty;
+    public string GearRewardCandidateSummaryText = string.Empty;
+    public string EquipSwapChoiceSummaryText = string.Empty;
+    public string GearCarryContinuitySummaryText = string.Empty;
     public PrototypeRpgPartyOutcomeSnapshot PartyOutcome = new PrototypeRpgPartyOutcomeSnapshot();
     public PrototypeRpgLootOutcomeSnapshot LootOutcome = new PrototypeRpgLootOutcomeSnapshot();
     public PrototypeRpgEliteOutcomeSnapshot EliteOutcome = new PrototypeRpgEliteOutcomeSnapshot();
@@ -33,6 +43,17 @@ public sealed class PrototypeRpgPartyMemberOutcomeSnapshot
     public string RoleTag = string.Empty;
     public string RoleLabel = string.Empty;
     public string DefaultSkillId = string.Empty;
+    public string GrowthTrackId = string.Empty;
+    public string JobId = string.Empty;
+    public string EquipmentLoadoutId = string.Empty;
+    public string SkillLoadoutId = string.Empty;
+    public string ResolvedSkillName = string.Empty;
+    public string ResolvedSkillShortText = string.Empty;
+    public string EquipmentSummaryText = string.Empty;
+    public string GearContributionSummaryText = string.Empty;
+    public string AppliedProgressionSummaryText = string.Empty;
+    public string CurrentRunSummaryText = string.Empty;
+    public string NextRunPreviewSummaryText = string.Empty;
     public int CurrentHp;
     public int MaxHp = 1;
     public bool Survived;
@@ -71,3 +92,4 @@ public sealed class PrototypeRpgEncounterOutcomeSnapshot
     public string SelectedPreEliteChoice = string.Empty;
     public int PreEliteHealAmount;
 }
+

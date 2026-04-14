@@ -107,7 +107,7 @@ public sealed class PrototypeBattleCommand
     public string SummaryText = string.Empty;
 }
 
-public sealed class PrototypeBattleRuntimeState
+public sealed partial class PrototypeBattleRuntimeState
 {
     public bool IsBattleActive;
     public string BattleStateKey = PrototypeBattleOutcomeKeys.None;

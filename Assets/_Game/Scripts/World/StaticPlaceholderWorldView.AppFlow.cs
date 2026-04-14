@@ -219,8 +219,8 @@ public sealed partial class StaticPlaceholderWorldView
             ? _runtimeEconomyState.GetLatestOutcomeReadbackForCity(cityId)
             : new OutcomeReadback();
         return HasMeaningfulReadback(cityReadback)
-            ? CopyOutcomeReadback(cityReadback)
-            : CopyOutcomeReadback(_runtimeEconomyState.GetLatestOutcomeReadback());
+            ? CopyOutcomeReadbackForAppFlow(cityReadback)
+            : CopyOutcomeReadbackForAppFlow(_runtimeEconomyState.GetLatestOutcomeReadback());
     }
 
     private string BuildResultAppliedMarker(ExpeditionOutcome expeditionOutcome, OutcomeReadback outcomeReadback)
@@ -325,7 +325,7 @@ public sealed partial class StaticPlaceholderWorldView
         return copy;
     }
 
-    private static OutcomeReadback CopyOutcomeReadback(OutcomeReadback source)
+    private static OutcomeReadback CopyOutcomeReadbackForAppFlow(OutcomeReadback source)
     {
         OutcomeReadback safeSource = source ?? new OutcomeReadback();
         OutcomeReadback copy = new OutcomeReadback();
@@ -333,9 +333,22 @@ public sealed partial class StaticPlaceholderWorldView
         copy.SourceCityLabel = safeSource.SourceCityLabel;
         copy.TargetDungeonId = safeSource.TargetDungeonId;
         copy.TargetDungeonLabel = safeSource.TargetDungeonLabel;
+        copy.CityId = safeSource.CityId;
+        copy.CityLabel = safeSource.CityLabel;
         copy.ResultStateKey = safeSource.ResultStateKey;
         copy.Success = safeSource.Success;
         copy.SummaryText = safeSource.SummaryText;
+        copy.AcknowledgementText = safeSource.AcknowledgementText;
+        copy.LatestReturnAftermathText = safeSource.LatestReturnAftermathText;
+        copy.PostRunSummaryText = safeSource.PostRunSummaryText;
+        copy.NextSuggestedActionText = safeSource.NextSuggestedActionText;
+        copy.FollowUpHintText = safeSource.FollowUpHintText;
+        copy.LastExpeditionResultText = safeSource.LastExpeditionResultText;
+        copy.WorldWritebackSummaryText = safeSource.WorldWritebackSummaryText;
+        copy.SelectedWorldWritebackText = safeSource.SelectedWorldWritebackText;
+        copy.DungeonStatusText = safeSource.DungeonStatusText;
+        copy.DungeonAvailabilityText = safeSource.DungeonAvailabilityText;
+        copy.DungeonLastOutcomeText = safeSource.DungeonLastOutcomeText;
         copy.LootSummaryText = safeSource.LootSummaryText;
         copy.SurvivingMembersSummaryText = safeSource.SurvivingMembersSummaryText;
         copy.ClearedEncountersSummaryText = safeSource.ClearedEncountersSummaryText;
@@ -343,6 +356,14 @@ public sealed partial class StaticPlaceholderWorldView
         copy.LootBreakdownSummaryText = safeSource.LootBreakdownSummaryText;
         copy.RouteSummaryText = safeSource.RouteSummaryText;
         copy.DungeonSummaryText = safeSource.DungeonSummaryText;
+        copy.StockBeforeText = safeSource.StockBeforeText;
+        copy.StockAfterText = safeSource.StockAfterText;
+        copy.StockDeltaText = safeSource.StockDeltaText;
+        copy.NeedPressureBeforeText = safeSource.NeedPressureBeforeText;
+        copy.NeedPressureAfterText = safeSource.NeedPressureAfterText;
+        copy.DispatchReadinessBeforeText = safeSource.DispatchReadinessBeforeText;
+        copy.DispatchReadinessAfterText = safeSource.DispatchReadinessAfterText;
+        copy.RecoveryEtaText = safeSource.RecoveryEtaText;
         copy.MissionObjectiveText = safeSource.MissionObjectiveText;
         copy.MissionRelevanceText = safeSource.MissionRelevanceText;
         copy.RiskRewardContextText = safeSource.RiskRewardContextText;
@@ -351,6 +372,15 @@ public sealed partial class StaticPlaceholderWorldView
         copy.OutcomeRewardMeaningText = safeSource.OutcomeRewardMeaningText;
         copy.CityImpactMeaningText = safeSource.CityImpactMeaningText;
         copy.RecommendationShiftText = safeSource.RecommendationShiftText;
+        copy.GearRewardSummaryText = safeSource.GearRewardSummaryText;
+        copy.EquipSwapSummaryText = safeSource.EquipSwapSummaryText;
+        copy.GearContinuitySummaryText = safeSource.GearContinuitySummaryText;
+        copy.RecentExpeditionLog1Text = safeSource.RecentExpeditionLog1Text;
+        copy.RecentExpeditionLog2Text = safeSource.RecentExpeditionLog2Text;
+        copy.RecentExpeditionLog3Text = safeSource.RecentExpeditionLog3Text;
+        copy.RecentWorldWritebackLog1Text = safeSource.RecentWorldWritebackLog1Text;
+        copy.RecentWorldWritebackLog2Text = safeSource.RecentWorldWritebackLog2Text;
+        copy.RecentWorldWritebackLog3Text = safeSource.RecentWorldWritebackLog3Text;
         copy.CityStatusChangeSummaryText = safeSource.CityStatusChangeSummaryText;
         copy.ExpeditionLogEntryText = safeSource.ExpeditionLogEntryText;
         copy.PartyConditionText = safeSource.PartyConditionText;
@@ -363,7 +393,9 @@ public sealed partial class StaticPlaceholderWorldView
     {
         return HasText(expeditionOutcome != null ? expeditionOutcome.SourceCityId : string.Empty) ||
                HasText(outcomeReadback != null ? outcomeReadback.SourceCityId : string.Empty) ||
-               HasText(outcomeReadback != null ? outcomeReadback.SummaryText : string.Empty);
+               HasText(outcomeReadback != null ? outcomeReadback.CityId : string.Empty) ||
+               HasText(outcomeReadback != null ? outcomeReadback.SummaryText : string.Empty) ||
+               HasText(outcomeReadback != null ? outcomeReadback.PostRunSummaryText : string.Empty);
     }
 
     private static bool HasMeaningfulOutcome(ExpeditionOutcome expeditionOutcome)
@@ -378,7 +410,9 @@ public sealed partial class StaticPlaceholderWorldView
     {
         return outcomeReadback != null &&
                (HasText(outcomeReadback.SourceCityId) ||
+                HasText(outcomeReadback.CityId) ||
                 HasText(outcomeReadback.SummaryText) ||
+                HasText(outcomeReadback.PostRunSummaryText) ||
                 HasText(outcomeReadback.CityStatusChangeSummaryText));
     }
 

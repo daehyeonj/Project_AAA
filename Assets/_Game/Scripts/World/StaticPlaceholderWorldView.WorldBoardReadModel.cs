@@ -622,7 +622,7 @@ public sealed partial class StaticPlaceholderWorldView
     private ExpeditionResultReadModel BuildExpeditionResultReadModel(ExpeditionOutcome expeditionOutcome, OutcomeReadback outcomeReadback)
     {
         ExpeditionOutcome safeOutcome = CopyExpeditionOutcome(expeditionOutcome);
-        OutcomeReadback safeReadback = CopyOutcomeReadback(outcomeReadback);
+        OutcomeReadback safeReadback = CopyOutcomeReadbackForAppFlow(outcomeReadback);
         ExpeditionResultReadModel result = new ExpeditionResultReadModel();
         result.SourceCityId = HasText(safeOutcome.SourceCityId) ? safeOutcome.SourceCityId : safeReadback.SourceCityId;
         result.SourceCityDisplayName = HasText(safeOutcome.SourceCityLabel) ? safeOutcome.SourceCityLabel : safeReadback.SourceCityLabel;

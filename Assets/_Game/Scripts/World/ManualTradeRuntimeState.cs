@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 public sealed class ManualTradeRuntimeState
@@ -6,6 +6,7 @@ public sealed class ManualTradeRuntimeState
     private const float DefaultTickIntervalSeconds = 1.25f;
     private const int RecentDayLogLimit = 3;
     private const int RecentExpeditionLogLimit = 3;
+    private const int RecentWorldWritebackLogLimit = 5;
     private const int ReserveStockFloor = 1;
     private const int DefaultPartyPower = 3;
     private const int DefaultPartyCarryCapacity = 2;
@@ -24,7 +25,10 @@ public sealed class ManualTradeRuntimeState
         public int Power;
         public int CarryCapacity;
         public string TargetDungeonId;
+        public string ActiveRouteId;
         public int DaysRemaining;
+        public int DepartureDay;
+        public int ProjectedReturnDay;
         public string LastResultSummary;
 
         public PartyRuntimeData(string partyId, string homeCityId, int power, int carryCapacity)
@@ -35,7 +39,10 @@ public sealed class ManualTradeRuntimeState
             Power = power > 0 ? power : 1;
             CarryCapacity = carryCapacity > 0 ? carryCapacity : 1;
             TargetDungeonId = string.Empty;
+            ActiveRouteId = string.Empty;
             DaysRemaining = 0;
+            DepartureDay = -1;
+            ProjectedReturnDay = -1;
             LastResultSummary = "None";
         }
     }
@@ -135,6 +142,84 @@ public sealed class ManualTradeRuntimeState
         }
     }
 
+    private enum WorldEventRecordType
+    {
+        RunWriteback,
+        CityDelta,
+        DungeonDelta,
+        TimeAdvance
+    }
+
+    private sealed class CityWritebackDelta
+    {
+        public string CityId = string.Empty;
+        public string CityLabel = "None";
+        public string ResultStateKey = "none";
+        public string RewardResourceId = string.Empty;
+        public int LootReturned;
+        public string LootSummaryText = "None";
+        public string PartyOutcomeSummaryText = "None";
+        public string StockReactionSummaryText = "None";
+        public string SummaryText = "None";
+    }
+
+    private sealed class DungeonWritebackDelta
+    {
+        public string DungeonId = string.Empty;
+        public string DungeonLabel = "None";
+        public string ResultStateKey = "none";
+        public string RouteId = string.Empty;
+        public string RouteLabel = "None";
+        public string StatusKey = "unknown";
+        public string StatusSummaryText = "None";
+        public string AvailabilitySummaryText = "None";
+        public string LastOutcomeSummaryText = "None";
+    }
+
+    private sealed class EconomyDelta
+    {
+        public string RewardResourceId = string.Empty;
+        public int LootReturned;
+        public string LootSummaryText = "None";
+        public string SummaryText = "None";
+    }
+
+    private sealed class TimeAdvanceResult
+    {
+        public int DayBefore;
+        public int DayAfter;
+        public int ElapsedDays;
+        public string SummaryText = "None";
+    }
+
+    private sealed class WorldWriteback
+    {
+        public string RunResultStateKey = "none";
+        public string SourceCityId = string.Empty;
+        public string SourceCityLabel = "None";
+        public string TargetDungeonId = string.Empty;
+        public string TargetDungeonLabel = "None";
+        public string ChosenRouteId = string.Empty;
+        public string ChosenRouteLabel = "None";
+        public string ResultSummaryText = "None";
+        public string WritebackSummaryText = "None";
+        public CityWritebackDelta CityDelta = new CityWritebackDelta();
+        public DungeonWritebackDelta DungeonDelta = new DungeonWritebackDelta();
+        public EconomyDelta Economy = new EconomyDelta();
+        public TimeAdvanceResult TimeAdvance = new TimeAdvanceResult();
+    }
+
+    private sealed class WorldWritebackLogRecord
+    {
+        public WorldEventRecordType EventType;
+        public int DayIndex;
+        public string CityId = string.Empty;
+        public string DungeonId = string.Empty;
+        public string ResultStateKey = "none";
+        public string DeltaSummary = "None";
+        public string DisplayText = "None";
+    }
+
     private readonly WorldData _worldData;
     private readonly string[] _resourceIds;
     private readonly Dictionary<string, WorldEntityData> _entityById;
@@ -158,6 +243,7 @@ public sealed class ManualTradeRuntimeState
     private readonly List<string> _recentExpeditionLogs;
     private readonly Dictionary<string, string> _lastExpeditionResultByCityId;
     private readonly Dictionary<string, string> _lastExpeditionResultByDungeonId;
+    private readonly Dictionary<string, ExpeditionResult> _latestExpeditionResultByCityId;
     private readonly Dictionary<string, int> _expeditionLootReturnedByCityId;
     private readonly Dictionary<string, string> _lastRunLootSummaryByCityId;
     private readonly Dictionary<string, string> _lastRunSurvivingMembersByCityId;
@@ -166,10 +252,14 @@ public sealed class ManualTradeRuntimeState
     private readonly Dictionary<string, string> _lastRunLootBreakdownByCityId;
     private readonly Dictionary<string, string> _lastRunRouteByCityId;
     private readonly Dictionary<string, string> _lastRunDungeonByCityId;
-    private readonly Dictionary<string, ExpeditionOutcome> _latestExpeditionOutcomeByCityId;
-    private readonly Dictionary<string, OutcomeReadback> _latestOutcomeReadbackByCityId;
-    private ExpeditionOutcome _latestExpeditionOutcome;
-    private OutcomeReadback _latestOutcomeReadback;
+    private readonly List<WorldWritebackLogRecord> _recentWorldWritebackLogs;
+    private readonly Dictionary<string, string> _latestWorldWritebackByCityId;
+    private readonly Dictionary<string, string> _latestWorldWritebackByDungeonId;
+    private readonly Dictionary<string, string> _dungeonStatusSummaryByDungeonId;
+    private readonly Dictionary<string, string> _dungeonAvailabilitySummaryByDungeonId;
+    private readonly Dictionary<string, string> _dungeonLastOutcomeSummaryByDungeonId;
+    private WorldWriteback _latestWorldWriteback;
+    private ExpeditionResult _latestExpeditionResult;
     private DirectTradeScanResult _currentTradeScanResult;
     private int _nextPartySequence;
 
@@ -235,6 +325,7 @@ public sealed class ManualTradeRuntimeState
         _recentExpeditionLogs = new List<string>(RecentExpeditionLogLimit);
         _lastExpeditionResultByCityId = new Dictionary<string, string>();
         _lastExpeditionResultByDungeonId = new Dictionary<string, string>();
+        _latestExpeditionResultByCityId = new Dictionary<string, ExpeditionResult>();
         _expeditionLootReturnedByCityId = new Dictionary<string, int>();
         _lastRunLootSummaryByCityId = new Dictionary<string, string>();
         _lastRunSurvivingMembersByCityId = new Dictionary<string, string>();
@@ -243,10 +334,14 @@ public sealed class ManualTradeRuntimeState
         _lastRunLootBreakdownByCityId = new Dictionary<string, string>();
         _lastRunRouteByCityId = new Dictionary<string, string>();
         _lastRunDungeonByCityId = new Dictionary<string, string>();
-        _latestExpeditionOutcomeByCityId = new Dictionary<string, ExpeditionOutcome>();
-        _latestOutcomeReadbackByCityId = new Dictionary<string, OutcomeReadback>();
-        _latestExpeditionOutcome = null;
-        _latestOutcomeReadback = null;
+        _recentWorldWritebackLogs = new List<WorldWritebackLogRecord>(RecentWorldWritebackLogLimit);
+        _latestWorldWritebackByCityId = new Dictionary<string, string>();
+        _latestWorldWritebackByDungeonId = new Dictionary<string, string>();
+        _dungeonStatusSummaryByDungeonId = new Dictionary<string, string>();
+        _dungeonAvailabilitySummaryByDungeonId = new Dictionary<string, string>();
+        _dungeonLastOutcomeSummaryByDungeonId = new Dictionary<string, string>();
+        _latestWorldWriteback = null;
+        _latestExpeditionResult = null;
         _currentTradeScanResult = DirectTradeScanResult.Empty;
         TickIntervalSeconds = DefaultTickIntervalSeconds;
         AutoTickEnabled = false;
@@ -291,6 +386,7 @@ public sealed class ManualTradeRuntimeState
         _recentExpeditionLogs.Clear();
         _lastExpeditionResultByCityId.Clear();
         _lastExpeditionResultByDungeonId.Clear();
+        _latestExpeditionResultByCityId.Clear();
         _expeditionLootReturnedByCityId.Clear();
         _lastRunLootSummaryByCityId.Clear();
         _lastRunSurvivingMembersByCityId.Clear();
@@ -299,10 +395,14 @@ public sealed class ManualTradeRuntimeState
         _lastRunLootBreakdownByCityId.Clear();
         _lastRunRouteByCityId.Clear();
         _lastRunDungeonByCityId.Clear();
-        _latestExpeditionOutcomeByCityId.Clear();
-        _latestOutcomeReadbackByCityId.Clear();
-        _latestExpeditionOutcome = null;
-        _latestOutcomeReadback = null;
+        _recentWorldWritebackLogs.Clear();
+        _latestWorldWritebackByCityId.Clear();
+        _latestWorldWritebackByDungeonId.Clear();
+        _dungeonStatusSummaryByDungeonId.Clear();
+        _dungeonAvailabilitySummaryByDungeonId.Clear();
+        _dungeonLastOutcomeSummaryByDungeonId.Clear();
+        _latestWorldWriteback = null;
+        _latestExpeditionResult = null;
         _nextPartySequence = 0;
         ExpeditionSuccessCount = 0;
         ExpeditionFailureCount = 0;
@@ -375,14 +475,29 @@ public sealed class ManualTradeRuntimeState
                 _lastRunDungeonByCityId.Add(pair.Key, "None");
             }
 
-            if (pair.Value.Kind == WorldEntityKind.City && !_latestExpeditionOutcomeByCityId.ContainsKey(pair.Key))
+            if (pair.Value.Kind == WorldEntityKind.City && !_latestWorldWritebackByCityId.ContainsKey(pair.Key))
             {
-                _latestExpeditionOutcomeByCityId.Add(pair.Key, new ExpeditionOutcome());
+                _latestWorldWritebackByCityId.Add(pair.Key, "None");
             }
 
-            if (pair.Value.Kind == WorldEntityKind.City && !_latestOutcomeReadbackByCityId.ContainsKey(pair.Key))
+            if (pair.Value.Kind == WorldEntityKind.Dungeon && !_latestWorldWritebackByDungeonId.ContainsKey(pair.Key))
             {
-                _latestOutcomeReadbackByCityId.Add(pair.Key, new OutcomeReadback());
+                _latestWorldWritebackByDungeonId.Add(pair.Key, "None");
+            }
+
+            if (pair.Value.Kind == WorldEntityKind.Dungeon && !_dungeonStatusSummaryByDungeonId.ContainsKey(pair.Key))
+            {
+                _dungeonStatusSummaryByDungeonId.Add(pair.Key, "Dormant");
+            }
+
+            if (pair.Value.Kind == WorldEntityKind.Dungeon && !_dungeonAvailabilitySummaryByDungeonId.ContainsKey(pair.Key))
+            {
+                _dungeonAvailabilitySummaryByDungeonId.Add(pair.Key, "Open for expedition");
+            }
+
+            if (pair.Value.Kind == WorldEntityKind.Dungeon && !_dungeonLastOutcomeSummaryByDungeonId.ContainsKey(pair.Key))
+            {
+                _dungeonLastOutcomeSummaryByDungeonId.Add(pair.Key, "None");
             }
         }
 
@@ -465,7 +580,7 @@ public sealed class ManualTradeRuntimeState
         return true;
     }
 
-    public string BeginDungeonRun(string cityId, string dungeonId)
+    public string BeginDungeonRun(string cityId, string dungeonId, string routeId = null)
     {
         if (!TryGetEntity(cityId, out WorldEntityData city) || city.Kind != WorldEntityKind.City ||
             !TryGetEntity(dungeonId, out WorldEntityData dungeon) || dungeon.Kind != WorldEntityKind.Dungeon)
@@ -481,7 +596,10 @@ public sealed class ManualTradeRuntimeState
 
         party.State = PartyState.OnExpedition;
         party.TargetDungeonId = dungeonId;
+        party.ActiveRouteId = string.IsNullOrWhiteSpace(routeId) ? string.Empty : routeId.Trim().ToLowerInvariant();
         party.DaysRemaining = 1;
+        party.DepartureDay = WorldDayCount;
+        party.ProjectedReturnDay = WorldDayCount + party.DaysRemaining;
         party.LastResultSummary = party.PartyId + " entered " + dungeon.DisplayName;
         _lastExpeditionResultByCityId[cityId] = party.LastResultSummary;
         _lastExpeditionResultByDungeonId[dungeonId] = party.LastResultSummary;
@@ -492,8 +610,15 @@ public sealed class ManualTradeRuntimeState
         _lastRunLootBreakdownByCityId[cityId] = "None";
         _lastRunRouteByCityId[cityId] = "None";
         _lastRunDungeonByCityId[cityId] = "None";
-        ClearLatestResultContractsForCity(cityId);
-        AppendRecentExpeditionLog("Day " + WorldDayCount + " | " + city.DisplayName + " sent " + party.PartyId + " into " + dungeon.DisplayName);
+        _latestExpeditionResultByCityId.Remove(cityId);
+
+        if (_latestExpeditionResult != null && _latestExpeditionResult.SourceCityId == cityId)
+        {
+            _latestExpeditionResult = null;
+        }
+
+        string routeEcho = string.IsNullOrEmpty(party.ActiveRouteId) ? string.Empty : " via " + party.ActiveRouteId;
+        AppendRecentExpeditionLog("Day " + WorldDayCount + " | " + city.DisplayName + " sent " + party.PartyId + " into " + dungeon.DisplayName + routeEcho);
         return party.PartyId;
     }
 
@@ -518,7 +643,10 @@ public sealed class ManualTradeRuntimeState
 
         party.State = PartyState.OnExpedition;
         party.TargetDungeonId = contract.DungeonId;
+        party.ActiveRouteId = string.Empty;
         party.DaysRemaining = profile.ExpeditionDurationDays;
+        party.DepartureDay = WorldDayCount;
+        party.ProjectedReturnDay = WorldDayCount + party.DaysRemaining;
         party.LastResultSummary = party.PartyId + " -> " + dungeon.DisplayName + " (" + party.DaysRemaining + "d remaining)";
         _lastExpeditionResultByCityId[cityId] = party.LastResultSummary;
         _lastExpeditionResultByDungeonId[contract.DungeonId] = party.LastResultSummary;
@@ -582,6 +710,10 @@ public sealed class ManualTradeRuntimeState
         return index >= 0 && index < _recentExpeditionLogs.Count ? _recentExpeditionLogs[index] : "None";
     }
 
+    public void RecordRecentExpeditionContextLog(string logText)
+    {
+        AppendRecentExpeditionLog(logText);
+    }
     public string GetIdlePartyIdInCity(string cityId)
     {
         PartyRuntimeData party = FindIdleParty(cityId);
@@ -707,59 +839,191 @@ public sealed class ManualTradeRuntimeState
             : "None";
     }
 
-    public ExpeditionOutcome GetLatestExpeditionOutcomeForCity(string cityId)
+    public string GetLastRunGearRewardSummaryForCity(string cityId)
     {
-        return !string.IsNullOrEmpty(cityId) && _latestExpeditionOutcomeByCityId.TryGetValue(cityId, out ExpeditionOutcome value) && value != null
-            ? value
-            : new ExpeditionOutcome();
+        return "None";
     }
 
-    public OutcomeReadback GetLatestOutcomeReadbackForCity(string cityId)
+    public string GetLastRunEquipSwapSummaryForCity(string cityId)
     {
-        return !string.IsNullOrEmpty(cityId) && _latestOutcomeReadbackByCityId.TryGetValue(cityId, out OutcomeReadback value) && value != null
+        return "None";
+    }
+
+    public string GetLastRunGearContinuitySummaryForCity(string cityId)
+    {
+        return "None";
+    }
+
+    public ExpeditionResult GetLatestExpeditionResultForCity(string cityId)
+    {
+        return !string.IsNullOrEmpty(cityId) && _latestExpeditionResultByCityId.TryGetValue(cityId, out ExpeditionResult value)
             ? value
-            : new OutcomeReadback();
+            : null;
+    }
+
+    public ExpeditionResult GetLatestExpeditionResult()
+    {
+        return _latestExpeditionResult;
+    }
+
+    public ExpeditionOutcome GetLatestExpeditionOutcomeForCity(string cityId)
+    {
+        return CreatePublicExpeditionOutcome(GetLatestExpeditionResultForCity(cityId));
     }
 
     public ExpeditionOutcome GetLatestExpeditionOutcome()
     {
-        return _latestExpeditionOutcome ?? new ExpeditionOutcome();
+        return CreatePublicExpeditionOutcome(_latestExpeditionResult);
     }
 
     public OutcomeReadback GetLatestOutcomeReadback()
     {
-        return _latestOutcomeReadback ?? new OutcomeReadback();
+        string cityId = !string.IsNullOrEmpty(GetLatestWorldWritebackCityId())
+            ? GetLatestWorldWritebackCityId()
+            : _latestExpeditionResult != null
+                ? _latestExpeditionResult.SourceCityId
+                : string.Empty;
+        return CreatePublicOutcomeReadback(cityId, GetLatestExpeditionResult(), GetLatestWorldWriteback());
     }
 
-    public string GetActivePartyIdForCity(string cityId)
+    public OutcomeReadback GetLatestOutcomeReadbackForCity(string cityId)
     {
-        PartyRuntimeData activeParty = FindActivePartyForCity(cityId);
-        return activeParty != null ? activeParty.PartyId : string.Empty;
+        if (string.IsNullOrEmpty(cityId))
+        {
+            return new OutcomeReadback();
+        }
+
+        return CreatePublicOutcomeReadback(cityId, GetLatestExpeditionResultForCity(cityId), GetLatestWorldWritebackForCity(cityId));
     }
 
-    public string GetActiveDungeonIdForCity(string cityId)
+    public global::WorldWriteback GetLatestWorldWriteback()
     {
-        PartyRuntimeData activeParty = FindActivePartyForCity(cityId);
-        return activeParty != null ? activeParty.TargetDungeonId : string.Empty;
+        ExpeditionResult expeditionResult = _latestWorldWriteback != null && !string.IsNullOrEmpty(_latestWorldWriteback.SourceCityId)
+            ? GetLatestExpeditionResultForCity(_latestWorldWriteback.SourceCityId)
+            : _latestExpeditionResult;
+        return CreatePublicWorldWriteback(_latestWorldWriteback, expeditionResult);
     }
 
-    public int GetActiveExpeditionDaysRemainingForCity(string cityId)
+    public global::WorldWriteback GetLatestWorldWritebackForCity(string cityId)
     {
-        PartyRuntimeData activeParty = FindActivePartyForCity(cityId);
-        return activeParty != null ? activeParty.DaysRemaining : 0;
+        if (string.IsNullOrEmpty(cityId))
+        {
+            return new global::WorldWriteback();
+        }
+
+        if (_latestWorldWriteback != null && _latestWorldWriteback.SourceCityId == cityId)
+        {
+            return CreatePublicWorldWriteback(_latestWorldWriteback, GetLatestExpeditionResultForCity(cityId));
+        }
+
+        ExpeditionResult expeditionResult = GetLatestExpeditionResultForCity(cityId);
+        return CreateStoredCityWorldWriteback(cityId, expeditionResult);
     }
 
-    public int GetActivePartyPowerForCity(string cityId)
+    public string GetLatestWorldWritebackSummary()
     {
-        PartyRuntimeData activeParty = FindActivePartyForCity(cityId);
-        return activeParty != null ? activeParty.Power : 0;
+        global::WorldWriteback writeback = GetLatestWorldWriteback();
+        return writeback != null && !string.IsNullOrEmpty(writeback.WritebackSummaryText)
+            ? writeback.WritebackSummaryText
+            : "None";
     }
 
-    public int GetActivePartyCarryCapacityForCity(string cityId)
+    public string GetLatestWorldWritebackSummaryForCity(string cityId)
     {
-        PartyRuntimeData activeParty = FindActivePartyForCity(cityId);
-        return activeParty != null ? activeParty.CarryCapacity : 0;
+        return !string.IsNullOrEmpty(cityId) && _latestWorldWritebackByCityId.TryGetValue(cityId, out string value)
+            ? value
+            : "None";
     }
+
+    public string GetLatestWorldWritebackStateKeyForCity(string cityId)
+    {
+        global::WorldWriteback writeback = GetLatestWorldWritebackForCity(cityId);
+        return writeback != null ? writeback.RunResultStateKey ?? string.Empty : string.Empty;
+    }
+
+    public string GetLatestWorldWritebackRewardResourceIdForCity(string cityId)
+    {
+        global::WorldWriteback writeback = GetLatestWorldWritebackForCity(cityId);
+        return writeback != null ? writeback.RewardResourceId ?? string.Empty : string.Empty;
+    }
+
+    public int GetLatestWorldWritebackLootReturnedForCity(string cityId)
+    {
+        global::WorldWriteback writeback = GetLatestWorldWritebackForCity(cityId);
+        return writeback != null ? writeback.LootReturned : 0;
+    }
+
+    public string GetLatestWorldWritebackLootSummaryForCity(string cityId)
+    {
+        global::WorldWriteback writeback = GetLatestWorldWritebackForCity(cityId);
+        return writeback != null && !string.IsNullOrEmpty(writeback.LootSummaryText)
+            ? writeback.LootSummaryText
+            : "None";
+    }
+
+    public string GetLatestWorldWritebackPartyOutcomeSummaryForCity(string cityId)
+    {
+        global::WorldWriteback writeback = GetLatestWorldWritebackForCity(cityId);
+        return writeback != null && !string.IsNullOrEmpty(writeback.SurvivingMembersSummaryText)
+            ? writeback.SurvivingMembersSummaryText
+            : "None";
+    }
+
+    public string GetLatestWorldWritebackStockReactionSummaryForCity(string cityId)
+    {
+        global::WorldWriteback writeback = GetLatestWorldWritebackForCity(cityId);
+        return writeback != null &&
+            writeback.CityWriteback != null &&
+            !string.IsNullOrEmpty(writeback.CityWriteback.StockReactionSummaryText)
+            ? writeback.CityWriteback.StockReactionSummaryText
+            : "None";
+    }
+
+    public string GetLatestWorldWritebackSummaryForDungeon(string dungeonId)
+    {
+        return !string.IsNullOrEmpty(dungeonId) && _latestWorldWritebackByDungeonId.TryGetValue(dungeonId, out string value)
+            ? value
+            : "None";
+    }
+
+    public string GetRecentWorldWritebackLogText(int index)
+    {
+        return index >= 0 && index < _recentWorldWritebackLogs.Count
+            ? _recentWorldWritebackLogs[index].DisplayText
+            : "None";
+    }
+
+    public string GetDungeonWorldStatusText(string dungeonId)
+    {
+        return !string.IsNullOrEmpty(dungeonId) && _dungeonStatusSummaryByDungeonId.TryGetValue(dungeonId, out string value)
+            ? value
+            : "None";
+    }
+
+    public string GetDungeonWorldAvailabilityText(string dungeonId)
+    {
+        return !string.IsNullOrEmpty(dungeonId) && _dungeonAvailabilitySummaryByDungeonId.TryGetValue(dungeonId, out string value)
+            ? value
+            : "None";
+    }
+
+    public string GetDungeonLastWorldOutcomeText(string dungeonId)
+    {
+        return !string.IsNullOrEmpty(dungeonId) && _dungeonLastOutcomeSummaryByDungeonId.TryGetValue(dungeonId, out string value)
+            ? value
+            : "None";
+    }
+
+    public string GetLatestWorldWritebackCityId()
+    {
+        return _latestWorldWriteback != null ? _latestWorldWriteback.SourceCityId : string.Empty;
+    }
+
+    public string GetLatestWorldWritebackDungeonId()
+    {
+        return _latestWorldWriteback != null ? _latestWorldWriteback.TargetDungeonId : string.Empty;
+    }
+
 
     public string GetAvailableContractTextForCity(string cityId)
     {
@@ -794,6 +1058,132 @@ public sealed class ManualTradeRuntimeState
         return TryGetDungeonProfile(dungeonId, out DungeonExpeditionProfile profile) ? profile.ExpeditionDurationDays : 0;
     }
 
+    public int GetReadyPartyPowerForCity(string cityId)
+    {
+        PartyRuntimeData party = FindIdleParty(cityId);
+        return party != null ? party.Power : 0;
+    }
+
+    public int GetReadyPartyCarryCapacityForCity(string cityId)
+    {
+        PartyRuntimeData party = FindIdleParty(cityId);
+        return party != null ? party.CarryCapacity : 0;
+    }
+
+    public int GetActivePartyPowerForCity(string cityId)
+    {
+        PartyRuntimeData party = FindActivePartyForCity(cityId);
+        return party != null ? party.Power : 0;
+    }
+
+    public int GetActivePartyCarryCapacityForCity(string cityId)
+    {
+        PartyRuntimeData party = FindActivePartyForCity(cityId);
+        return party != null ? party.CarryCapacity : 0;
+    }
+
+    public string GetReadyPartyLastResultSummaryForCity(string cityId)
+    {
+        PartyRuntimeData party = FindIdleParty(cityId);
+        if (party == null)
+        {
+            party = FindAnyPartyByHomeCity(cityId);
+        }
+
+        return party != null && !string.IsNullOrEmpty(party.LastResultSummary)
+            ? party.LastResultSummary
+            : "None";
+    }
+
+    public string GetActivePartyStatusTextForCity(string cityId)
+    {
+        PartyRuntimeData party = FindActivePartyForCity(cityId);
+        return party != null ? BuildActivePartyStatus(party) : "None";
+    }
+
+    public string GetActivePartyIdForCity(string cityId)
+    {
+        PartyRuntimeData party = FindActivePartyForCity(cityId);
+        return party != null ? party.PartyId : string.Empty;
+    }
+
+    public string GetActiveDungeonIdForCity(string cityId)
+    {
+        PartyRuntimeData party = FindActivePartyForCity(cityId);
+        return party != null ? party.TargetDungeonId : string.Empty;
+    }
+
+    public string GetActiveRouteIdForCity(string cityId)
+    {
+        PartyRuntimeData party = FindActivePartyForCity(cityId);
+        return party != null ? party.ActiveRouteId : string.Empty;
+    }
+
+    public int GetActiveDaysRemainingForCity(string cityId)
+    {
+        PartyRuntimeData party = FindActivePartyForCity(cityId);
+        return party != null ? party.DaysRemaining : 0;
+    }
+
+    public int GetActiveExpeditionDaysRemainingForCity(string cityId)
+    {
+        return GetActiveDaysRemainingForCity(cityId);
+    }
+
+    public int GetActiveDepartureDayForCity(string cityId)
+    {
+        PartyRuntimeData party = FindActivePartyForCity(cityId);
+        return party != null ? party.DepartureDay : -1;
+    }
+
+    public int GetActiveProjectedReturnDayForCity(string cityId)
+    {
+        PartyRuntimeData party = FindActivePartyForCity(cityId);
+        return party != null ? party.ProjectedReturnDay : -1;
+    }
+
+    public string GetActivePartyIdForDungeon(string dungeonId)
+    {
+        PartyRuntimeData party = FindActivePartyForDungeon(dungeonId);
+        return party != null ? party.PartyId : string.Empty;
+    }
+
+    public string GetActiveRouteIdForDungeon(string dungeonId)
+    {
+        PartyRuntimeData party = FindActivePartyForDungeon(dungeonId);
+        return party != null ? party.ActiveRouteId : string.Empty;
+    }
+
+    public int GetActiveDaysRemainingForDungeon(string dungeonId)
+    {
+        PartyRuntimeData party = FindActivePartyForDungeon(dungeonId);
+        return party != null ? party.DaysRemaining : 0;
+    }
+
+    public int GetActiveProjectedReturnDayForDungeon(string dungeonId)
+    {
+        PartyRuntimeData party = FindActivePartyForDungeon(dungeonId);
+        return party != null ? party.ProjectedReturnDay : -1;
+    }
+
+    public string GetFirstActiveExpeditionCityId()
+    {
+        PartyRuntimeData party = FindFirstActiveParty();
+        return party != null ? party.HomeCityId : string.Empty;
+    }
+
+    public string GetFirstActiveExpeditionDungeonId()
+    {
+        PartyRuntimeData party = FindFirstActiveParty();
+        return party != null ? party.TargetDungeonId : string.Empty;
+    }
+
+
+    public string GetRewardPreviewText(string dungeonId)
+    {
+        return TryGetDungeonProfile(dungeonId, out DungeonExpeditionProfile profile) ? BuildRewardPreview(profile, DefaultPartyCarryCapacity) : "None";
+    }
+
     public int GetMaxActiveExpeditionsForDungeon(string dungeonId)
     {
         return TryGetDungeonProfile(dungeonId, out DungeonExpeditionProfile profile) ? profile.MaxActiveParties : 0;
@@ -801,13 +1191,8 @@ public sealed class ManualTradeRuntimeState
 
     public int GetAvailableContractSlotsForDungeon(string dungeonId)
     {
-        int maxActive = GetMaxActiveExpeditionsForDungeon(dungeonId);
-        return maxActive > 0 ? Mathf.Max(0, maxActive - GetActiveExpeditionCountForDungeon(dungeonId)) : 0;
-    }
-
-    public string GetRewardPreviewText(string dungeonId)
-    {
-        return TryGetDungeonProfile(dungeonId, out DungeonExpeditionProfile profile) ? BuildRewardPreview(profile, DefaultPartyCarryCapacity) : "None";
+        int available = GetMaxActiveExpeditionsForDungeon(dungeonId) - CountActiveExpeditionsForDungeonInternal(dungeonId);
+        return available > 0 ? available : 0;
     }
 
     public string GetExpeditionStatusTextForCity(string cityId)
@@ -1692,43 +2077,25 @@ public sealed class ManualTradeRuntimeState
 
         party.State = PartyState.Idle;
         party.TargetDungeonId = string.Empty;
+        party.ActiveRouteId = string.Empty;
         party.DaysRemaining = 0;
+        party.DepartureDay = -1;
+        party.ProjectedReturnDay = -1;
         party.LastResultSummary = resultSummary;
         _lastExpeditionResultByCityId[homeCityId] = resultSummary;
         _lastExpeditionResultByDungeonId[dungeonId] = resultSummary;
         AppendRecentExpeditionLog("Day " + WorldDayCount + " | " + resultSummary);
     }
 
-    public void ResolveDungeonRun(string cityId, string dungeonId, string rewardResourceId, int lootReturned, bool success, string resultSummary, string survivingMembersSummary = null, string clearedEncounterSummary = null, string eventChoiceSummary = null, string lootBreakdownSummary = null, string routeSummary = null)
+    public void ResolveDungeonRun(ExpeditionResult expeditionResult)
     {
-        ExpeditionOutcome expeditionOutcome = ResultPipeline.BuildExpeditionOutcome(
-            cityId,
-            GetEntityDisplayName(cityId),
-            dungeonId,
-            GetEntityDisplayName(dungeonId),
-            rewardResourceId,
-            lootReturned,
-            success,
-            string.Empty,
-            resultSummary,
-            survivingMembersSummary,
-            clearedEncounterSummary,
-            eventChoiceSummary,
-            lootBreakdownSummary,
-            routeSummary,
-            GetEntityDisplayName(dungeonId));
-        ResolveDungeonRun(expeditionOutcome);
-    }
-
-    public void ResolveDungeonRun(ExpeditionOutcome expeditionOutcome)
-    {
-        if (expeditionOutcome == null)
+        if (expeditionResult == null)
         {
             return;
         }
 
-        string cityId = expeditionOutcome.SourceCityId ?? string.Empty;
-        string dungeonId = expeditionOutcome.TargetDungeonId ?? string.Empty;
+        string cityId = expeditionResult.SourceCityId ?? string.Empty;
+        string dungeonId = expeditionResult.DungeonId ?? string.Empty;
         PartyRuntimeData party = FindActivePartyForCity(cityId);
         if (party == null)
         {
@@ -1740,34 +2107,711 @@ public sealed class ManualTradeRuntimeState
             return;
         }
 
-        if (string.IsNullOrEmpty(expeditionOutcome.SourceCityId))
+        string rewardResourceId = expeditionResult.RewardResourceId ?? string.Empty;
+        bool success = expeditionResult.Success;
+        _latestExpeditionResult = expeditionResult;
+        _latestExpeditionResultByCityId[cityId] = expeditionResult;
+        string safeResultSummary = string.IsNullOrEmpty(expeditionResult.ResultSummaryText) || expeditionResult.ResultSummaryText == "None"
+            ? party.PartyId + " returned."
+            : expeditionResult.ResultSummaryText;
+        int safeLootReturned = success && expeditionResult.ReturnedLootAmount > 0 ? expeditionResult.ReturnedLootAmount : 0;
+        string lootSummary = success && !string.IsNullOrEmpty(rewardResourceId) && safeLootReturned > 0
+            ? rewardResourceId + " x" + safeLootReturned
+            : "None";
+
+        if (success)
         {
-            expeditionOutcome.SourceCityId = party.HomeCityId;
+            ExpeditionSuccessCount += 1;
+            ExpeditionLootReturnedTotal += safeLootReturned;
+            _expeditionLootReturnedByCityId[cityId] = GetExpeditionLootReturnedTotalForCity(cityId) + safeLootReturned;
+
+            if (!string.IsNullOrEmpty(rewardResourceId) && safeLootReturned > 0)
+            {
+                SetStock(cityId, rewardResourceId, GetStock(cityId, rewardResourceId) + safeLootReturned);
+            }
+        }
+        else
+        {
+            ExpeditionFailureCount += 1;
         }
 
-        if (string.IsNullOrEmpty(expeditionOutcome.TargetDungeonId))
+        string safeRouteSummary = !string.IsNullOrEmpty(expeditionResult.SelectedRouteSummaryText) && expeditionResult.SelectedRouteSummaryText != "None"
+            ? expeditionResult.SelectedRouteSummaryText
+            : !string.IsNullOrEmpty(expeditionResult.RouteLabel) && expeditionResult.RouteLabel != "None"
+                ? expeditionResult.RouteLabel
+                : "None";
+        string safeDungeonSummary = !string.IsNullOrEmpty(expeditionResult.DungeonSummaryText) && expeditionResult.DungeonSummaryText != "None"
+            ? expeditionResult.DungeonSummaryText
+            : !string.IsNullOrEmpty(dungeonId) && TryGetEntity(dungeonId, out WorldEntityData resolvedDungeon)
+                ? resolvedDungeon.DisplayName
+                : "None";
+
+        _lastRunLootSummaryByCityId[cityId] = lootSummary;
+        _lastRunSurvivingMembersByCityId[cityId] = string.IsNullOrEmpty(expeditionResult.SurvivingMembersSummaryText) ? "None" : expeditionResult.SurvivingMembersSummaryText;
+        _lastRunClearedEncountersByCityId[cityId] = string.IsNullOrEmpty(expeditionResult.ClearedEncounterSummaryText) ? "None" : expeditionResult.ClearedEncounterSummaryText;
+        _lastRunEventChoiceByCityId[cityId] = string.IsNullOrEmpty(expeditionResult.SelectedEventChoiceText) ? "None" : expeditionResult.SelectedEventChoiceText;
+        _lastRunLootBreakdownByCityId[cityId] = string.IsNullOrEmpty(expeditionResult.LootBreakdownSummaryText) ? "None" : expeditionResult.LootBreakdownSummaryText;
+        _lastRunRouteByCityId[cityId] = safeRouteSummary;
+        _lastRunDungeonByCityId[cityId] = safeDungeonSummary;
+
+        WorldWriteback writeback = BuildWorldWritebackFromExpeditionResult(
+            expeditionResult,
+            safeResultSummary,
+            _lastRunSurvivingMembersByCityId[cityId],
+            safeRouteSummary,
+            safeDungeonSummary,
+            safeLootReturned);
+        ApplyWorldWriteback(writeback);
+
+        party.State = PartyState.Idle;
+        party.TargetDungeonId = string.Empty;
+        party.ActiveRouteId = string.Empty;
+        party.DaysRemaining = 0;
+        party.DepartureDay = -1;
+        party.ProjectedReturnDay = -1;
+        party.LastResultSummary = safeResultSummary;
+        _lastExpeditionResultByCityId[cityId] = safeResultSummary;
+
+        if (!string.IsNullOrEmpty(dungeonId))
         {
-            expeditionOutcome.TargetDungeonId = party.TargetDungeonId;
+            _lastExpeditionResultByDungeonId[dungeonId] = safeResultSummary;
         }
 
-        if (!HasMeaningfulResultText(expeditionOutcome.SourceCityLabel))
+        AppendRecentExpeditionLog("Day " + WorldDayCount + " | " + safeResultSummary);
+    }
+
+    private WorldWriteback BuildWorldWritebackFromExpeditionResult(ExpeditionResult expeditionResult, string resultSummary, string survivingMembersSummary, string routeSummary, string dungeonSummary, int lootReturned)
+    {
+        string cityId = expeditionResult != null ? expeditionResult.SourceCityId ?? string.Empty : string.Empty;
+        string dungeonId = expeditionResult != null ? expeditionResult.DungeonId ?? string.Empty : string.Empty;
+        string rewardResourceId = expeditionResult != null ? expeditionResult.RewardResourceId ?? string.Empty : string.Empty;
+        bool success = expeditionResult != null && expeditionResult.Success;
+        string resultStateKey = expeditionResult != null ? expeditionResult.ResultStateKey ?? string.Empty : string.Empty;
+        string chosenRouteId = expeditionResult != null ? expeditionResult.RouteId ?? string.Empty : string.Empty;
+        int elapsedDays = expeditionResult != null ? expeditionResult.ElapsedDays : 1;
+        string normalizedStateKey = NormalizeWorldWritebackStateKey(resultStateKey, success);
+        string cityLabel = ResolveEntityDisplayName(cityId);
+        string dungeonLabel = ResolveEntityDisplayName(dungeonId);
+        string routeLabel = ResolveRouteDisplayLabel(chosenRouteId, routeSummary);
+        int safeElapsedDays = elapsedDays > 0 ? elapsedDays : 1;
+        int dayBefore = WorldDayCount;
+        int dayAfter = dayBefore + safeElapsedDays;
+        string lootSummary = !string.IsNullOrEmpty(rewardResourceId) && lootReturned > 0
+            ? rewardResourceId + " x" + lootReturned
+            : "None";
+
+        WorldWriteback writeback = new WorldWriteback();
+        writeback.RunResultStateKey = normalizedStateKey;
+        writeback.SourceCityId = cityId ?? string.Empty;
+        writeback.SourceCityLabel = cityLabel;
+        writeback.TargetDungeonId = dungeonId ?? string.Empty;
+        writeback.TargetDungeonLabel = dungeonLabel;
+        writeback.ChosenRouteId = string.IsNullOrEmpty(chosenRouteId) ? string.Empty : chosenRouteId;
+        writeback.ChosenRouteLabel = routeLabel;
+        writeback.ResultSummaryText = string.IsNullOrEmpty(resultSummary) ? "None" : resultSummary;
+        writeback.CityDelta.CityId = writeback.SourceCityId;
+        writeback.CityDelta.CityLabel = cityLabel;
+        writeback.CityDelta.ResultStateKey = normalizedStateKey;
+        writeback.CityDelta.RewardResourceId = rewardResourceId ?? string.Empty;
+        writeback.CityDelta.LootReturned = lootReturned;
+        writeback.CityDelta.LootSummaryText = lootSummary;
+        writeback.CityDelta.PartyOutcomeSummaryText = string.IsNullOrEmpty(survivingMembersSummary) ? "None" : survivingMembersSummary;
+        writeback.CityDelta.StockReactionSummaryText = lootReturned > 0
+            ? cityLabel + " absorbed " + lootSummary + "."
+            : cityLabel + " absorbed no dungeon loot.";
+        writeback.CityDelta.SummaryText = BuildCityWritebackSummaryText(cityLabel, normalizedStateKey, lootSummary, writeback.CityDelta.PartyOutcomeSummaryText);
+        writeback.DungeonDelta.DungeonId = writeback.TargetDungeonId;
+        writeback.DungeonDelta.DungeonLabel = dungeonLabel;
+        writeback.DungeonDelta.ResultStateKey = normalizedStateKey;
+        writeback.DungeonDelta.RouteId = string.IsNullOrEmpty(chosenRouteId) ? string.Empty : chosenRouteId;
+        writeback.DungeonDelta.RouteLabel = routeLabel;
+        writeback.DungeonDelta.StatusKey = BuildDungeonStatusKey(normalizedStateKey);
+        writeback.DungeonDelta.StatusSummaryText = BuildDungeonStatusSummaryText(dungeonLabel, normalizedStateKey, routeLabel);
+        writeback.DungeonDelta.AvailabilitySummaryText = BuildDungeonAvailabilitySummaryText(normalizedStateKey, routeLabel);
+        writeback.DungeonDelta.LastOutcomeSummaryText = string.IsNullOrEmpty(dungeonSummary) ? writeback.DungeonDelta.StatusSummaryText : dungeonSummary;
+        writeback.Economy.RewardResourceId = rewardResourceId ?? string.Empty;
+        writeback.Economy.LootReturned = lootReturned;
+        writeback.Economy.LootSummaryText = lootSummary;
+        writeback.Economy.SummaryText = lootReturned > 0
+            ? lootSummary + " returned to " + cityLabel
+            : "No loot returned to " + cityLabel;
+        writeback.TimeAdvance.DayBefore = dayBefore;
+        writeback.TimeAdvance.DayAfter = dayAfter;
+        writeback.TimeAdvance.ElapsedDays = safeElapsedDays;
+        writeback.TimeAdvance.SummaryText = BuildTimeAdvanceSummaryText(dayBefore, dayAfter, safeElapsedDays);
+        writeback.WritebackSummaryText = BuildWorldWritebackSummaryText(writeback);
+        return writeback;
+    }
+
+    private void ApplyWorldWriteback(WorldWriteback writeback)
+    {
+        if (writeback == null)
         {
-            expeditionOutcome.SourceCityLabel = GetEntityDisplayName(expeditionOutcome.SourceCityId);
+            return;
         }
 
-        if (!HasMeaningfulResultText(expeditionOutcome.TargetDungeonLabel))
+        AdvanceWorldTimeForWriteback(writeback.TimeAdvance.ElapsedDays);
+        _latestWorldWriteback = writeback;
+
+        if (!string.IsNullOrEmpty(writeback.SourceCityId))
         {
-            expeditionOutcome.TargetDungeonLabel = GetEntityDisplayName(expeditionOutcome.TargetDungeonId);
+            _latestWorldWritebackByCityId[writeback.SourceCityId] = writeback.CityDelta.SummaryText;
         }
 
-        if (!HasMeaningfulResultText(expeditionOutcome.DungeonSummaryText))
+        if (!string.IsNullOrEmpty(writeback.TargetDungeonId))
         {
-            expeditionOutcome.DungeonSummaryText = expeditionOutcome.TargetDungeonLabel;
+            _latestWorldWritebackByDungeonId[writeback.TargetDungeonId] = writeback.WritebackSummaryText;
+            _dungeonStatusSummaryByDungeonId[writeback.TargetDungeonId] = writeback.DungeonDelta.StatusSummaryText;
+            _dungeonAvailabilitySummaryByDungeonId[writeback.TargetDungeonId] = writeback.DungeonDelta.AvailabilitySummaryText;
+            _dungeonLastOutcomeSummaryByDungeonId[writeback.TargetDungeonId] = writeback.DungeonDelta.LastOutcomeSummaryText;
         }
 
-        WorldDelta worldDelta = ResultPipeline.BuildWorldDelta(expeditionOutcome);
-        OutcomeReadback outcomeReadback = ResultPipeline.BuildOutcomeReadback(expeditionOutcome, worldDelta);
-        ApplyWorldDelta(party, expeditionOutcome, worldDelta, outcomeReadback);
+        AppendWorldWritebackLog(WorldEventRecordType.RunWriteback, writeback);
+        AppendWorldWritebackLog(WorldEventRecordType.CityDelta, writeback);
+        AppendWorldWritebackLog(WorldEventRecordType.DungeonDelta, writeback);
+    }
+
+    private void AdvanceWorldTimeForWriteback(int elapsedDays)
+    {
+        if (elapsedDays > 0)
+        {
+            WorldDayCount += elapsedDays;
+        }
+    }
+
+    private void AppendWorldWritebackLog(WorldEventRecordType eventType, WorldWriteback writeback)
+    {
+        if (writeback == null)
+        {
+            return;
+        }
+
+        WorldWritebackLogRecord record = new WorldWritebackLogRecord();
+        record.EventType = eventType;
+        record.DayIndex = writeback.TimeAdvance.DayAfter;
+        record.CityId = writeback.SourceCityId;
+        record.DungeonId = writeback.TargetDungeonId;
+        record.ResultStateKey = writeback.RunResultStateKey;
+        record.DeltaSummary = eventType == WorldEventRecordType.CityDelta
+            ? writeback.CityDelta.SummaryText
+            : eventType == WorldEventRecordType.DungeonDelta
+                ? writeback.DungeonDelta.StatusSummaryText
+                : writeback.WritebackSummaryText;
+        record.DisplayText = eventType == WorldEventRecordType.CityDelta
+            ? "Day " + record.DayIndex + " | City writeback: " + writeback.CityDelta.SummaryText
+            : eventType == WorldEventRecordType.DungeonDelta
+                ? "Day " + record.DayIndex + " | Dungeon writeback: " + writeback.DungeonDelta.StatusSummaryText
+                : "Day " + record.DayIndex + " | World writeback: " + writeback.WritebackSummaryText;
+        _recentWorldWritebackLogs.Insert(0, record);
+        while (_recentWorldWritebackLogs.Count > RecentWorldWritebackLogLimit)
+        {
+            _recentWorldWritebackLogs.RemoveAt(_recentWorldWritebackLogs.Count - 1);
+        }
+    }
+
+    private string BuildWorldWritebackSummaryText(WorldWriteback writeback)
+    {
+        string stateLabel = BuildWorldWritebackStateLabel(writeback.RunResultStateKey);
+        string routePart = writeback.ChosenRouteLabel == "None" ? string.Empty : " via " + writeback.ChosenRouteLabel;
+        string lootPart = writeback.Economy.LootSummaryText == "None" ? "no dungeon loot" : writeback.Economy.LootSummaryText;
+        return writeback.SourceCityLabel + " absorbed " + stateLabel + routePart + " | " + lootPart + " | " + writeback.TimeAdvance.SummaryText + " | " + writeback.DungeonDelta.StatusSummaryText;
+    }
+
+    private string BuildCityWritebackSummaryText(string cityLabel, string stateKey, string lootSummary, string partyOutcomeSummary)
+    {
+        string lootPart = lootSummary == "None" ? "No loot returned" : lootSummary + " returned";
+        string partyPart = string.IsNullOrEmpty(partyOutcomeSummary) || partyOutcomeSummary == "None" ? "party returned" : partyOutcomeSummary;
+        return cityLabel + " | " + BuildWorldWritebackStateLabel(stateKey) + " | " + lootPart + " | " + partyPart;
+    }
+
+    private string BuildDungeonStatusKey(string stateKey)
+    {
+        if (stateKey == "clear")
+        {
+            return "stabilized";
+        }
+
+        if (stateKey == "retreat")
+        {
+            return "contested";
+        }
+
+        return stateKey == "defeat" ? "threatened" : "observed";
+    }
+
+    private string BuildDungeonStatusSummaryText(string dungeonLabel, string stateKey, string routeLabel)
+    {
+        string routePart = routeLabel == "None" ? string.Empty : " via " + routeLabel;
+        if (stateKey == "clear")
+        {
+            return dungeonLabel + " stabilized after a successful run" + routePart + ".";
+        }
+
+        if (stateKey == "retreat")
+        {
+            return dungeonLabel + " remains contested after the retreat" + routePart + ".";
+        }
+
+        if (stateKey == "defeat")
+        {
+            return dungeonLabel + " shows elevated threat after the failed run" + routePart + ".";
+        }
+
+        return dungeonLabel + " recorded a new expedition outcome" + routePart + ".";
+    }
+
+    private string BuildDungeonAvailabilitySummaryText(string stateKey, string routeLabel)
+    {
+        string routePart = routeLabel == "None" ? string.Empty : " | Last route: " + routeLabel;
+        if (stateKey == "clear")
+        {
+            return "Available after stabilization" + routePart;
+        }
+
+        if (stateKey == "retreat")
+        {
+            return "Available, but caution is advised" + routePart;
+        }
+
+        if (stateKey == "defeat")
+        {
+            return "Available with elevated threat" + routePart;
+        }
+
+        return "Available" + routePart;
+    }
+
+    private string BuildTimeAdvanceSummaryText(int dayBefore, int dayAfter, int elapsedDays)
+    {
+        return "Day " + dayBefore + " -> Day " + dayAfter + " (+" + elapsedDays + "d)";
+    }
+
+    private string BuildWorldWritebackStateLabel(string stateKey)
+    {
+        if (stateKey == "clear")
+        {
+            return "Clear";
+        }
+
+        if (stateKey == "retreat")
+        {
+            return "Retreat";
+        }
+
+        if (stateKey == "defeat")
+        {
+            return "Defeat";
+        }
+
+        return "Run Complete";
+    }
+
+    private string NormalizeWorldWritebackStateKey(string stateKey, bool success)
+    {
+        string normalized = string.IsNullOrWhiteSpace(stateKey) ? string.Empty : stateKey.Trim().ToLowerInvariant();
+        if (normalized == "victory" || normalized == "success" || normalized == "run_clear")
+        {
+            return "clear";
+        }
+
+        if (normalized == "run_retreat")
+        {
+            return "retreat";
+        }
+
+        if (normalized == "run_defeat")
+        {
+            return "defeat";
+        }
+
+        if (normalized == "clear" || normalized == "retreat" || normalized == "defeat")
+        {
+            return normalized;
+        }
+
+        return success ? "clear" : "defeat";
+    }
+
+    private global::WorldWriteback CreatePublicWorldWriteback(WorldWriteback writeback, ExpeditionResult expeditionResult)
+    {
+        if (writeback == null)
+        {
+            return expeditionResult != null && !string.IsNullOrEmpty(expeditionResult.SourceCityId)
+                ? CreateStoredCityWorldWriteback(expeditionResult.SourceCityId, expeditionResult)
+                : new global::WorldWriteback();
+        }
+
+        string cityId = writeback.SourceCityId ?? string.Empty;
+        string routeSummary = GetLastRunRouteSummaryForCity(cityId);
+        string dungeonSummary = GetLastRunDungeonSummaryForCity(cityId);
+        string survivingMembersSummary = GetLastRunSurvivingMembersSummaryForCity(cityId);
+        string clearedEncountersSummary = GetLastRunClearedEncountersSummaryForCity(cityId);
+        string eventChoiceSummary = GetLastRunEventChoiceSummaryForCity(cityId);
+        string lootBreakdownSummary = GetLastRunLootBreakdownSummaryForCity(cityId);
+        string lootSummary = IsMeaningfulWorldWritebackText(writeback.CityDelta.LootSummaryText)
+            ? writeback.CityDelta.LootSummaryText
+            : GetLastRunLootSummaryForCity(cityId);
+        string routeLabel = IsMeaningfulWorldWritebackText(writeback.ChosenRouteLabel)
+            ? writeback.ChosenRouteLabel
+            : ResolveRouteDisplayLabel(writeback.ChosenRouteId, routeSummary);
+        string dungeonLabel = IsMeaningfulWorldWritebackText(writeback.TargetDungeonLabel)
+            ? writeback.TargetDungeonLabel
+            : ResolveEntityDisplayName(writeback.TargetDungeonId);
+        string resultSummary = IsMeaningfulWorldWritebackText(writeback.ResultSummaryText)
+            ? writeback.ResultSummaryText
+            : ChooseStoredResultSummary(cityId, expeditionResult);
+        string writebackSummary = IsMeaningfulWorldWritebackText(writeback.WritebackSummaryText)
+            ? writeback.WritebackSummaryText
+            : GetStoredWorldWritebackSummaryForCity(cityId);
+        string dungeonStatusSummary = IsMeaningfulWorldWritebackText(writeback.DungeonDelta.StatusSummaryText)
+            ? writeback.DungeonDelta.StatusSummaryText
+            : GetDungeonWorldStatusText(writeback.TargetDungeonId);
+        string dungeonAvailabilitySummary = IsMeaningfulWorldWritebackText(writeback.DungeonDelta.AvailabilitySummaryText)
+            ? writeback.DungeonDelta.AvailabilitySummaryText
+            : GetDungeonWorldAvailabilityText(writeback.TargetDungeonId);
+        string dungeonLastOutcomeSummary = IsMeaningfulWorldWritebackText(writeback.DungeonDelta.LastOutcomeSummaryText)
+            ? writeback.DungeonDelta.LastOutcomeSummaryText
+            : GetDungeonLastWorldOutcomeText(writeback.TargetDungeonId);
+        string cityLabel = IsMeaningfulWorldWritebackText(writeback.SourceCityLabel)
+            ? writeback.SourceCityLabel
+            : ResolveEntityDisplayName(cityId);
+        string stockReactionSummary = IsMeaningfulWorldWritebackText(writeback.CityDelta.StockReactionSummaryText)
+            ? writeback.CityDelta.StockReactionSummaryText
+            : BuildStoredStockReactionSummary(cityLabel, lootSummary);
+        string citySummary = IsMeaningfulWorldWritebackText(writeback.CityDelta.SummaryText)
+            ? writeback.CityDelta.SummaryText
+            : BuildCityWritebackSummaryText(cityLabel, writeback.RunResultStateKey, lootSummary, survivingMembersSummary);
+
+        global::WorldWriteback result = new global::WorldWriteback();
+        result.RunResultStateKey = writeback.RunResultStateKey ?? string.Empty;
+        result.Success = expeditionResult != null ? expeditionResult.Success : IsSuccessfulWorldWritebackState(result.RunResultStateKey);
+        result.SourceCityId = cityId;
+        result.SourceCityLabel = cityLabel;
+        result.TargetDungeonId = writeback.TargetDungeonId ?? string.Empty;
+        result.TargetDungeonLabel = dungeonLabel;
+        result.ChosenRouteId = writeback.ChosenRouteId ?? string.Empty;
+        result.ChosenRouteLabel = routeLabel;
+        result.RouteSummaryText = routeSummary != "None" ? routeSummary : routeLabel;
+        result.DungeonSummaryText = dungeonSummary != "None" ? dungeonSummary : dungeonLabel;
+        result.ResultSummaryText = resultSummary;
+        result.WritebackSummaryText = writebackSummary;
+        result.DungeonStatusKey = IsMeaningfulWorldWritebackText(writeback.DungeonDelta.StatusKey)
+            ? writeback.DungeonDelta.StatusKey
+            : BuildDungeonStatusKey(result.RunResultStateKey);
+        result.DungeonStatusSummaryText = dungeonStatusSummary;
+        result.DungeonAvailabilitySummaryText = dungeonAvailabilitySummary;
+        result.DungeonLastOutcomeSummaryText = dungeonLastOutcomeSummary;
+        result.RewardResourceId = writeback.CityDelta.RewardResourceId ?? string.Empty;
+        result.LootReturned = writeback.CityDelta.LootReturned;
+        result.LootSummaryText = lootSummary;
+        result.SurvivingMembersSummaryText = survivingMembersSummary;
+        result.ClearedEncountersSummaryText = clearedEncountersSummary;
+        result.EventChoiceSummaryText = eventChoiceSummary;
+        result.LootBreakdownSummaryText = lootBreakdownSummary;
+        result.EconomySummaryText = IsMeaningfulWorldWritebackText(writeback.Economy.SummaryText)
+            ? writeback.Economy.SummaryText
+            : stockReactionSummary;
+        result.DayBefore = writeback.TimeAdvance.DayBefore;
+        result.DayAfter = writeback.TimeAdvance.DayAfter;
+        result.ElapsedDays = writeback.TimeAdvance.ElapsedDays > 0
+            ? writeback.TimeAdvance.ElapsedDays
+            : expeditionResult != null && expeditionResult.ElapsedDays > 0
+                ? expeditionResult.ElapsedDays
+                : 1;
+        result.TimeAdvanceSummaryText = IsMeaningfulWorldWritebackText(writeback.TimeAdvance.SummaryText)
+            ? writeback.TimeAdvance.SummaryText
+            : result.DayBefore >= 0 && result.DayAfter >= 0
+                ? BuildTimeAdvanceSummaryText(result.DayBefore, result.DayAfter, result.ElapsedDays)
+                : "None";
+        result.CityWriteback = CreatePublicCityWriteback(
+            cityId,
+            cityLabel,
+            result.RunResultStateKey,
+            result.RewardResourceId,
+            result.LootReturned,
+            result.LootSummaryText,
+            result.SurvivingMembersSummaryText,
+            stockReactionSummary,
+            citySummary);
+        return result;
+    }
+
+    private global::WorldWriteback CreateStoredCityWorldWriteback(string cityId, ExpeditionResult expeditionResult)
+    {
+        if (string.IsNullOrEmpty(cityId) || expeditionResult == null)
+        {
+            return new global::WorldWriteback();
+        }
+
+        string cityLabel = ResolveEntityDisplayName(cityId);
+        string normalizedStateKey = NormalizeWorldWritebackStateKey(expeditionResult.ResultStateKey, expeditionResult.Success);
+        string dungeonId = expeditionResult.DungeonId ?? string.Empty;
+        string dungeonLabel = ResolveEntityDisplayName(dungeonId);
+        string routeSummary = GetLastRunRouteSummaryForCity(cityId);
+        string routeLabel = routeSummary != "None"
+            ? routeSummary
+            : ResolveRouteDisplayLabel(expeditionResult.RouteId, expeditionResult.RouteLabel);
+        string dungeonSummary = GetLastRunDungeonSummaryForCity(cityId);
+        string lootSummary = GetLastRunLootSummaryForCity(cityId);
+        if (!IsMeaningfulWorldWritebackText(lootSummary) &&
+            expeditionResult.Success &&
+            !string.IsNullOrEmpty(expeditionResult.RewardResourceId) &&
+            expeditionResult.ReturnedLootAmount > 0)
+        {
+            lootSummary = expeditionResult.RewardResourceId + " x" + expeditionResult.ReturnedLootAmount;
+        }
+
+        string survivingMembersSummary = GetLastRunSurvivingMembersSummaryForCity(cityId);
+        string clearedEncountersSummary = GetLastRunClearedEncountersSummaryForCity(cityId);
+        string eventChoiceSummary = GetLastRunEventChoiceSummaryForCity(cityId);
+        string lootBreakdownSummary = GetLastRunLootBreakdownSummaryForCity(cityId);
+        string stockReactionSummary = BuildStoredStockReactionSummary(cityLabel, lootSummary);
+        string citySummary = BuildCityWritebackSummaryText(cityLabel, normalizedStateKey, lootSummary, survivingMembersSummary);
+
+        global::WorldWriteback result = new global::WorldWriteback();
+        result.RunResultStateKey = normalizedStateKey;
+        result.Success = expeditionResult.Success;
+        result.SourceCityId = cityId;
+        result.SourceCityLabel = cityLabel;
+        result.TargetDungeonId = dungeonId;
+        result.TargetDungeonLabel = dungeonSummary != "None" ? dungeonSummary : dungeonLabel;
+        result.ChosenRouteId = expeditionResult.RouteId ?? string.Empty;
+        result.ChosenRouteLabel = routeLabel;
+        result.RouteSummaryText = routeSummary != "None" ? routeSummary : routeLabel;
+        result.DungeonSummaryText = dungeonSummary != "None" ? dungeonSummary : dungeonLabel;
+        result.ResultSummaryText = ChooseStoredResultSummary(cityId, expeditionResult);
+        result.WritebackSummaryText = GetStoredWorldWritebackSummaryForCity(cityId);
+        result.DungeonStatusKey = BuildDungeonStatusKey(normalizedStateKey);
+        result.DungeonStatusSummaryText = GetDungeonWorldStatusText(dungeonId);
+        result.DungeonAvailabilitySummaryText = GetDungeonWorldAvailabilityText(dungeonId);
+        result.DungeonLastOutcomeSummaryText = GetDungeonLastWorldOutcomeText(dungeonId);
+        result.RewardResourceId = expeditionResult.RewardResourceId ?? string.Empty;
+        result.LootReturned = expeditionResult.Success && expeditionResult.ReturnedLootAmount > 0 ? expeditionResult.ReturnedLootAmount : 0;
+        result.LootSummaryText = IsMeaningfulWorldWritebackText(lootSummary) ? lootSummary : "None";
+        result.SurvivingMembersSummaryText = survivingMembersSummary;
+        result.ClearedEncountersSummaryText = clearedEncountersSummary;
+        result.EventChoiceSummaryText = eventChoiceSummary;
+        result.LootBreakdownSummaryText = lootBreakdownSummary;
+        result.EconomySummaryText = stockReactionSummary;
+        result.DayBefore = -1;
+        result.DayAfter = -1;
+        result.ElapsedDays = expeditionResult.ElapsedDays > 0 ? expeditionResult.ElapsedDays : 1;
+        result.TimeAdvanceSummaryText = "None";
+        result.CityWriteback = CreatePublicCityWriteback(
+            cityId,
+            cityLabel,
+            result.RunResultStateKey,
+            result.RewardResourceId,
+            result.LootReturned,
+            result.LootSummaryText,
+            result.SurvivingMembersSummaryText,
+            stockReactionSummary,
+            citySummary);
+        return result;
+    }
+
+    private global::CityWriteback CreatePublicCityWriteback(
+        string cityId,
+        string cityLabel,
+        string resultStateKey,
+        string rewardResourceId,
+        int lootReturned,
+        string lootSummary,
+        string partyOutcomeSummary,
+        string stockReactionSummary,
+        string summaryText)
+    {
+        global::CityWriteback result = new global::CityWriteback();
+        result.CityId = cityId ?? string.Empty;
+        result.CityLabel = string.IsNullOrEmpty(cityLabel) ? "None" : cityLabel;
+        result.ResultStateKey = resultStateKey ?? string.Empty;
+        result.RewardResourceId = rewardResourceId ?? string.Empty;
+        result.LootReturned = lootReturned > 0 ? lootReturned : 0;
+        result.LootSummaryText = IsMeaningfulWorldWritebackText(lootSummary) ? lootSummary : "None";
+        result.PartyOutcomeSummaryText = IsMeaningfulWorldWritebackText(partyOutcomeSummary) ? partyOutcomeSummary : "None";
+        result.StockReactionSummaryText = IsMeaningfulWorldWritebackText(stockReactionSummary) ? stockReactionSummary : "None";
+        result.SummaryText = IsMeaningfulWorldWritebackText(summaryText) ? summaryText : "None";
+        return result;
+    }
+
+    private string ChooseStoredResultSummary(string cityId, ExpeditionResult expeditionResult)
+    {
+        if (expeditionResult != null && IsMeaningfulWorldWritebackText(expeditionResult.ResultSummaryText))
+        {
+            return expeditionResult.ResultSummaryText;
+        }
+
+        return !string.IsNullOrEmpty(cityId) && _lastExpeditionResultByCityId.TryGetValue(cityId, out string value) && IsMeaningfulWorldWritebackText(value)
+            ? value
+            : "None";
+    }
+
+    private string GetStoredWorldWritebackSummaryForCity(string cityId)
+    {
+        return !string.IsNullOrEmpty(cityId) && _latestWorldWritebackByCityId.TryGetValue(cityId, out string value) && IsMeaningfulWorldWritebackText(value)
+            ? value
+            : "None";
+    }
+
+    private string BuildStoredStockReactionSummary(string cityLabel, string lootSummary)
+    {
+        return IsMeaningfulWorldWritebackText(lootSummary)
+            ? cityLabel + " absorbed " + lootSummary + "."
+            : cityLabel + " absorbed no dungeon loot.";
+    }
+
+    private ExpeditionOutcome CreatePublicExpeditionOutcome(ExpeditionResult expeditionResult)
+    {
+        if (expeditionResult == null)
+        {
+            return new ExpeditionOutcome();
+        }
+
+        ExpeditionOutcome result = ResultPipeline.BuildExpeditionOutcome(
+            expeditionResult.SourceCityId,
+            expeditionResult.SourceCityLabel,
+            expeditionResult.DungeonId,
+            expeditionResult.DungeonLabel,
+            expeditionResult.RewardResourceId,
+            expeditionResult.ReturnedLootAmount,
+            expeditionResult.Success,
+            expeditionResult.ResultStateKey,
+            expeditionResult.ResultSummaryText,
+            expeditionResult.SurvivingMembersSummaryText,
+            expeditionResult.ClearedEncounterSummaryText,
+            expeditionResult.SelectedEventChoiceText,
+            expeditionResult.LootBreakdownSummaryText,
+            expeditionResult.SelectedRouteSummaryText,
+            expeditionResult.DungeonSummaryText);
+        result.TotalTurnsTaken = expeditionResult.TotalTurnsTaken;
+        result.ClearedEncounterCount = expeditionResult.ClearedEncounterCount;
+        result.OpenedChestCount = expeditionResult.OpenedChestCount;
+        result.SurvivingMemberCount = expeditionResult.BattleResult != null ? expeditionResult.BattleResult.SurvivingMemberCount : 0;
+        result.KnockedOutMemberCount = expeditionResult.BattleResult != null ? expeditionResult.BattleResult.KnockedOutMemberCount : 0;
+        result.EliteDefeated = expeditionResult.EliteDefeated;
+        result.MissionObjectiveText = ChooseMeaningfulWorldText(expeditionResult.KeyEncounterSummaryText, expeditionResult.DungeonSummaryText);
+        result.MissionRelevanceText = ChooseMeaningfulWorldText(expeditionResult.WorldWritebackSummaryText, expeditionResult.NextSuggestedActionText);
+        result.RiskRewardContextText = ChooseMeaningfulWorldText(expeditionResult.BattleContextSummaryText, expeditionResult.ReturnedLootSummaryText);
+        result.RunPathSummaryText = ChooseMeaningfulWorldText(expeditionResult.RoomPathSummaryText, expeditionResult.SelectedRouteSummaryText);
+        result.PartyConditionText = ChooseMeaningfulWorldText(expeditionResult.PartyConditionText, expeditionResult.InjurySummaryText);
+        result.PartyHpSummaryText = expeditionResult.PartyHpSummaryText;
+        result.EliteSummaryText = ChooseMeaningfulWorldText(expeditionResult.EliteOutcomeSummaryText, expeditionResult.EliteRewardLabel);
+        return result;
+    }
+
+    private OutcomeReadback CreatePublicOutcomeReadback(string cityId, ExpeditionResult expeditionResult, global::WorldWriteback worldWriteback)
+    {
+        ExpeditionResult safeExpeditionResult = expeditionResult ?? new ExpeditionResult();
+        global::WorldWriteback safeWorldWriteback = worldWriteback ?? new global::WorldWriteback();
+        global::CityWriteback safeCityWriteback = safeWorldWriteback.CityWriteback ?? new global::CityWriteback();
+        string resolvedCityId = !string.IsNullOrEmpty(cityId)
+            ? cityId
+            : !string.IsNullOrEmpty(safeExpeditionResult.SourceCityId)
+                ? safeExpeditionResult.SourceCityId
+                : safeWorldWriteback.SourceCityId;
+        string resolvedCityLabel = IsMeaningfulWorldWritebackText(safeWorldWriteback.SourceCityLabel)
+            ? safeWorldWriteback.SourceCityLabel
+            : IsMeaningfulWorldWritebackText(safeExpeditionResult.SourceCityLabel)
+                ? safeExpeditionResult.SourceCityLabel
+                : ResolveEntityDisplayName(resolvedCityId);
+        string resultStateKey = !string.IsNullOrEmpty(safeWorldWriteback.RunResultStateKey)
+            ? safeWorldWriteback.RunResultStateKey
+            : safeExpeditionResult.ResultStateKey;
+        string followUpHint = ChooseMeaningfulWorldText(safeExpeditionResult.NextPrepFollowUpSummaryText, safeCityWriteback.FollowUpHintText);
+
+        return ResultPipeline.BuildOutcomeReadback(
+            safeExpeditionResult,
+            safeCityWriteback,
+            safeWorldWriteback,
+            safeWorldWriteback.WritebackSummaryText,
+            ChooseMeaningfulWorldText(safeExpeditionResult.LatestReturnAftermathSummaryText, safeWorldWriteback.WritebackSummaryText),
+            resolvedCityId,
+            resolvedCityLabel,
+            resultStateKey,
+            ChooseMeaningfulWorldText(safeCityWriteback.SummaryText, safeExpeditionResult.ResultSummaryText),
+            safeExpeditionResult.NextSuggestedActionText,
+            followUpHint,
+            ChooseMeaningfulWorldText(safeExpeditionResult.ResultSummaryText, safeWorldWriteback.ResultSummaryText),
+            safeWorldWriteback.SurvivingMembersSummaryText,
+            safeWorldWriteback.ClearedEncountersSummaryText,
+            safeWorldWriteback.EventChoiceSummaryText,
+            safeWorldWriteback.LootBreakdownSummaryText,
+            safeWorldWriteback.DungeonSummaryText,
+            safeWorldWriteback.RouteSummaryText,
+            FormatOptionalCountText(safeCityWriteback.StockBefore),
+            FormatOptionalCountText(safeCityWriteback.StockAfter),
+            FormatSignedCountText(safeCityWriteback.StockDelta),
+            GetLastRunGearRewardSummaryForCity(resolvedCityId),
+            GetLastRunEquipSwapSummaryForCity(resolvedCityId),
+            GetLastRunGearContinuitySummaryForCity(resolvedCityId),
+            GetRecentExpeditionLogText(0),
+            GetRecentExpeditionLogText(1),
+            GetRecentExpeditionLogText(2),
+            GetRecentWorldWritebackLogText(0),
+            GetRecentWorldWritebackLogText(1),
+            GetRecentWorldWritebackLogText(2));
+    }
+
+    private string ChooseMeaningfulWorldText(string primary, string fallback)
+    {
+        return IsMeaningfulWorldWritebackText(primary)
+            ? primary
+            : IsMeaningfulWorldWritebackText(fallback)
+                ? fallback
+                : "None";
+    }
+
+    private string FormatOptionalCountText(int value)
+    {
+        return value > 0 ? value.ToString() : "None";
+    }
+
+    private string FormatSignedCountText(int value)
+    {
+        return value != 0 ? value.ToString() : "None";
+    }
+
+    private bool IsSuccessfulWorldWritebackState(string stateKey)
+    {
+        return NormalizeWorldWritebackStateKey(stateKey, false) == "clear";
+    }
+
+    private bool IsMeaningfulWorldWritebackText(string value)
+    {
+        return !string.IsNullOrEmpty(value) && value != "None";
+    }
+
+    private string ResolveEntityDisplayName(string entityId)
+    {
+        return !string.IsNullOrEmpty(entityId) && TryGetEntity(entityId, out WorldEntityData entity) && !string.IsNullOrEmpty(entity.DisplayName)
+            ? entity.DisplayName
+            : (string.IsNullOrEmpty(entityId) ? "None" : entityId);
+    }
+
+    private string ResolveRouteDisplayLabel(string chosenRouteId, string routeSummary)
+    {
+        if (!string.IsNullOrWhiteSpace(routeSummary) && routeSummary != "None")
+        {
+            return routeSummary;
+        }
+
+        if (string.IsNullOrWhiteSpace(chosenRouteId))
+        {
+            return "None";
+        }
+
+        string normalized = chosenRouteId.Trim().ToLowerInvariant();
+        if (normalized == "safe")
+        {
+            return "Safe Route";
+        }
+
+        if (normalized == "risky")
+        {
+            return "Risky Route";
+        }
+
+        return chosenRouteId;
     }
 
     private int GrantExpeditionLoot(string cityId, DungeonExpeditionProfile profile, int carryCapacity)
@@ -1791,100 +2835,6 @@ public sealed class ManualTradeRuntimeState
         }
 
         return granted;
-    }
-
-    private void ApplyWorldDelta(PartyRuntimeData party, ExpeditionOutcome expeditionOutcome, WorldDelta worldDelta, OutcomeReadback outcomeReadback)
-    {
-        if (party == null || expeditionOutcome == null || worldDelta == null || outcomeReadback == null)
-        {
-            return;
-        }
-
-        string cityId = expeditionOutcome.SourceCityId ?? string.Empty;
-        string dungeonId = expeditionOutcome.TargetDungeonId ?? string.Empty;
-        string safeResultSummary = HasMeaningfulResultText(outcomeReadback.SummaryText)
-            ? outcomeReadback.SummaryText
-            : HasMeaningfulResultText(worldDelta.ResultSummaryText)
-                ? worldDelta.ResultSummaryText
-                : party.PartyId + " returned.";
-
-        if (worldDelta.Success)
-        {
-            ExpeditionSuccessCount += worldDelta.ExpeditionSuccessCountDelta;
-            ExpeditionLootReturnedTotal += worldDelta.AddedResourceAmount;
-            _expeditionLootReturnedByCityId[cityId] = GetExpeditionLootReturnedTotalForCity(cityId) + worldDelta.AddedResourceAmount;
-
-            if (!string.IsNullOrEmpty(worldDelta.RewardResourceId) && worldDelta.AddedResourceAmount > 0)
-            {
-                SetStock(cityId, worldDelta.RewardResourceId, GetStock(cityId, worldDelta.RewardResourceId) + worldDelta.AddedResourceAmount);
-            }
-        }
-        else
-        {
-            ExpeditionFailureCount += worldDelta.ExpeditionFailureCountDelta;
-        }
-
-        _latestExpeditionOutcome = expeditionOutcome;
-        _latestOutcomeReadback = outcomeReadback;
-        _latestExpeditionOutcomeByCityId[cityId] = expeditionOutcome;
-        _latestOutcomeReadbackByCityId[cityId] = outcomeReadback;
-        ApplyOutcomeReadbackToLegacyCaches(cityId, dungeonId, outcomeReadback);
-
-        party.State = worldDelta.ReturnPartyToIdle ? PartyState.Idle : party.State;
-        party.TargetDungeonId = string.Empty;
-        party.DaysRemaining = 0;
-        party.LastResultSummary = safeResultSummary;
-        _lastExpeditionResultByCityId[cityId] = safeResultSummary;
-
-        if (!string.IsNullOrEmpty(dungeonId))
-        {
-            _lastExpeditionResultByDungeonId[dungeonId] = safeResultSummary;
-        }
-
-        string logEntry = HasMeaningfulResultText(outcomeReadback.ExpeditionLogEntryText)
-            ? outcomeReadback.ExpeditionLogEntryText
-            : safeResultSummary;
-        AppendRecentExpeditionLog("Day " + WorldDayCount + " | " + logEntry);
-    }
-
-    private void ApplyOutcomeReadbackToLegacyCaches(string cityId, string dungeonId, OutcomeReadback outcomeReadback)
-    {
-        if (string.IsNullOrEmpty(cityId))
-        {
-            return;
-        }
-
-        OutcomeReadback safeReadback = outcomeReadback ?? new OutcomeReadback();
-        _lastRunLootSummaryByCityId[cityId] = HasMeaningfulResultText(safeReadback.LootSummaryText) ? safeReadback.LootSummaryText : "None";
-        _lastRunSurvivingMembersByCityId[cityId] = HasMeaningfulResultText(safeReadback.SurvivingMembersSummaryText) ? safeReadback.SurvivingMembersSummaryText : "None";
-        _lastRunClearedEncountersByCityId[cityId] = HasMeaningfulResultText(safeReadback.ClearedEncountersSummaryText) ? safeReadback.ClearedEncountersSummaryText : "None";
-        _lastRunEventChoiceByCityId[cityId] = HasMeaningfulResultText(safeReadback.EventChoiceSummaryText) ? safeReadback.EventChoiceSummaryText : "None";
-        _lastRunLootBreakdownByCityId[cityId] = HasMeaningfulResultText(safeReadback.LootBreakdownSummaryText) ? safeReadback.LootBreakdownSummaryText : "None";
-        _lastRunRouteByCityId[cityId] = HasMeaningfulResultText(safeReadback.RouteSummaryText) ? safeReadback.RouteSummaryText : "None";
-        _lastRunDungeonByCityId[cityId] = HasMeaningfulResultText(safeReadback.DungeonSummaryText)
-            ? safeReadback.DungeonSummaryText
-            : GetEntityDisplayName(dungeonId);
-    }
-
-    private void ClearLatestResultContractsForCity(string cityId)
-    {
-        if (string.IsNullOrEmpty(cityId))
-        {
-            return;
-        }
-
-        _latestExpeditionOutcomeByCityId[cityId] = new ExpeditionOutcome();
-        _latestOutcomeReadbackByCityId[cityId] = new OutcomeReadback();
-
-        if (_latestExpeditionOutcome != null && _latestExpeditionOutcome.SourceCityId == cityId)
-        {
-            _latestExpeditionOutcome = null;
-        }
-
-        if (_latestOutcomeReadback != null && _latestOutcomeReadback.SourceCityId == cityId)
-        {
-            _latestOutcomeReadback = null;
-        }
     }
 
     private string BuildContractStatusText(ExpeditionContractData contract)
@@ -2057,6 +3007,20 @@ public sealed class ManualTradeRuntimeState
         {
             PartyRuntimeData party = _parties[i];
             if (party != null && party.TargetDungeonId == dungeonId && party.State == PartyState.OnExpedition)
+            {
+                return party;
+            }
+        }
+
+        return null;
+    }
+
+    private PartyRuntimeData FindFirstActiveParty()
+    {
+        for (int i = 0; i < _parties.Count; i++)
+        {
+            PartyRuntimeData party = _parties[i];
+            if (party != null && party.State == PartyState.OnExpedition)
             {
                 return party;
             }
@@ -2352,11 +3316,6 @@ public sealed class ManualTradeRuntimeState
         return string.IsNullOrEmpty(entityId) ? "Unknown" : entityId;
     }
 
-    private static bool HasMeaningfulResultText(string value)
-    {
-        return !string.IsNullOrEmpty(value) && value != "None";
-    }
-
     private EntityDaySummary GetEntityDaySummary(string entityId)
     {
         if (string.IsNullOrEmpty(entityId))
@@ -2645,6 +3604,8 @@ public sealed class ManualTradeRuntimeState
         }
     }
 }
+
+
 
 
 

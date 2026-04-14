@@ -438,6 +438,7 @@ public sealed partial class StaticPlaceholderWorldView
         DungeonEncounterRuntimeData encounter = GetActiveEncounter();
         DungeonRoomTemplateData room = encounter != null ? GetRoomStepByEncounterId(encounter.EncounterId) : GetCurrentPlannedRoomStep();
         ExpeditionPlan launchPlan = GetCurrentExpeditionPlanForAppFlow();
+        PrototypeBattleRequest request = GetBattleRequest();
         payload.EncounterId = encounter != null ? encounter.EncounterId : string.Empty;
         payload.EncounterName = encounter != null ? encounter.DisplayName : "None";
         payload.DungeonId = _currentDungeonId ?? string.Empty;
@@ -447,13 +448,17 @@ public sealed partial class StaticPlaceholderWorldView
         payload.RoomId = room != null ? room.RoomId : _currentRoomStepId ?? string.Empty;
         payload.RoomLabel = room != null ? room.DisplayName : GetCurrentRoomText();
         payload.PartySummaryText = ActiveDungeonPartyText;
-        payload.ObjectiveText = HasText(launchPlan != null ? launchPlan.ObjectiveText : string.Empty)
-            ? launchPlan.ObjectiveText
-            : "None";
-        payload.RiskContextText = BuildSelectedRouteContextText();
+        payload.ObjectiveText = HasText(request != null ? request.ObjectiveText : string.Empty)
+            ? request.ObjectiveText
+            : HasText(launchPlan != null ? launchPlan.ObjectiveText : string.Empty)
+                ? launchPlan.ObjectiveText
+                : "None";
+        payload.RiskContextText = HasText(request != null ? request.RiskContextText : string.Empty)
+            ? request.RiskContextText
+            : BuildSelectedRouteContextText();
         payload.IsEliteEncounter = encounter != null && encounter.IsEliteEncounter;
         payload.TurnIndex = Mathf.Max(_runTurnCount, _battleTurnIndex);
-        payload.Request = GetBattleRequest();
+        payload.Request = request ?? new PrototypeBattleRequest();
         return payload;
     }
 

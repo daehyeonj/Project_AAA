@@ -16,7 +16,7 @@ public sealed class PrepBlocker
     public bool IsBlocking;
 }
 
-public sealed class LaunchReadiness
+public sealed partial class LaunchReadiness
 {
     public bool CanLaunch;
     public bool HasWarnings;

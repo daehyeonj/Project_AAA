@@ -1,0 +1,8 @@
+{
+  "BattleSetupId": "battle-setup-beta-risky-room1",
+  "EnemyGroupLabel": "Raider Scout Pair",
+  "SetupSummaryText": "A scout and striker testing whether the greedy route can break through the gate fast.",
+  "RetreatAllowed": true,
+  "WinRelevanceText": "Clearing the scouts keeps the greedy route's loot tempo alive.",
+  "LossRelevanceText": "If this opening stalls, the high-risk payout route loses its edge immediately."
+}

@@ -4293,16 +4293,36 @@ public sealed partial class StaticPlaceholderWorldView
             return null;
         }
 
+        DungeonPartyMemberRuntimeData currentActor = _battleState == BattleState.PartyTargetSelect
+            ? GetCurrentActorMember()
+            : null;
+        PrototypeRpgSkillDefinition skillDefinition = _queuedBattleAction == BattleActionType.Skill && currentActor != null
+            ? ResolveMemberSkillDefinition(currentActor)
+            : null;
+        DungeonMonsterRuntimeData fallback = null;
+
         for (int i = 0; i < encounter.MonsterIds.Length; i++)
         {
             DungeonMonsterRuntimeData monster = GetMonsterById(encounter.MonsterIds[i]);
-            if (monster != null && !monster.IsDefeated && monster.CurrentHp > 0)
+            if (monster == null || monster.IsDefeated || monster.CurrentHp <= 0)
+            {
+                continue;
+            }
+
+            fallback ??= monster;
+            if (currentActor == null)
+            {
+                return monster;
+            }
+
+            PrototypeBattleLaneRuleResolution laneResolution = BuildPartyActionLaneResolution(currentActor, monster, _queuedBattleAction, skillDefinition);
+            if (laneResolution == null || laneResolution.ReachabilityStateKey != "blocked")
             {
                 return monster;
             }
         }
 
-        return null;
+        return fallback;
     }
 
     private int GetLivingBattleMonsterCount()

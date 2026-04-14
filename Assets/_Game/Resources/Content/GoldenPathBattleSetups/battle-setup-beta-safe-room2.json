@@ -1,0 +1,8 @@
+{
+  "BattleSetupId": "battle-setup-beta-safe-room2",
+  "EnemyGroupLabel": "Goblin Guard Pair",
+  "SetupSummaryText": "A guard-and-raider pair trying to hold the safer vault line.",
+  "RetreatAllowed": true,
+  "WinRelevanceText": "Breaking the guard line preserves the steadier processing-restart route.",
+  "LossRelevanceText": "If the party loses ground here, the guarded route stops being the low-strain answer for City B."
+}

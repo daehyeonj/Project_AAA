@@ -6,6 +6,7 @@ public sealed partial class StaticPlaceholderWorldView
     private PrototypeBattleUiSurfaceData BuildRpgOwnedBattleUiSurfaceData()
     {
         PrototypeBattleUiSurfaceData surface = new PrototypeBattleUiSurfaceData();
+        PrototypeBattleRequest request = GetBattleRequest();
         surface.IsBattleActive = _dungeonRunState == DungeonRunState.Battle;
         surface.IsTargetSelectionActive = _battleState == BattleState.PartyTargetSelect;
         surface.BattleStateKey = GetBattleStateKey();
@@ -13,6 +14,10 @@ public sealed partial class StaticPlaceholderWorldView
         surface.CurrentRouteLabel = string.IsNullOrEmpty(_selectedRouteLabel) ? "None" : _selectedRouteLabel;
         surface.EncounterName = GetCurrentEncounterNameText();
         surface.EncounterRoomType = GetEncounterRoomTypeText();
+        surface.MissionObjectiveText = string.IsNullOrEmpty(request != null ? request.ObjectiveText : string.Empty) ? "None" : request.ObjectiveText;
+        surface.MissionRewardPreviewText = string.IsNullOrEmpty(request != null ? request.RewardPreviewText : string.Empty) ? "None" : request.RewardPreviewText;
+        surface.MissionRiskContextText = string.IsNullOrEmpty(request != null ? request.RiskContextText : string.Empty) ? "None" : request.RiskContextText;
+        surface.MissionIntentSummaryText = BuildBattleIntentSummaryText(request);
         surface.PartyCondition = GetPartyConditionText();
         surface.TotalPartyHp = BuildTotalPartyHpSummary();
         surface.EliteStatusText = GetEliteStatusText();

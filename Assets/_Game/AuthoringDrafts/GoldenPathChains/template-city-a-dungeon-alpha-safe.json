@@ -1,0 +1,96 @@
+{
+    "ChainId": "draft-city-a-dungeon-alpha-rest-path",
+    "CityId": "city-a",
+    "PrimaryCityDungeonDefinition": false,
+    "SurfaceAsOpportunityVariant": false,
+    "BottleneckResourceId": "mana_shard",
+    "BottleneckSummaryText": "City A leans on Dungeon Alpha when mana_shard pressure rises.",
+    "MissionObjectiveText": "Launch Dungeon Alpha to bring back mana_shard for City A.",
+    "RewardResourceId": "mana_shard",
+    "OutcomeMeaningId": "outcome-mana-shard-city-a",
+    "CityDecisionMeaningId": "city-decision-city-a-shard-stability",
+    "RewardMeaningText": "",
+    "ResultImpactMeaningText": "",
+    "DungeonId": "dungeon-alpha",
+    "DungeonLabel": "Dungeon Alpha",
+    "DangerLabel": "Safer",
+    "StyleLabel": "Slime-heavy / Recover-friendly",
+    "CanonicalRoute": {
+        "RouteId": "safe",
+        "RouteMeaningId": "route-steady-rest",
+        "RouteLabel": "Rest Path",
+        "Description": "Calmer ruins with slime-heavy fights and a stronger shrine recovery.",
+        "RiskLabel": "",
+        "EncounterPreview": "Slime Pack -> Slime Watch -> Slime Monarch",
+        "EventFocus": "",
+        "RewardPreview": "",
+        "BattleLootAmount": 14,
+        "RecoverAmount": 8,
+        "BonusLootAmount": 3,
+        "ChestRewardAmount": 2,
+        "RepresentativeEncounterId": "encounter-room-1",
+        "RepresentativeBattleLabel": "Slime Front",
+        "Rooms": [
+            {
+                "RoomId": "alpha-safe-skirmish-1",
+                "DisplayName": "Slime Front",
+                "RoomTypeLabel": "Skirmish Room",
+                "RoomType": "Skirmish",
+                "MarkerKey": "room1Encounter",
+                "EncounterId": "encounter-room-1",
+                "EncounterProfileId": "encounter-profile-opening-skirmish",
+                "BattleSetupId": "battle-setup-alpha-safe-room1"
+            },
+            {
+                "RoomId": "alpha-safe-shrine",
+                "DisplayName": "Rest Shrine",
+                "RoomTypeLabel": "Shrine Room",
+                "RoomType": "Shrine",
+                "MarkerKey": "shrine",
+                "EncounterId": "",
+                "EncounterProfileId": "",
+                "BattleSetupId": ""
+            },
+            {
+                "RoomId": "alpha-safe-skirmish-2",
+                "DisplayName": "Watch Hall",
+                "RoomTypeLabel": "Skirmish Room",
+                "RoomType": "Skirmish",
+                "MarkerKey": "room2Encounter",
+                "EncounterId": "encounter-room-2",
+                "EncounterProfileId": "encounter-profile-midrun-skirmish",
+                "BattleSetupId": "battle-setup-alpha-safe-room2"
+            },
+            {
+                "RoomId": "alpha-safe-cache",
+                "DisplayName": "Supply Cache",
+                "RoomTypeLabel": "Cache Room",
+                "RoomType": "Cache",
+                "MarkerKey": "cache",
+                "EncounterId": "",
+                "EncounterProfileId": "",
+                "BattleSetupId": ""
+            },
+            {
+                "RoomId": "alpha-safe-prep",
+                "DisplayName": "Quiet Antechamber",
+                "RoomTypeLabel": "Preparation Room",
+                "RoomType": "Preparation",
+                "MarkerKey": "prep",
+                "EncounterId": "",
+                "EncounterProfileId": "",
+                "BattleSetupId": ""
+            },
+            {
+                "RoomId": "dungeon-alpha-elite",
+                "DisplayName": "Elite Chamber",
+                "RoomTypeLabel": "Elite Chamber",
+                "RoomType": "Elite",
+                "MarkerKey": "elite",
+                "EncounterId": "encounter-room-elite",
+                "EncounterProfileId": "encounter-profile-elite-chamber",
+                "BattleSetupId": "battle-setup-alpha-safe-elite"
+            }
+        ]
+    }
+}

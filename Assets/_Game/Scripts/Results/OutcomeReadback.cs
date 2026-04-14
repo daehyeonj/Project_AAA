@@ -1,8 +1,14 @@
 public sealed class OutcomeReadback
 {
+    public string SourceCityId = string.Empty;
+    public string SourceCityLabel = "None";
+    public string TargetDungeonId = string.Empty;
+    public string TargetDungeonLabel = "None";
     public string CityId = string.Empty;
     public string CityLabel = "None";
     public string ResultStateKey = string.Empty;
+    public bool Success;
+    public string SummaryText = "None";
     public string AcknowledgementText = "None";
     public string LatestReturnAftermathText = "None";
     public string PostRunSummaryText = "None";
@@ -14,12 +20,13 @@ public sealed class OutcomeReadback
     public string DungeonStatusText = "None";
     public string DungeonAvailabilityText = "None";
     public string DungeonLastOutcomeText = "None";
+    public string LootSummaryText = "None";
     public string SurvivingMembersSummaryText = "None";
     public string ClearedEncountersSummaryText = "None";
     public string EventChoiceSummaryText = "None";
     public string LootBreakdownSummaryText = "None";
-    public string DungeonSummaryText = "None";
     public string RouteSummaryText = "None";
+    public string DungeonSummaryText = "None";
     public string StockBeforeText = "None";
     public string StockAfterText = "None";
     public string StockDeltaText = "None";
@@ -28,6 +35,14 @@ public sealed class OutcomeReadback
     public string DispatchReadinessBeforeText = "None";
     public string DispatchReadinessAfterText = "None";
     public string RecoveryEtaText = "None";
+    public string MissionObjectiveText = "None";
+    public string MissionRelevanceText = "None";
+    public string RiskRewardContextText = "None";
+    public string RunPathSummaryText = "None";
+    public string OutcomeMeaningId = string.Empty;
+    public string OutcomeRewardMeaningText = "None";
+    public string CityImpactMeaningText = "None";
+    public string RecommendationShiftText = "None";
     public string GearRewardSummaryText = "None";
     public string EquipSwapSummaryText = "None";
     public string GearContinuitySummaryText = "None";
@@ -37,4 +52,9 @@ public sealed class OutcomeReadback
     public string RecentWorldWritebackLog1Text = "None";
     public string RecentWorldWritebackLog2Text = "None";
     public string RecentWorldWritebackLog3Text = "None";
+    public string CityStatusChangeSummaryText = "None";
+    public string ExpeditionLogEntryText = "None";
+    public string PartyConditionText = "None";
+    public string PartyHpSummaryText = "None";
+    public string EliteSummaryText = "None";
 }

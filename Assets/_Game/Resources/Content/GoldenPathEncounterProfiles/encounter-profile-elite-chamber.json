@@ -1,0 +1,6 @@
+{
+  "EncounterProfileId": "encounter-profile-elite-chamber",
+  "EncounterRoleTagsText": "elite, route gate",
+  "MissionRelevanceText": "This elite chamber decides whether the expedition closes with a city-facing result or returns short.",
+  "BattleContextText": "Final gate battle that converts run progress into a successful return."
+}

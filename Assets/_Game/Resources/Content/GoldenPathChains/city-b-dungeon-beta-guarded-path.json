@@ -1,0 +1,85 @@
+{
+  "ChainId": "city-b-dungeon-beta-guarded-path",
+  "CityId": "city-b",
+  "PrimaryCityDungeonDefinition": false,
+  "SurfaceAsOpportunityVariant": true,
+  "BottleneckResourceId": "refined_mana",
+  "BottleneckSummaryText": "City B stalls its refined_mana line when mana_shard inputs dry up.",
+  "MissionObjectiveText": "Launch Dungeon Beta to recover mana_shard so City B can reopen refined_mana processing.",
+  "RewardResourceId": "mana_shard",
+  "OutcomeMeaningId": "outcome-mana-shard-city-b-guarded-processing",
+  "CityDecisionMeaningId": "city-decision-city-b-processing-restart",
+  "DungeonId": "dungeon-beta",
+  "DungeonLabel": "Dungeon Beta",
+  "DangerLabel": "Risky",
+  "StyleLabel": "Goblin-heavy / Loot-heavy",
+  "CanonicalRoute": {
+    "RouteId": "safe",
+    "RouteMeaningId": "route-guarded-balanced",
+    "RouteLabel": "Guarded Path",
+    "Description": "A watch path with steady goblin pressure and a guarded elite finish for Beta.",
+    "EncounterPreview": "Scout Pair -> Guarded Vault -> Goblin Captain",
+    "BattleLootAmount": 18,
+    "RecoverAmount": 4,
+    "BonusLootAmount": 6,
+    "ChestRewardAmount": 4,
+    "RepresentativeEncounterId": "encounter-room-1",
+    "RepresentativeBattleLabel": "Scout Gate",
+    "Rooms": [
+      {
+        "RoomId": "beta-safe-skirmish-1",
+        "DisplayName": "Scout Gate",
+        "RoomTypeLabel": "Skirmish Room",
+        "RoomType": "Skirmish",
+        "MarkerKey": "room1Encounter",
+        "EncounterId": "encounter-room-1",
+        "EncounterProfileId": "encounter-profile-opening-skirmish",
+        "BattleSetupId": "battle-setup-beta-safe-room1"
+      },
+      {
+        "RoomId": "beta-safe-shrine",
+        "DisplayName": "Watchfire Shrine",
+        "RoomTypeLabel": "Shrine Room",
+        "RoomType": "Shrine",
+        "MarkerKey": "shrine",
+        "EncounterId": ""
+      },
+      {
+        "RoomId": "beta-safe-cache",
+        "DisplayName": "Guard Cache",
+        "RoomTypeLabel": "Cache Room",
+        "RoomType": "Cache",
+        "MarkerKey": "cache",
+        "EncounterId": ""
+      },
+      {
+        "RoomId": "beta-safe-skirmish-2",
+        "DisplayName": "Guarded Vault",
+        "RoomTypeLabel": "Skirmish Room",
+        "RoomType": "Skirmish",
+        "MarkerKey": "room2Encounter",
+        "EncounterId": "encounter-room-2",
+        "EncounterProfileId": "encounter-profile-midrun-skirmish",
+        "BattleSetupId": "battle-setup-beta-safe-room2"
+      },
+      {
+        "RoomId": "beta-safe-prep",
+        "DisplayName": "Guard Muster",
+        "RoomTypeLabel": "Preparation Room",
+        "RoomType": "Preparation",
+        "MarkerKey": "prep",
+        "EncounterId": ""
+      },
+      {
+        "RoomId": "dungeon-beta-elite",
+        "DisplayName": "Elite Chamber",
+        "RoomTypeLabel": "Elite Chamber",
+        "RoomType": "Elite",
+        "MarkerKey": "elite",
+        "EncounterId": "encounter-room-elite",
+        "EncounterProfileId": "encounter-profile-elite-chamber",
+        "BattleSetupId": "battle-setup-beta-safe-elite"
+      }
+    ]
+  }
+}

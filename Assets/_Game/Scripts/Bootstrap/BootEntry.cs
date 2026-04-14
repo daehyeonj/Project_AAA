@@ -37,6 +37,8 @@ public sealed class BootEntry : MonoBehaviour
     public string DebugStepLabel => GetText("StepLabel");
     public string CurrentStateLabel => HasGameFlowCoordinator ? CurrentState.ToString() : "(missing)";
     public string LastTransitionLabel => LastTransition;
+    public AppFlowStage CurrentAppFlowStage => BuildCurrentAppFlowStage();
+    public AppFlowContext CurrentAppFlowContext => BuildCurrentAppFlowContext();
     public int VisibleCityCount => StaticPlaceholderWorldView.CityCount;
     public int VisibleDungeonCount => StaticPlaceholderWorldView.DungeonCount;
     public int VisibleRoadCount => StaticPlaceholderWorldView.RoadCount;
@@ -234,8 +236,11 @@ public sealed class BootEntry : MonoBehaviour
     public bool IsDungeonBattleViewActive => _worldView != null && _worldView.IsBattleViewActive;
     // Legacy fallback bridge only. ExpeditionPrep owns the normal launch seam.
     public bool IsLegacyDungeonRouteChoiceVisible => _worldView != null && _worldView.IsDungeonRouteChoiceVisible;
+    public bool IsDungeonRouteChoiceVisible => IsExpeditionPrepBoardOpen || IsLegacyDungeonRouteChoiceVisible;
     public bool IsDungeonRunEventDecisionVisible => _worldView != null && _worldView.IsDungeonEventChoiceVisible;
+    public bool IsDungeonEventChoiceVisible => IsDungeonRunEventDecisionVisible;
     public bool IsDungeonRunPreEliteDecisionVisible => _worldView != null && _worldView.IsDungeonPreEliteChoiceVisible;
+    public bool IsDungeonPreEliteChoiceVisible => IsDungeonRunPreEliteDecisionVisible;
     public bool IsDungeonResultPanelVisible => _worldView != null && _worldView.IsDungeonResultPanelVisible;
     public string DungeonRunStateLabel => _worldView != null ? _worldView.DungeonRunStateText : "None";
     public string CurrentDungeonRunLabel => _worldView != null ? _worldView.CurrentDungeonRunText : "None";
@@ -278,6 +283,23 @@ public sealed class BootEntry : MonoBehaviour
     public string LegacyDungeonRouteChoiceTitleLabel => _worldView != null ? _worldView.RouteChoiceTitleText : "None";
     public string LegacyDungeonRouteChoiceDescriptionLabel => _worldView != null ? _worldView.RouteChoiceDescriptionText : "None";
     public string LegacyDungeonRouteChoicePromptLabel => _worldView != null ? _worldView.RouteChoicePromptText : "None";
+    public string RouteChoiceTitleLabel => IsExpeditionPrepBoardOpen
+        ? GetMeaningfulPrepText(GetCurrentExpeditionPrepSurfaceData().BoardTitleText, LegacyDungeonRouteChoiceTitleLabel)
+        : LegacyDungeonRouteChoiceTitleLabel;
+    public string RouteChoiceDescriptionLabel => IsExpeditionPrepBoardOpen
+        ? GetMeaningfulPrepText(
+            GetCurrentExpeditionPrepSurfaceData().RouteFitSummaryText,
+            GetMeaningfulPrepText(
+                GetCurrentExpeditionPrepSurfaceData().ProjectedOutcomeSummaryText,
+                GetCurrentExpeditionPrepSurfaceData().BoardSummaryText))
+        : LegacyDungeonRouteChoiceDescriptionLabel;
+    public string RouteChoicePromptLabel => IsExpeditionPrepBoardOpen
+        ? GetMeaningfulPrepText(
+            GetCurrentExpeditionPrepSurfaceData().LaunchGateSummaryText,
+            GetMeaningfulPrepText(
+                GetCurrentExpeditionPrepSurfaceData().FeedbackText,
+                GetCurrentExpeditionPrepSurfaceData().CommitReasonText))
+        : LegacyDungeonRouteChoicePromptLabel;
     public string LegacyDungeonRouteOption1Label => _worldView != null ? _worldView.RouteOption1Text : "None";
     public string LegacyDungeonRouteOption2Label => _worldView != null ? _worldView.RouteOption2Text : "None";
     public string DungeonRunEventDecisionTitleLabel => _worldView != null ? _worldView.EventTitleText : "None";
@@ -391,6 +413,16 @@ public sealed class BootEntry : MonoBehaviour
     public PrototypeBattleUiSurfaceData GetBattleUiSurfaceData()
     {
         return _worldView != null ? _worldView.BuildBattleUiSurfaceData() : new PrototypeBattleUiSurfaceData();
+    }
+
+    public PrototypeBattleRequest GetBattleRequest()
+    {
+        return _worldView != null ? _worldView.GetBattleRequest() : new PrototypeBattleRequest();
+    }
+
+    public WorldBoardReadModel GetWorldBoardReadModel()
+    {
+        return _worldView != null ? _worldView.BuildWorldBoardReadModel() : WorldBoardReadModel.Empty;
     }
 
     public PrototypeDungeonRunShellSurfaceData GetDungeonRunShellSurfaceData()
@@ -887,6 +919,32 @@ public sealed class BootEntry : MonoBehaviour
         return _worldView != null && _worldView.IsRouteChoiceAvailable(optionKey);
     }
 
+    public bool IsRouteChoiceAvailable(string optionKey)
+    {
+        if (IsExpeditionPrepBoardOpen)
+        {
+            ExpeditionPrepSurfaceData surface = GetCurrentExpeditionPrepSurfaceData();
+            ExpeditionPrepRouteOptionData[] options = surface != null ? surface.RouteOptions : null;
+            if (options == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < options.Length; i++)
+            {
+                ExpeditionPrepRouteOptionData option = options[i];
+                if (option != null && option.OptionKey == (optionKey ?? string.Empty))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return IsLegacyDungeonRouteChoiceAvailable(optionKey);
+    }
+
     public bool IsLegacyDungeonRouteChoiceHovered(string optionKey)
     {
         return _worldView != null && _worldView.IsRouteChoiceHovered(optionKey);
@@ -910,14 +968,35 @@ public sealed class BootEntry : MonoBehaviour
         return _worldView != null && _worldView.CanConfirmRouteChoice();
     }
 
+    public bool CanConfirmRouteChoice()
+    {
+        return IsExpeditionPrepBoardOpen
+            ? GetCurrentExpeditionPrepSurfaceData().CanConfirmLaunch
+            : CanConfirmLegacyDungeonRouteChoice();
+    }
+
     public bool TryConfirmLegacyDungeonRouteChoice()
     {
         return _worldView != null && _worldView.TryConfirmRouteChoice();
     }
 
+    public bool TryConfirmRouteChoice()
+    {
+        return IsExpeditionPrepBoardOpen
+            ? TryConfirmSelectedExpeditionLaunch()
+            : TryConfirmLegacyDungeonRouteChoice();
+    }
+
     public bool TryTriggerLegacyDungeonRouteChoice(string optionKey)
     {
         return _worldView != null && _worldView.TryTriggerRouteChoice(optionKey);
+    }
+
+    public bool TryTriggerRouteChoice(string optionKey)
+    {
+        return IsExpeditionPrepBoardOpen
+            ? TrySelectExpeditionPrepRoute(optionKey)
+            : TryTriggerLegacyDungeonRouteChoice(optionKey);
     }
 
     public void SetDungeonPanelLaneHover(string optionKey)
@@ -966,6 +1045,11 @@ public sealed class BootEntry : MonoBehaviour
         return _worldView != null && _worldView.TryTriggerEventChoice(optionKey);
     }
 
+    public bool TryTriggerEventChoice(string optionKey)
+    {
+        return TryTriggerDungeonRunEventDecision(optionKey);
+    }
+
     public bool IsDungeonRunPreEliteDecisionAvailable(string optionKey)
     {
         return _worldView != null && _worldView.IsPreEliteChoiceAvailable(optionKey);
@@ -993,6 +1077,12 @@ public sealed class BootEntry : MonoBehaviour
     {
         return _worldView != null && _worldView.TryTriggerPreEliteChoice(optionKey);
     }
+
+    public bool TryTriggerPreEliteChoice(string optionKey)
+    {
+        return TryTriggerDungeonRunPreEliteDecision(optionKey);
+    }
+
     private void HandleWorldSimEconomyInput(Keyboard keyboard)
     {
         if (keyboard == null || _worldView == null)
@@ -1090,6 +1180,225 @@ public sealed class BootEntry : MonoBehaviour
         }
 
         return _cachedWorldObservationSurfaceData;
+    }
+
+    private void ApplyCurrentAppFlowPresentation(bool force = false)
+    {
+        if (force)
+        {
+            _cachedWorldObservationSurfaceFrame = -1;
+            _cachedWorldObservationSurfaceData = null;
+            _cachedCityHubUiSurfaceFrame = -1;
+            _cachedCityHubUiSurfaceData = null;
+            _cachedCityInteractionPresentationSurfaceFrame = -1;
+            _cachedCityInteractionPresentationSurfaceData = null;
+        }
+
+        GetCurrentAppFlowObservedSnapshot();
+    }
+
+    private AppFlowObservedSnapshot GetCurrentAppFlowObservedSnapshot()
+    {
+        AppFlowObservedSnapshot snapshot = _worldView != null
+            ? _worldView.BuildAppFlowSnapshot()
+            : new AppFlowObservedSnapshot();
+
+        if (IsWorldSimActive && IsExpeditionPrepBoardOpen)
+        {
+            snapshot.ObservedStage = AppFlowStage.ExpeditionPrep;
+        }
+        else if (_worldView == null)
+        {
+            snapshot.ObservedStage = CurrentState == GameStateId.DungeonRun
+                ? AppFlowStage.DungeonRun
+                : CurrentState == GameStateId.MainMenu
+                    ? AppFlowStage.MainMenu
+                    : CurrentState == GameStateId.Boot
+                        ? AppFlowStage.Boot
+                        : AppFlowStage.WorldSim;
+        }
+
+        return snapshot;
+    }
+
+    private AppFlowStage BuildCurrentAppFlowStage()
+    {
+        if (!HasGameFlowCoordinator)
+        {
+            return AppFlowStage.Boot;
+        }
+
+        if (CurrentState == GameStateId.Boot)
+        {
+            return AppFlowStage.Boot;
+        }
+
+        if (CurrentState == GameStateId.MainMenu)
+        {
+            return AppFlowStage.MainMenu;
+        }
+
+        return GetCurrentAppFlowObservedSnapshot().ObservedStage;
+    }
+
+    private AppFlowContext BuildCurrentAppFlowContext()
+    {
+        AppFlowObservedSnapshot snapshot = GetCurrentAppFlowObservedSnapshot();
+        AppFlowContext context = new AppFlowContext();
+        context.WorldSelection = snapshot.WorldSelection ?? new AppFlowWorldSelection();
+        context.ActiveExpeditionPlan = snapshot.ActiveExpeditionPlan ?? new AppFlowExpeditionPlan();
+        context.CurrentDungeonRun = snapshot.CurrentDungeonRun ?? new AppFlowDungeonRunContext();
+        context.PendingBattle = snapshot.PendingBattle ?? new AppFlowBattleContext();
+        context.LatestResult = snapshot.LatestResult ?? new AppFlowResultContext();
+        BackfillCurrentDungeonRunContext(context);
+        return context;
+    }
+
+    private static string GetMeaningfulPrepText(string primary, string fallback)
+    {
+        return !string.IsNullOrEmpty(primary) && primary != "None"
+            ? primary
+            : !string.IsNullOrEmpty(fallback) && fallback != "None"
+                ? fallback
+                : "None";
+    }
+
+    private void BackfillCurrentDungeonRunContext(AppFlowContext context)
+    {
+        if (context == null)
+        {
+            return;
+        }
+
+        AppFlowDungeonRunContext runContext = context.CurrentDungeonRun ?? new AppFlowDungeonRunContext();
+        ExpeditionRunState runState = runContext.RunState ?? new ExpeditionRunState();
+        bool hasConfirmedLaunchPlan = HasConfirmedLaunchPlan(runContext.LaunchPlan);
+        bool hasRunIdentity = HasCompatText(runState.OriginCityId) ||
+                              HasCompatText(runState.TargetDungeonId) ||
+                              HasCompatText(runState.RouteId);
+        if (!hasConfirmedLaunchPlan && !hasRunIdentity)
+        {
+            return;
+        }
+
+        if (!hasConfirmedLaunchPlan)
+        {
+            runContext.LaunchPlan = BuildCompatibilityLaunchPlan(runState);
+        }
+
+        BackfillRunStateFromCompatibilityLaunchPlan(runContext, runState, runContext.LaunchPlan);
+        runContext.RunState = runState;
+        context.CurrentDungeonRun = runContext;
+    }
+
+    private void BackfillRunStateFromCompatibilityLaunchPlan(
+        AppFlowDungeonRunContext runContext,
+        ExpeditionRunState runState,
+        ExpeditionPlan launchPlan)
+    {
+        if (runState == null || launchPlan == null)
+        {
+            return;
+        }
+
+        runState.LaunchPlan = HasConfirmedLaunchPlan(runState.LaunchPlan) ? runState.LaunchPlan : launchPlan;
+        runState.OriginCityId = ChooseCompatValue(runState.OriginCityId, launchPlan.OriginCityId);
+        runState.OriginCityLabel = GetMeaningfulPrepText(runState.OriginCityLabel, launchPlan.OriginCityLabel);
+        runState.TargetDungeonId = ChooseCompatValue(runState.TargetDungeonId, launchPlan.TargetDungeonId);
+        runState.TargetDungeonLabel = GetMeaningfulPrepText(runState.TargetDungeonLabel, launchPlan.TargetDungeonLabel);
+        runState.RouteId = ChooseCompatValue(runState.RouteId, launchPlan.SelectedRoute != null ? launchPlan.SelectedRoute.RouteId : string.Empty);
+        runState.RouteLabel = GetMeaningfulPrepText(runState.RouteLabel, launchPlan.SelectedRoute != null ? launchPlan.SelectedRoute.RouteLabel : string.Empty);
+        runState.RouteRiskText = GetMeaningfulPrepText(runState.RouteRiskText, launchPlan.SelectedRoute != null ? launchPlan.SelectedRoute.RiskLevelText : string.Empty);
+        runState.ObjectiveText = GetMeaningfulPrepText(runState.ObjectiveText, launchPlan.ObjectiveText);
+        runState.WhyNowText = GetMeaningfulPrepText(runState.WhyNowText, launchPlan.WhyNowText);
+        runState.ExpectedUsefulnessText = GetMeaningfulPrepText(runState.ExpectedUsefulnessText, launchPlan.ExpectedUsefulnessText);
+        runState.RiskRewardPreviewText = GetMeaningfulPrepText(runState.RiskRewardPreviewText, launchPlan.RiskRewardPreviewText);
+        runState.PlanSummaryText = GetMeaningfulPrepText(runState.PlanSummaryText, launchPlan.SummaryText);
+        runState.PartyId = ChooseCompatValue(runState.PartyId, launchPlan.PartyId);
+        runState.PartySummaryText = GetMeaningfulPrepText(runState.PartySummaryText, launchPlan.PartySummaryText);
+
+        if (runContext == null)
+        {
+            return;
+        }
+
+        runContext.CityId = ChooseCompatValue(runContext.CityId, runState.OriginCityId);
+        runContext.CityLabel = GetMeaningfulPrepText(runContext.CityLabel, runState.OriginCityLabel);
+        runContext.DungeonId = ChooseCompatValue(runContext.DungeonId, runState.TargetDungeonId);
+        runContext.DungeonLabel = GetMeaningfulPrepText(runContext.DungeonLabel, runState.TargetDungeonLabel);
+        runContext.RouteId = ChooseCompatValue(runContext.RouteId, runState.RouteId);
+        runContext.RouteLabel = GetMeaningfulPrepText(runContext.RouteLabel, runState.RouteLabel);
+        runContext.PartyId = ChooseCompatValue(runContext.PartyId, runState.PartyId);
+    }
+
+    private ExpeditionPlan BuildCompatibilityLaunchPlan(ExpeditionRunState runState)
+    {
+        ExpeditionRunState safeRunState = runState ?? new ExpeditionRunState();
+        ExpeditionLaunchRequest launchRequest = GetSelectedExpeditionLaunchRequest();
+        ExpeditionPrepSurfaceData prepSurface = GetCurrentExpeditionPrepSurfaceData();
+        ExpeditionPlan plan = safeRunState.LaunchPlan ?? new ExpeditionPlan();
+        if (HasConfirmedLaunchPlan(plan))
+        {
+            return plan;
+        }
+
+        string originCityId = ChooseCompatValue(safeRunState.OriginCityId, launchRequest.CityId);
+        string targetDungeonId = ChooseCompatValue(safeRunState.TargetDungeonId, launchRequest.DungeonId);
+        string selectedRouteId = ChooseCompatValue(safeRunState.RouteId, launchRequest.SelectedRouteId);
+        string recommendedRouteId = ChooseCompatValue(launchRequest.RecommendedRouteId, prepSurface.RecommendedRouteId);
+
+        plan.IsConfirmed = true;
+        plan.OriginCityId = originCityId;
+        plan.OriginCityLabel = GetMeaningfulPrepText(safeRunState.OriginCityLabel, launchRequest.CityLabel);
+        plan.TargetDungeonId = targetDungeonId;
+        plan.TargetDungeonLabel = GetMeaningfulPrepText(safeRunState.TargetDungeonLabel, launchRequest.DungeonLabel);
+        plan.PartyId = ChooseCompatValue(safeRunState.PartyId, launchRequest.StagedPartyId);
+        plan.PartySummaryText = GetMeaningfulPrepText(safeRunState.PartySummaryText, prepSurface.StagedPartySummaryText);
+        plan.ObjectiveText = GetMeaningfulPrepText(safeRunState.ObjectiveText, prepSurface.BoardSummaryText);
+        plan.WhyNowText = GetMeaningfulPrepText(safeRunState.WhyNowText, prepSurface.RecommendationReasonText);
+        plan.ExpectedUsefulnessText = GetMeaningfulPrepText(safeRunState.ExpectedUsefulnessText, prepSurface.ProjectedOutcomeSummaryText);
+        plan.RiskRewardPreviewText = GetMeaningfulPrepText(safeRunState.RiskRewardPreviewText, prepSurface.RoutePreviewSummaryText);
+        plan.RecommendedRouteId = recommendedRouteId;
+        plan.FollowedRecommendation = HasCompatText(selectedRouteId) && selectedRouteId == recommendedRouteId;
+        plan.SelectedRoute = new RouteChoice
+        {
+            RouteId = selectedRouteId,
+            RouteLabel = GetMeaningfulPrepText(safeRunState.RouteLabel, launchRequest.SelectedRouteLabel),
+            RiskLevelText = GetMeaningfulPrepText(safeRunState.RouteRiskText, prepSurface.StartContext != null ? prepSurface.StartContext.RouteRiskLabel : string.Empty),
+            RewardPreviewText = GetMeaningfulPrepText(prepSurface.RewardPreviewText, prepSurface.StartContext != null ? prepSurface.StartContext.RewardPreviewSummaryText : string.Empty),
+            ExpectedNeedImpactText = GetMeaningfulPrepText(launchRequest.ExpectedNeedImpactText, prepSurface.ExpectedNeedImpactText),
+            IsSelected = true,
+            IsRecommended = HasCompatText(selectedRouteId) && selectedRouteId == recommendedRouteId
+        };
+        plan.LaunchReadiness = prepSurface != null && prepSurface.LaunchReadiness != null
+            ? prepSurface.LaunchReadiness
+            : new LaunchReadiness
+            {
+                CanLaunch = true,
+                SummaryText = GetMeaningfulPrepText(launchRequest.LaunchGateSummaryText, "Launch ready.")
+            };
+        plan.SummaryText = GetMeaningfulPrepText(safeRunState.PlanSummaryText, prepSurface.BoardSummaryText);
+        return plan;
+    }
+
+    private static bool HasConfirmedLaunchPlan(ExpeditionPlan plan)
+    {
+        return plan != null &&
+               plan.IsConfirmed &&
+               HasCompatText(plan.OriginCityId) &&
+               HasCompatText(plan.TargetDungeonId) &&
+               plan.SelectedRoute != null &&
+               HasCompatText(plan.SelectedRoute.RouteId);
+    }
+
+    private static bool HasCompatText(string value)
+    {
+        return !string.IsNullOrEmpty(value) && value != "None";
+    }
+
+    private static string ChooseCompatValue(string primary, string fallback)
+    {
+        return !string.IsNullOrEmpty(primary) ? primary : !string.IsNullOrEmpty(fallback) ? fallback : string.Empty;
     }
 
     private CityHubSurfaceData GetCurrentCityHubSurfaceData()

@@ -1,4 +1,4 @@
-public sealed class LaunchReadiness
+public sealed partial class LaunchReadiness
 {
     public bool IsReady;
     public string ReadinessKey = "none";
@@ -9,7 +9,6 @@ public sealed class LaunchReadiness
     public string RecoveryEtaText = "None";
     public string RecommendationReasonText = "None";
     public string ExpectedNeedImpactText = "None";
-    public string SummaryText = "None";
     public string RecommendedActionText = "None";
     public GateResult GateResult = new GateResult();
 }

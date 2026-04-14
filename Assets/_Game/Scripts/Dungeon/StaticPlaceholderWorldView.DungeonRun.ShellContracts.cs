@@ -2296,9 +2296,15 @@ public sealed partial class StaticPlaceholderWorldView
             return copy;
         }
 
+        copy.SourceCityId = string.IsNullOrEmpty(source.SourceCityId) ? string.Empty : source.SourceCityId;
+        copy.SourceCityLabel = string.IsNullOrEmpty(source.SourceCityLabel) ? "None" : source.SourceCityLabel;
+        copy.TargetDungeonId = string.IsNullOrEmpty(source.TargetDungeonId) ? string.Empty : source.TargetDungeonId;
+        copy.TargetDungeonLabel = string.IsNullOrEmpty(source.TargetDungeonLabel) ? "None" : source.TargetDungeonLabel;
         copy.CityId = string.IsNullOrEmpty(source.CityId) ? string.Empty : source.CityId;
         copy.CityLabel = string.IsNullOrEmpty(source.CityLabel) ? "None" : source.CityLabel;
         copy.ResultStateKey = string.IsNullOrEmpty(source.ResultStateKey) ? string.Empty : source.ResultStateKey;
+        copy.Success = source.Success;
+        copy.SummaryText = string.IsNullOrEmpty(source.SummaryText) ? "None" : source.SummaryText;
         copy.AcknowledgementText = string.IsNullOrEmpty(source.AcknowledgementText) ? "None" : source.AcknowledgementText;
         copy.LatestReturnAftermathText = string.IsNullOrEmpty(source.LatestReturnAftermathText) ? "None" : source.LatestReturnAftermathText;
         copy.PostRunSummaryText = string.IsNullOrEmpty(source.PostRunSummaryText) ? "None" : source.PostRunSummaryText;
@@ -2324,6 +2330,14 @@ public sealed partial class StaticPlaceholderWorldView
         copy.DispatchReadinessBeforeText = string.IsNullOrEmpty(source.DispatchReadinessBeforeText) ? "None" : source.DispatchReadinessBeforeText;
         copy.DispatchReadinessAfterText = string.IsNullOrEmpty(source.DispatchReadinessAfterText) ? "None" : source.DispatchReadinessAfterText;
         copy.RecoveryEtaText = string.IsNullOrEmpty(source.RecoveryEtaText) ? "None" : source.RecoveryEtaText;
+        copy.MissionObjectiveText = string.IsNullOrEmpty(source.MissionObjectiveText) ? "None" : source.MissionObjectiveText;
+        copy.MissionRelevanceText = string.IsNullOrEmpty(source.MissionRelevanceText) ? "None" : source.MissionRelevanceText;
+        copy.RiskRewardContextText = string.IsNullOrEmpty(source.RiskRewardContextText) ? "None" : source.RiskRewardContextText;
+        copy.RunPathSummaryText = string.IsNullOrEmpty(source.RunPathSummaryText) ? "None" : source.RunPathSummaryText;
+        copy.OutcomeMeaningId = string.IsNullOrEmpty(source.OutcomeMeaningId) ? string.Empty : source.OutcomeMeaningId;
+        copy.OutcomeRewardMeaningText = string.IsNullOrEmpty(source.OutcomeRewardMeaningText) ? "None" : source.OutcomeRewardMeaningText;
+        copy.CityImpactMeaningText = string.IsNullOrEmpty(source.CityImpactMeaningText) ? "None" : source.CityImpactMeaningText;
+        copy.RecommendationShiftText = string.IsNullOrEmpty(source.RecommendationShiftText) ? "None" : source.RecommendationShiftText;
         copy.GearRewardSummaryText = string.IsNullOrEmpty(source.GearRewardSummaryText) ? "None" : source.GearRewardSummaryText;
         copy.EquipSwapSummaryText = string.IsNullOrEmpty(source.EquipSwapSummaryText) ? "None" : source.EquipSwapSummaryText;
         copy.GearContinuitySummaryText = string.IsNullOrEmpty(source.GearContinuitySummaryText) ? "None" : source.GearContinuitySummaryText;
@@ -2333,6 +2347,11 @@ public sealed partial class StaticPlaceholderWorldView
         copy.RecentWorldWritebackLog1Text = string.IsNullOrEmpty(source.RecentWorldWritebackLog1Text) ? "None" : source.RecentWorldWritebackLog1Text;
         copy.RecentWorldWritebackLog2Text = string.IsNullOrEmpty(source.RecentWorldWritebackLog2Text) ? "None" : source.RecentWorldWritebackLog2Text;
         copy.RecentWorldWritebackLog3Text = string.IsNullOrEmpty(source.RecentWorldWritebackLog3Text) ? "None" : source.RecentWorldWritebackLog3Text;
+        copy.CityStatusChangeSummaryText = string.IsNullOrEmpty(source.CityStatusChangeSummaryText) ? "None" : source.CityStatusChangeSummaryText;
+        copy.ExpeditionLogEntryText = string.IsNullOrEmpty(source.ExpeditionLogEntryText) ? "None" : source.ExpeditionLogEntryText;
+        copy.PartyConditionText = string.IsNullOrEmpty(source.PartyConditionText) ? "None" : source.PartyConditionText;
+        copy.PartyHpSummaryText = string.IsNullOrEmpty(source.PartyHpSummaryText) ? "None" : source.PartyHpSummaryText;
+        copy.EliteSummaryText = string.IsNullOrEmpty(source.EliteSummaryText) ? "None" : source.EliteSummaryText;
         return copy;
     }
 }

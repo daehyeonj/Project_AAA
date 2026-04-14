@@ -1,0 +1,84 @@
+{
+  "ChainId": "city-b-dungeon-beta-greedy-path",
+  "CityId": "city-b",
+  "PrimaryCityDungeonDefinition": true,
+  "BottleneckResourceId": "refined_mana",
+  "BottleneckSummaryText": "City B stalls its refined_mana line when mana_shard inputs dry up.",
+  "MissionObjectiveText": "Launch Dungeon Beta to recover mana_shard so City B can reopen refined_mana processing.",
+  "RewardResourceId": "mana_shard",
+  "OutcomeMeaningId": "outcome-mana-shard-city-b-processing",
+  "CityDecisionMeaningId": "city-decision-city-b-processing-restart",
+  "DungeonId": "dungeon-beta",
+  "DungeonLabel": "Dungeon Beta",
+  "DangerLabel": "Risky",
+  "StyleLabel": "Goblin-heavy / Loot-heavy",
+  "CanonicalRoute": {
+    "RouteId": "risky",
+    "RouteMeaningId": "route-greedy-high-risk",
+    "RouteLabel": "Greedy Path",
+    "Description": "A vault route full of goblin ambushes and a raider elite guarding the exit.",
+    "EncounterPreview": "Goblin Scouts -> Vault Ambush -> Raider Chief",
+    "BattleLootAmount": 24,
+    "RecoverAmount": 2,
+    "BonusLootAmount": 9,
+    "ChestRewardAmount": 6,
+    "RepresentativeEncounterId": "encounter-room-1",
+    "RepresentativeBattleLabel": "Raider Gate",
+    "Rooms": [
+      {
+        "RoomId": "beta-risky-skirmish-1",
+        "DisplayName": "Raider Gate",
+        "RoomTypeLabel": "Skirmish Room",
+        "RoomType": "Skirmish",
+        "MarkerKey": "room1Encounter",
+        "EncounterId": "encounter-room-1",
+        "EncounterProfileId": "encounter-profile-opening-skirmish",
+        "BattleSetupId": "battle-setup-beta-risky-room1"
+      },
+      {
+        "RoomId": "beta-risky-cache",
+        "DisplayName": "Plunder Cache",
+        "RoomTypeLabel": "Cache Room",
+        "RoomType": "Cache",
+        "MarkerKey": "shrine",
+        "EncounterId": ""
+      },
+      {
+        "RoomId": "beta-risky-skirmish-2",
+        "DisplayName": "Ambush Hall",
+        "RoomTypeLabel": "Skirmish Room",
+        "RoomType": "Skirmish",
+        "MarkerKey": "room2Encounter",
+        "EncounterId": "encounter-room-2",
+        "EncounterProfileId": "encounter-profile-midrun-skirmish",
+        "BattleSetupId": "battle-setup-beta-risky-room2"
+      },
+      {
+        "RoomId": "beta-risky-shrine",
+        "DisplayName": "War Banner Shrine",
+        "RoomTypeLabel": "Shrine Room",
+        "RoomType": "Shrine",
+        "MarkerKey": "room2event",
+        "EncounterId": ""
+      },
+      {
+        "RoomId": "beta-risky-prep",
+        "DisplayName": "War Table",
+        "RoomTypeLabel": "Preparation Room",
+        "RoomType": "Preparation",
+        "MarkerKey": "prep",
+        "EncounterId": ""
+      },
+      {
+        "RoomId": "dungeon-beta-elite",
+        "DisplayName": "Elite Chamber",
+        "RoomTypeLabel": "Elite Chamber",
+        "RoomType": "Elite",
+        "MarkerKey": "elite",
+        "EncounterId": "encounter-room-elite",
+        "EncounterProfileId": "encounter-profile-elite-chamber",
+        "BattleSetupId": "battle-setup-beta-risky-elite"
+      }
+    ]
+  }
+}

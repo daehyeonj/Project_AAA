@@ -11,6 +11,10 @@ public sealed class PrototypeBattleUiSurfaceData
     public string CurrentRouteLabel = "None";
     public string EncounterName = "None";
     public string EncounterRoomType = "None";
+    public string MissionObjectiveText = "None";
+    public string MissionRewardPreviewText = "None";
+    public string MissionRiskContextText = "None";
+    public string MissionIntentSummaryText = "None";
     public string PartyCondition = "None";
     public string TotalPartyHp = "None";
     public string EliteStatusText = "None";

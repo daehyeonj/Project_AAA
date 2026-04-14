@@ -1,0 +1,7 @@
+{
+  "OutcomeMeaningId": "outcome-mana-shard-city-a",
+  "RewardResourceId": "mana_shard",
+  "RewardMeaningText": "Dungeon Alpha is the main expedition lever connected to this city right now.",
+  "CityImpactMeaningText": "Stabilizes the next dispatch window once mana_shard stock returns.",
+  "RecommendationShiftText": "Mana shard pressure eased, so City A can push the next stable dispatch instead of waiting."
+}

@@ -1,0 +1,8 @@
+{
+  "BattleSetupId": "battle-setup-alpha-risky-room1",
+  "EnemyGroupLabel": "Mixed Front Pair",
+  "SetupSummaryText": "A slime bulwark and goblin striker contest the faster shard push.",
+  "RetreatAllowed": true,
+  "WinRelevanceText": "Breaking the mixed front keeps the Standard Path on pace for the sharper shard payout.",
+  "LossRelevanceText": "Failing here collapses the route before the riskier shard swing materializes."
+}

@@ -1,14 +1,11 @@
-public sealed class PrototypeBattleRuntimeState
+public sealed partial class PrototypeBattleRuntimeState
 {
     public string BattleId = string.Empty;
     public string EncounterId = string.Empty;
     public string LaneRuleSetKey = string.Empty;
     public string PositionRuleKey = string.Empty;
-    public string BattleStateKey = string.Empty;
     public string PhaseKey = string.Empty;
-    public string PhaseLabel = string.Empty;
     public int TurnIndex;
-    public string CurrentActorId = string.Empty;
     public string CurrentActorLaneKey = string.Empty;
     public string CurrentActorLaneLabel = string.Empty;
     public string QueuedActionKey = string.Empty;
@@ -26,6 +23,5 @@ public sealed class PrototypeBattleRuntimeState
     public string TimelineSummaryText = string.Empty;
     public int RecentEventCount;
     public string RecentEventSummaryText = string.Empty;
-    public bool IsTargetSelectionActive;
     public bool IsEnemyTurnActive;
 }

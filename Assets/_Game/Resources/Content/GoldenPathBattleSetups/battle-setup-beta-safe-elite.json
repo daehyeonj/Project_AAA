@@ -1,0 +1,10 @@
+{
+  "BattleSetupId": "battle-setup-beta-safe-elite",
+  "EnemyGroupLabel": "Goblin Captain",
+  "SetupSummaryText": "A disciplined captain defending the guarded payout room.",
+  "RetreatAllowed": true,
+  "WinRelevanceText": "Defeating the captain converts the guarded route into a steadier mana_shard return for City B.",
+  "LossRelevanceText": "Failing here leaves processing stalled after taking the safer but lower-ceiling route.",
+  "EliteTypeText": "Goblin Elite | Focused Command",
+  "RewardHintText": "Captain's Stash"
+}

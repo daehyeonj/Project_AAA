@@ -292,6 +292,48 @@
   - if the rail is saturated, do not pretend a retargetable helper or a new non-colliding seed already exists on the current surface
   - use the preflight output to justify either retargeting the draft off the current rail or widening the surfaced seam on purpose
 
+## What Batch 47 Clarifies
+
+- Draft retarget helpers:
+  - `Tools/Project AAA/Show Draft Retarget Candidate`
+  - `Tools/Project AAA/Create Retargeted Draft From Selected Draft`
+- Batch helper entry points:
+  - `GoldenPathAuthoringDraftHelper.RunBatchTemplateDraftRetargetSummary`
+  - `GoldenPathAuthoringDraftHelper.RunCreateBatchTemplateRetargetedDraft`
+- The helper now closes the gap between "current rail is saturated" and "what should I do next?" by reporting:
+  - the blocked draft's current resolver key and canonical owner
+  - a non-colliding off-rail retarget resolver key
+  - the retarget target draft asset path
+  - whether that retarget draft already exists
+- The current expected batch-template retarget state is:
+  - `BatchTemplateDraftRetargetState=candidate:existing-hidden-canonical-retarget`
+  - `BatchTemplateDraftRetargetResolverKey=city-a::dungeon-alpha::safe-off-rail-v1`
+  - `BatchTemplateDraftRetargetAsset=Assets/_Game/AuthoringDrafts/GoldenPathChains/draft-city-a-dungeon-alpha-safe-off-rail-v1.json`
+- Treat batch 47 as a retarget-helper proof batch, not as a hidden surfaced-expansion batch:
+  - the helper-created draft remains outside `Resources/Content/GoldenPathChains`
+  - the helper-created draft remains `hidden-canonical-if-promoted`
+  - the current Alpha/Beta surfaced `safe/risky` rail remains unchanged at four surfaced routes
+
+## What Batch 48 Clarifies
+
+- Hidden-canonical promotion helpers:
+  - `Tools/Project AAA/Show Hidden Canonical Promotion Summary`
+  - `Tools/Project AAA/Promote Selected Draft As Hidden Canonical`
+- Batch helper entry points:
+  - `GoldenPathAuthoringDraftHelper.RunBatchTemplateRetargetPromotionSummary`
+  - `GoldenPathAuthoringDraftHelper.RunPromoteBatchTemplateRetargetedDraft`
+- Batch 48 closes the next gap after retarget creation:
+  - a retargeted off-rail draft can now be moved into `Resources/Content/GoldenPathChains`
+  - it becomes canonical content with an owner-safe resolver key
+  - it stays hidden canonical because surfaced flags remain off
+- The current expected promoted hidden-canonical route is:
+  - `city-a::dungeon-alpha::safe-off-rail-v1`
+  - `Assets/_Game/Resources/Content/GoldenPathChains/city-a-dungeon-alpha-safe-off-rail-v1.json`
+- Treat batch 48 as off-surface promotion proof, not as surfaced expansion:
+  - the current surfaced Alpha/Beta portfolio remains the same four routes
+  - the promoted route should appear in surfaced-matrix/tooling output as `hidden-canonical` / `canonical-but-not-surfaced`
+  - that warning is expected for this off-surface proof batch and does not mean surfaced regression by itself
+
 ## How The Representative Chain Is Authored
 
 The current data-driven samples are:
@@ -359,14 +401,21 @@ The shared meaning assets currently own:
 - Run `Tools/Project AAA/Show Draft Promotion Readiness` before moving a draft into `Resources/Content/GoldenPathChains`; it tells you whether the draft collides with an existing canonical resolver key or still needs runtime surfacing support
 - Run `Tools/Project AAA/Show Draft Promotion Preflight` when you need the shortest honest answer to "is there any open supported resolver key on the current surfaced rail at all?"
 - Run `Tools/Project AAA/Quick Open Draft Promotion Context` after the readiness check when you need the blocked/promotable draft, the canonical owner, and the linked shared assets selected together for a real edit pass
+- Run `Tools/Project AAA/Show Draft Retarget Candidate` after readiness/preflight/context when the draft is blocked and you need the next non-colliding off-rail candidate instead of another reminder that the current rail is full
+- Run `Tools/Project AAA/Create Retargeted Draft From Selected Draft` when the retarget summary reports a `candidate:*hidden-canonical-retarget` state and you want the helper to materialize that off-rail draft under `Assets/_Game/AuthoringDrafts/GoldenPathChains/`
 - Read `BlockedByCanonicalOwner=` / `BlockedByRouteSurfaceExpansion=` / `PromotionRecommendation=` in the draft readiness summary before opening another surfaced-expansion batch:
   - `BlockedByCanonicalOwner>0` means the current surfaced/canonical rail already owns that resolver key
   - `BlockedByRouteSurfaceExpansion>0` means the draft sits outside the current `safe/risky` surfaced seam
   - `PromotionRecommendation=retarget-the-draft-resolver-key-before-promotion` means there is still at least one open supported slot, but the draft is currently pointing at the wrong owned key
   - `PromotionRecommendation=no-open-supported-resolver-key-on-current-rail` means the current surfaced rail is saturated and the next honest step is retarget-or-widen, not silent promotion
+  - `PromotionRecommendation=retarget-beyond-current-surface-rail-with-helper` means the current supported rail is still saturated, but the helper can now point at or create a non-colliding off-rail draft instead of leaving the next step ambiguous
 - Read `SupportedRailSlots=` / `OpenSupportedRailSlots=` / `OpenSupportedResolverKeys=` in the preflight or context summary when you need the rail-capacity answer instead of only the selected-draft answer:
   - `OpenSupportedRailSlots=None` plus `OpenSupportedResolverKeys=None` means the current Alpha/Beta `safe/risky` surfaced seam has no honest promotion slot left
   - `SupportedRailFit=supported-slot-owned-and-current-rail-saturated` means the selected draft is not just colliding with an owner, it is colliding on a currently full supported rail
+- Read `RetargetState=` / `RetargetResolverKey=` / `RetargetDraftAsset=` when the current supported rail is saturated:
+  - `candidate:create-hidden-canonical-retarget` means the helper found a non-colliding off-rail key and can create the draft for you
+  - `candidate:existing-hidden-canonical-retarget` means that off-rail draft already exists and should be reviewed instead of generated again
+  - `candidate:already-hidden-canonical-retarget` means the selected draft is already the off-rail hidden-canonical candidate
 - Read `SurfacedExpansionGate=` in the draft readiness or draft context summary when you want the draft helper and surfaced-portfolio tooling to answer the same question about current promotion headroom
 - Read `Consumer=` and `ConsumerSource=` in the surfaced matrix summary before treating a canonicalized route as truly surfaced; asset flags alone are no longer enough for surfaced promotion work
 - Read `Status=` / `StatusWhy=` in the surfaced matrix summary before promoting or debugging a route:
@@ -416,6 +465,8 @@ The shared meaning assets currently own:
 - In batch mode, run `GoldenPathAuthoringDraftHelper.RunDraftPromotionReadinessSummary` when you want a draft-folder audit that explains whether each hidden draft is promotable, colliding with an existing canonical route, or blocked by the current surfaced-route rail
 - In batch mode, run `GoldenPathAuthoringDraftHelper.RunDraftPromotionPreflightSummary` when you need the supported-rail slot inventory and the batch-template draft's fit against that rail in one log
 - In batch mode, run `GoldenPathAuthoringDraftHelper.RunBatchTemplateDraftPromotionContextSummary` when you want the current template draft plus its canonical owner/shared-asset comparison context summarized in one log
+- In batch mode, run `GoldenPathAuthoringDraftHelper.RunBatchTemplateDraftRetargetSummary` when you want the blocked template draft plus its off-rail retarget candidate summarized in one log
+- In batch mode, run `GoldenPathAuthoringDraftHelper.RunCreateBatchTemplateRetargetedDraft` when you want the helper to materialize the current batch-template retarget draft under `Assets/_Game/AuthoringDrafts/GoldenPathChains/`
 - Treat validator `FAIL` as a broken canonical rail:
   - missing chain definition
   - unresolved shared reference

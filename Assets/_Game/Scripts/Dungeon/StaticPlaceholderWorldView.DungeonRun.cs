@@ -38,10 +38,10 @@ public sealed partial class StaticPlaceholderWorldView
 
     private static readonly Vector3[] BattlePartyViewPositions =
     {
-        new Vector3(-6.0f, 1.15f, 0f),
-        new Vector3(-4.85f, 0.25f, 0f),
-        new Vector3(-5.75f, -0.75f, 0f),
-        new Vector3(-4.6f, -1.65f, 0f)
+        new Vector3(-6.10f, -1.00f, 0f),
+        new Vector3(-4.75f, -1.00f, 0f),
+        new Vector3(-3.40f, -1.00f, 0f),
+        new Vector3(-2.05f, -1.00f, 0f)
     };
 
     private enum DungeonRunState
@@ -837,6 +837,13 @@ public sealed partial class StaticPlaceholderWorldView
 
     public PrototypeBattleUiSurfaceData BuildBattleUiSurfaceData()
     {
+        EnsureBattleContracts();
+        PrototypeBattleViewModel battleViewModel = GetBattleViewModel();
+        if (battleViewModel != null && battleViewModel.HudSurface != null)
+        {
+            return battleViewModel.HudSurface;
+        }
+
         return BuildRpgOwnedBattleUiSurfaceData();
     }
 
@@ -6614,10 +6621,12 @@ public sealed partial class StaticPlaceholderWorldView
             Vector3 position = BattlePartyViewPositions[i];
             if (plateRenderer != null)
             {
-                plateRenderer.transform.localPosition = position + new Vector3(0f, -0.05f, 0f);
-                plateRenderer.transform.localScale = new Vector3(1.95f, 1.55f, 1f);
                 bool isCurrentActor = _battleState != BattleState.EnemyTurn && _currentActorIndex == i && !member.IsDefeated;
-                Color plateColor = isCurrentActor ? new Color(0.33f, 0.46f, 0.61f, 0.94f) : new Color(0.18f, 0.22f, 0.30f, 0.80f);
+                plateRenderer.transform.localPosition = position + (isCurrentActor ? new Vector3(0f, 0.08f, 0f) : new Vector3(0f, -0.05f, 0f));
+                plateRenderer.transform.localScale = isCurrentActor
+                    ? new Vector3(2.12f, 1.70f, 1f)
+                    : new Vector3(1.90f, 1.48f, 1f);
+                Color plateColor = isCurrentActor ? new Color(0.70f, 0.58f, 0.24f, 0.96f) : new Color(0.18f, 0.22f, 0.30f, 0.80f);
                 if (member.IsDefeated)
                 {
                     plateColor = new Color(0.14f, 0.14f, 0.14f, 0.52f);
@@ -6627,9 +6636,9 @@ public sealed partial class StaticPlaceholderWorldView
 
             if (viewRenderer != null)
             {
-                viewRenderer.transform.localPosition = position;
                 bool isCurrentActor = _battleState != BattleState.EnemyTurn && _currentActorIndex == i && !member.IsDefeated;
-                float scale = member.IsDefeated ? 1.12f : isCurrentActor ? 1.30f : 1.18f;
+                viewRenderer.transform.localPosition = position + (isCurrentActor ? new Vector3(0f, 0.10f, 0f) : Vector3.zero);
+                float scale = member.IsDefeated ? 1.08f : isCurrentActor ? 1.40f : 1.12f;
                 viewRenderer.transform.localScale = new Vector3(scale, scale, 1f);
                 Color viewColor = i == 0 ? new Color(0.73f, 0.50f, 0.29f, 1f)
                     : i == 1 ? new Color(0.36f, 0.69f, 0.60f, 1f)
@@ -6676,10 +6685,6 @@ public sealed partial class StaticPlaceholderWorldView
                 {
                     plateColor = new Color(0.14f, 0.14f, 0.14f, 0.48f);
                 }
-                else if (_battleState == BattleState.PartyTargetSelect && _activeBattleMonsterId == monster.MonsterId)
-                {
-                    plateColor = new Color(0.64f, 0.32f, 0.22f, 0.94f);
-                }
                 else if (_hoverBattleMonsterId == monster.MonsterId)
                 {
                     plateColor = new Color(0.46f, 0.33f, 0.24f, 0.90f);
@@ -6694,12 +6699,10 @@ public sealed partial class StaticPlaceholderWorldView
             if (viewRenderer != null)
             {
                 viewRenderer.transform.localPosition = position;
-                bool isSelected = _battleState == BattleState.PartyTargetSelect && _activeBattleMonsterId == monster.MonsterId && !monster.IsDefeated;
                 bool isHovered = _hoverBattleMonsterId == monster.MonsterId && !monster.IsDefeated;
                 bool isActing = _battleState == BattleState.EnemyTurn && _activeBattleMonsterId == monster.MonsterId && !monster.IsDefeated;
                 float scale = monster.IsElite ? 1.55f : 1.28f;
-                if (isSelected) scale += 0.16f;
-                else if (isHovered || isActing) scale += 0.10f;
+                if (isHovered || isActing) scale += 0.10f;
                 if (monster.IsDefeated) scale = monster.IsElite ? 1.30f : 1.12f;
                 viewRenderer.transform.localScale = new Vector3(scale, scale, 1f);
                 viewRenderer.color = GetBattleMonsterViewColor(monster, i);
@@ -6875,10 +6878,6 @@ public sealed partial class StaticPlaceholderWorldView
         else if (_battleState == BattleState.EnemyTurn && _activeBattleMonsterId == monster.MonsterId)
         {
             color = Color.Lerp(color, Color.white, 0.28f);
-        }
-        else if (_battleState == BattleState.PartyTargetSelect && _activeBattleMonsterId == monster.MonsterId)
-        {
-            color = Color.Lerp(color, new Color(1f, 0.70f, 0.46f, 1f), 0.40f);
         }
         else if (_hoverBattleMonsterId == monster.MonsterId)
         {

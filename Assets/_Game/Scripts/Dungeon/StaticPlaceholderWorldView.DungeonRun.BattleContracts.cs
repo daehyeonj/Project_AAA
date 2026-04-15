@@ -94,7 +94,30 @@ public sealed partial class StaticPlaceholderWorldView
 
     private PrototypeBattleLaneRuleResolution BuildPartyActionLaneResolution(DungeonPartyMemberRuntimeData member, DungeonMonsterRuntimeData targetMonster, BattleActionType action, PrototypeRpgSkillDefinition skillDefinition)
     {
-        return BuildRpgOwnedPartyActionLaneResolution(member, targetMonster, action, skillDefinition);
+        PrototypeBattleLaneRuleResolution resolution = BuildRpgOwnedPartyActionLaneResolution(member, targetMonster, action, skillDefinition);
+        string targetKind = ResolvePartyActionTargetKind(member, action, skillDefinition);
+        if (targetKind != "single_enemy")
+        {
+            return resolution;
+        }
+
+        // Current runtime source-of-truth is standard JRPG targeting, so living enemies
+        // stay selectable regardless of leftover lane metadata carried by older battle rails.
+        resolution.ResolvedRangeKey = PrototypeBattleRangeKeys.LaneAgnostic;
+        resolution.ResolvedLaneRuleKey = PrototypeBattleLaneRuleKeys.LaneAgnostic;
+        resolution.RangeText = "Standard target reach";
+        resolution.TargetRuleText = "Targets any living enemy.";
+        resolution.ReachabilityStateKey = targetMonster != null ? "reachable" : "pending_target";
+        resolution.LaneImpactKey = "lane_agnostic";
+        resolution.LaneImpactText = "Standard JRPG targeting.";
+        resolution.ReachabilitySummaryText = targetMonster != null
+            ? "Any living enemy can be targeted."
+            : "Choose any living enemy.";
+        resolution.PredictedReachabilityText = resolution.ReachabilitySummaryText;
+        resolution.ThreatLaneKey = PrototypeBattleLaneKeys.Any;
+        resolution.ThreatLaneLabel = "Any enemy";
+        resolution.ThreatSummaryText = "Standard target selection.";
+        return resolution;
     }
 
     private PrototypeBattleLaneRuleResolution BuildEnemyActionLaneResolution(DungeonMonsterRuntimeData monster, int targetIndex, bool useSpecial)

@@ -103,7 +103,9 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         SyncBattleHudState();
         RefreshBattleUiSurface();
 
-        if (_bootEntry.IsDungeonRunHudMode)
+        bool dungeonHudMode = _bootEntry.IsDungeonRunHudMode;
+        bool overlayMode = _bootEntry.IsDungeonBattleViewActive || _bootEntry.IsLegacyDungeonRouteChoiceVisible || _bootEntry.IsDungeonRunEventDecisionVisible || _bootEntry.IsDungeonRunPreEliteDecisionVisible || _bootEntry.IsDungeonResultPanelVisible;
+        if (dungeonHudMode && !overlayMode)
         {
             _isSearchFieldFocused = false;
             _battleFlyoutMode = BattleHudFlyoutMode.None;
@@ -113,8 +115,6 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         }
 
         List<HudPanel> panels = BuildPanels();
-        bool dungeonHudMode = _bootEntry.IsDungeonRunHudMode;
-        bool overlayMode = _bootEntry.IsDungeonBattleViewActive || _bootEntry.IsLegacyDungeonRouteChoiceVisible || _bootEntry.IsDungeonRunEventDecisionVisible || _bootEntry.IsDungeonRunPreEliteDecisionVisible || _bootEntry.IsDungeonResultPanelVisible;
         bool frontendDockMode = _bootEntry.IsMainMenuActive || _bootEntry.IsWorldSimActive;
 
         float panelWidth = overlayMode
@@ -347,23 +347,24 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         Rect commandBarRect = new Rect(screenLeft, commandZoneRect.yMax - commandBarHeight, screenWidth, commandBarHeight);
         Rect messageRect = new Rect(screenLeft, commandBarRect.y - 8f - messageHeight, screenWidth, messageHeight);
 
-        float flyoutWidth = Mathf.Clamp(screenWidth * 0.46f, 680f, 860f);
+        float flyoutWidth = Mathf.Clamp(screenWidth * 0.42f, 560f, 760f);
         float flyoutHeight = Mathf.Clamp(commandZoneRect.height - commandBarHeight - messageHeight - 34f, 176f, 228f);
         Rect flyoutRect = new Rect(screenLeft + ((screenWidth - flyoutWidth) * 0.5f), commandZoneRect.y + 10f, flyoutWidth, flyoutHeight);
 
-        float sideWidth = Mathf.Clamp(screenWidth * 0.22f, 276f, 340f);
-        float sideY = topRect.yMax + Mathf.Clamp(Screen.height * 0.038f, 36f, 52f);
-        float sideHeight = Mathf.Clamp(commandZoneRect.y - sideY - 24f, 300f, 430f);
-        Rect leftRect = new Rect(screenLeft + 8f, sideY, sideWidth, sideHeight);
-        Rect rightRect = new Rect(screenLeft + screenWidth - sideWidth - 8f, sideY, sideWidth, sideHeight);
-
         DrawBattleTopStrip(topRect);
-        DrawPartyStatusPanel(leftRect);
-        DrawEnemyInfoPanel(rightRect);
 
         DrawOverlaySectionBackground(commandZoneRect, new Color(0.04f, 0.07f, 0.10f, 0.82f));
         Rect commandBackdropRect = new Rect(commandZoneRect.x + 12f, commandZoneRect.y + 8f, commandZoneRect.width - 24f, flyoutRect.height + 14f);
         DrawOverlaySectionBackground(commandBackdropRect, new Color(0.06f, 0.09f, 0.13f, 0.72f));
+
+        float sidePanelGap = 12f;
+        float sidePanelWidth = Mathf.Max(180f, (commandBackdropRect.width - flyoutRect.width - (sidePanelGap * 2f)) * 0.5f);
+        float sidePanelHeight = flyoutRect.height;
+        Rect actorStatusRect = new Rect(commandBackdropRect.x + 8f, flyoutRect.y, sidePanelWidth, sidePanelHeight);
+        Rect targetStatusRect = new Rect(flyoutRect.xMax + sidePanelGap, flyoutRect.y, sidePanelWidth, sidePanelHeight);
+
+        DrawCurrentActorStatusPanel(actorStatusRect);
+        DrawTargetStatusPanel(targetStatusRect);
 
         DrawCommandFlyoutPanel(flyoutRect);
         DrawBattleMessageBox(messageRect);
@@ -584,6 +585,150 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         float hpCurrent = memberData != null ? memberData.CurrentHp : 0f;
         float hpMax = memberData != null ? Mathf.Max(1f, memberData.MaxHp) : 1f;
         DrawStatusBar(hpRect, hpCurrent, hpMax, new Color(0.26f, 0.68f, 0.36f, 0.98f), "HP " + Mathf.RoundToInt(hpCurrent) + " / " + Mathf.RoundToInt(hpMax));
+        GUI.color = previousColor;
+    }
+
+    private void DrawCurrentActorStatusPanel(Rect rect)
+    {
+        PrototypeBattleUiSurfaceData surface = GetBattleUiSurfaceData();
+        PrototypeBattleUiActorData actorData = surface.CurrentActor ?? new PrototypeBattleUiActorData();
+        CurrentActorSurfaceData actorSurface = surface.CurrentActorSurface ?? new CurrentActorSurfaceData();
+        PrototypeBattleUiActionContextData actionContext = surface.ActionContext ?? new PrototypeBattleUiActionContextData();
+        bool hasPlayableActor = !actorData.IsEnemy &&
+            (HasMeaningfulText(actorData.DisplayName) || HasMeaningfulText(actorSurface.DisplayName));
+        Color accentColor = hasPlayableActor
+            ? new Color(0.84f, 0.70f, 0.29f, 1f)
+            : new Color(0.48f, 0.52f, 0.58f, 1f);
+
+        DrawOverlaySectionBackground(rect, new Color(0.07f, 0.10f, 0.14f, 0.98f));
+        Color previousColor = GUI.color;
+        GUI.color = accentColor;
+        GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width, 4f), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        Rect titleRect = new Rect(rect.x + 10f, rect.y + 8f, rect.width - 20f, 16f);
+        Rect summaryRect = new Rect(rect.x + 10f, titleRect.yMax + 4f, rect.width - 20f, 16f);
+        DrawFittedLabel(titleRect, "Current Unit", _sectionTitleStyle, 11, 9, false);
+        DrawFittedLabel(summaryRect, hasPlayableActor ? "Current turn member status" : "Awaiting playable turn", _bodyStyle, 10, 8, false);
+
+        Rect contentRect = new Rect(rect.x + 10f, summaryRect.yMax + 8f, rect.width - 20f, rect.height - (summaryRect.yMax - rect.y) - 18f);
+        if (!hasPlayableActor)
+        {
+            string pendingText = HasMeaningfulText(surface.MessageSurface != null ? surface.MessageSurface.Prompt : string.Empty)
+                ? GetCompactHudText(surface.MessageSurface.Prompt, 72, false)
+                : "Playable actor status appears here during command selection.";
+            DrawFittedLabel(contentRect, pendingText, _bodyStyle, 10, 8, true);
+            GUI.color = previousColor;
+            return;
+        }
+
+        string actorName = HasMeaningfulText(actorData.DisplayName) ? actorData.DisplayName : actorSurface.DisplayName;
+        string roleLabel = HasMeaningfulText(actorData.RoleLabel) ? actorData.RoleLabel : actorSurface.RoleLabel;
+        string statusText = HasMeaningfulText(actorSurface.StatusText)
+            ? actorSurface.StatusText
+            : HasMeaningfulText(actorData.StatusText)
+                ? actorData.StatusText
+                : "Ready";
+        string laneLabel = HasMeaningfulText(actorData.LaneLabel) ? actorData.LaneLabel : actorSurface.LaneLabel;
+        string skillLabel = HasMeaningfulText(actorData.SkillLabel) ? actorData.SkillLabel : actorSurface.SkillLabel;
+        string resourceText = HasMeaningfulText(actorSurface.ResourceText)
+            ? actorSurface.ResourceText
+            : HasMeaningfulText(actionContext.SelectedActionLabel)
+                ? actionContext.SelectedActionLabel
+                : "No MP rule";
+        int currentHp = actorData.CurrentHp > 0 || actorSurface.CurrentHp <= 0 ? actorData.CurrentHp : actorSurface.CurrentHp;
+        int maxHp = actorData.MaxHp > 1 || actorSurface.MaxHp <= 1 ? actorData.MaxHp : actorSurface.MaxHp;
+
+        Rect nameRect = new Rect(contentRect.x, contentRect.y, contentRect.width - 94f, 20f);
+        Rect statusRect = new Rect(contentRect.xMax - 88f, contentRect.y, 88f, 20f);
+        Rect roleRect = new Rect(contentRect.x, nameRect.yMax + 4f, contentRect.width, 16f);
+        Rect hpRect = new Rect(contentRect.x, roleRect.yMax + 8f, contentRect.width, 18f);
+
+        float chipGap = 6f;
+        float chipWidth = (contentRect.width - (chipGap * 2f)) / 3f;
+        Rect laneRect = new Rect(contentRect.x, hpRect.yMax + 10f, chipWidth, 38f);
+        Rect skillRect = new Rect(laneRect.xMax + chipGap, laneRect.y, chipWidth, 38f);
+        Rect stateRect = new Rect(skillRect.xMax + chipGap, laneRect.y, chipWidth, 38f);
+        Rect footerRect = new Rect(contentRect.x, laneRect.yMax + 8f, contentRect.width, Mathf.Max(18f, contentRect.yMax - laneRect.yMax - 8f));
+
+        DrawFittedLabel(nameRect, GetCompactHudText(actorName, 24, false), _sectionTitleStyle, 13, 10, false);
+        DrawOverlaySectionBackground(statusRect, new Color(0.15f, 0.14f, 0.10f, 0.98f));
+        DrawFittedLabel(new Rect(statusRect.x + 6f, statusRect.y + 3f, statusRect.width - 12f, statusRect.height - 6f), GetCompactHudText(statusText, 18, false), _bodyStyle, 10, 8, false);
+        DrawFittedLabel(roleRect, GetCompactHudText(roleLabel, 28, false), _bodyStyle, 10, 9, false);
+        DrawStatusBar(hpRect, currentHp, Mathf.Max(1f, maxHp), new Color(0.26f, 0.68f, 0.36f, 0.98f), "HP " + currentHp + " / " + maxHp);
+
+        DrawCompactInfoCard(laneRect, "Lane", HasMeaningfulText(laneLabel) ? laneLabel : "Any", new Color(0.12f, 0.15f, 0.20f, 0.98f));
+        DrawCompactInfoCard(skillRect, "Skill", HasMeaningfulText(skillLabel) ? skillLabel : "Basic", new Color(0.12f, 0.15f, 0.20f, 0.98f));
+        DrawCompactInfoCard(stateRect, "State", GetCompactHudText(statusText, 20, false), new Color(0.12f, 0.15f, 0.20f, 0.98f));
+
+        string footerText = HasMeaningfulText(actionContext.ReachabilitySummaryText)
+            ? actionContext.ReachabilitySummaryText
+            : HasMeaningfulText(resourceText)
+                ? resourceText
+                : HasMeaningfulText(actorSurface.PositionRuleText)
+                    ? actorSurface.PositionRuleText
+                    : "Select a command to update the current actor status context.";
+        DrawFittedLabel(footerRect, GetCompactHudText(footerText, 88, false), _bodyStyle, 10, 8, true);
+        GUI.color = previousColor;
+    }
+
+    private void DrawTargetStatusPanel(Rect rect)
+    {
+        PrototypeBattleUiSurfaceData surface = GetBattleUiSurfaceData();
+        PrototypeBattleUiEnemyData enemyData = surface.SelectedEnemy ?? new PrototypeBattleUiEnemyData();
+        PrototypeBattleUiTargetContextData targetContext = surface.TargetContext ?? new PrototypeBattleUiTargetContextData();
+        bool shouldShowTarget = targetContext.HasTarget && targetContext.IsHovered;
+
+        DrawOverlaySectionBackground(rect, new Color(0.07f, 0.11f, 0.10f, 0.98f));
+        Color previousColor = GUI.color;
+        GUI.color = new Color(0.22f, 0.73f, 0.46f, 1f);
+        GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width, 4f), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        Rect titleRect = new Rect(rect.x + 10f, rect.y + 8f, rect.width - 20f, 16f);
+        Rect summaryRect = new Rect(rect.x + 10f, titleRect.yMax + 4f, rect.width - 20f, 16f);
+        DrawFittedLabel(titleRect, "Target Status", _sectionTitleStyle, 11, 9, false);
+        DrawFittedLabel(summaryRect, shouldShowTarget ? "Focused enemy status" : "Target details appear here", _bodyStyle, 10, 8, false);
+
+        Rect contentRect = new Rect(rect.x + 10f, summaryRect.yMax + 8f, rect.width - 20f, rect.height - (summaryRect.yMax - rect.y) - 18f);
+        if (!shouldShowTarget || !HasMeaningfulText(enemyData.DisplayName))
+        {
+            string placeholderText = IsTargetSelectionActive()
+                ? "Choose an enemy to inspect its role, state, and reachability."
+                : "Enemy focus is hidden until the playable unit starts targeting.";
+            DrawFittedLabel(contentRect, placeholderText, _bodyStyle, 10, 8, true);
+            GUI.color = previousColor;
+            return;
+        }
+
+        Rect nameRect = new Rect(contentRect.x, contentRect.y, contentRect.width - 94f, 20f);
+        Rect stateRect = new Rect(contentRect.xMax - 88f, contentRect.y, 88f, 20f);
+        Rect roleRect = new Rect(contentRect.x, nameRect.yMax + 4f, contentRect.width, 16f);
+        Rect hpRect = new Rect(contentRect.x, roleRect.yMax + 8f, contentRect.width, 18f);
+
+        float chipGap = 6f;
+        float chipWidth = (contentRect.width - (chipGap * 2f)) / 3f;
+        Rect typeRect = new Rect(contentRect.x, hpRect.yMax + 10f, chipWidth, 38f);
+        Rect intentRect = new Rect(typeRect.xMax + chipGap, typeRect.y, chipWidth, 38f);
+        Rect reachRect = new Rect(intentRect.xMax + chipGap, typeRect.y, chipWidth, 38f);
+        Rect footerRect = new Rect(contentRect.x, typeRect.yMax + 8f, contentRect.width, Mathf.Max(18f, contentRect.yMax - typeRect.yMax - 8f));
+
+        DrawFittedLabel(nameRect, GetCompactHudText(enemyData.DisplayName, 24, false), _sectionTitleStyle, 13, 10, false);
+        DrawOverlaySectionBackground(stateRect, new Color(0.12f, 0.18f, 0.14f, 0.98f));
+        DrawFittedLabel(new Rect(stateRect.x + 6f, stateRect.y + 3f, stateRect.width - 12f, stateRect.height - 6f), GetCompactHudText(targetContext.TargetStateText, 18, false), _bodyStyle, 10, 8, false);
+        DrawFittedLabel(roleRect, GetCompactHudText(enemyData.RoleLabel, 28, false), _bodyStyle, 10, 9, false);
+        DrawStatusBar(hpRect, targetContext.TargetCurrentHp, Mathf.Max(1f, targetContext.TargetMaxHp), new Color(0.72f, 0.28f, 0.26f, 0.98f), "HP " + targetContext.TargetCurrentHp + " / " + targetContext.TargetMaxHp);
+
+        DrawCompactInfoCard(typeRect, "Type", HasMeaningfulText(enemyData.TypeLabel) ? enemyData.TypeLabel : "Enemy", new Color(0.11f, 0.14f, 0.19f, 0.98f));
+        DrawCompactInfoCard(intentRect, "Intent", HasMeaningfulText(targetContext.TargetIntentLabel) ? targetContext.TargetIntentLabel : "Unknown", new Color(0.11f, 0.14f, 0.19f, 0.98f));
+        DrawCompactInfoCard(reachRect, "Reach", HasMeaningfulText(targetContext.ReachabilityStateKey) ? targetContext.ReachabilityStateKey : "Pending", new Color(0.11f, 0.14f, 0.19f, 0.98f));
+
+        string footerText = HasMeaningfulText(targetContext.ReachabilitySummaryText)
+            ? targetContext.ReachabilitySummaryText
+            : HasMeaningfulText(enemyData.TraitText)
+                ? enemyData.TraitText
+                : "Target details pending.";
+        DrawFittedLabel(footerRect, GetCompactHudText(footerText, 88, false), _bodyStyle, 10, 8, true);
         GUI.color = previousColor;
     }
 

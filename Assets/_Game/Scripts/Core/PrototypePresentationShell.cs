@@ -77,7 +77,7 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         if (_bootEntry.IsDungeonRunHudMode)
         {
             ResetCityHubPresentationState("DungeonRun active.");
-            DrawDungeonRunShell();
+            _blockingRects = EmptyBlockingRects;
             return;
         }
 
@@ -397,9 +397,9 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         DrawRect(new Rect(innerRect.x, innerRect.y, innerRect.width, 2f), new Color(0.88f, 0.74f, 0.36f, 0.30f));
         DrawRect(new Rect(innerRect.x, innerRect.yMax - 2f, innerRect.width, 2f), new Color(0.18f, 0.52f, 0.60f, 0.22f));
 
-        Rect titleRect = new Rect(innerRect.x + 14f, innerRect.y + 12f, innerRect.width - 28f, 20f);
-        Rect subtitleRect = new Rect(titleRect.x, titleRect.yMax + 4f, titleRect.width, 32f);
-        Rect footerRect = new Rect(innerRect.x + 14f, innerRect.yMax - 18f, innerRect.width - 28f, 16f);
+        Rect titleRect = new Rect(innerRect.x + 14f, innerRect.y + 9f, innerRect.width - 28f, 24f);
+        Rect subtitleRect = new Rect(titleRect.x, titleRect.yMax + 2f, titleRect.width, 32f);
+        Rect footerRect = new Rect(innerRect.x + 14f, innerRect.yMax - 19f, innerRect.width - 28f, 18f);
         GUI.Label(titleRect, string.IsNullOrEmpty(title) ? T("FrontWorldBoardOverlay") : title, _panelTitleStyle);
         GUI.Label(subtitleRect, string.IsNullOrEmpty(subtitle) ? T("FrontWorldOverlayReason") : subtitle, _captionStyle);
         GUI.Label(footerRect, string.IsNullOrEmpty(footer) ? BuildWorldLegendText() : footer, _captionStyle);
@@ -533,6 +533,9 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
 
     private void DrawExpeditionPrepBoard(Rect rect, ExpeditionPrepSurfaceData data)
     {
+        const float prepTitleTop = 8f;
+        const float prepTitleHeight = 24f;
+        const float prepBodyTop = 38f;
         string subtitle = V(data.CityLabel) + " -> " + V(data.DungeonLabel) + " | Party: " + V(data.PartyLabel);
         string footer = "[Q] Policy  [1] Route 1  [2] Route 2  [Enter] Launch  [Esc] Cancel";
         DrawWorldBoardFrame(rect, data.BoardTitleText, subtitle, footer);
@@ -550,9 +553,9 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         Rect loadoutRect = new Rect(leftRect.x, route2Rect.yMax + 12f, leftRect.width, Mathf.Max(92f, leftRect.yMax - route2Rect.yMax - 12f));
 
         DrawPanel(summaryRect, new Color(0.18f, 0.28f, 0.34f, 0.96f), new Color(0.10f, 0.13f, 0.18f, 0.94f));
-        GUI.Label(new Rect(summaryRect.x + 12f, summaryRect.y + 10f, summaryRect.width - 24f, 20f), "Launch Readiness", _panelTitleStyle);
+        GUI.Label(new Rect(summaryRect.x + 12f, summaryRect.y + prepTitleTop, summaryRect.width - 24f, prepTitleHeight), "Launch Readiness", _panelTitleStyle);
         DrawScrollableTextBlock(
-            new Rect(summaryRect.x + 12f, summaryRect.y + 36f, summaryRect.width - 24f, summaryRect.height - 46f),
+            new Rect(summaryRect.x + 12f, summaryRect.y + prepBodyTop, summaryRect.width - 24f, summaryRect.height - 48f),
             "expedition_prep:summary",
             "Need Pressure: " + V(data.NeedPressureText) + "\n" +
             "Readiness: " + V(data.DispatchReadinessText) + "\n" +
@@ -571,9 +574,9 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         }
 
         DrawPanel(loadoutRect, new Color(0.16f, 0.26f, 0.22f, 0.96f), new Color(0.09f, 0.12f, 0.15f, 0.94f));
-        GUI.Label(new Rect(loadoutRect.x + 12f, loadoutRect.y + 10f, loadoutRect.width - 24f, 20f), "Staged Party", _panelTitleStyle);
+        GUI.Label(new Rect(loadoutRect.x + 12f, loadoutRect.y + prepTitleTop, loadoutRect.width - 24f, prepTitleHeight), "Staged Party", _panelTitleStyle);
         DrawScrollableTextBlock(
-            new Rect(loadoutRect.x + 12f, loadoutRect.y + 36f, loadoutRect.width - 24f, loadoutRect.height - 46f),
+            new Rect(loadoutRect.x + 12f, loadoutRect.y + prepBodyTop, loadoutRect.width - 24f, loadoutRect.height - 48f),
             "expedition_prep:loadout",
             "Staged Summary: " + V(data.StagedPartySummaryText) + "\n" +
             "Loadout: " + V(data.PartyLoadoutSummaryText) + "\n" +
@@ -589,9 +592,9 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         Rect actionsRect = new Rect(rightRect.x, rightRect.yMax - 40f, rightRect.width, 40f);
 
         DrawPanel(readinessRect, new Color(0.30f, 0.24f, 0.16f, 0.96f), new Color(0.10f, 0.11f, 0.14f, 0.94f));
-        GUI.Label(new Rect(readinessRect.x + 12f, readinessRect.y + 10f, readinessRect.width - 24f, 20f), "Launch Gate", _panelTitleStyle);
+        GUI.Label(new Rect(readinessRect.x + 12f, readinessRect.y + prepTitleTop, readinessRect.width - 24f, prepTitleHeight), "Launch Gate", _panelTitleStyle);
         DrawScrollableTextBlock(
-            new Rect(readinessRect.x + 12f, readinessRect.y + 36f, readinessRect.width - 24f, readinessRect.height - 46f),
+            new Rect(readinessRect.x + 12f, readinessRect.y + prepBodyTop, readinessRect.width - 24f, readinessRect.height - 48f),
             "expedition_prep:gate",
             "Selected Route: " + V(data.SelectedRouteLabel) + "\n" +
             "Recommended Route: " + V(data.RecommendedRouteLabel) + "\n" +
@@ -600,18 +603,18 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
             _bodyStyle);
 
         DrawPanel(recommendationRect, new Color(0.18f, 0.24f, 0.34f, 0.96f), new Color(0.08f, 0.11f, 0.15f, 0.94f));
-        GUI.Label(new Rect(recommendationRect.x + 12f, recommendationRect.y + 10f, recommendationRect.width - 24f, 20f), "Recommendation", _panelTitleStyle);
+        GUI.Label(new Rect(recommendationRect.x + 12f, recommendationRect.y + prepTitleTop, recommendationRect.width - 24f, prepTitleHeight), "Recommendation", _panelTitleStyle);
         DrawScrollableTextBlock(
-            new Rect(recommendationRect.x + 12f, recommendationRect.y + 36f, recommendationRect.width - 24f, recommendationRect.height - 46f),
+            new Rect(recommendationRect.x + 12f, recommendationRect.y + prepBodyTop, recommendationRect.width - 24f, recommendationRect.height - 48f),
             "expedition_prep:recommendation",
             "Reason: " + V(data.RecommendationReasonText) + "\n" +
             "Expected Need Impact: " + V(data.ExpectedNeedImpactText),
             _bodyStyle);
 
         DrawPanel(previewRect, new Color(0.22f, 0.30f, 0.18f, 0.96f), new Color(0.08f, 0.11f, 0.14f, 0.94f));
-        GUI.Label(new Rect(previewRect.x + 12f, previewRect.y + 10f, previewRect.width - 24f, 20f), "Projected Preview", _panelTitleStyle);
+        GUI.Label(new Rect(previewRect.x + 12f, previewRect.y + prepTitleTop, previewRect.width - 24f, prepTitleHeight), "Projected Preview", _panelTitleStyle);
         DrawScrollableTextBlock(
-            new Rect(previewRect.x + 12f, previewRect.y + 36f, previewRect.width - 24f, previewRect.height - 46f),
+            new Rect(previewRect.x + 12f, previewRect.y + prepBodyTop, previewRect.width - 24f, previewRect.height - 48f),
             "expedition_prep:preview",
             "Route Fit: " + V(data.RouteFitSummaryText) + "\n" +
             "Route Preview: " + V(data.RoutePreviewSummaryText) + "\n" +
@@ -620,9 +623,9 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
             _bodyStyle);
 
         DrawPanel(feedbackRect, new Color(0.24f, 0.18f, 0.26f, 0.96f), new Color(0.09f, 0.10f, 0.14f, 0.94f));
-        GUI.Label(new Rect(feedbackRect.x + 12f, feedbackRect.y + 10f, feedbackRect.width - 24f, 20f), "Return Consume", _panelTitleStyle);
+        GUI.Label(new Rect(feedbackRect.x + 12f, feedbackRect.y + prepTitleTop, feedbackRect.width - 24f, prepTitleHeight), "Return Consume", _panelTitleStyle);
         DrawScrollableTextBlock(
-            new Rect(feedbackRect.x + 12f, feedbackRect.y + 36f, feedbackRect.width - 24f, feedbackRect.height - 46f),
+            new Rect(feedbackRect.x + 12f, feedbackRect.y + prepBodyTop, feedbackRect.width - 24f, feedbackRect.height - 48f),
             "expedition_prep:return_consume",
             BuildExpeditionPrepReturnConsumeText(data),
             _bodyStyle);
@@ -657,10 +660,10 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
                 ? new Color(0.32f, 0.64f, 0.78f, 0.96f)
                 : new Color(0.18f, 0.22f, 0.28f, 0.96f);
         DrawPanel(rect, borderColor, new Color(0.09f, 0.12f, 0.16f, 0.94f));
-        GUI.Label(new Rect(rect.x + 12f, rect.y + 10f, rect.width - 24f, 20f), hotkeyLabel + " " + V(option.OptionLabel), _panelTitleStyle);
+        GUI.Label(new Rect(rect.x + 12f, rect.y + 8f, rect.width - 24f, 24f), hotkeyLabel + " " + V(option.OptionLabel), _panelTitleStyle);
         Rect buttonRect = new Rect(rect.x + 12f, rect.yMax - 34f, rect.width - 24f, 24f);
-        float bodyHeight = Mathf.Max(20f, buttonRect.y - 8f - (rect.y + 36f));
-        Rect bodyRect = new Rect(rect.x + 12f, rect.y + 36f, rect.width - 24f, bodyHeight);
+        float bodyHeight = Mathf.Max(20f, buttonRect.y - 8f - (rect.y + 38f));
+        Rect bodyRect = new Rect(rect.x + 12f, rect.y + 38f, rect.width - 24f, bodyHeight);
         int maxLines = Mathf.Clamp(Mathf.FloorToInt((bodyRect.height - 4f) / 18f), 2, 4);
         GUI.Label(
             bodyRect,
@@ -1427,7 +1430,7 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         _heroSubtitleStyle.normal.textColor = new Color(0.80f, 0.88f, 0.92f, 1f);
 
         _panelTitleStyle = new GUIStyle(GUI.skin.label);
-        _panelTitleStyle.fontSize = 20;
+        _panelTitleStyle.fontSize = 18;
         _panelTitleStyle.fontStyle = FontStyle.Bold;
         _panelTitleStyle.wordWrap = false;
         _panelTitleStyle.normal.textColor = new Color(0.96f, 0.97f, 0.95f, 1f);

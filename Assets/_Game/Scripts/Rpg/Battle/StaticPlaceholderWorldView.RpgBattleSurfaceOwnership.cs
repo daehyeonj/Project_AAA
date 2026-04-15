@@ -1006,7 +1006,7 @@ public sealed partial class StaticPlaceholderWorldView
         targetSelection.QueuedActionLabel = actionContext != null && !string.IsNullOrEmpty(actionContext.SelectedActionLabel)
             ? actionContext.SelectedActionLabel
             : GetBattleUiActionDisplayLabel(GetBattleUiSelectedActionKey(), actor);
-        targetSelection.HasFocusedTarget = targetContext != null && targetContext.HasTarget;
+        targetSelection.HasFocusedTarget = targetContext != null && targetContext.HasTarget && targetContext.IsHovered;
         targetSelection.TargetLabel = targetContext != null && targetContext.HasTarget ? targetContext.TargetLabel : "Choose a target";
         targetSelection.TargetRoleLabel = targetContext != null && targetContext.HasTarget ? targetContext.TargetRoleLabel : string.Empty;
         targetSelection.TargetIntentLabel = targetContext != null && targetContext.HasTarget ? targetContext.TargetIntentLabel : string.Empty;

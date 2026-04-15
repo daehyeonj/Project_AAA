@@ -11,9 +11,15 @@ public static class GoldenPathAuthoringDraftHelper
     private const string DraftPromotionReadinessMenuPath = "Tools/Project AAA/Show Draft Promotion Readiness";
     private const string DraftPromotionPreflightMenuPath = "Tools/Project AAA/Show Draft Promotion Preflight";
     private const string QuickOpenDraftPromotionContextMenuPath = "Tools/Project AAA/Quick Open Draft Promotion Context";
+    private const string DraftRetargetSummaryMenuPath = "Tools/Project AAA/Show Draft Retarget Candidate";
+    private const string CreateRetargetedDraftMenuPath = "Tools/Project AAA/Create Retargeted Draft From Selected Draft";
+    private const string HiddenCanonicalPromotionSummaryMenuPath = "Tools/Project AAA/Show Hidden Canonical Promotion Summary";
+    private const string PromoteHiddenCanonicalMenuPath = "Tools/Project AAA/Promote Selected Draft As Hidden Canonical";
     private const string DraftFolderAssetPath = "Assets/_Game/AuthoringDrafts/GoldenPathChains";
+    private const string CanonicalChainFolderAssetPath = "Assets/_Game/Resources/Content/GoldenPathChains";
     private const string BatchTemplateSourceAssetPath = "Assets/_Game/Resources/Content/GoldenPathChains/city-a-dungeon-alpha-rest-path.json";
     private const string BatchTemplateDraftAssetPath = DraftFolderAssetPath + "/template-city-a-dungeon-alpha-safe.json";
+    private const string BatchTemplateRetargetDraftAssetPath = DraftFolderAssetPath + "/draft-city-a-dungeon-alpha-safe-off-rail-v1.json";
 
     private sealed class DraftPromotionAssessment
     {
@@ -43,6 +49,39 @@ public static class GoldenPathAuthoringDraftHelper
         public readonly List<DraftSupportedRailSlot> Slots = new List<DraftSupportedRailSlot>();
         public int OccupiedCount;
         public int OpenCount;
+    }
+
+    private sealed class DraftRetargetAssessment
+    {
+        public string SourceResolverKey = string.Empty;
+        public string SourcePromotionState = string.Empty;
+        public string SourceSupportedRailFit = string.Empty;
+        public string SourceCanonicalOwnerChainId = string.Empty;
+        public string SourceCanonicalOwnerAssetPath = string.Empty;
+        public string RetargetRouteId = string.Empty;
+        public string RetargetResolverKey = string.Empty;
+        public string RetargetChainId = string.Empty;
+        public string RetargetDraftAssetPath = string.Empty;
+        public string RetargetState = string.Empty;
+        public string RetargetSurfaceState = string.Empty;
+        public string RetargetRailFit = string.Empty;
+        public string RetargetCanonicalOwnerChainId = string.Empty;
+        public string RetargetCanonicalOwnerAssetPath = string.Empty;
+        public string RetargetDraftOwnerAssetPath = string.Empty;
+        public string ManualNext = string.Empty;
+    }
+
+    private sealed class HiddenCanonicalPromotionAssessment
+    {
+        public string DraftResolverKey = string.Empty;
+        public string PromotionState = string.Empty;
+        public string CurrentCanonicalOwnerChainId = string.Empty;
+        public string CurrentCanonicalOwnerAssetPath = string.Empty;
+        public string TargetCanonicalChainId = string.Empty;
+        public string TargetCanonicalAssetPath = string.Empty;
+        public string TargetSurfaceState = string.Empty;
+        public string CurrentRailImpact = string.Empty;
+        public string ManualNext = string.Empty;
     }
 
     [MenuItem(CreateDraftMenuPath, true)]
@@ -77,6 +116,24 @@ public static class GoldenPathAuthoringDraftHelper
         LogDraftPromotionPreflightSummary(false);
     }
 
+    [MenuItem(DraftRetargetSummaryMenuPath, true)]
+    private static bool ValidateDraftRetargetSummaryMenu()
+    {
+        return TryGetSelectedDraftAsset(out _, out _, out _);
+    }
+
+    [MenuItem(DraftRetargetSummaryMenuPath)]
+    private static void ShowDraftRetargetSummaryMenu()
+    {
+        if (!TryGetSelectedDraftAsset(out TextAsset draftAsset, out string draftAssetPath, out GoldenPathChainDefinition draftDefinition))
+        {
+            Debug.LogWarning("[AuthoringTooling] Select one draft JSON asset under AuthoringDrafts/GoldenPathChains before showing retarget candidates.");
+            return;
+        }
+
+        Debug.Log(BuildDraftRetargetSummary(draftAsset, draftAssetPath, draftDefinition));
+    }
+
     [MenuItem(QuickOpenDraftPromotionContextMenuPath, true)]
     private static bool ValidateQuickOpenDraftPromotionContextMenu()
     {
@@ -93,6 +150,60 @@ public static class GoldenPathAuthoringDraftHelper
         }
 
         QuickOpenDraftPromotionContext(draftAsset, draftAssetPath, draftDefinition);
+    }
+
+    [MenuItem(CreateRetargetedDraftMenuPath, true)]
+    private static bool ValidateCreateRetargetedDraftMenu()
+    {
+        return TryGetSelectedDraftAsset(out _, out _, out _);
+    }
+
+    [MenuItem(CreateRetargetedDraftMenuPath)]
+    private static void CreateRetargetedDraftMenu()
+    {
+        if (!TryGetSelectedDraftAsset(out TextAsset draftAsset, out string draftAssetPath, out GoldenPathChainDefinition draftDefinition))
+        {
+            Debug.LogWarning("[AuthoringTooling] Select one draft JSON asset under AuthoringDrafts/GoldenPathChains before creating a retargeted draft.");
+            return;
+        }
+
+        CreateRetargetedDraftFromDraft(draftAsset, draftAssetPath, draftDefinition, false);
+    }
+
+    [MenuItem(HiddenCanonicalPromotionSummaryMenuPath, true)]
+    private static bool ValidateHiddenCanonicalPromotionSummaryMenu()
+    {
+        return TryGetSelectedDraftAsset(out _, out _, out _);
+    }
+
+    [MenuItem(HiddenCanonicalPromotionSummaryMenuPath)]
+    private static void ShowHiddenCanonicalPromotionSummaryMenu()
+    {
+        if (!TryGetSelectedDraftAsset(out TextAsset draftAsset, out string draftAssetPath, out GoldenPathChainDefinition draftDefinition))
+        {
+            Debug.LogWarning("[AuthoringTooling] Select one draft JSON asset under AuthoringDrafts/GoldenPathChains before showing hidden-canonical promotion summary.");
+            return;
+        }
+
+        Debug.Log(BuildHiddenCanonicalPromotionSummary(draftAsset, draftAssetPath, draftDefinition));
+    }
+
+    [MenuItem(PromoteHiddenCanonicalMenuPath, true)]
+    private static bool ValidatePromoteHiddenCanonicalMenu()
+    {
+        return TryGetSelectedDraftAsset(out _, out _, out _);
+    }
+
+    [MenuItem(PromoteHiddenCanonicalMenuPath)]
+    private static void PromoteHiddenCanonicalMenu()
+    {
+        if (!TryGetSelectedDraftAsset(out TextAsset draftAsset, out string draftAssetPath, out GoldenPathChainDefinition draftDefinition))
+        {
+            Debug.LogWarning("[AuthoringTooling] Select one draft JSON asset under AuthoringDrafts/GoldenPathChains before promoting it as hidden canonical content.");
+            return;
+        }
+
+        PromoteDraftAsHiddenCanonical(draftAsset, draftAssetPath, draftDefinition, false);
     }
 
     public static void RunCreateRepresentativeDraftTemplate()
@@ -166,6 +277,142 @@ public static class GoldenPathAuthoringDraftHelper
         }
 
         Debug.Log(BuildDraftPromotionContextSummary(draftAsset, BatchTemplateDraftAssetPath, draftDefinition));
+
+        if (Application.isBatchMode)
+        {
+            EditorApplication.Exit(0);
+        }
+    }
+
+    public static void RunBatchTemplateDraftRetargetSummary()
+    {
+        TextAsset draftAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(BatchTemplateDraftAssetPath);
+        if (draftAsset == null)
+        {
+            Debug.LogError("[AuthoringTooling] Draft retarget summary source is missing: " + BatchTemplateDraftAssetPath);
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(1);
+            }
+
+            return;
+        }
+
+        GoldenPathChainDefinition draftDefinition = JsonUtility.FromJson<GoldenPathChainDefinition>(draftAsset.text);
+        if (draftDefinition == null)
+        {
+            Debug.LogError("[AuthoringTooling] Draft retarget summary JSON is invalid: " + BatchTemplateDraftAssetPath);
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(1);
+            }
+
+            return;
+        }
+
+        Debug.Log(BuildDraftRetargetSummary(draftAsset, BatchTemplateDraftAssetPath, draftDefinition));
+
+        if (Application.isBatchMode)
+        {
+            EditorApplication.Exit(0);
+        }
+    }
+
+    public static void RunCreateBatchTemplateRetargetedDraft()
+    {
+        TextAsset draftAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(BatchTemplateDraftAssetPath);
+        if (draftAsset == null)
+        {
+            Debug.LogError("[AuthoringTooling] Draft retarget source is missing: " + BatchTemplateDraftAssetPath);
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(1);
+            }
+
+            return;
+        }
+
+        GoldenPathChainDefinition draftDefinition = JsonUtility.FromJson<GoldenPathChainDefinition>(draftAsset.text);
+        if (draftDefinition == null)
+        {
+            Debug.LogError("[AuthoringTooling] Draft retarget source JSON is invalid: " + BatchTemplateDraftAssetPath);
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(1);
+            }
+
+            return;
+        }
+
+        CreateRetargetedDraftFromDraft(draftAsset, BatchTemplateDraftAssetPath, draftDefinition, true);
+
+        if (Application.isBatchMode)
+        {
+            EditorApplication.Exit(0);
+        }
+    }
+
+    public static void RunBatchTemplateRetargetPromotionSummary()
+    {
+        TextAsset draftAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(BatchTemplateRetargetDraftAssetPath);
+        if (draftAsset == null)
+        {
+            Debug.LogError("[AuthoringTooling] Hidden-canonical promotion summary source is missing: " + BatchTemplateRetargetDraftAssetPath);
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(1);
+            }
+
+            return;
+        }
+
+        GoldenPathChainDefinition draftDefinition = JsonUtility.FromJson<GoldenPathChainDefinition>(draftAsset.text);
+        if (draftDefinition == null)
+        {
+            Debug.LogError("[AuthoringTooling] Hidden-canonical promotion summary JSON is invalid: " + BatchTemplateRetargetDraftAssetPath);
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(1);
+            }
+
+            return;
+        }
+
+        Debug.Log(BuildHiddenCanonicalPromotionSummary(draftAsset, BatchTemplateRetargetDraftAssetPath, draftDefinition));
+
+        if (Application.isBatchMode)
+        {
+            EditorApplication.Exit(0);
+        }
+    }
+
+    public static void RunPromoteBatchTemplateRetargetedDraft()
+    {
+        TextAsset draftAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(BatchTemplateRetargetDraftAssetPath);
+        if (draftAsset == null)
+        {
+            Debug.LogError("[AuthoringTooling] Hidden-canonical promotion source is missing: " + BatchTemplateRetargetDraftAssetPath);
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(1);
+            }
+
+            return;
+        }
+
+        GoldenPathChainDefinition draftDefinition = JsonUtility.FromJson<GoldenPathChainDefinition>(draftAsset.text);
+        if (draftDefinition == null)
+        {
+            Debug.LogError("[AuthoringTooling] Hidden-canonical promotion source JSON is invalid: " + BatchTemplateRetargetDraftAssetPath);
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(1);
+            }
+
+            return;
+        }
+
+        PromoteDraftAsHiddenCanonical(draftAsset, BatchTemplateRetargetDraftAssetPath, draftDefinition, true);
 
         if (Application.isBatchMode)
         {
@@ -394,6 +641,8 @@ public static class GoldenPathAuthoringDraftHelper
         int blockedByMissingIdentityCount = 0;
         int blockedByInvalidJsonCount = 0;
         int candidateManualReviewCount = 0;
+        int retargetableOffRailCandidateCount = 0;
+        int hiddenOffRailCanonicalDraftCount = 0;
 
         StringBuilder summary = new StringBuilder();
         summary.AppendLine("[AuthoringTooling] Draft promotion readiness");
@@ -424,6 +673,7 @@ public static class GoldenPathAuthoringDraftHelper
             }
 
             DraftPromotionAssessment assessment = AssessDraftPromotion(draftDefinition);
+            DraftRetargetAssessment retargetAssessment = AssessDraftRetarget(draftDefinition, AssetDatabase.GetAssetPath(draftAsset));
             bool promotable = string.Equals(assessment.PromotionState, "candidate:manual-promotion-review", StringComparison.Ordinal);
             if (promotable)
             {
@@ -448,6 +698,15 @@ public static class GoldenPathAuthoringDraftHelper
                 }
             }
 
+            if (IsHelperRetargetCandidate(retargetAssessment))
+            {
+                retargetableOffRailCandidateCount++;
+            }
+            else if (IsAlreadyHiddenCanonicalRetarget(retargetAssessment))
+            {
+                hiddenOffRailCanonicalDraftCount++;
+            }
+
             GoldenPathRouteDefinition routeDefinition = draftDefinition.CanonicalRoute;
             GoldenPathRoomDefinition representativeRoom = routeDefinition != null && routeDefinition.Rooms != null && routeDefinition.Rooms.Length > 0
                 ? routeDefinition.Rooms[0]
@@ -460,12 +719,17 @@ public static class GoldenPathAuthoringDraftHelper
                 " | CurrentCanonicalOwner=" + BuildCanonicalOwnerSummary(assessment) +
                 " | SurfaceState=" + BuildDraftSurfaceState(draftDefinition) +
                 " | SharedRefs=" + BuildSharedReferenceSummary(draftDefinition, routeDefinition, representativeRoom) +
+                " | RetargetState=" + SafeText(retargetAssessment.RetargetState) +
+                " | RetargetResolverKey=" + SafeText(retargetAssessment.RetargetResolverKey) +
+                " | RetargetDraftAsset=" + SafeText(retargetAssessment.RetargetDraftAssetPath) +
                 " | ManualNext=" + SafeText(assessment.ManualNext));
         }
 
         summary.AppendLine("- PromotableDrafts=" + promotableCount);
         summary.AppendLine("- BlockedDrafts=" + blockedCount);
         summary.AppendLine("- CandidateManualReview=" + candidateManualReviewCount);
+        summary.AppendLine("- RetargetableOffRailCandidates=" + retargetableOffRailCandidateCount);
+        summary.AppendLine("- HiddenOffRailCanonicalDrafts=" + hiddenOffRailCanonicalDraftCount);
         summary.AppendLine("- BlockedByCanonicalOwner=" + blockedByCanonicalOwnerCount);
         summary.AppendLine("- BlockedByRouteSurfaceExpansion=" + blockedByRouteSurfaceExpansionCount);
         summary.AppendLine("- BlockedByMissingIdentity=" + blockedByMissingIdentityCount);
@@ -477,6 +741,7 @@ public static class GoldenPathAuthoringDraftHelper
             blockedByRouteSurfaceExpansionCount,
             blockedByMissingIdentityCount,
             blockedByInvalidJsonCount,
+            retargetableOffRailCandidateCount,
             supportedRail.OpenCount));
         summary.AppendLine("- SaturationHint=The current Alpha/Beta surfaced matrix already occupies the supported safe/risky slots. Use this summary before trying to promote a draft as if it were a new surfaced opportunity.");
         return summary.ToString();
@@ -510,10 +775,15 @@ public static class GoldenPathAuthoringDraftHelper
             if (draftDefinition != null)
             {
                 DraftPromotionAssessment assessment = AssessDraftPromotion(draftDefinition);
+                DraftRetargetAssessment retargetAssessment = AssessDraftRetarget(draftDefinition, BatchTemplateDraftAssetPath);
                 summary.AppendLine("- BatchTemplateDraftResolverKey=" + SafeText(assessment.DraftResolverKey));
                 summary.AppendLine("- BatchTemplateDraftState=" + SafeText(assessment.PromotionState));
                 summary.AppendLine("- BatchTemplateDraftRailFit=" + SafeText(assessment.SupportedRailFit));
+                summary.AppendLine("- BatchTemplateDraftRetargetState=" + SafeText(retargetAssessment.RetargetState));
+                summary.AppendLine("- BatchTemplateDraftRetargetResolverKey=" + SafeText(retargetAssessment.RetargetResolverKey));
+                summary.AppendLine("- BatchTemplateDraftRetargetAsset=" + SafeText(retargetAssessment.RetargetDraftAssetPath));
                 summary.AppendLine("- BatchTemplateDraftManualNext=" + SafeText(assessment.ManualNext));
+                summary.AppendLine("- BatchTemplateDraftRetargetManualNext=" + SafeText(retargetAssessment.ManualNext));
             }
         }
 
@@ -574,10 +844,140 @@ public static class GoldenPathAuthoringDraftHelper
         summary.AppendLine("- SupportedRailFit=" + SafeText(assessment.SupportedRailFit));
         summary.AppendLine("- OpenSupportedRailSlots=" + FormatCountOrNone(assessment.OpenSupportedRailSlotCount));
         summary.AppendLine("- OpenSupportedResolverKeys=" + SafeText(assessment.OpenSupportedResolverKeys));
+        DraftRetargetAssessment retargetAssessment = AssessDraftRetarget(draftDefinition, draftAssetPath);
+        summary.AppendLine("- RetargetState=" + SafeText(retargetAssessment.RetargetState));
+        summary.AppendLine("- RetargetResolverKey=" + SafeText(retargetAssessment.RetargetResolverKey));
+        summary.AppendLine("- RetargetDraftAsset=" + SafeText(retargetAssessment.RetargetDraftAssetPath));
+        summary.AppendLine("- RetargetRailFit=" + SafeText(retargetAssessment.RetargetRailFit));
         summary.AppendLine("- SurfacedExpansionGate=" + GoldenPathAuthoringValidationRunner.BuildSurfacedOpportunityExpansionGateInlineSummary());
         summary.AppendLine("- ManualNext=" + SafeText(assessment.ManualNext));
+        summary.AppendLine("- RetargetManualNext=" + SafeText(retargetAssessment.ManualNext));
         summary.AppendLine("- QuickOpenHint=Selection now includes the draft, the current canonical owner if any, and the linked shared definition assets.");
         return summary.ToString();
+    }
+
+    private static string BuildDraftRetargetSummary(
+        TextAsset draftAsset,
+        string draftAssetPath,
+        GoldenPathChainDefinition draftDefinition)
+    {
+        DraftPromotionAssessment promotionAssessment = AssessDraftPromotion(draftDefinition);
+        DraftRetargetAssessment retargetAssessment = AssessDraftRetarget(draftDefinition, draftAssetPath);
+        GoldenPathRouteDefinition routeDefinition = draftDefinition != null ? draftDefinition.CanonicalRoute : null;
+        GoldenPathRoomDefinition representativeRoom = routeDefinition != null && routeDefinition.Rooms != null && routeDefinition.Rooms.Length > 0
+            ? routeDefinition.Rooms[0]
+            : null;
+
+        StringBuilder summary = new StringBuilder();
+        summary.AppendLine("[AuthoringTooling] Draft retarget candidate");
+        summary.AppendLine("- DraftAsset=" + SafeText(draftAssetPath));
+        summary.AppendLine("- DraftChainId=" + SafeText(draftDefinition != null ? draftDefinition.ChainId : string.Empty));
+        summary.AppendLine("- CurrentResolverKey=" + SafeText(promotionAssessment.DraftResolverKey));
+        summary.AppendLine("- CurrentPromotionState=" + SafeText(promotionAssessment.PromotionState));
+        summary.AppendLine("- CurrentCanonicalOwner=" + BuildCanonicalOwnerSummary(promotionAssessment));
+        summary.AppendLine("- CurrentSupportedRailFit=" + SafeText(promotionAssessment.SupportedRailFit));
+        summary.AppendLine("- CurrentSurfaceState=" + BuildDraftSurfaceState(draftDefinition));
+        summary.AppendLine("- SharedRefs=" + BuildSharedReferenceSummary(draftDefinition, routeDefinition, representativeRoom));
+        summary.AppendLine("- SharedAssetPaths=" + BuildSharedAssetPathSummary(draftDefinition, representativeRoom));
+        summary.AppendLine("- RetargetState=" + SafeText(retargetAssessment.RetargetState));
+        summary.AppendLine("- RetargetRouteId=" + SafeText(retargetAssessment.RetargetRouteId));
+        summary.AppendLine("- RetargetResolverKey=" + SafeText(retargetAssessment.RetargetResolverKey));
+        summary.AppendLine("- RetargetChainId=" + SafeText(retargetAssessment.RetargetChainId));
+        summary.AppendLine("- RetargetDraftAsset=" + SafeText(retargetAssessment.RetargetDraftAssetPath));
+        summary.AppendLine("- RetargetSurfaceState=" + SafeText(retargetAssessment.RetargetSurfaceState));
+        summary.AppendLine("- RetargetRailFit=" + SafeText(retargetAssessment.RetargetRailFit));
+        summary.AppendLine("- RetargetCanonicalOwner=" + BuildRetargetCanonicalOwnerSummary(retargetAssessment));
+        summary.AppendLine("- RetargetDraftOwner=" + SafeText(retargetAssessment.RetargetDraftOwnerAssetPath));
+        summary.AppendLine("- ManualNext=" + SafeText(retargetAssessment.ManualNext));
+        summary.AppendLine("- RetargetHint=Retarget candidates stay hidden/off-rail until a later batch deliberately promotes them into Resources or widens the surfaced seam.");
+        return summary.ToString();
+    }
+
+    private static string BuildHiddenCanonicalPromotionSummary(
+        TextAsset draftAsset,
+        string draftAssetPath,
+        GoldenPathChainDefinition draftDefinition)
+    {
+        HiddenCanonicalPromotionAssessment assessment = AssessHiddenCanonicalPromotion(draftDefinition, draftAssetPath);
+        GoldenPathRouteDefinition routeDefinition = draftDefinition != null ? draftDefinition.CanonicalRoute : null;
+        GoldenPathRoomDefinition representativeRoom = routeDefinition != null && routeDefinition.Rooms != null && routeDefinition.Rooms.Length > 0
+            ? routeDefinition.Rooms[0]
+            : null;
+
+        StringBuilder summary = new StringBuilder();
+        summary.AppendLine("[AuthoringTooling] Hidden canonical promotion summary");
+        summary.AppendLine("- DraftAsset=" + SafeText(draftAssetPath));
+        summary.AppendLine("- DraftChainId=" + SafeText(draftDefinition != null ? draftDefinition.ChainId : string.Empty));
+        summary.AppendLine("- DraftResolverKey=" + SafeText(assessment.DraftResolverKey));
+        summary.AppendLine("- PromotionState=" + SafeText(assessment.PromotionState));
+        summary.AppendLine("- CurrentCanonicalOwner=" + BuildHiddenCanonicalOwnerSummary(assessment));
+        summary.AppendLine("- TargetCanonicalChainId=" + SafeText(assessment.TargetCanonicalChainId));
+        summary.AppendLine("- TargetCanonicalAsset=" + SafeText(assessment.TargetCanonicalAssetPath));
+        summary.AppendLine("- TargetSurfaceState=" + SafeText(assessment.TargetSurfaceState));
+        summary.AppendLine("- CurrentRailImpact=" + SafeText(assessment.CurrentRailImpact));
+        summary.AppendLine("- SharedRefs=" + BuildSharedReferenceSummary(draftDefinition, routeDefinition, representativeRoom));
+        summary.AppendLine("- SharedAssetPaths=" + BuildSharedAssetPathSummary(draftDefinition, representativeRoom));
+        summary.AppendLine("- ManualNext=" + SafeText(assessment.ManualNext));
+        summary.AppendLine("- PromotionHint=This path proves owner-safe hidden-canonical promotion only. It does not widen the current surfaced safe/risky rail.");
+        return summary.ToString();
+    }
+
+    private static void PromoteDraftAsHiddenCanonical(
+        TextAsset draftAsset,
+        string draftAssetPath,
+        GoldenPathChainDefinition draftDefinition,
+        bool overwriteExisting)
+    {
+        if (draftAsset == null || draftDefinition == null)
+        {
+            Debug.LogError("[AuthoringTooling] Cannot promote draft because the source draft asset is missing.");
+            return;
+        }
+
+        HiddenCanonicalPromotionAssessment assessment = AssessHiddenCanonicalPromotion(draftDefinition, draftAssetPath);
+        if (!string.Equals(assessment.PromotionState, "candidate:promote-hidden-canonical-owner-safe", StringComparison.Ordinal))
+        {
+            Debug.LogWarning("[AuthoringTooling] Hidden-canonical promotion is not available for the selected draft. " + SafeText(assessment.ManualNext));
+            return;
+        }
+
+        EnsureCanonicalChainFolderExists();
+
+        GoldenPathChainDefinition promotedDefinition = CloneDefinition(draftDefinition);
+        if (promotedDefinition == null)
+        {
+            Debug.LogError("[AuthoringTooling] Failed to clone the selected draft definition for hidden-canonical promotion.");
+            return;
+        }
+
+        promotedDefinition.ChainId = assessment.TargetCanonicalChainId;
+        promotedDefinition.PrimaryCityDungeonDefinition = false;
+        promotedDefinition.SurfaceAsOpportunityVariant = false;
+
+        string resolvedCanonicalAssetPath = overwriteExisting
+            ? assessment.TargetCanonicalAssetPath
+            : AssetDatabase.GenerateUniqueAssetPath(assessment.TargetCanonicalAssetPath);
+
+        string json = JsonUtility.ToJson(promotedDefinition, true);
+        File.WriteAllText(ToAbsoluteAssetPath(draftAssetPath), json, new UTF8Encoding(false));
+        AssetDatabase.ImportAsset(draftAssetPath);
+
+        string moveError = AssetDatabase.MoveAsset(draftAssetPath, resolvedCanonicalAssetPath);
+        if (!string.IsNullOrEmpty(moveError))
+        {
+            Debug.LogError("[AuthoringTooling] Failed to promote hidden-canonical draft: " + moveError);
+            return;
+        }
+
+        AssetDatabase.Refresh();
+        AssetDatabase.SaveAssets();
+
+        Debug.Log(BuildHiddenCanonicalPromotionResultSummary(
+            draftDefinition,
+            draftAssetPath,
+            promotedDefinition,
+            resolvedCanonicalAssetPath,
+            assessment));
     }
 
     private static TextAsset[] LoadDraftAssets()
@@ -638,6 +1038,79 @@ public static class GoldenPathAuthoringDraftHelper
             definition => definition != null ? definition.BattleSetupId : string.Empty));
     }
 
+    private static void CreateRetargetedDraftFromDraft(
+        TextAsset sourceDraftAsset,
+        string sourceDraftAssetPath,
+        GoldenPathChainDefinition sourceDraftDefinition,
+        bool overwriteExisting)
+    {
+        if (sourceDraftAsset == null || sourceDraftDefinition == null)
+        {
+            Debug.LogError("[AuthoringTooling] Cannot retarget a draft because the source draft asset is missing.");
+            return;
+        }
+
+        DraftRetargetAssessment retargetAssessment = AssessDraftRetarget(sourceDraftDefinition, sourceDraftAssetPath);
+        if (!IsHelperRetargetCandidate(retargetAssessment))
+        {
+            Debug.LogWarning("[AuthoringTooling] No non-colliding retarget candidate is available for the selected draft. " + SafeText(retargetAssessment.ManualNext));
+            return;
+        }
+
+        EnsureDraftFolderExists();
+
+        GoldenPathChainDefinition retargetedDefinition = CloneDefinition(sourceDraftDefinition);
+        if (retargetedDefinition == null)
+        {
+            Debug.LogError("[AuthoringTooling] Failed to clone the selected draft definition for retargeting.");
+            return;
+        }
+
+        if (retargetedDefinition.CanonicalRoute == null)
+        {
+            retargetedDefinition.CanonicalRoute = new GoldenPathRouteDefinition();
+        }
+
+        retargetedDefinition.ChainId = retargetAssessment.RetargetChainId;
+        retargetedDefinition.PrimaryCityDungeonDefinition = false;
+        retargetedDefinition.SurfaceAsOpportunityVariant = false;
+        retargetedDefinition.CanonicalRoute.RouteId = retargetAssessment.RetargetRouteId;
+        if (!HasText(retargetedDefinition.CanonicalRoute.RouteLabel))
+        {
+            retargetedDefinition.CanonicalRoute.RouteLabel = retargetAssessment.RetargetRouteId;
+        }
+
+        string resolvedDraftAssetPath = overwriteExisting
+            ? retargetAssessment.RetargetDraftAssetPath
+            : AssetDatabase.GenerateUniqueAssetPath(retargetAssessment.RetargetDraftAssetPath);
+
+        string json = JsonUtility.ToJson(retargetedDefinition, true);
+        string absoluteDraftAssetPath = ToAbsoluteAssetPath(resolvedDraftAssetPath);
+        string draftDirectory = Path.GetDirectoryName(absoluteDraftAssetPath) ?? string.Empty;
+        if (!string.IsNullOrEmpty(draftDirectory))
+        {
+            Directory.CreateDirectory(draftDirectory);
+        }
+
+        File.WriteAllText(absoluteDraftAssetPath, json, new UTF8Encoding(false));
+        AssetDatabase.ImportAsset(resolvedDraftAssetPath, ImportAssetOptions.ForceSynchronousImport);
+        AssetDatabase.Refresh();
+
+        TextAsset createdDraftAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(resolvedDraftAssetPath);
+        if (createdDraftAsset != null)
+        {
+            Selection.activeObject = createdDraftAsset;
+            EditorGUIUtility.PingObject(createdDraftAsset);
+        }
+
+        Debug.Log(BuildRetargetedDraftCreationSummary(
+            sourceDraftDefinition,
+            sourceDraftAssetPath,
+            retargetedDefinition,
+            resolvedDraftAssetPath,
+            retargetAssessment));
+    }
+
     private static DraftPromotionAssessment AssessDraftPromotion(GoldenPathChainDefinition draftDefinition)
     {
         DraftPromotionAssessment assessment = new DraftPromotionAssessment();
@@ -688,6 +1161,167 @@ public static class GoldenPathAuthoringDraftHelper
         return assessment;
     }
 
+    private static DraftRetargetAssessment AssessDraftRetarget(GoldenPathChainDefinition draftDefinition, string currentDraftAssetPath)
+    {
+        DraftRetargetAssessment assessment = new DraftRetargetAssessment();
+        DraftPromotionAssessment currentPromotion = AssessDraftPromotion(draftDefinition);
+        assessment.SourceResolverKey = currentPromotion.DraftResolverKey;
+        assessment.SourcePromotionState = currentPromotion.PromotionState;
+        assessment.SourceSupportedRailFit = currentPromotion.SupportedRailFit;
+        assessment.SourceCanonicalOwnerChainId = currentPromotion.CurrentCanonicalOwnerChainId;
+        assessment.SourceCanonicalOwnerAssetPath = currentPromotion.CurrentCanonicalOwnerAssetPath;
+
+        if (draftDefinition == null)
+        {
+            assessment.RetargetState = "blocked:missing-definition";
+            assessment.ManualNext = "Fix the draft JSON before asking the helper for a retarget candidate.";
+            return assessment;
+        }
+
+        string cityId = draftDefinition.CityId;
+        string dungeonId = draftDefinition.DungeonId;
+        string routeId = draftDefinition.CanonicalRoute != null ? draftDefinition.CanonicalRoute.RouteId : string.Empty;
+        if (!HasText(cityId) || !HasText(dungeonId) || !HasText(routeId))
+        {
+            assessment.RetargetState = "blocked:missing-city-dungeon-route";
+            assessment.ManualNext = "Fill in CityId, DungeonId, and CanonicalRoute.RouteId before retargeting.";
+            return assessment;
+        }
+
+        if (!IsCurrentSurfacingRouteId(routeId) &&
+            !TryFindCanonicalOwner(cityId, dungeonId, routeId, out _, out _) &&
+            !TryFindDraftOwner(cityId, dungeonId, routeId, currentDraftAssetPath, out _))
+        {
+            assessment.RetargetRouteId = routeId;
+            assessment.RetargetResolverKey = BuildResolverKey(cityId, dungeonId, routeId);
+            assessment.RetargetChainId = SafeText(draftDefinition.ChainId);
+            assessment.RetargetDraftAssetPath = SafeText(currentDraftAssetPath);
+            assessment.RetargetState = "candidate:already-hidden-canonical-retarget";
+            assessment.RetargetSurfaceState = "hidden-canonical-if-promoted";
+            assessment.RetargetRailFit = "outside-current-supported-linked-dungeon-rail";
+            assessment.ManualNext = "This draft already uses a non-colliding off-rail resolver key. Keep it hidden, or move it into Resources later as hidden canonical content before widening the surfaced seam.";
+            return assessment;
+        }
+
+        for (int candidateIndex = 1; candidateIndex <= 12; candidateIndex++)
+        {
+            string candidateRouteId = BuildRetargetCandidateRouteId(routeId, candidateIndex);
+            if (!HasText(candidateRouteId))
+            {
+                continue;
+            }
+
+            string candidateResolverKey = BuildResolverKey(cityId, dungeonId, candidateRouteId);
+            string candidateDraftAssetPath = BuildRetargetDraftAssetPath(draftDefinition, candidateRouteId);
+            string candidateChainId = BuildRetargetChainId(draftDefinition, candidateRouteId);
+
+            if (TryFindCanonicalOwner(cityId, dungeonId, candidateRouteId, out string canonicalOwnerChainId, out string canonicalOwnerAssetPath))
+            {
+                if (candidateIndex == 1)
+                {
+                    assessment.RetargetCanonicalOwnerChainId = canonicalOwnerChainId;
+                    assessment.RetargetCanonicalOwnerAssetPath = canonicalOwnerAssetPath;
+                }
+
+                continue;
+            }
+
+            if (TryFindDraftOwner(cityId, dungeonId, candidateRouteId, currentDraftAssetPath, out string existingDraftOwnerAssetPath))
+            {
+                if (string.Equals(existingDraftOwnerAssetPath, candidateDraftAssetPath, StringComparison.Ordinal))
+                {
+                    assessment.RetargetRouteId = candidateRouteId;
+                    assessment.RetargetResolverKey = candidateResolverKey;
+                    assessment.RetargetChainId = candidateChainId;
+                    assessment.RetargetDraftAssetPath = candidateDraftAssetPath;
+                    assessment.RetargetState = "candidate:existing-hidden-canonical-retarget";
+                    assessment.RetargetSurfaceState = "hidden-canonical-if-promoted";
+                    assessment.RetargetRailFit = "outside-current-supported-linked-dungeon-rail";
+                    assessment.RetargetDraftOwnerAssetPath = existingDraftOwnerAssetPath;
+                    assessment.ManualNext = "A non-colliding off-rail retarget draft already exists. Review that draft, keep it hidden, or promote it as hidden canonical content before widening the surfaced seam.";
+                    return assessment;
+                }
+
+                continue;
+            }
+
+            assessment.RetargetRouteId = candidateRouteId;
+            assessment.RetargetResolverKey = candidateResolverKey;
+            assessment.RetargetChainId = candidateChainId;
+            assessment.RetargetDraftAssetPath = candidateDraftAssetPath;
+            assessment.RetargetState = "candidate:create-hidden-canonical-retarget";
+            assessment.RetargetSurfaceState = "hidden-canonical-if-promoted";
+            assessment.RetargetRailFit = "outside-current-supported-linked-dungeon-rail";
+            assessment.ManualNext = "Use the retarget helper to create a non-colliding off-rail draft, then review city rationale, route preview text, and shared refs before any later promotion or surfaced-seam widening.";
+            return assessment;
+        }
+
+        assessment.RetargetState = "blocked:no-non-colliding-retarget-candidate";
+        assessment.ManualNext = "Every checked off-rail retarget candidate was already occupied. Rename the route by hand or widen the current surfaced seam intentionally.";
+        return assessment;
+    }
+
+    private static HiddenCanonicalPromotionAssessment AssessHiddenCanonicalPromotion(
+        GoldenPathChainDefinition draftDefinition,
+        string draftAssetPath)
+    {
+        HiddenCanonicalPromotionAssessment assessment = new HiddenCanonicalPromotionAssessment();
+        assessment.DraftResolverKey = BuildResolverKey(
+            draftDefinition != null ? draftDefinition.CityId : string.Empty,
+            draftDefinition != null ? draftDefinition.DungeonId : string.Empty,
+            draftDefinition != null && draftDefinition.CanonicalRoute != null ? draftDefinition.CanonicalRoute.RouteId : string.Empty);
+        assessment.TargetSurfaceState = "hidden-canonical";
+
+        if (draftDefinition == null)
+        {
+            assessment.PromotionState = "blocked:missing-definition";
+            assessment.ManualNext = "Fix the draft JSON before hidden-canonical promotion.";
+            return assessment;
+        }
+
+        string routeId = draftDefinition.CanonicalRoute != null ? draftDefinition.CanonicalRoute.RouteId : string.Empty;
+        if (!HasText(draftDefinition.CityId) || !HasText(draftDefinition.DungeonId) || !HasText(routeId))
+        {
+            assessment.PromotionState = "blocked:missing-city-dungeon-route";
+            assessment.ManualNext = "Fill in CityId, DungeonId, and CanonicalRoute.RouteId before hidden-canonical promotion.";
+            return assessment;
+        }
+
+        assessment.TargetCanonicalChainId = BuildPromotedChainId(draftDefinition);
+        assessment.TargetCanonicalAssetPath = BuildCanonicalPromotionAssetPath(draftDefinition);
+        assessment.CurrentRailImpact = IsCurrentSurfacingRouteId(routeId)
+            ? "inside-current-safe-risky-surfaced-rail"
+            : "outside-current-safe-risky-surfaced-rail";
+
+        if (TryFindCanonicalOwner(draftDefinition.CityId, draftDefinition.DungeonId, routeId, out string canonicalOwnerChainId, out string canonicalOwnerAssetPath))
+        {
+            assessment.CurrentCanonicalOwnerChainId = canonicalOwnerChainId;
+            assessment.CurrentCanonicalOwnerAssetPath = canonicalOwnerAssetPath;
+            assessment.PromotionState = "blocked:resolver-key-already-owned";
+            assessment.ManualNext = "This resolver key already belongs to canonical content. Retarget again or review the existing canonical owner instead of promoting another copy.";
+            return assessment;
+        }
+
+        if (!IsDraftChainAsset(draftAssetPath))
+        {
+            assessment.PromotionState = "blocked:not-a-draft-asset";
+            assessment.ManualNext = "Use hidden-canonical promotion only from AuthoringDrafts/GoldenPathChains.";
+            return assessment;
+        }
+
+        string targetAbsoluteAssetPath = ToAbsoluteAssetPath(assessment.TargetCanonicalAssetPath);
+        if (File.Exists(targetAbsoluteAssetPath))
+        {
+            assessment.PromotionState = "blocked:target-asset-already-exists";
+            assessment.ManualNext = "The target canonical asset path already exists. Review or rename that canonical asset before promoting another hidden-canonical copy.";
+            return assessment;
+        }
+
+        assessment.PromotionState = "candidate:promote-hidden-canonical-owner-safe";
+        assessment.ManualNext = "Promote this draft into Resources as hidden canonical content. Keep PrimaryCityDungeonDefinition=false and SurfaceAsOpportunityVariant=false so the surfaced portfolio stays unchanged.";
+        return assessment;
+    }
+
     private static bool TryFindCanonicalOwner(string cityId, string dungeonId, string routeId, out string chainId, out string assetPath)
     {
         chainId = string.Empty;
@@ -714,6 +1348,47 @@ public static class GoldenPathAuthoringDraftHelper
 
             chainId = chainDefinition.ChainId;
             assetPath = AssetDatabase.GetAssetPath(chainAsset);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryFindDraftOwner(
+        string cityId,
+        string dungeonId,
+        string routeId,
+        string excludedDraftAssetPath,
+        out string assetPath)
+    {
+        assetPath = string.Empty;
+
+        TextAsset[] draftAssets = LoadDraftAssets();
+        for (int i = 0; i < draftAssets.Length; i++)
+        {
+            TextAsset draftAsset = draftAssets[i];
+            if (draftAsset == null || string.IsNullOrWhiteSpace(draftAsset.text))
+            {
+                continue;
+            }
+
+            string candidateAssetPath = AssetDatabase.GetAssetPath(draftAsset);
+            if (string.Equals(candidateAssetPath, excludedDraftAssetPath, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            GoldenPathChainDefinition draftDefinition = JsonUtility.FromJson<GoldenPathChainDefinition>(draftAsset.text);
+            if (draftDefinition == null ||
+                !string.Equals(draftDefinition.CityId, cityId, StringComparison.Ordinal) ||
+                !string.Equals(draftDefinition.DungeonId, dungeonId, StringComparison.Ordinal) ||
+                draftDefinition.CanonicalRoute == null ||
+                !string.Equals(draftDefinition.CanonicalRoute.RouteId, routeId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            assetPath = candidateAssetPath;
             return true;
         }
 
@@ -802,11 +1477,17 @@ public static class GoldenPathAuthoringDraftHelper
         int blockedByRouteSurfaceExpansionCount,
         int blockedByMissingIdentityCount,
         int blockedByInvalidJsonCount,
+        int retargetableOffRailCandidateCount,
         int openSupportedRailSlotCount)
     {
         if (promotableCount > 0)
         {
             return "candidate-ready-on-current-supported-rail";
+        }
+
+        if (retargetableOffRailCandidateCount > 0)
+        {
+            return "retarget-beyond-current-surface-rail-with-helper";
         }
 
         if (blockedByCanonicalOwnerCount > 0 &&
@@ -961,6 +1642,178 @@ public static class GoldenPathAuthoringDraftHelper
         return "outside-current-supported-linked-dungeon-rail";
     }
 
+    private static string BuildRetargetCanonicalOwnerSummary(DraftRetargetAssessment assessment)
+    {
+        if (assessment == null || !HasText(assessment.RetargetCanonicalOwnerChainId))
+        {
+            return "None";
+        }
+
+        return assessment.RetargetCanonicalOwnerChainId + "@" + SafeText(assessment.RetargetCanonicalOwnerAssetPath);
+    }
+
+    private static string BuildRetargetCandidateRouteId(string sourceRouteId, int candidateIndex)
+    {
+        if (!HasText(sourceRouteId) || candidateIndex < 1)
+        {
+            return string.Empty;
+        }
+
+        if (sourceRouteId.IndexOf("-off-rail-", StringComparison.Ordinal) >= 0)
+        {
+            return sourceRouteId + "-alt-v" + candidateIndex;
+        }
+
+        return sourceRouteId + "-off-rail-v" + candidateIndex;
+    }
+
+    private static string BuildRetargetChainId(GoldenPathChainDefinition sourceDefinition, string retargetRouteId)
+    {
+        string cityId = HasText(sourceDefinition != null ? sourceDefinition.CityId : string.Empty)
+            ? sourceDefinition.CityId
+            : "city";
+        string dungeonId = HasText(sourceDefinition != null ? sourceDefinition.DungeonId : string.Empty)
+            ? sourceDefinition.DungeonId
+            : "dungeon";
+        return "draft-" + cityId + "-" + dungeonId + "-" + SafeText(retargetRouteId);
+    }
+
+    private static string BuildPromotedChainId(GoldenPathChainDefinition sourceDefinition)
+    {
+        string sourceChainId = SafeText(sourceDefinition != null ? sourceDefinition.ChainId : string.Empty);
+        if (sourceChainId.StartsWith("draft-", StringComparison.Ordinal))
+        {
+            return sourceChainId.Substring("draft-".Length);
+        }
+
+        string cityId = HasText(sourceDefinition != null ? sourceDefinition.CityId : string.Empty)
+            ? sourceDefinition.CityId
+            : "city";
+        string dungeonId = HasText(sourceDefinition != null ? sourceDefinition.DungeonId : string.Empty)
+            ? sourceDefinition.DungeonId
+            : "dungeon";
+        string routeId = HasText(sourceDefinition != null && sourceDefinition.CanonicalRoute != null ? sourceDefinition.CanonicalRoute.RouteId : string.Empty)
+            ? sourceDefinition.CanonicalRoute.RouteId
+            : "route";
+        return cityId + "-" + dungeonId + "-" + routeId;
+    }
+
+    private static string BuildCanonicalPromotionAssetPath(GoldenPathChainDefinition sourceDefinition)
+    {
+        return CanonicalChainFolderAssetPath + "/" + BuildPromotedChainId(sourceDefinition) + ".json";
+    }
+
+    private static string BuildRetargetDraftAssetPath(GoldenPathChainDefinition sourceDefinition, string retargetRouteId)
+    {
+        string cityId = HasText(sourceDefinition != null ? sourceDefinition.CityId : string.Empty)
+            ? sourceDefinition.CityId
+            : "city";
+        string dungeonId = HasText(sourceDefinition != null ? sourceDefinition.DungeonId : string.Empty)
+            ? sourceDefinition.DungeonId
+            : "dungeon";
+        return DraftFolderAssetPath + "/draft-" + cityId + "-" + dungeonId + "-" + SafeText(retargetRouteId) + ".json";
+    }
+
+    private static bool IsHelperRetargetCandidate(DraftRetargetAssessment assessment)
+    {
+        if (assessment == null)
+        {
+            return false;
+        }
+
+        return string.Equals(assessment.RetargetState, "candidate:create-hidden-canonical-retarget", StringComparison.Ordinal) ||
+               string.Equals(assessment.RetargetState, "candidate:existing-hidden-canonical-retarget", StringComparison.Ordinal);
+    }
+
+    private static bool IsAlreadyHiddenCanonicalRetarget(DraftRetargetAssessment assessment)
+    {
+        return assessment != null &&
+               string.Equals(assessment.RetargetState, "candidate:already-hidden-canonical-retarget", StringComparison.Ordinal);
+    }
+
+    private static string BuildRetargetedDraftCreationSummary(
+        GoldenPathChainDefinition sourceDraftDefinition,
+        string sourceDraftAssetPath,
+        GoldenPathChainDefinition retargetedDefinition,
+        string retargetedDraftAssetPath,
+        DraftRetargetAssessment sourceRetargetAssessment)
+    {
+        GoldenPathRouteDefinition routeDefinition = retargetedDefinition != null ? retargetedDefinition.CanonicalRoute : null;
+        GoldenPathRoomDefinition representativeRoom = routeDefinition != null && routeDefinition.Rooms != null && routeDefinition.Rooms.Length > 0
+            ? routeDefinition.Rooms[0]
+            : null;
+        DraftPromotionAssessment createdPromotionAssessment = AssessDraftPromotion(retargetedDefinition);
+        DraftRetargetAssessment createdRetargetAssessment = AssessDraftRetarget(retargetedDefinition, retargetedDraftAssetPath);
+
+        StringBuilder summary = new StringBuilder();
+        summary.AppendLine("[AuthoringTooling] Retargeted draft created");
+        summary.AppendLine("- SourceDraftAsset=" + SafeText(sourceDraftAssetPath));
+        summary.AppendLine("- SourceResolverKey=" + SafeText(sourceRetargetAssessment != null ? sourceRetargetAssessment.SourceResolverKey : string.Empty));
+        summary.AppendLine("- SourcePromotionState=" + SafeText(sourceRetargetAssessment != null ? sourceRetargetAssessment.SourcePromotionState : string.Empty));
+        summary.AppendLine("- SourceCanonicalOwner=" + BuildRetargetSourceOwnerSummary(sourceRetargetAssessment));
+        summary.AppendLine("- RetargetDraftAsset=" + SafeText(retargetedDraftAssetPath));
+        summary.AppendLine("- RetargetChainId=" + SafeText(retargetedDefinition != null ? retargetedDefinition.ChainId : string.Empty));
+        summary.AppendLine("- RetargetRouteId=" + SafeText(routeDefinition != null ? routeDefinition.RouteId : string.Empty));
+        summary.AppendLine("- RetargetResolverKey=" + SafeText(createdPromotionAssessment.DraftResolverKey));
+        summary.AppendLine("- RetargetCurrentRailState=" + SafeText(createdPromotionAssessment.PromotionState));
+        summary.AppendLine("- RetargetState=" + SafeText(createdRetargetAssessment.RetargetState));
+        summary.AppendLine("- RetargetSurfaceState=" + SafeText(createdRetargetAssessment.RetargetSurfaceState));
+        summary.AppendLine("- SharedRefs=" + BuildSharedReferenceSummary(retargetedDefinition, routeDefinition, representativeRoom));
+        summary.AppendLine("- SharedAssetPaths=" + BuildSharedAssetPathSummary(retargetedDefinition, representativeRoom));
+        summary.AppendLine("- ManualNext=" + SafeText(createdRetargetAssessment.ManualNext));
+        summary.AppendLine("- RetargetNote=This retargeted draft stays off the current safe/risky surfaced seam. It is a hidden-canonical candidate, not a newly surfaced opportunity.");
+        return summary.ToString();
+    }
+
+    private static string BuildHiddenCanonicalPromotionResultSummary(
+        GoldenPathChainDefinition sourceDraftDefinition,
+        string sourceDraftAssetPath,
+        GoldenPathChainDefinition promotedDefinition,
+        string promotedAssetPath,
+        HiddenCanonicalPromotionAssessment promotionAssessment)
+    {
+        GoldenPathRouteDefinition routeDefinition = promotedDefinition != null ? promotedDefinition.CanonicalRoute : null;
+        GoldenPathRoomDefinition representativeRoom = routeDefinition != null && routeDefinition.Rooms != null && routeDefinition.Rooms.Length > 0
+            ? routeDefinition.Rooms[0]
+            : null;
+
+        StringBuilder summary = new StringBuilder();
+        summary.AppendLine("[AuthoringTooling] Hidden canonical draft promoted");
+        summary.AppendLine("- SourceDraftAsset=" + SafeText(sourceDraftAssetPath));
+        summary.AppendLine("- SourceDraftChainId=" + SafeText(sourceDraftDefinition != null ? sourceDraftDefinition.ChainId : string.Empty));
+        summary.AppendLine("- PromotedAsset=" + SafeText(promotedAssetPath));
+        summary.AppendLine("- PromotedChainId=" + SafeText(promotedDefinition != null ? promotedDefinition.ChainId : string.Empty));
+        summary.AppendLine("- PromotedResolverKey=" + SafeText(promotionAssessment != null ? promotionAssessment.DraftResolverKey : string.Empty));
+        summary.AppendLine("- PromotionState=promoted:hidden-canonical-owner-safe");
+        summary.AppendLine("- SurfaceState=hidden-canonical");
+        summary.AppendLine("- RailImpact=unchanged-current-safe-risky-surfaced-rail");
+        summary.AppendLine("- SharedRefs=" + BuildSharedReferenceSummary(promotedDefinition, routeDefinition, representativeRoom));
+        summary.AppendLine("- SharedAssetPaths=" + BuildSharedAssetPathSummary(promotedDefinition, representativeRoom));
+        summary.AppendLine("- ManualNext=Rerun validator plus surfaced/tooling summaries. The current surfaced portfolio should remain four routes while this promoted route appears as canonical but non-surfaced hidden content.");
+        summary.AppendLine("- PromotionNote=This is owner-safe off-surface promotion proof. It does not widen the surfaced rail or add a fifth player-facing opportunity.");
+        return summary.ToString();
+    }
+
+    private static string BuildRetargetSourceOwnerSummary(DraftRetargetAssessment assessment)
+    {
+        if (assessment == null || !HasText(assessment.SourceCanonicalOwnerChainId))
+        {
+            return "None";
+        }
+
+        return assessment.SourceCanonicalOwnerChainId + "@" + SafeText(assessment.SourceCanonicalOwnerAssetPath);
+    }
+
+    private static string BuildHiddenCanonicalOwnerSummary(HiddenCanonicalPromotionAssessment assessment)
+    {
+        if (assessment == null || !HasText(assessment.CurrentCanonicalOwnerChainId))
+        {
+            return "None";
+        }
+
+        return assessment.CurrentCanonicalOwnerChainId + "@" + SafeText(assessment.CurrentCanonicalOwnerAssetPath);
+    }
+
     private static string FormatCountOrNone(int count)
     {
         return count > 0 ? count.ToString() : "None";
@@ -1098,6 +1951,12 @@ public static class GoldenPathAuthoringDraftHelper
     {
         string absoluteDraftFolderPath = ToAbsoluteAssetPath(DraftFolderAssetPath);
         Directory.CreateDirectory(absoluteDraftFolderPath);
+    }
+
+    private static void EnsureCanonicalChainFolderExists()
+    {
+        string absoluteCanonicalFolderPath = ToAbsoluteAssetPath(CanonicalChainFolderAssetPath);
+        Directory.CreateDirectory(absoluteCanonicalFolderPath);
     }
 
     private static string ToAbsoluteAssetPath(string assetPath)

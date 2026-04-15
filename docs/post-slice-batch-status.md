@@ -2,11 +2,11 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 46`
+- Latest closed batch: `Batch 48`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
-- Next honest bottleneck: retarget-or-widen draft promotion workflow, not fallback cleanup
+- Next honest bottleneck: decide whether the new off-rail hidden-canonical route should stay inventory-only, accumulate more hidden canonical routes, or justify an intentional surfaced-seam widening batch later
 
 ## GPT Quick Judge
 
@@ -14,9 +14,10 @@
 - Surfaced portfolio count: `4`
 - Meaningfully distinct surfaced opportunities: `4`
 - Canonical but not surfaced on current Alpha/Beta `safe/risky` rail: `None`
+- Off-surface hidden canonical routes: `1` (`city-a -> dungeon-alpha -> safe-off-rail-v1`)
 - Surfaced using fallback: `None`
 - Surfaced consumer mismatch: `None`
-- Expansion gate: `C:tooling-next`
+- Expansion gate: `B:matrix-align`
 
 ## Current Surfaced Portfolio
 
@@ -32,22 +33,26 @@
 - Promotable drafts on current surfaced rail: `0`
 - Blocked drafts: `1`
 - Blocked by canonical owner: `1`
+- Retargetable off-rail candidates: `1`
+- Hidden off-rail canonical drafts: `0`
+- Promoted hidden canonical routes: `1`
 - Supported rail slots: `4`
 - Occupied supported rail slots: `4`
 - Open supported rail slots: `None`
 - Open supported resolver keys: `None`
-- Promotion recommendation: `no-open-supported-resolver-key-on-current-rail`
+- Promotion recommendation: `retarget-beyond-current-surface-rail-with-helper`
+- Batch-template next retarget resolver key: `city-a::dungeon-alpha::safe-off-rail-v2`
+- Promoted hidden canonical asset: `Assets/_Game/Resources/Content/GoldenPathChains/city-a-dungeon-alpha-safe-off-rail-v1.json`
 
-## Batch 46 Close-Out
+## Batch 48 Close-Out
 
-- Batch 46 did not add a new surfaced opportunity.
-- Batch 46 adds a draft-promotion preflight summary on top of readiness/context.
-- Draft tooling now reports:
-  - supported rail slot inventory
-  - occupied vs open supported slot counts
-  - open supported resolver keys
-  - whether the selected draft sits on an already-owned supported slot or outside the current rail
-  - a saturated-rail recommendation when `Promotable drafts on current rail` honestly remains `0`
+- Batch 48 did not add a new surfaced opportunity.
+- Batch 48 closes the next gap after retarget creation by promoting one off-rail draft into canonical `Resources` content as hidden canonical content.
+- The promoted hidden canonical route is:
+  - `city-a -> dungeon-alpha -> safe-off-rail-v1`
+  - asset: `Assets/_Game/Resources/Content/GoldenPathChains/city-a-dungeon-alpha-safe-off-rail-v1.json`
+- The current Alpha/Beta surfaced rail still remains exactly four routes.
+- The original batch-template draft remains blocked on `city-a::dungeon-alpha::safe`, but its next honest off-rail helper suggestion is now `safe-off-rail-v2`.
 
 ## Validation Snapshot
 
@@ -56,9 +61,12 @@
 - Draft readiness summary: `PASS`
 - Draft promotion preflight summary: `PASS`
 - Draft promotion context summary: `PASS`
+- Hidden canonical promotion summary: `PASS`
+- Hidden canonical promotion action: `PASS`
+- Surfaced matrix summary: `PASS`
 - Smoke: `DEFERRED` because this batch only changed editor/debug/helper and docs
 
-## Batch 46 Recommendation
+## Batch 48 Recommendation
 
-- Recommended direction: `retarget the draft beyond the current surfaced rail` or `widen the surfaced route seam intentionally`
-- Do not open another surfaced-expansion batch on the current Alpha/Beta rail until the draft helper reports an open supported resolver key or the surfaced seam itself is deliberately widened.
+- Recommended direction: `keep hidden-canonical off-rail promotion separate from surfaced expansion` and only widen the surfaced route seam in a later deliberate batch if product intent really needs it.
+- Do not treat the new hidden canonical route as a silent fifth surfaced opportunity.

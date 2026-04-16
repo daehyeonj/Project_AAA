@@ -72,7 +72,7 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         resolution.ThreatLaneKey = requiresTarget ? resolution.TargetLaneKey : PrototypeBattleLaneKeys.Any;
-        resolution.ThreatLaneLabel = requiresTarget ? resolution.TargetLaneLabel : "All ally lanes";
+        resolution.ThreatLaneLabel = requiresTarget ? resolution.TargetLaneLabel : "Entire ally row";
         resolution.ThreatSummaryText = BuildThreatSummaryText(resolution.ThreatLaneLabel, resolution.RangeText, resolution.TargetRuleText, resolution.LaneImpactText, true, requiresTarget);
         return resolution;
     }

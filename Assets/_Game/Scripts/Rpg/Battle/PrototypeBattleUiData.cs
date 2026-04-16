@@ -15,6 +15,7 @@ public sealed class PrototypeBattleUiSurfaceData
     public string MissionRewardPreviewText = "None";
     public string MissionRiskContextText = "None";
     public string MissionIntentSummaryText = "None";
+    public string RoomProgressText = "None";
     public string PartyCondition = "None";
     public string TotalPartyHp = "None";
     public string EliteStatusText = "None";

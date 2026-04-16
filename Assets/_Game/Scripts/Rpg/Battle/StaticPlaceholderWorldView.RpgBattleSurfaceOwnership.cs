@@ -18,6 +18,7 @@ public sealed partial class StaticPlaceholderWorldView
         surface.MissionRewardPreviewText = string.IsNullOrEmpty(request != null ? request.RewardPreviewText : string.Empty) ? "None" : request.RewardPreviewText;
         surface.MissionRiskContextText = string.IsNullOrEmpty(request != null ? request.RiskContextText : string.Empty) ? "None" : request.RiskContextText;
         surface.MissionIntentSummaryText = BuildBattleIntentSummaryText(request);
+        surface.RoomProgressText = RoomProgressText;
         surface.PartyCondition = GetPartyConditionText();
         surface.TotalPartyHp = BuildTotalPartyHpSummary();
         surface.EliteStatusText = GetEliteStatusText();
@@ -147,10 +148,12 @@ public sealed partial class StaticPlaceholderWorldView
         PrototypeBattleRuntimeState safeRuntime = runtimeState ?? new PrototypeBattleRuntimeState();
         string actorName = !string.IsNullOrEmpty(safeRuntime.CurrentActorId) ? GetCombatEntityDisplayName(safeRuntime.CurrentActorId) : string.Empty;
         string actorText = !string.IsNullOrEmpty(safeRuntime.CurrentActorId)
-            ? (string.IsNullOrEmpty(safeRuntime.CurrentActorLaneLabel) ? (string.IsNullOrEmpty(actorName) ? safeRuntime.CurrentActorId : actorName) : (string.IsNullOrEmpty(actorName) ? safeRuntime.CurrentActorId : actorName) + " @ " + safeRuntime.CurrentActorLaneLabel)
+            ? (string.IsNullOrEmpty(actorName) ? safeRuntime.CurrentActorId : actorName)
             : "No actor";
         string actionText = !string.IsNullOrEmpty(safeRuntime.QueuedActionLabel) ? safeRuntime.QueuedActionLabel : "No action";
-        string targetText = !string.IsNullOrEmpty(safeRuntime.SelectedTargetLaneLabel) ? safeRuntime.SelectedTargetLaneLabel : !string.IsNullOrEmpty(safeRuntime.ThreatLaneLabel) ? safeRuntime.ThreatLaneLabel : "No target lane";
+        string targetText = !string.IsNullOrEmpty(safeRuntime.SelectedTargetId)
+            ? GetCombatEntityDisplayName(safeRuntime.SelectedTargetId)
+            : "No target";
         string reachabilityText = !string.IsNullOrEmpty(safeRuntime.ReachabilitySummaryText) ? safeRuntime.ReachabilitySummaryText : "Reachability pending.";
         return safeRuntime.PhaseLabel + " | Turn " + safeRuntime.TurnIndex + " | " + actorText + " | " + actionText + " | " + targetText + " | " + reachabilityText;
     }
@@ -174,18 +177,7 @@ public sealed partial class StaticPlaceholderWorldView
                 continue;
             }
 
-            string part = slot.Label;
-            if (!string.IsNullOrEmpty(slot.LaneLabel))
-            {
-                part += " @ " + slot.LaneLabel;
-            }
-
-            if (!string.IsNullOrEmpty(slot.ThreatLabel))
-            {
-                part += " [" + slot.ThreatLabel + "]";
-            }
-
-            parts.Add(part);
+            parts.Add(slot.Label);
         }
 
         return parts.Count > 0 ? string.Join(" -> ", parts.ToArray()) : "Timeline pending.";
@@ -232,7 +224,7 @@ public sealed partial class StaticPlaceholderWorldView
             actor.CurrentHp = Mathf.Max(0, _activeBattleMonster.CurrentHp);
             actor.MaxHp = Mathf.Max(1, _activeBattleMonster.MaxHp);
             actor.IsEnemy = true;
-            actor.StatusText = string.IsNullOrEmpty(actor.LaneLabel) ? "Enemy turn" : "Enemy turn | " + actor.LaneLabel;
+            actor.StatusText = "Enemy turn";
             return actor;
         }
 
@@ -259,7 +251,7 @@ public sealed partial class StaticPlaceholderWorldView
             : _battleState == BattleState.PartyActionSelect
                 ? "Awaiting command"
                 : "Ready";
-        actor.StatusText = string.IsNullOrEmpty(actor.LaneLabel) ? statusText : statusText + " | " + actor.LaneLabel;
+        actor.StatusText = statusText;
         return actor;
     }
 
@@ -505,17 +497,13 @@ public sealed partial class StaticPlaceholderWorldView
             }
         }
 
-        data.StatusText = (data.IsKnockedOut
+        data.StatusText = data.IsKnockedOut
             ? "KO"
             : data.IsActive
                 ? "Acting"
                 : data.IsTargeted
                     ? "Targeted"
-                    : "Ready") + " | " + data.LaneLabel;
-        if (!data.IsKnockedOut && _dungeonRunState == DungeonRunState.Battle && _battleState == BattleState.EnemyTurn)
-        {
-            data.StatusText += data.IsReachableByCurrentAction ? " / Threatened" : " / Safe";
-        }
+                    : "Ready";
 
         return data;
     }
@@ -740,12 +728,6 @@ public sealed partial class StaticPlaceholderWorldView
             return "Unknown";
         }
 
-        string suffix = monster.RuntimeState != null &&
-                        (!string.IsNullOrEmpty(monster.RuntimeState.IntentThreatLaneLabel) || !string.IsNullOrEmpty(monster.RuntimeState.IntentRangeText))
-            ? " | " + (string.IsNullOrEmpty(monster.RuntimeState.IntentThreatLaneLabel) ? "No lane" : monster.RuntimeState.IntentThreatLaneLabel) +
-              " | " + (string.IsNullOrEmpty(monster.RuntimeState.IntentRangeText) ? "No range" : monster.RuntimeState.IntentRangeText)
-            : string.Empty;
-
         if (!string.IsNullOrEmpty(monster.IntentLabel))
         {
             return monster.IntentLabel;
@@ -758,14 +740,14 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (monster.IsElite && !string.IsNullOrEmpty(monster.SpecialActionName))
         {
-            return monster.SpecialActionName + suffix;
+            return monster.SpecialActionName;
         }
 
         return monster.TargetPattern == MonsterTargetPattern.LowestHpLiving
-            ? "Pressure lowest HP" + suffix
+            ? "Pressure lowest HP"
             : monster.TargetPattern == MonsterTargetPattern.RandomLiving
-                ? "Unstable focus" + suffix
-                : "Frontline pressure" + suffix;
+                ? "Unstable focus"
+                : "Frontline pressure";
     }
 
     private string BuildRpgOwnedBattleUiEnemyThreatLaneText(DungeonMonsterRuntimeData monster)
@@ -820,52 +802,59 @@ public sealed partial class StaticPlaceholderWorldView
         string skillDescription = actor != null && !string.IsNullOrEmpty(actor.SkillShortText)
             ? actor.SkillShortText
             : "Uses the active actor's shared skill definition.";
+        if (actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedTargetKind))
+        {
+            skillDescription = GetBattleUiTargetTypeLabel(actionContext.ResolvedTargetKind) + " | " + skillDescription;
+        }
+
         if (actionContext != null && !string.IsNullOrEmpty(actionContext.ThreatSummaryText))
         {
             skillDescription += " | " + actionContext.ThreatSummaryText;
         }
 
         string skillTargetText = actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedTargetKind)
-            ? GetBattleUiTargetTypeLabel(actionContext.ResolvedTargetKind) +
-              (string.IsNullOrEmpty(actionContext.RangeText) ? string.Empty : " | " + actionContext.RangeText) +
-              (string.IsNullOrEmpty(actionContext.ResolvedLaneRuleKey) ? string.Empty : " | " + BuildTargetRuleText(actionContext.ResolvedLaneRuleKey))
+            ? GetBattleUiTargetTypeLabel(actionContext.ResolvedTargetKind)
             : "Single enemy";
         string skillEffectText = actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedEffectType)
-            ? GetBattleUiEffectText(actionContext.ResolvedEffectType, actionContext.ResolvedPowerValue) +
-              (string.IsNullOrEmpty(actionContext.LaneImpactText) ? string.Empty : " | " + actionContext.LaneImpactText) +
-              (string.IsNullOrEmpty(actionContext.ReachabilitySummaryText) ? string.Empty : " | " + actionContext.ReachabilitySummaryText) +
-              (string.IsNullOrEmpty(actionContext.ThreatSummaryText) ? string.Empty : " | " + actionContext.ThreatSummaryText)
+            ? GetBattleUiEffectText(actionContext.ResolvedEffectType, actionContext.ResolvedPowerValue)
             : skillDescription;
 
         string attackTargetText = "Single enemy";
-        string attackEffectText = "Deal " + basicAttackPower + " damage.";
-        if (currentMember != null)
-        {
-            PrototypeBattleLaneRuleResolution attackResolution = BuildPartyActionLaneResolution(currentMember, GetBattleUiPrimaryPreviewMonster(), BattleActionType.Attack, null);
-            attackTargetText += string.IsNullOrEmpty(attackResolution.RangeText) ? string.Empty : " | " + attackResolution.RangeText;
-            attackTargetText += string.IsNullOrEmpty(attackResolution.TargetRuleText) ? string.Empty : " | " + attackResolution.TargetRuleText;
-            attackEffectText += string.IsNullOrEmpty(attackResolution.LaneImpactText) ? string.Empty : " | " + attackResolution.LaneImpactText;
-            attackEffectText += string.IsNullOrEmpty(attackResolution.ReachabilitySummaryText) ? string.Empty : " | " + attackResolution.ReachabilitySummaryText;
-            attackEffectText += string.IsNullOrEmpty(attackResolution.ThreatSummaryText) ? string.Empty : " | " + attackResolution.ThreatSummaryText;
-        }
+        string attackEffectText = "Expected damage " + basicAttackPower + ".";
 
-        string moveDescription = "Shift to the next lane and spend the turn.";
+        string moveDescription = "Choose one adjacent row and spend the turn.";
         string moveTargetText = "Self";
-        string moveEffectText = "Reposition to the next lane.";
+        string moveEffectText = "Select a destination row from the flyout.";
         if (currentMember != null)
         {
             string currentLaneLabel = GetBattleLaneLabel(GetPartyMemberLaneKey(currentMember));
-            string nextLaneLabel = BuildNextBattleLaneLabel(currentMember);
-            moveTargetText = currentLaneLabel + " -> " + nextLaneLabel;
-            moveEffectText = "Shift from " + currentLaneLabel + " to " + nextLaneLabel + ".";
+            string[] availableLaneKeys = GetRpgOwnedAvailableBattleLaneKeys(currentMember);
+            string[] availableLaneLabels = new string[availableLaneKeys.Length];
+            for (int i = 0; i < availableLaneKeys.Length; i++)
+            {
+                availableLaneLabels[i] = GetBattleLaneLabel(availableLaneKeys[i]);
+            }
+
+            moveTargetText = availableLaneLabels.Length > 0
+                ? currentLaneLabel + " -> " + string.Join(" / ", availableLaneLabels)
+                : currentLaneLabel + " -> None";
+            moveEffectText = availableLaneLabels.Length > 0
+                ? "Available shifts: " + string.Join(" / ", availableLaneLabels) + "."
+                : "No adjacent row is available.";
         }
 
+        string endTurnDescription = "Pass without attacking, using a skill, or moving.";
+        string endTurnTargetText = "Self";
+        string endTurnEffectText = "Advance to the next unit in the queue.";
+
         List<PrototypeBattleUiCommandDetailData> details = new List<PrototypeBattleUiCommandDetailData>();
-        details.Add(BuildBattleUiCommandDetailData("attack", "Attack", "Reliable basic strike.", attackTargetText, "None", attackEffectText, IsBattleActionAvailable(BattleActionType.Attack), selectedActionKey == "attack"));
+        details.Add(BuildBattleUiCommandDetailData("attack", "Attack", "Basic attack with projected damage preview.", attackTargetText, "None", attackEffectText, IsBattleActionAvailable(BattleActionType.Attack), selectedActionKey == "attack"));
         details.Add(BuildBattleUiCommandDetailData("skill", skillLabel, skillDescription, skillTargetText, "No cost", skillEffectText, IsBattleActionAvailable(BattleActionType.Skill), selectedActionKey == "skill"));
-        details.Add(BuildBattleUiCommandDetailData("item", "Item", "Reserved for the later inventory batch.", "Self / ally", "Not available yet", "No consumables are wired in this batch.", false, false));
+        details.Add(BuildBattleUiCommandDetailData("item", "Item", "Shows usable consumables once the inventory batch is wired.", "Self / ally", "Not implemented", "No consumables are wired in this batch.", false, false));
         details.Add(BuildBattleUiCommandDetailData("defend", "Defend", "Reserved for a later guard/reaction batch.", "Self", "Not available yet", "No defend rule is wired in this batch.", false, false));
         details.Add(BuildBattleUiCommandDetailData("move", "Move", moveDescription, moveTargetText, "Ends turn", moveEffectText, IsBattleActionAvailable(BattleActionType.Move), selectedActionKey == "move"));
+        AppendRpgOwnedBattleMoveOptionDetails(details, currentMember, selectedActionKey);
+        details.Add(BuildBattleUiCommandDetailData("end_turn", "End Turn", endTurnDescription, endTurnTargetText, "Ends turn", endTurnEffectText, IsBattleActionAvailable(BattleActionType.EndTurn), selectedActionKey == "end_turn"));
         details.Add(BuildBattleUiCommandDetailData("retreat", "Retreat", "Leave the run using the current resolution flow.", "Party", "Ends the current run", "Return to WorldSim with the current writeback path.", IsBattleActionAvailable(BattleActionType.Retreat), selectedActionKey == "retreat"));
         details.Add(BuildBattleUiCommandDetailData("retreat_confirm", "Confirm retreat", "Commit to the retreat action.", "Party", "Confirm exit", "Uses the existing retreat resolution.", IsBattleActionAvailable(BattleActionType.Retreat), false));
         details.Add(BuildBattleUiCommandDetailData("back", "Back", "Return to the previous command layer.", "Current menu", "None", "Keeps the battle flow intact.", true, false));
@@ -884,8 +873,9 @@ public sealed partial class StaticPlaceholderWorldView
         {
             BuildBattleUiCommandButtonData("attack", "Attack", "[1]", "Front strike", IsBattleActionAvailable(BattleActionType.Attack), selectedActionKey == "attack"),
             BuildBattleUiCommandButtonData("skill", "Skill", "[2]", "Signature", IsBattleActionAvailable(BattleActionType.Skill), selectedActionKey == "skill"),
-            BuildBattleUiCommandButtonData("item", "Item", "[3]", "Reserved", false, false),
-            BuildBattleUiCommandButtonData("retreat", "Retreat", "[4]", "Withdraw", IsBattleActionAvailable(BattleActionType.Retreat), selectedActionKey == "retreat")
+            BuildBattleUiCommandButtonData("item", "Item", "[3]", "Pending", false, false),
+            BuildBattleUiCommandButtonData("move", "Move", "[4]", "Row shift", IsBattleActionAvailable(BattleActionType.Move), selectedActionKey == "move"),
+            BuildBattleUiCommandButtonData("end_turn", "End Turn", "[5]", "Pass", IsBattleActionAvailable(BattleActionType.EndTurn), selectedActionKey == "end_turn")
         };
     }
 
@@ -922,7 +912,12 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (selectedActionKey == "move")
         {
-            return "Movement Context";
+            return "Movement Options";
+        }
+
+        if (selectedActionKey == "end_turn")
+        {
+            return "Turn Flow";
         }
 
         return "Command Context";
@@ -933,12 +928,13 @@ public sealed partial class StaticPlaceholderWorldView
         PrototypeBattleUiCommandDetailData[] safeDetails = details ?? System.Array.Empty<PrototypeBattleUiCommandDetailData>();
         List<PrototypeBattleUiCommandDetailData> contextual = new List<PrototypeBattleUiCommandDetailData>();
         string focusKey = string.IsNullOrEmpty(selectedActionKey) ? "attack" : selectedActionKey;
-        AppendBattleCommandDetail(contextual, safeDetails, focusKey);
-        if (focusKey != "move")
+        if (focusKey == "move")
         {
-            AppendBattleCommandDetail(contextual, safeDetails, "move");
+            AppendRpgOwnedBattleMoveContextualDetails(contextual, safeDetails);
+            return contextual.Count > 0 ? contextual.ToArray() : safeDetails;
         }
 
+        AppendBattleCommandDetail(contextual, safeDetails, focusKey);
         if (focusKey != "retreat")
         {
             AppendBattleCommandDetail(contextual, safeDetails, "retreat");
@@ -998,6 +994,54 @@ public sealed partial class StaticPlaceholderWorldView
         return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : "Select a command.";
     }
 
+    private void AppendRpgOwnedBattleMoveOptionDetails(List<PrototypeBattleUiCommandDetailData> details, DungeonPartyMemberRuntimeData member, string selectedActionKey)
+    {
+        if (details == null || member == null)
+        {
+            return;
+        }
+
+        string currentLaneLabel = GetBattleLaneLabel(GetPartyMemberLaneKey(member));
+        string[] availableLaneKeys = GetRpgOwnedAvailableBattleLaneKeys(member);
+        for (int i = 0; i < availableLaneKeys.Length; i++)
+        {
+            string laneKey = availableLaneKeys[i];
+            string laneLabel = GetBattleLaneLabel(laneKey);
+            bool isRanged = IsRangedPartyMember(member);
+            details.Add(BuildBattleUiCommandDetailData(
+                GetRpgOwnedBattleMoveActionKey(laneKey),
+                "To " + laneLabel,
+                "Shift from " + currentLaneLabel + " into " + laneLabel + ".",
+                currentLaneLabel + " -> " + laneLabel,
+                "Ends turn",
+                BuildRowReachText(laneKey, isRanged),
+                CanRpgOwnedCurrentActorShiftToBattleLane(member, laneKey),
+                selectedActionKey == "move" && i == 0));
+        }
+    }
+
+    private void AppendRpgOwnedBattleMoveContextualDetails(List<PrototypeBattleUiCommandDetailData> contextual, PrototypeBattleUiCommandDetailData[] details)
+    {
+        if (contextual == null || details == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < details.Length; i++)
+        {
+            PrototypeBattleUiCommandDetailData detail = details[i];
+            if (detail != null && IsRpgOwnedBattleMoveActionKey(detail.Key))
+            {
+                contextual.Add(detail);
+            }
+        }
+
+        if (contextual.Count == 0)
+        {
+            AppendBattleCommandDetail(contextual, details, "move");
+        }
+    }
+
     private PrototypeBattleUiTargetSelectionData BuildRpgOwnedBattleUiTargetSelectionData(PrototypeBattleUiActorData actor, PrototypeBattleUiActionContextData actionContext, PrototypeBattleUiTargetContextData targetContext)
     {
         PrototypeBattleUiTargetSelectionData targetSelection = new PrototypeBattleUiTargetSelectionData();
@@ -1006,7 +1050,7 @@ public sealed partial class StaticPlaceholderWorldView
         targetSelection.QueuedActionLabel = actionContext != null && !string.IsNullOrEmpty(actionContext.SelectedActionLabel)
             ? actionContext.SelectedActionLabel
             : GetBattleUiActionDisplayLabel(GetBattleUiSelectedActionKey(), actor);
-        targetSelection.HasFocusedTarget = targetContext != null && targetContext.HasTarget;
+        targetSelection.HasFocusedTarget = targetContext != null && targetContext.HasTarget && targetContext.IsHovered;
         targetSelection.TargetLabel = targetContext != null && targetContext.HasTarget ? targetContext.TargetLabel : "Choose a target";
         targetSelection.TargetRoleLabel = targetContext != null && targetContext.HasTarget ? targetContext.TargetRoleLabel : string.Empty;
         targetSelection.TargetIntentLabel = targetContext != null && targetContext.HasTarget ? targetContext.TargetIntentLabel : string.Empty;
@@ -1131,20 +1175,42 @@ public sealed partial class StaticPlaceholderWorldView
         if (selectedActionKey == "move")
         {
             string currentLaneKey = GetPartyMemberLaneKey(member);
-            string nextLaneKey = GetNextBattleLaneKey(currentLaneKey);
             string currentLaneLabel = GetBattleLaneLabel(currentLaneKey);
-            string nextLaneLabel = GetBattleLaneLabel(nextLaneKey);
+            string[] availableLaneKeys = GetRpgOwnedAvailableBattleLaneKeys(member);
+            string[] availableLaneLabels = new string[availableLaneKeys.Length];
+            for (int i = 0; i < availableLaneKeys.Length; i++)
+            {
+                availableLaneLabels[i] = GetBattleLaneLabel(availableLaneKeys[i]);
+            }
+
             actionContext.ResolvedTargetKind = "self";
             actionContext.ResolvedEffectType = "move";
             actionContext.ResolvedPowerValue = 0;
             actionContext.ResolvedRangeKey = PrototypeBattleRangeKeys.LaneAgnostic;
             actionContext.ResolvedLaneRuleKey = PrototypeBattleLaneRuleKeys.PartyWide;
             actionContext.RangeText = "Self reposition";
-            actionContext.LaneImpactText = "Shift from " + currentLaneLabel + " to " + nextLaneLabel + ".";
+            actionContext.LaneImpactText = availableLaneLabels.Length > 0
+                ? "Shift from " + currentLaneLabel + " to " + string.Join(" / ", availableLaneLabels) + "."
+                : "No adjacent row is available.";
             actionContext.ReachabilitySummaryText = CanCurrentActorShiftBattleLane(member)
-                ? "Lane shift available."
-                : "No lane shift available.";
-            actionContext.ThreatSummaryText = "Reposition to change lane reach and threat.";
+                ? "Choose one adjacent row."
+                : "No row shift available.";
+            actionContext.ThreatSummaryText = "Reposition to change row reach and threat.";
+            actionContext.RequiresTarget = false;
+            return actionContext;
+        }
+
+        if (selectedActionKey == "end_turn")
+        {
+            actionContext.ResolvedTargetKind = "self";
+            actionContext.ResolvedEffectType = "end_turn";
+            actionContext.ResolvedPowerValue = 0;
+            actionContext.ResolvedRangeKey = PrototypeBattleRangeKeys.LaneAgnostic;
+            actionContext.ResolvedLaneRuleKey = PrototypeBattleLaneRuleKeys.PartyWide;
+            actionContext.RangeText = "Self";
+            actionContext.LaneImpactText = "No movement.";
+            actionContext.ReachabilitySummaryText = "Always available while the unit can act.";
+            actionContext.ThreatSummaryText = "Pass and advance to the next turn.";
             actionContext.RequiresTarget = false;
             return actionContext;
         }

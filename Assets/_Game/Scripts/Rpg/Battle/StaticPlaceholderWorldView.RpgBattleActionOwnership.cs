@@ -60,18 +60,20 @@ public sealed partial class StaticPlaceholderWorldView
             ClearBattleHoverState();
             _hoverBattleAction = action;
             _queuedBattleAction = action;
+            SetBattleFeedbackText(BuildRpgOwnedBattleMoveSelectionFeedback(member));
+            RefreshSelectionPrompt();
+            RefreshDungeonPresentation();
+            return true;
+        }
+
+        if (action == BattleActionType.EndTurn)
+        {
+            ClearBattleHoverState();
+            _hoverBattleAction = action;
+            _queuedBattleAction = action;
             LockBattleInput();
-
-            if (!TryResolveRpgOwnedCurrentActorLaneShift(member))
-            {
-                _queuedBattleAction = BattleActionType.None;
-                _hoverBattleAction = BattleActionType.None;
-                ClearBattleInputLock();
-                RefreshSelectionPrompt();
-                RefreshDungeonPresentation();
-                return false;
-            }
-
+            AppendBattleLog(member.DisplayName + " holds position and passes the turn.");
+            SetBattleFeedbackText(member.DisplayName + " ended the turn.");
             AdvanceRpgOwnedBattleAfterPartyAction();
             return true;
         }
@@ -380,6 +382,11 @@ public sealed partial class StaticPlaceholderWorldView
                    CanRpgOwnedCurrentActorShiftBattleLane(member);
         }
 
+        if (action == BattleActionType.EndTurn)
+        {
+            return _battleState == BattleState.PartyActionSelect && GetCurrentActorMember() != null;
+        }
+
         if (action == BattleActionType.Retreat)
         {
             return _battleState == BattleState.PartyActionSelect || _battleState == BattleState.PartyTargetSelect;
@@ -401,31 +408,57 @@ public sealed partial class StaticPlaceholderWorldView
 
     private bool CanRpgOwnedCurrentActorShiftBattleLane(DungeonPartyMemberRuntimeData member)
     {
-        if (member == null || member.RuntimeState == null || member.IsDefeated || member.CurrentHp <= 0)
+        return GetRpgOwnedAvailableBattleLaneKeys(member).Length > 0;
+    }
+
+    private bool CanRpgOwnedCurrentActorShiftToBattleLane(DungeonPartyMemberRuntimeData member, string targetLaneKey)
+    {
+        if (string.IsNullOrEmpty(targetLaneKey))
         {
             return false;
         }
 
-        string currentLaneKey = GetPartyMemberLaneKey(member);
-        string nextLaneKey = GetRpgOwnedNextBattleLaneKey(currentLaneKey);
-        return !string.IsNullOrEmpty(nextLaneKey) &&
-               nextLaneKey != PrototypeBattleLaneKeys.None &&
-               nextLaneKey != currentLaneKey;
+        string[] availableLaneKeys = GetRpgOwnedAvailableBattleLaneKeys(member);
+        for (int i = 0; i < availableLaneKeys.Length; i++)
+        {
+            if (availableLaneKeys[i] == targetLaneKey)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    private string GetRpgOwnedNextBattleLaneKey(string currentLaneKey)
+    private string[] GetRpgOwnedAvailableBattleLaneKeys(DungeonPartyMemberRuntimeData member)
+    {
+        if (member == null || member.RuntimeState == null || member.IsDefeated || member.CurrentHp <= 0)
+        {
+            return System.Array.Empty<string>();
+        }
+
+        return GetRpgOwnedAdjacentBattleLaneKeys(GetPartyMemberLaneKey(member));
+    }
+
+    private string[] GetRpgOwnedAdjacentBattleLaneKeys(string currentLaneKey)
     {
         switch (currentLaneKey)
         {
             case PrototypeBattleLaneKeys.Top:
-                return PrototypeBattleLaneKeys.Mid;
+                return new[] { PrototypeBattleLaneKeys.Mid };
             case PrototypeBattleLaneKeys.Mid:
-                return PrototypeBattleLaneKeys.Bottom;
+                return new[] { PrototypeBattleLaneKeys.Top, PrototypeBattleLaneKeys.Bottom };
             case PrototypeBattleLaneKeys.Bottom:
-                return PrototypeBattleLaneKeys.Top;
+                return new[] { PrototypeBattleLaneKeys.Mid };
             default:
-                return PrototypeBattleLaneKeys.None;
+                return System.Array.Empty<string>();
         }
+    }
+
+    private string GetRpgOwnedNextBattleLaneKey(string currentLaneKey)
+    {
+        string[] adjacentLaneKeys = GetRpgOwnedAdjacentBattleLaneKeys(currentLaneKey);
+        return adjacentLaneKeys.Length > 0 ? adjacentLaneKeys[0] : PrototypeBattleLaneKeys.None;
     }
 
     private string BuildRpgOwnedNextBattleLaneLabel(DungeonPartyMemberRuntimeData member)
@@ -433,19 +466,115 @@ public sealed partial class StaticPlaceholderWorldView
         return GetBattleLaneLabel(GetRpgOwnedNextBattleLaneKey(GetPartyMemberLaneKey(member)));
     }
 
+    private string BuildRpgOwnedBattleMoveSelectionFeedback(DungeonPartyMemberRuntimeData member)
+    {
+        string[] availableLaneKeys = GetRpgOwnedAvailableBattleLaneKeys(member);
+        if (availableLaneKeys.Length <= 0)
+        {
+            return "No row shift available.";
+        }
+
+        string currentLaneLabel = GetBattleLaneLabel(GetPartyMemberLaneKey(member));
+        string[] laneLabels = new string[availableLaneKeys.Length];
+        for (int i = 0; i < availableLaneKeys.Length; i++)
+        {
+            laneLabels[i] = GetBattleLaneLabel(availableLaneKeys[i]);
+        }
+
+        return currentLaneLabel + " -> " + string.Join(" / ", laneLabels);
+    }
+
+    private string GetRpgOwnedBattleMoveActionKey(string laneKey)
+    {
+        switch (laneKey)
+        {
+            case PrototypeBattleLaneKeys.Top:
+                return "move_front";
+            case PrototypeBattleLaneKeys.Mid:
+                return "move_middle";
+            case PrototypeBattleLaneKeys.Bottom:
+                return "move_back";
+            default:
+                return string.Empty;
+        }
+    }
+
+    private string GetRpgOwnedBattleMoveLaneKey(string actionKey)
+    {
+        switch (string.IsNullOrWhiteSpace(actionKey) ? string.Empty : actionKey.Trim().ToLowerInvariant())
+        {
+            case "move_front":
+                return PrototypeBattleLaneKeys.Top;
+            case "move_middle":
+                return PrototypeBattleLaneKeys.Mid;
+            case "move_back":
+                return PrototypeBattleLaneKeys.Bottom;
+            default:
+                return string.Empty;
+        }
+    }
+
+    private bool IsRpgOwnedBattleMoveActionKey(string actionKey)
+    {
+        return !string.IsNullOrEmpty(GetRpgOwnedBattleMoveLaneKey(actionKey));
+    }
+
+    private bool TryResolveRpgOwnedBattleMoveAction(string actionKey)
+    {
+        string targetLaneKey = GetRpgOwnedBattleMoveLaneKey(actionKey);
+        if (string.IsNullOrEmpty(targetLaneKey))
+        {
+            return false;
+        }
+
+        if (_dungeonRunState != DungeonRunState.Battle ||
+            _battleState != BattleState.PartyActionSelect ||
+            IsBattleInputLocked())
+        {
+            return false;
+        }
+
+        DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
+        if (member == null)
+        {
+            return false;
+        }
+
+        ClearBattleHoverState();
+        _hoverBattleAction = BattleActionType.Move;
+        _queuedBattleAction = BattleActionType.Move;
+        LockBattleInput();
+
+        if (!TryResolveRpgOwnedCurrentActorLaneShift(member, targetLaneKey))
+        {
+            ClearBattleInputLock();
+            RefreshSelectionPrompt();
+            RefreshDungeonPresentation();
+            return false;
+        }
+
+        AdvanceRpgOwnedBattleAfterPartyAction();
+        return true;
+    }
+
     private bool TryResolveRpgOwnedCurrentActorLaneShift(DungeonPartyMemberRuntimeData member)
     {
-        if (!CanRpgOwnedCurrentActorShiftBattleLane(member))
+        string[] availableLaneKeys = GetRpgOwnedAvailableBattleLaneKeys(member);
+        return availableLaneKeys.Length > 0 && TryResolveRpgOwnedCurrentActorLaneShift(member, availableLaneKeys[0]);
+    }
+
+    private bool TryResolveRpgOwnedCurrentActorLaneShift(DungeonPartyMemberRuntimeData member, string targetLaneKey)
+    {
+        if (!CanRpgOwnedCurrentActorShiftToBattleLane(member, targetLaneKey))
         {
-            SetBattleFeedbackText("No lane shift available.");
+            SetBattleFeedbackText("No row shift available.");
             return false;
         }
 
         string currentLaneKey = GetPartyMemberLaneKey(member);
-        string nextLaneKey = GetRpgOwnedNextBattleLaneKey(currentLaneKey);
         string currentLaneLabel = GetBattleLaneLabel(currentLaneKey);
-        string nextLaneLabel = GetBattleLaneLabel(nextLaneKey);
-        member.RuntimeState.SetBattleLaneContext(nextLaneKey, nextLaneLabel, BuildPartyPositionRuleText(member), ResolvePartyBattleStanceKey(member));
+        string nextLaneLabel = GetBattleLaneLabel(targetLaneKey);
+        member.RuntimeState.SetBattleLaneContext(targetLaneKey, nextLaneLabel, BuildPartyPositionRuleTextForLane(member, targetLaneKey), ResolvePartyBattleStanceKey(member));
         ShowBattlePopupForPartyMember(member.PartySlotIndex, "Shift", new Color(0.76f, 0.9f, 1f, 1f));
         string summary = member.DisplayName + " moved from " + currentLaneLabel + " to " + nextLaneLabel + ".";
         AppendBattleLog(summary);
@@ -460,7 +589,7 @@ public sealed partial class StaticPlaceholderWorldView
             phaseKey: "resolution",
             actorName: member.DisplayName,
             targetName: nextLaneLabel,
-            shortText: "Lane shift");
+            shortText: "Row shift");
         RefreshSelectionPrompt();
         RefreshDungeonPresentation();
         return true;

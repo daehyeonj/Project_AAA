@@ -94,7 +94,30 @@ public sealed partial class StaticPlaceholderWorldView
 
     private PrototypeBattleLaneRuleResolution BuildPartyActionLaneResolution(DungeonPartyMemberRuntimeData member, DungeonMonsterRuntimeData targetMonster, BattleActionType action, PrototypeRpgSkillDefinition skillDefinition)
     {
-        return BuildRpgOwnedPartyActionLaneResolution(member, targetMonster, action, skillDefinition);
+        PrototypeBattleLaneRuleResolution resolution = BuildRpgOwnedPartyActionLaneResolution(member, targetMonster, action, skillDefinition);
+        string targetKind = ResolvePartyActionTargetKind(member, action, skillDefinition);
+        if (targetKind != "single_enemy")
+        {
+            return resolution;
+        }
+
+        // Current runtime source-of-truth is standard JRPG targeting, so living enemies
+        // stay selectable regardless of leftover lane metadata carried by older battle rails.
+        resolution.ResolvedRangeKey = PrototypeBattleRangeKeys.LaneAgnostic;
+        resolution.ResolvedLaneRuleKey = PrototypeBattleLaneRuleKeys.LaneAgnostic;
+        resolution.RangeText = "Standard target reach";
+        resolution.TargetRuleText = "Targets any living enemy.";
+        resolution.ReachabilityStateKey = targetMonster != null ? "reachable" : "pending_target";
+        resolution.LaneImpactKey = "lane_agnostic";
+        resolution.LaneImpactText = "Standard JRPG targeting.";
+        resolution.ReachabilitySummaryText = targetMonster != null
+            ? "Any living enemy can be targeted."
+            : "Choose any living enemy.";
+        resolution.PredictedReachabilityText = resolution.ReachabilitySummaryText;
+        resolution.ThreatLaneKey = PrototypeBattleLaneKeys.Any;
+        resolution.ThreatLaneLabel = "Any enemy";
+        resolution.ThreatSummaryText = "Standard target selection.";
+        return resolution;
     }
 
     private PrototypeBattleLaneRuleResolution BuildEnemyActionLaneResolution(DungeonMonsterRuntimeData monster, int targetIndex, bool useSpecial)
@@ -149,17 +172,12 @@ public sealed partial class StaticPlaceholderWorldView
             return PrototypeBattleRangeKeys.AllAllyLanes;
         }
 
-        if (effectType == "finisher_damage" || (member != null && member.RoleTag == "rogue" && action == BattleActionType.Skill))
+        if (IsRangedPartyMember(member))
         {
-            return PrototypeBattleRangeKeys.SnipeAnyLane;
+            return PrototypeBattleRangeKeys.LaneAgnostic;
         }
 
-        if (member != null && member.RoleTag == "warrior" && action == BattleActionType.Skill)
-        {
-            return PrototypeBattleRangeKeys.MeleeSameOrAdjacent;
-        }
-
-        return PrototypeBattleRangeKeys.MeleeSameLane;
+        return ResolveMeleeRangeKeyForLane(GetPartyMemberLaneKey(member));
     }
 
     private string ResolvePartyActionLaneRuleKey(string targetKind, string rangeKey)
@@ -179,9 +197,19 @@ public sealed partial class StaticPlaceholderWorldView
             return PrototypeBattleLaneRuleKeys.AllAllyLanes;
         }
 
+        if (rangeKey == PrototypeBattleRangeKeys.LaneAgnostic)
+        {
+            return PrototypeBattleLaneRuleKeys.AnyEnemyLane;
+        }
+
         if (rangeKey == PrototypeBattleRangeKeys.SnipeAnyLane)
         {
             return PrototypeBattleLaneRuleKeys.BacklineSnipe;
+        }
+
+        if (rangeKey == PrototypeBattleRangeKeys.None)
+        {
+            return PrototypeBattleLaneRuleKeys.None;
         }
 
         if (rangeKey == PrototypeBattleRangeKeys.MeleeSameLane)
@@ -199,22 +227,7 @@ public sealed partial class StaticPlaceholderWorldView
             return PrototypeBattleRangeKeys.AllAllyLanes;
         }
 
-        if (useSpecial && monster != null && monster.EncounterRole == MonsterEncounterRole.Striker)
-        {
-            return PrototypeBattleRangeKeys.PierceLine;
-        }
-
-        if (monster != null && monster.EncounterRole == MonsterEncounterRole.Skirmisher)
-        {
-            return PrototypeBattleRangeKeys.SnipeAnyLane;
-        }
-
-        if (monster != null && monster.EncounterRole == MonsterEncounterRole.Bulwark)
-        {
-            return PrototypeBattleRangeKeys.MeleeSameLane;
-        }
-
-        return PrototypeBattleRangeKeys.MeleeSameOrAdjacent;
+        return ResolveMeleeRangeKeyForLane(GetMonsterLaneKey(monster));
     }
 
     private string ResolveEnemyActionLaneRuleKey(DungeonMonsterRuntimeData monster, bool useSpecial, string rangeKey)
@@ -222,6 +235,11 @@ public sealed partial class StaticPlaceholderWorldView
         if (useSpecial && IsPartyWideEliteSpecial(monster, useSpecial))
         {
             return PrototypeBattleLaneRuleKeys.AllAllyLanes;
+        }
+
+        if (rangeKey == PrototypeBattleRangeKeys.None)
+        {
+            return PrototypeBattleLaneRuleKeys.None;
         }
 
         if (rangeKey == PrototypeBattleRangeKeys.PierceLine)
@@ -244,6 +262,11 @@ public sealed partial class StaticPlaceholderWorldView
 
     private bool DoesRangeReachLane(string actorLaneKey, string targetLaneKey, string rangeKey)
     {
+        if (rangeKey == PrototypeBattleRangeKeys.None)
+        {
+            return false;
+        }
+
         if (rangeKey == PrototypeBattleRangeKeys.AllEnemyLanes ||
             rangeKey == PrototypeBattleRangeKeys.AllAllyLanes ||
             rangeKey == PrototypeBattleRangeKeys.PartyWide ||
@@ -263,10 +286,15 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (rangeKey == PrototypeBattleRangeKeys.MeleeSameLane)
         {
-            return actorLane == targetLane;
+            return targetLane == 0;
         }
 
-        return Mathf.Abs(actorLane - targetLane) <= 1;
+        if (rangeKey == PrototypeBattleRangeKeys.MeleeSameOrAdjacent)
+        {
+            return targetLane <= 1;
+        }
+
+        return actorLane == targetLane;
     }
 
     private string GetLaneImpactKey(string actorLaneKey, string targetLaneKey, bool isReachable)
@@ -291,21 +319,25 @@ public sealed partial class StaticPlaceholderWorldView
         switch (rangeKey)
         {
             case PrototypeBattleRangeKeys.AllEnemyLanes:
-                return "All enemy lanes";
+                return "Entire enemy row";
             case PrototypeBattleRangeKeys.AllAllyLanes:
-                return "All ally lanes";
+                return "Entire ally row";
             case PrototypeBattleRangeKeys.PartyWide:
                 return "Party-wide";
             case PrototypeBattleRangeKeys.SnipeAnyLane:
-                return "Any lane snipe";
+                return "Any row precision";
             case PrototypeBattleRangeKeys.PierceLine:
-                return "Piercing line";
+                return "Frontline pierce";
             case PrototypeBattleRangeKeys.MeleeSameLane:
-                return "Same lane only";
+                return "Front Row only";
             case PrototypeBattleRangeKeys.MeleeSameOrAdjacent:
-                return "Same or adjacent lane";
+                return "Front Row or Middle Row";
+            case PrototypeBattleRangeKeys.LaneAgnostic:
+                return "Entire Row";
+            case PrototypeBattleRangeKeys.None:
+                return "No row reach";
             default:
-                return "Lane agnostic";
+                return "Row agnostic";
         }
     }
 
@@ -314,25 +346,27 @@ public sealed partial class StaticPlaceholderWorldView
         switch (laneRuleKey)
         {
             case PrototypeBattleLaneRuleKeys.AllEnemyLanes:
-                return "Hits every enemy lane.";
+                return "Hits every enemy across the entire row.";
             case PrototypeBattleLaneRuleKeys.AllAllyLanes:
-                return "Covers every ally lane.";
+                return "Covers every ally across the entire row.";
             case PrototypeBattleLaneRuleKeys.PartyWide:
                 return "Acts on the whole party.";
             case PrototypeBattleLaneRuleKeys.BacklineSnipe:
-                return "Can pick any lane and bypasses guards.";
+                return "Can pick any row and bypasses guards.";
             case PrototypeBattleLaneRuleKeys.PierceLine:
-                return "Pierces through lane guards for a single target hit.";
+                return "Pierces through the front row for a single target hit.";
             case PrototypeBattleLaneRuleKeys.SameLaneOnly:
-                return "Needs the exact same lane.";
+                return "Can only target the enemy Front Row.";
             case PrototypeBattleLaneRuleKeys.SameOrAdjacentEnemyLane:
-                return "Needs same or adjacent lane.";
+                return "Can target the enemy Front Row or Middle Row.";
             case PrototypeBattleLaneRuleKeys.AnyEnemyLane:
-                return "Can pick any enemy lane.";
+                return "Can pick any enemy row.";
             case PrototypeBattleLaneRuleKeys.GuardIntercept:
-                return "A lane guard can intercept this hit.";
+                return "A front-row guard can intercept this hit.";
+            case PrototypeBattleLaneRuleKeys.None:
+                return "Current row cannot make a direct attack.";
             default:
-                return "No explicit lane rule.";
+                return "No explicit row rule.";
         }
     }
 
@@ -340,12 +374,12 @@ public sealed partial class StaticPlaceholderWorldView
     {
         if (targetKind == "all_enemies")
         {
-            return "Sweeps all enemy lanes.";
+            return "Sweeps the entire enemy row.";
         }
 
         if (targetKind == "all_allies")
         {
-            return "Covers all ally lanes.";
+            return "Covers the entire ally row.";
         }
 
         if (targetKind == "party")
@@ -360,7 +394,7 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (rangeKey == PrototypeBattleRangeKeys.SnipeAnyLane)
         {
-            return "Precision reach from " + actorLaneLabel + " to " + targetLaneLabel + ".";
+            return "Precision reach from " + actorLaneLabel + " into " + targetLaneLabel + ".";
         }
 
         if (rangeKey == PrototypeBattleRangeKeys.PierceLine)
@@ -368,14 +402,29 @@ public sealed partial class StaticPlaceholderWorldView
             return "Piercing pressure from " + actorLaneLabel + " into " + targetLaneLabel + ".";
         }
 
+        if (rangeKey == PrototypeBattleRangeKeys.LaneAgnostic)
+        {
+            return "Ranged pressure can reach " + targetLaneLabel + " from anywhere.";
+        }
+
         if (rangeKey == PrototypeBattleRangeKeys.MeleeSameLane)
         {
-            return "Locked pressure in " + targetLaneLabel + ".";
+            return "Melee reach is limited to the enemy Front Row.";
+        }
+
+        if (rangeKey == PrototypeBattleRangeKeys.MeleeSameOrAdjacent)
+        {
+            return "Melee reach extends through the enemy Front Row and Middle Row.";
+        }
+
+        if (rangeKey == PrototypeBattleRangeKeys.None)
+        {
+            return actorLaneLabel + " has no direct melee reach.";
         }
 
         return actorLaneLabel == targetLaneLabel
             ? "Direct pressure in " + targetLaneLabel + "."
-            : "Cross-lane pressure into " + targetLaneLabel + ".";
+            : "Cross-row pressure into " + targetLaneLabel + ".";
     }
 
     private string BuildReachabilitySummaryText(string actorLaneLabel, string targetLaneLabel, string rangeText, bool isReachable, bool requiresTarget)
@@ -385,11 +434,13 @@ public sealed partial class StaticPlaceholderWorldView
             return rangeText + " | No single target required.";
         }
 
-        string blockedReason = rangeText == "Same lane only"
-            ? "Same lane required."
-            : rangeText == "Same or adjacent lane"
-                ? "Adjacent lane only."
-                : "Target blocked.";
+        string blockedReason = rangeText == "Front Row only"
+            ? "Front Row required."
+            : rangeText == "Front Row or Middle Row"
+                ? "Front Row or Middle Row required."
+                : rangeText == "No row reach"
+                    ? "Cannot attack from this row."
+                    : "Target blocked.";
         return actorLaneLabel + " -> " + targetLaneLabel + " | " + rangeText + " | " + (isReachable ? "Reachable." : blockedReason);
     }
 
@@ -435,9 +486,9 @@ public sealed partial class StaticPlaceholderWorldView
         switch (targetKind)
         {
             case "all_enemies":
-                return "All enemy lanes";
+                return "Entire enemy row";
             case "all_allies":
-                return "All ally lanes";
+                return "Entire ally row";
             case "party":
                 return "Party-wide";
             default:
@@ -488,6 +539,72 @@ public sealed partial class StaticPlaceholderWorldView
         return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : string.Empty;
     }
 
+    private bool IsRangedPartyMember(DungeonPartyMemberRuntimeData member)
+    {
+        return member != null && member.RoleTag == "mage";
+    }
+
+    private string ResolveMeleeRangeKeyForLane(string laneKey)
+    {
+        switch (laneKey)
+        {
+            case PrototypeBattleLaneKeys.Top:
+                return PrototypeBattleRangeKeys.MeleeSameOrAdjacent;
+            case PrototypeBattleLaneKeys.Mid:
+                return PrototypeBattleRangeKeys.MeleeSameLane;
+            case PrototypeBattleLaneKeys.Bottom:
+                return PrototypeBattleRangeKeys.None;
+            default:
+                return PrototypeBattleRangeKeys.MeleeSameLane;
+        }
+    }
+
+    private string ResolveDefaultPartyLaneKey(DungeonPartyMemberRuntimeData member)
+    {
+        if (member == null)
+        {
+            return PrototypeBattleLaneKeys.None;
+        }
+
+        switch (member.RoleTag)
+        {
+            case "warrior":
+                return PrototypeBattleLaneKeys.Top;
+            case "rogue":
+            case "cleric":
+                return PrototypeBattleLaneKeys.Mid;
+            case "mage":
+                return PrototypeBattleLaneKeys.Bottom;
+            default:
+                return PrototypeBattleLaneKeys.Mid;
+        }
+    }
+
+    private string ResolveDefaultEnemyLaneKey(DungeonMonsterRuntimeData monster)
+    {
+        return monster == null ? PrototypeBattleLaneKeys.None : PrototypeBattleLaneKeys.Top;
+    }
+
+    private string BuildRowReachText(string laneKey, bool isRanged)
+    {
+        if (isRanged)
+        {
+            return "Ranged attacks cover the Entire Row.";
+        }
+
+        switch (laneKey)
+        {
+            case PrototypeBattleLaneKeys.Top:
+                return "Melee attacks reach Front Row and Middle Row.";
+            case PrototypeBattleLaneKeys.Mid:
+                return "Melee attacks reach Front Row only.";
+            case PrototypeBattleLaneKeys.Bottom:
+                return "Melee attacks cannot reach from Back Row.";
+            default:
+                return "Row reach pending.";
+        }
+    }
+
     private string GetPartyMemberLaneKey(DungeonPartyMemberRuntimeData member)
     {
         if (member == null)
@@ -500,11 +617,7 @@ public sealed partial class StaticPlaceholderWorldView
             return member.RuntimeState.LaneKey;
         }
 
-        return member.PartySlotIndex <= 0
-            ? PrototypeBattleLaneKeys.Top
-            : member.PartySlotIndex == 1 || member.PartySlotIndex == 3
-                ? PrototypeBattleLaneKeys.Mid
-                : PrototypeBattleLaneKeys.Bottom;
+        return ResolveDefaultPartyLaneKey(member);
     }
 
     private string GetMonsterLaneKey(DungeonMonsterRuntimeData monster)
@@ -519,11 +632,7 @@ public sealed partial class StaticPlaceholderWorldView
             return monster.RuntimeState.LaneKey;
         }
 
-        return monster.GridPosition.y >= 5
-            ? PrototypeBattleLaneKeys.Top
-            : monster.GridPosition.y >= 4
-                ? PrototypeBattleLaneKeys.Mid
-                : PrototypeBattleLaneKeys.Bottom;
+        return ResolveDefaultEnemyLaneKey(monster);
     }
 
     private string GetLaneKeyForTargetKind(string targetKind)
@@ -553,15 +662,15 @@ public sealed partial class StaticPlaceholderWorldView
         switch (laneKey)
         {
             case PrototypeBattleLaneKeys.Top:
-                return "Top lane";
+                return "Front Row";
             case PrototypeBattleLaneKeys.Mid:
-                return "Mid lane";
+                return "Middle Row";
             case PrototypeBattleLaneKeys.Bottom:
-                return "Bottom lane";
+                return "Back Row";
             case PrototypeBattleLaneKeys.Any:
-                return "Any lane";
+                return "Entire Row";
             default:
-                return "No lane";
+                return "No row";
         }
     }
 
@@ -572,14 +681,8 @@ public sealed partial class StaticPlaceholderWorldView
             return "Party position pending.";
         }
 
-        if (member.RuntimeState != null && !string.IsNullOrWhiteSpace(member.RuntimeState.PositionRuleText))
-        {
-            return member.RuntimeState.PositionRuleText;
-        }
-
-        return member.PartySlotIndex == 3
-            ? "Backline support anchor."
-            : "Frontline lane anchor.";
+        string laneKey = GetPartyMemberLaneKey(member);
+        return BuildPartyPositionRuleTextForLane(member, laneKey);
     }
 
     private string BuildEnemyPositionRuleText(DungeonMonsterRuntimeData monster)
@@ -589,20 +692,28 @@ public sealed partial class StaticPlaceholderWorldView
             return "Enemy position pending.";
         }
 
-        if (monster.RuntimeState != null && !string.IsNullOrWhiteSpace(monster.RuntimeState.PositionRuleText))
+        string laneKey = GetMonsterLaneKey(monster);
+        return BuildEnemyPositionRuleTextForLane(monster, laneKey);
+    }
+
+    private string BuildPartyPositionRuleTextForLane(DungeonPartyMemberRuntimeData member, string laneKey)
+    {
+        if (member == null)
         {
-            return monster.RuntimeState.PositionRuleText;
+            return "Party position pending.";
         }
 
-        switch (monster.EncounterRole)
+        return GetBattleLaneLabel(laneKey) + " | " + member.RoleLabel + " | " + BuildRowReachText(laneKey, IsRangedPartyMember(member));
+    }
+
+    private string BuildEnemyPositionRuleTextForLane(DungeonMonsterRuntimeData monster, string laneKey)
+    {
+        if (monster == null)
         {
-            case MonsterEncounterRole.Skirmisher:
-                return "Flank reach pressure.";
-            case MonsterEncounterRole.Striker:
-                return "Forward execution pressure.";
-            default:
-                return "Front guard anchor.";
+            return "Enemy position pending.";
         }
+
+        return GetBattleLaneLabel(laneKey) + " | Enemy melee unit | " + BuildRowReachText(laneKey, false);
     }
 
     private string BuildTimelineThreatLabelForPartyMember(DungeonPartyMemberRuntimeData member)
@@ -622,7 +733,7 @@ public sealed partial class StaticPlaceholderWorldView
             return "Support";
         }
 
-        return member.RoleTag == "rogue" ? "Snipe" : "Melee";
+        return IsRangedPartyMember(member) ? "Ranged" : "Melee";
     }
 
     private string BuildTimelineThreatLabelForEnemy(DungeonMonsterRuntimeData monster, bool useSpecial)
@@ -637,11 +748,7 @@ public sealed partial class StaticPlaceholderWorldView
             return "Sweep";
         }
 
-        return monster.EncounterRole == MonsterEncounterRole.Skirmisher
-            ? "Flank"
-            : monster.EncounterRole == MonsterEncounterRole.Striker
-                ? "Pressure"
-                : "Guard";
+        return "Melee";
     }
 
     private string ResolvePartyBattleStanceKey(DungeonPartyMemberRuntimeData member)

@@ -109,7 +109,7 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string BuildRpgOwnedBattleRuleSummaryText()
     {
-        return "3-lane rules: attack locks same lane, heavy skills reach adjacent, snipe ignores lane, pierce bypasses guards, sweep covers all lanes.";
+        return "Standard JRPG battle: turn-based command selection, direct target resolution, role skills, and retreat remain available.";
     }
 
     private string BuildRpgOwnedNotableBattleEventsSummary(int count)

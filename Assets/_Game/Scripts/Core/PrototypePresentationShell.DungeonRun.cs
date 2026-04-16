@@ -14,19 +14,20 @@ public sealed partial class PrototypePresentationShell
         Rect screenRect = new Rect(0f, 0f, Screen.width, Screen.height);
         _blockingRects = new[] { screenRect };
 
-        DrawDungeonShellBackdrop(screenRect);
-
         if (shellSurface.IsResultPanelVisible)
         {
+            DrawDungeonShellBackdrop(screenRect);
             DrawDungeonResultShell(screenRect, shellSurface);
             return;
         }
 
         if (shellSurface.IsBattleViewActive)
         {
-            DrawDungeonBattleShell(screenRect);
+            _blockingRects = EmptyBlockingRects;
             return;
         }
+
+        DrawDungeonShellBackdrop(screenRect);
 
         if (shellSurface.IsRouteChoiceVisible)
         {
@@ -657,6 +658,8 @@ public sealed partial class PrototypePresentationShell
         Rect partyRect = new Rect(innerRect.x + 20f, innerRect.y + 8f, formationWidth, innerRect.height - 36f);
         Rect enemyRect = new Rect(innerRect.xMax - formationWidth - 20f, innerRect.y + 8f, formationWidth, innerRect.height - 36f);
 
+        DrawDungeonBattleRowGuides(partyRect, true);
+        DrawDungeonBattleRowGuides(enemyRect, false);
         DrawDungeonBattlePartyFormation(partyRect, surface != null ? surface.PartyMembers : null);
         DrawDungeonBattleEnemyFormation(enemyRect, surface, out hoveredTargetId);
     }
@@ -668,13 +671,6 @@ public sealed partial class PrototypePresentationShell
         List<PrototypeBattleUiPartyMemberData> sortedMembers = new List<PrototypeBattleUiPartyMemberData>(safeMembers);
         sortedMembers.Sort((left, right) =>
         {
-            bool leftFront = IsDungeonBattleFrontPartyMember(left);
-            bool rightFront = IsDungeonBattleFrontPartyMember(right);
-            if (leftFront != rightFront)
-            {
-                return rightFront.CompareTo(leftFront);
-            }
-
             int laneCompare = ResolveDungeonBattleLaneIndex(left != null ? left.LaneKey : string.Empty, left != null ? left.LaneLabel : string.Empty)
                 .CompareTo(ResolveDungeonBattleLaneIndex(right != null ? right.LaneKey : string.Empty, right != null ? right.LaneLabel : string.Empty));
             if (laneCompare != 0)
@@ -693,19 +689,19 @@ public sealed partial class PrototypePresentationShell
                 continue;
             }
 
-            bool frontLane = IsDungeonBattleFrontPartyMember(member);
             int laneIndex = ResolveDungeonBattleLaneIndex(member.LaneKey, member.LaneLabel);
             int duplicateIndex = laneCounts[laneIndex]++;
             Color accent = ResolveDungeonBattlePartyDangerColor(member);
             bool hovered;
-            float cardWidth = frontLane
+            bool frontRow = laneIndex == 0;
+            float cardWidth = frontRow
                 ? Mathf.Clamp(rect.width * 0.34f, 224f, 278f)
                 : Mathf.Clamp(rect.width * 0.30f, 200f, 246f);
-            float cardHeight = frontLane
+            float cardHeight = frontRow
                 ? Mathf.Clamp(rect.height * 0.36f, 180f, 232f)
                 : Mathf.Clamp(rect.height * 0.32f, 164f, 214f);
-            float anchorX = rect.x + (rect.width * (frontLane ? 0.66f : 0.38f)) + ResolveDungeonBattleFormationXOffset(duplicateIndex, true);
-            float anchorY = rect.y + (rect.height * ResolveDungeonBattleLaneAnchor(laneIndex)) + ResolveDungeonBattleFormationYOffset(duplicateIndex);
+            float anchorX = rect.x + (rect.width * ResolveDungeonBattleRowDepthAnchor(laneIndex, true)) + ResolveDungeonBattleFormationXOffset(duplicateIndex, true);
+            float anchorY = rect.y + (rect.height * ResolveDungeonBattleRowVerticalAnchor(laneIndex, true)) + ResolveDungeonBattleFormationYOffset(duplicateIndex);
             DrawDungeonBattlePartyToken(
                 new Rect(anchorX - (cardWidth * 0.5f), anchorY - (cardHeight * 0.5f), cardWidth, cardHeight),
                 member,
@@ -722,13 +718,6 @@ public sealed partial class PrototypePresentationShell
         List<PrototypeBattleUiEnemyData> sortedEnemies = new List<PrototypeBattleUiEnemyData>(enemies);
         sortedEnemies.Sort((left, right) =>
         {
-            bool leftFront = IsDungeonBattleFrontEnemy(left);
-            bool rightFront = IsDungeonBattleFrontEnemy(right);
-            if (leftFront != rightFront)
-            {
-                return rightFront.CompareTo(leftFront);
-            }
-
             int laneCompare = ResolveDungeonBattleLaneIndex(left != null ? left.LaneKey : string.Empty, left != null ? left.LaneLabel : string.Empty)
                 .CompareTo(ResolveDungeonBattleLaneIndex(right != null ? right.LaneKey : string.Empty, right != null ? right.LaneLabel : string.Empty));
             if (laneCompare != 0)
@@ -747,19 +736,19 @@ public sealed partial class PrototypePresentationShell
                 continue;
             }
 
-            bool frontLane = IsDungeonBattleFrontEnemy(enemy);
             int laneIndex = ResolveDungeonBattleLaneIndex(enemy.LaneKey, enemy.LaneLabel);
             int duplicateIndex = laneCounts[laneIndex]++;
             bool canTarget = surface != null && surface.TargetSelection != null && surface.TargetSelection.IsActive && enemy.IsReachableByCurrentAction && !enemy.IsDefeated;
             bool hovered;
-            float cardWidth = frontLane
+            bool frontRow = laneIndex == 0;
+            float cardWidth = frontRow
                 ? Mathf.Clamp(rect.width * 0.34f, 224f, 278f)
                 : Mathf.Clamp(rect.width * 0.30f, 200f, 246f);
-            float cardHeight = frontLane
+            float cardHeight = frontRow
                 ? Mathf.Clamp(rect.height * 0.36f, 180f, 232f)
                 : Mathf.Clamp(rect.height * 0.32f, 164f, 214f);
-            float anchorX = rect.x + (rect.width * (frontLane ? 0.34f : 0.62f)) + ResolveDungeonBattleFormationXOffset(duplicateIndex, false);
-            float anchorY = rect.y + (rect.height * ResolveDungeonBattleLaneAnchor(laneIndex)) + ResolveDungeonBattleFormationYOffset(duplicateIndex);
+            float anchorX = rect.x + (rect.width * ResolveDungeonBattleRowDepthAnchor(laneIndex, false)) + ResolveDungeonBattleFormationXOffset(duplicateIndex, false);
+            float anchorY = rect.y + (rect.height * ResolveDungeonBattleRowVerticalAnchor(laneIndex, false)) + ResolveDungeonBattleFormationYOffset(duplicateIndex);
             bool clicked = DrawDungeonBattleEnemyToken(
                 new Rect(anchorX - (cardWidth * 0.5f), anchorY - (cardHeight * 0.5f), cardWidth, cardHeight),
                 enemy,
@@ -1441,29 +1430,24 @@ public sealed partial class PrototypePresentationShell
         }
 
         string normalized = SafeShellText(laneLabel).ToLowerInvariant();
-        if (normalized.Contains("top"))
-        {
-            return "TOP";
-        }
-
-        if (normalized.Contains("mid"))
-        {
-            return "MID";
-        }
-
-        if (normalized.Contains("bottom"))
-        {
-            return "BOT";
-        }
-
-        if (normalized.Contains("front"))
+        if (normalized.Contains("front") || normalized.Contains("top"))
         {
             return "FR";
         }
 
-        if (normalized.Contains("back"))
+        if (normalized.Contains("middle") || normalized.Contains("mid"))
         {
-            return "BK";
+            return "MID";
+        }
+
+        if (normalized.Contains("back") || normalized.Contains("bottom") || normalized.Contains("bot"))
+        {
+            return "BACK";
+        }
+
+        if (normalized.Contains("entire") || normalized.Contains("any"))
+        {
+            return "ALL";
         }
 
         return CompactShellText(SafeShellText(laneLabel), 4).ToUpperInvariant();
@@ -1580,13 +1564,27 @@ public sealed partial class PrototypePresentationShell
     private bool CanTriggerDungeonBattleAction(string actionKey, bool isAvailable)
     {
         return isAvailable &&
-               (actionKey == "attack" || actionKey == "skill" || actionKey == "move" || actionKey == "retreat");
+               (actionKey == "attack" ||
+                actionKey == "skill" ||
+                actionKey == "move" ||
+                actionKey == "move_front" ||
+                actionKey == "move_middle" ||
+                actionKey == "move_back" ||
+                actionKey == "end_turn" ||
+                actionKey == "retreat");
     }
 
     private bool CanHoverDungeonBattleAction(string actionKey, bool isAvailable)
     {
         return isAvailable &&
-               (actionKey == "attack" || actionKey == "skill" || actionKey == "move" || actionKey == "retreat");
+               (actionKey == "attack" ||
+                actionKey == "skill" ||
+                actionKey == "move" ||
+                actionKey == "move_front" ||
+                actionKey == "move_middle" ||
+                actionKey == "move_back" ||
+                actionKey == "end_turn" ||
+                actionKey == "retreat");
     }
 
     private bool IsDungeonBattleFrontLane(string laneKey, string laneLabel)
@@ -1624,17 +1622,86 @@ public sealed partial class PrototypePresentationShell
     private int ResolveDungeonBattleLaneIndex(string laneKey, string laneLabel)
     {
         string lane = (laneKey + "|" + laneLabel).ToLowerInvariant();
-        if (lane.Contains("top"))
+        if (lane.Contains("front") || lane.Contains("top"))
         {
             return 0;
         }
 
-        if (lane.Contains("bottom") || lane.Contains("bot"))
+        if (lane.Contains("back") || lane.Contains("bottom") || lane.Contains("bot"))
         {
             return 2;
         }
 
         return 1;
+    }
+
+    private void DrawDungeonBattleRowGuides(Rect rect, bool allySide)
+    {
+        float segmentWidth = Mathf.Clamp(rect.width * 0.24f, 78f, 136f);
+        float lineThickness = 5f;
+        float baseY = rect.yMax - 26f;
+        float backCenterX = rect.x + (rect.width * ResolveDungeonBattleRowDepthAnchor(2, allySide));
+        float middleCenterX = rect.x + (rect.width * ResolveDungeonBattleRowDepthAnchor(1, allySide));
+        float frontCenterX = rect.x + (rect.width * ResolveDungeonBattleRowDepthAnchor(0, allySide));
+        float rowMinX = Mathf.Min(backCenterX, Mathf.Min(middleCenterX, frontCenterX)) - (segmentWidth * 0.5f);
+        float rowMaxX = Mathf.Max(backCenterX, Mathf.Max(middleCenterX, frontCenterX)) + (segmentWidth * 0.5f);
+
+        DrawRect(new Rect(rowMinX, baseY - 12f, rowMaxX - rowMinX, 4f), new Color(0.20f, 0.76f, 0.34f, 0.92f));
+        DrawRect(new Rect(backCenterX - (segmentWidth * 0.5f), baseY + 8f, segmentWidth, lineThickness), new Color(0.62f, 0.34f, 0.86f, 0.96f));
+        DrawRect(new Rect(middleCenterX - (segmentWidth * 0.5f), baseY + 8f, segmentWidth, lineThickness), new Color(0.24f, 0.70f, 0.98f, 0.96f));
+        DrawRect(new Rect(frontCenterX - (segmentWidth * 0.5f), baseY + 8f, segmentWidth, lineThickness), new Color(0.96f, 0.28f, 0.28f, 0.96f));
+    }
+
+    private float ResolveDungeonBattleRowDepthAnchor(int laneIndex, bool allySide)
+    {
+        if (allySide)
+        {
+            switch (laneIndex)
+            {
+                case 0:
+                    return 0.82f;
+                case 2:
+                    return 0.28f;
+                default:
+                    return 0.55f;
+            }
+        }
+
+        switch (laneIndex)
+        {
+            case 0:
+                return 0.18f;
+            case 2:
+                return 0.72f;
+            default:
+                return 0.45f;
+        }
+    }
+
+    private float ResolveDungeonBattleRowVerticalAnchor(int laneIndex, bool allySide)
+    {
+        if (allySide)
+        {
+            switch (laneIndex)
+            {
+                case 0:
+                    return 0.54f;
+                case 2:
+                    return 0.68f;
+                default:
+                    return 0.61f;
+            }
+        }
+
+        switch (laneIndex)
+        {
+            case 0:
+                return 0.46f;
+            case 2:
+                return 0.32f;
+            default:
+                return 0.39f;
+        }
     }
 
     private float ResolveDungeonBattleLaneAnchor(int laneIndex)

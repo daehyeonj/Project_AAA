@@ -26,11 +26,6 @@ public sealed partial class StaticPlaceholderWorldView
             return AppFlowStage.BattleScene;
         }
 
-        if (IsDungeonRouteChoiceVisible)
-        {
-            return AppFlowStage.ExpeditionPrep;
-        }
-
         if (IsDungeonRunActive)
         {
             return AppFlowStage.DungeonRun;

@@ -397,8 +397,8 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         DrawRect(new Rect(innerRect.x, innerRect.y, innerRect.width, 2f), new Color(0.88f, 0.74f, 0.36f, 0.30f));
         DrawRect(new Rect(innerRect.x, innerRect.yMax - 2f, innerRect.width, 2f), new Color(0.18f, 0.52f, 0.60f, 0.22f));
 
-        Rect titleRect = new Rect(innerRect.x + 14f, innerRect.y + 12f, innerRect.width - 28f, 20f);
-        Rect subtitleRect = new Rect(titleRect.x, titleRect.yMax + 4f, titleRect.width, 32f);
+        Rect titleRect = new Rect(innerRect.x + 14f, innerRect.y + 10f, innerRect.width - 28f, 24f);
+        Rect subtitleRect = new Rect(titleRect.x, titleRect.yMax + 4f, titleRect.width, 30f);
         Rect footerRect = new Rect(innerRect.x + 14f, innerRect.yMax - 18f, innerRect.width - 28f, 16f);
         GUI.Label(titleRect, string.IsNullOrEmpty(title) ? T("FrontWorldBoardOverlay") : title, _panelTitleStyle);
         GUI.Label(subtitleRect, string.IsNullOrEmpty(subtitle) ? T("FrontWorldOverlayReason") : subtitle, _captionStyle);
@@ -544,15 +544,15 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         Rect leftRect = new Rect(contentRect.x, contentRect.y, leftWidth, contentRect.height);
         Rect rightRect = new Rect(leftRect.xMax + columnGap, contentRect.y, contentRect.width - leftWidth - columnGap, contentRect.height);
 
-        Rect summaryRect = new Rect(leftRect.x, leftRect.y, leftRect.width, 110f);
-        Rect route1Rect = new Rect(leftRect.x, summaryRect.yMax + 12f, leftRect.width, 120f);
-        Rect route2Rect = new Rect(leftRect.x, route1Rect.yMax + 10f, leftRect.width, 120f);
+        Rect summaryRect = new Rect(leftRect.x, leftRect.y, leftRect.width, 116f);
+        Rect route1Rect = new Rect(leftRect.x, summaryRect.yMax + 12f, leftRect.width, 126f);
+        Rect route2Rect = new Rect(leftRect.x, route1Rect.yMax + 10f, leftRect.width, 126f);
         Rect loadoutRect = new Rect(leftRect.x, route2Rect.yMax + 12f, leftRect.width, Mathf.Max(92f, leftRect.yMax - route2Rect.yMax - 12f));
 
         DrawPanel(summaryRect, new Color(0.18f, 0.28f, 0.34f, 0.96f), new Color(0.10f, 0.13f, 0.18f, 0.94f));
-        GUI.Label(new Rect(summaryRect.x + 12f, summaryRect.y + 10f, summaryRect.width - 24f, 20f), "Launch Readiness", _panelTitleStyle);
+        GUI.Label(new Rect(summaryRect.x + 12f, summaryRect.y + 10f, summaryRect.width - 24f, 24f), "Launch Readiness", _panelTitleStyle);
         DrawScrollableTextBlock(
-            new Rect(summaryRect.x + 12f, summaryRect.y + 36f, summaryRect.width - 24f, summaryRect.height - 46f),
+            new Rect(summaryRect.x + 12f, summaryRect.y + 40f, summaryRect.width - 24f, summaryRect.height - 50f),
             "expedition_prep:summary",
             "Need Pressure: " + V(data.NeedPressureText) + "\n" +
             "Readiness: " + V(data.DispatchReadinessText) + "\n" +
@@ -571,9 +571,9 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         }
 
         DrawPanel(loadoutRect, new Color(0.16f, 0.26f, 0.22f, 0.96f), new Color(0.09f, 0.12f, 0.15f, 0.94f));
-        GUI.Label(new Rect(loadoutRect.x + 12f, loadoutRect.y + 10f, loadoutRect.width - 24f, 20f), "Staged Party", _panelTitleStyle);
+        GUI.Label(new Rect(loadoutRect.x + 12f, loadoutRect.y + 10f, loadoutRect.width - 24f, 24f), "Staged Party", _panelTitleStyle);
         DrawScrollableTextBlock(
-            new Rect(loadoutRect.x + 12f, loadoutRect.y + 36f, loadoutRect.width - 24f, loadoutRect.height - 46f),
+            new Rect(loadoutRect.x + 12f, loadoutRect.y + 40f, loadoutRect.width - 24f, loadoutRect.height - 50f),
             "expedition_prep:loadout",
             "Staged Summary: " + V(data.StagedPartySummaryText) + "\n" +
             "Loadout: " + V(data.PartyLoadoutSummaryText) + "\n" +
@@ -581,17 +581,17 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
             "Members:\n" + BuildExpeditionPrepMemberManifestText(data.StartContext),
             _bodyStyle);
 
-        float infoHeight = 134f;
+        float infoHeight = 140f;
         Rect readinessRect = new Rect(rightRect.x, rightRect.y, rightRect.width, infoHeight);
-        Rect recommendationRect = new Rect(rightRect.x, readinessRect.yMax + 12f, rightRect.width, 110f);
-        Rect previewRect = new Rect(rightRect.x, recommendationRect.yMax + 12f, rightRect.width, 128f);
+        Rect recommendationRect = new Rect(rightRect.x, readinessRect.yMax + 12f, rightRect.width, 116f);
+        Rect previewRect = new Rect(rightRect.x, recommendationRect.yMax + 12f, rightRect.width, 134f);
         Rect feedbackRect = new Rect(rightRect.x, previewRect.yMax + 12f, rightRect.width, Mathf.Max(92f, rightRect.yMax - previewRect.yMax - 60f));
         Rect actionsRect = new Rect(rightRect.x, rightRect.yMax - 40f, rightRect.width, 40f);
 
         DrawPanel(readinessRect, new Color(0.30f, 0.24f, 0.16f, 0.96f), new Color(0.10f, 0.11f, 0.14f, 0.94f));
-        GUI.Label(new Rect(readinessRect.x + 12f, readinessRect.y + 10f, readinessRect.width - 24f, 20f), "Launch Gate", _panelTitleStyle);
+        GUI.Label(new Rect(readinessRect.x + 12f, readinessRect.y + 10f, readinessRect.width - 24f, 24f), "Launch Gate", _panelTitleStyle);
         DrawScrollableTextBlock(
-            new Rect(readinessRect.x + 12f, readinessRect.y + 36f, readinessRect.width - 24f, readinessRect.height - 46f),
+            new Rect(readinessRect.x + 12f, readinessRect.y + 40f, readinessRect.width - 24f, readinessRect.height - 50f),
             "expedition_prep:gate",
             "Selected Route: " + V(data.SelectedRouteLabel) + "\n" +
             "Recommended Route: " + V(data.RecommendedRouteLabel) + "\n" +
@@ -600,18 +600,18 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
             _bodyStyle);
 
         DrawPanel(recommendationRect, new Color(0.18f, 0.24f, 0.34f, 0.96f), new Color(0.08f, 0.11f, 0.15f, 0.94f));
-        GUI.Label(new Rect(recommendationRect.x + 12f, recommendationRect.y + 10f, recommendationRect.width - 24f, 20f), "Recommendation", _panelTitleStyle);
+        GUI.Label(new Rect(recommendationRect.x + 12f, recommendationRect.y + 10f, recommendationRect.width - 24f, 24f), "Recommendation", _panelTitleStyle);
         DrawScrollableTextBlock(
-            new Rect(recommendationRect.x + 12f, recommendationRect.y + 36f, recommendationRect.width - 24f, recommendationRect.height - 46f),
+            new Rect(recommendationRect.x + 12f, recommendationRect.y + 40f, recommendationRect.width - 24f, recommendationRect.height - 50f),
             "expedition_prep:recommendation",
             "Reason: " + V(data.RecommendationReasonText) + "\n" +
             "Expected Need Impact: " + V(data.ExpectedNeedImpactText),
             _bodyStyle);
 
         DrawPanel(previewRect, new Color(0.22f, 0.30f, 0.18f, 0.96f), new Color(0.08f, 0.11f, 0.14f, 0.94f));
-        GUI.Label(new Rect(previewRect.x + 12f, previewRect.y + 10f, previewRect.width - 24f, 20f), "Projected Preview", _panelTitleStyle);
+        GUI.Label(new Rect(previewRect.x + 12f, previewRect.y + 10f, previewRect.width - 24f, 24f), "Projected Preview", _panelTitleStyle);
         DrawScrollableTextBlock(
-            new Rect(previewRect.x + 12f, previewRect.y + 36f, previewRect.width - 24f, previewRect.height - 46f),
+            new Rect(previewRect.x + 12f, previewRect.y + 40f, previewRect.width - 24f, previewRect.height - 50f),
             "expedition_prep:preview",
             "Route Fit: " + V(data.RouteFitSummaryText) + "\n" +
             "Route Preview: " + V(data.RoutePreviewSummaryText) + "\n" +
@@ -620,9 +620,9 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
             _bodyStyle);
 
         DrawPanel(feedbackRect, new Color(0.24f, 0.18f, 0.26f, 0.96f), new Color(0.09f, 0.10f, 0.14f, 0.94f));
-        GUI.Label(new Rect(feedbackRect.x + 12f, feedbackRect.y + 10f, feedbackRect.width - 24f, 20f), "Return Consume", _panelTitleStyle);
+        GUI.Label(new Rect(feedbackRect.x + 12f, feedbackRect.y + 10f, feedbackRect.width - 24f, 24f), "Return Consume", _panelTitleStyle);
         DrawScrollableTextBlock(
-            new Rect(feedbackRect.x + 12f, feedbackRect.y + 36f, feedbackRect.width - 24f, feedbackRect.height - 46f),
+            new Rect(feedbackRect.x + 12f, feedbackRect.y + 40f, feedbackRect.width - 24f, feedbackRect.height - 50f),
             "expedition_prep:return_consume",
             BuildExpeditionPrepReturnConsumeText(data),
             _bodyStyle);
@@ -657,10 +657,10 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
                 ? new Color(0.32f, 0.64f, 0.78f, 0.96f)
                 : new Color(0.18f, 0.22f, 0.28f, 0.96f);
         DrawPanel(rect, borderColor, new Color(0.09f, 0.12f, 0.16f, 0.94f));
-        GUI.Label(new Rect(rect.x + 12f, rect.y + 10f, rect.width - 24f, 20f), hotkeyLabel + " " + V(option.OptionLabel), _panelTitleStyle);
+        GUI.Label(new Rect(rect.x + 12f, rect.y + 10f, rect.width - 24f, 24f), hotkeyLabel + " " + V(option.OptionLabel), _panelTitleStyle);
         Rect buttonRect = new Rect(rect.x + 12f, rect.yMax - 34f, rect.width - 24f, 24f);
-        float bodyHeight = Mathf.Max(20f, buttonRect.y - 8f - (rect.y + 36f));
-        Rect bodyRect = new Rect(rect.x + 12f, rect.y + 36f, rect.width - 24f, bodyHeight);
+        float bodyHeight = Mathf.Max(20f, buttonRect.y - 8f - (rect.y + 40f));
+        Rect bodyRect = new Rect(rect.x + 12f, rect.y + 40f, rect.width - 24f, bodyHeight);
         int maxLines = Mathf.Clamp(Mathf.FloorToInt((bodyRect.height - 4f) / 18f), 2, 4);
         GUI.Label(
             bodyRect,
@@ -1427,7 +1427,7 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         _heroSubtitleStyle.normal.textColor = new Color(0.80f, 0.88f, 0.92f, 1f);
 
         _panelTitleStyle = new GUIStyle(GUI.skin.label);
-        _panelTitleStyle.fontSize = 20;
+        _panelTitleStyle.fontSize = 18;
         _panelTitleStyle.fontStyle = FontStyle.Bold;
         _panelTitleStyle.wordWrap = false;
         _panelTitleStyle.normal.textColor = new Color(0.96f, 0.97f, 0.95f, 1f);

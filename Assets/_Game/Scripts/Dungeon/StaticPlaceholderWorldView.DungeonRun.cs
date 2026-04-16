@@ -32,16 +32,16 @@ public sealed partial class StaticPlaceholderWorldView
     private static readonly Vector2Int EliteEncounterMarkerPosition = new Vector2Int(13, 2);
     private static readonly Vector3[] BattleMonsterViewPositions =
     {
-        new Vector3(5.2f, 1.05f, 0f),
-        new Vector3(4.15f, -0.2f, 0f)
+        new Vector3(4.55f, 0.72f, 0f),
+        new Vector3(5.95f, 0.18f, 0f)
     };
 
     private static readonly Vector3[] BattlePartyViewPositions =
     {
-        new Vector3(-6.10f, -1.00f, 0f),
-        new Vector3(-4.75f, -1.00f, 0f),
-        new Vector3(-3.40f, -1.00f, 0f),
-        new Vector3(-2.05f, -1.00f, 0f)
+        new Vector3(-6.15f, -0.88f, 0f),
+        new Vector3(-4.55f, -0.88f, 0f),
+        new Vector3(-2.95f, -0.88f, 0f),
+        new Vector3(-1.35f, -0.88f, 0f)
     };
 
     private enum DungeonRunState
@@ -81,6 +81,7 @@ public sealed partial class StaticPlaceholderWorldView
         Attack,
         Skill,
         Move,
+        EndTurn,
         Retreat
     }
 
@@ -837,13 +838,6 @@ public sealed partial class StaticPlaceholderWorldView
 
     public PrototypeBattleUiSurfaceData BuildBattleUiSurfaceData()
     {
-        EnsureBattleContracts();
-        PrototypeBattleViewModel battleViewModel = GetBattleViewModel();
-        if (battleViewModel != null && battleViewModel.HudSurface != null)
-        {
-            return battleViewModel.HudSurface;
-        }
-
         return BuildRpgOwnedBattleUiSurfaceData();
     }
 
@@ -1020,6 +1014,8 @@ public sealed partial class StaticPlaceholderWorldView
                 ? "skill"
                 : _queuedBattleAction == BattleActionType.Move
                     ? "move"
+                : _queuedBattleAction == BattleActionType.EndTurn
+                    ? "end_turn"
                 : _queuedBattleAction == BattleActionType.Retreat
                     ? "retreat"
                     : string.Empty;
@@ -1047,6 +1043,26 @@ public sealed partial class StaticPlaceholderWorldView
         if (actionKey == "move")
         {
             return "Move";
+        }
+
+        if (actionKey == "move_front")
+        {
+            return "Move to Front Row";
+        }
+
+        if (actionKey == "move_middle")
+        {
+            return "Move to Middle Row";
+        }
+
+        if (actionKey == "move_back")
+        {
+            return "Move to Back Row";
+        }
+
+        if (actionKey == "end_turn")
+        {
+            return "End Turn";
         }
 
         return "Action";
@@ -1145,6 +1161,10 @@ public sealed partial class StaticPlaceholderWorldView
                 return "Restore " + safePower + " HP to all allies.";
             case "finisher_damage":
                 return "Deal " + safePower + " damage. Gains +2 against weakened targets.";
+            case "move":
+                return "Reposition to a different lane.";
+            case "end_turn":
+                return "Pass the turn without using an action.";
             case "retreat":
                 return "Exit the run using the current resolution flow.";
             case "damage":
@@ -1163,6 +1183,8 @@ public sealed partial class StaticPlaceholderWorldView
                 return "skill";
             case BattleActionType.Move:
                 return "move";
+            case BattleActionType.EndTurn:
+                return "end_turn";
             case BattleActionType.Retreat:
                 return "retreat";
             default:
@@ -1578,22 +1600,40 @@ public sealed partial class StaticPlaceholderWorldView
 
     public bool IsBattleActionAvailable(string actionKey)
     {
+        if (IsRpgOwnedBattleMoveActionKey(actionKey))
+        {
+            return CanRpgOwnedCurrentActorShiftToBattleLane(GetCurrentActorMember(), GetRpgOwnedBattleMoveLaneKey(actionKey));
+        }
+
         return IsBattleActionAvailable(ParseBattleActionType(actionKey));
     }
 
     public bool IsBattleActionHovered(string actionKey)
     {
+        if (IsRpgOwnedBattleMoveActionKey(actionKey))
+        {
+            return _dungeonRunState == DungeonRunState.Battle && _hoverBattleAction == BattleActionType.Move;
+        }
+
         BattleActionType action = ParseBattleActionType(actionKey);
         return _dungeonRunState == DungeonRunState.Battle && action != BattleActionType.None && _hoverBattleAction == action;
     }
 
     public bool IsBattleActionSelected(string actionKey)
     {
+        if (IsRpgOwnedBattleMoveActionKey(actionKey))
+        {
+            return _dungeonRunState == DungeonRunState.Battle &&
+                   _battleState == BattleState.PartyActionSelect &&
+                   _queuedBattleAction == BattleActionType.Move;
+        }
+
         BattleActionType action = ParseBattleActionType(actionKey);
         return _dungeonRunState == DungeonRunState.Battle &&
-               _battleState == BattleState.PartyTargetSelect &&
                action != BattleActionType.None &&
-               _queuedBattleAction == action;
+               _queuedBattleAction == action &&
+               (_battleState == BattleState.PartyTargetSelect ||
+                (action == BattleActionType.Move && _battleState == BattleState.PartyActionSelect));
     }
 
     public void SetBattleActionHover(string actionKey)
@@ -1604,11 +1644,22 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
+        if (IsRpgOwnedBattleMoveActionKey(actionKey))
+        {
+            SetHoveredBattleAction(BattleActionType.Move);
+            return;
+        }
+
         SetHoveredBattleAction(ParseBattleActionType(actionKey));
     }
 
     public bool TryTriggerBattleAction(string actionKey)
     {
+        if (TryResolveRpgOwnedBattleMoveAction(actionKey))
+        {
+            return true;
+        }
+
         return TryActivateCurrentBattleAction(ParseBattleActionType(actionKey));
     }
 
@@ -4292,6 +4343,97 @@ public sealed partial class StaticPlaceholderWorldView
         return GetMonsterById(encounter.MonsterIds[displayIndex]);
     }
 
+    private Vector3 GetBattlePartyViewPosition(int memberIndex)
+    {
+        if (memberIndex < 0 || memberIndex >= BattlePartyViewPositions.Length)
+        {
+            return Vector3.zero;
+        }
+
+        int worldSlotIndex = ResolveBattlePartyWorldSlotIndex(memberIndex);
+        worldSlotIndex = Mathf.Clamp(worldSlotIndex, 0, BattlePartyViewPositions.Length - 1);
+        return BattlePartyViewPositions[worldSlotIndex];
+    }
+
+    private int ResolveBattlePartyWorldSlotIndex(int memberIndex)
+    {
+        if (_activeDungeonParty == null || _activeDungeonParty.Members == null)
+        {
+            return memberIndex;
+        }
+
+        List<int> orderedMemberIndices = new List<int>(_activeDungeonParty.Members.Length);
+        for (int i = 0; i < _activeDungeonParty.Members.Length && i < BattlePartyViewPositions.Length; i++)
+        {
+            if (_activeDungeonParty.Members[i] != null)
+            {
+                orderedMemberIndices.Add(i);
+            }
+        }
+
+        if (orderedMemberIndices.Count <= 0)
+        {
+            return memberIndex;
+        }
+
+        orderedMemberIndices.Sort((leftIndex, rightIndex) =>
+        {
+            DungeonPartyMemberRuntimeData leftMember = _activeDungeonParty.Members[leftIndex];
+            DungeonPartyMemberRuntimeData rightMember = _activeDungeonParty.Members[rightIndex];
+            int laneCompare = ResolveBattlePartyWorldLaneOrder(GetPartyMemberLaneKey(leftMember))
+                .CompareTo(ResolveBattlePartyWorldLaneOrder(GetPartyMemberLaneKey(rightMember)));
+            if (laneCompare != 0)
+            {
+                return laneCompare;
+            }
+
+            int roleCompare = ResolveBattlePartyWorldRoleOrder(leftMember)
+                .CompareTo(ResolveBattlePartyWorldRoleOrder(rightMember));
+            if (roleCompare != 0)
+            {
+                return roleCompare;
+            }
+
+            return leftIndex.CompareTo(rightIndex);
+        });
+
+        int resolvedIndex = orderedMemberIndices.IndexOf(memberIndex);
+        return resolvedIndex >= 0 ? resolvedIndex : memberIndex;
+    }
+
+    private int ResolveBattlePartyWorldLaneOrder(string laneKey)
+    {
+        switch (laneKey)
+        {
+            case PrototypeBattleLaneKeys.Bottom:
+                return 0;
+            case PrototypeBattleLaneKeys.Top:
+                return 2;
+            default:
+                return 1;
+        }
+    }
+
+    private int ResolveBattlePartyWorldRoleOrder(DungeonPartyMemberRuntimeData member)
+    {
+        string roleTag = member != null && !string.IsNullOrEmpty(member.RoleTag)
+            ? member.RoleTag.ToLowerInvariant()
+            : string.Empty;
+        switch (roleTag)
+        {
+            case "mage":
+                return 0;
+            case "cleric":
+                return 1;
+            case "rogue":
+                return 2;
+            case "warrior":
+                return 3;
+            default:
+                return 4;
+        }
+    }
+
     private DungeonMonsterRuntimeData GetFirstLivingBattleMonster()
     {
         DungeonEncounterRuntimeData encounter = GetActiveEncounter();
@@ -4428,6 +4570,11 @@ public sealed partial class StaticPlaceholderWorldView
             return BattleActionType.Move;
         }
 
+        if (normalized == "end_turn" || normalized == "endturn" || normalized == "end-turn")
+        {
+            return BattleActionType.EndTurn;
+        }
+
         if (normalized == "retreat")
         {
             return BattleActionType.Retreat;
@@ -4558,6 +4705,11 @@ public sealed partial class StaticPlaceholderWorldView
         if (action == BattleActionType.Move)
         {
             return "Move";
+        }
+
+        if (action == BattleActionType.EndTurn)
+        {
+            return "End Turn";
         }
 
         if (action == BattleActionType.Retreat)
@@ -4792,7 +4944,7 @@ public sealed partial class StaticPlaceholderWorldView
                 string hoverActionName = GetBattleActionDisplayName(_hoverBattleAction, member);
                 string skillHintText = string.IsNullOrEmpty(member.SkillShortText) ? string.Empty : " | " + member.SkillShortText;
                 _currentSelectionPrompt = string.IsNullOrEmpty(hoverActionName)
-                    ? "Select action for " + member.DisplayName + " (" + member.RoleLabel + "). [1] Attack  [2] " + member.SkillName + "  [3] Retreat" + skillHintText
+                    ? "Select action for " + member.DisplayName + " (" + member.RoleLabel + "). [1] Attack  [2] " + member.SkillName + "  [3] Item  [4] Move  [5] End Turn  [Q] Retreat" + skillHintText
                     : _hoverBattleAction == BattleActionType.Skill
                         ? "Select " + hoverActionName + " for " + member.DisplayName + ". " + (string.IsNullOrEmpty(member.SkillShortText) ? "Click or matching key." : member.SkillShortText + " Click or matching key.")
                         : "Select " + hoverActionName + " for " + member.DisplayName + " by click or matching key.";
@@ -5117,7 +5269,7 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
-        ShowBattlePopup(BattlePartyViewPositions[memberIndex] + new Vector3(0.05f, yOffset, 0f), text, color);
+        ShowBattlePopup(GetBattlePartyViewPosition(memberIndex) + new Vector3(0.05f, yOffset, 0f), text, color);
     }
 
     private int GetBattleDisplayIndexForMonster(DungeonMonsterRuntimeData monster)
@@ -5319,7 +5471,7 @@ public sealed partial class StaticPlaceholderWorldView
                 return;
             }
 
-            if (keyboard.qKey.wasPressedThisFrame || keyboard.digit3Key.wasPressedThisFrame || keyboard.numpad3Key.wasPressedThisFrame)
+            if (keyboard.qKey.wasPressedThisFrame)
             {
                 TryActivateCurrentBattleAction(BattleActionType.Retreat);
                 return;
@@ -5356,7 +5508,19 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
-        if (keyboard.digit3Key.wasPressedThisFrame || keyboard.numpad3Key.wasPressedThisFrame || keyboard.qKey.wasPressedThisFrame)
+        if (keyboard.digit4Key.wasPressedThisFrame || keyboard.numpad4Key.wasPressedThisFrame)
+        {
+            TryActivateCurrentBattleAction(BattleActionType.Move);
+            return;
+        }
+
+        if (keyboard.digit5Key.wasPressedThisFrame || keyboard.numpad5Key.wasPressedThisFrame)
+        {
+            TryActivateCurrentBattleAction(BattleActionType.EndTurn);
+            return;
+        }
+
+        if (keyboard.qKey.wasPressedThisFrame)
         {
             TryActivateCurrentBattleAction(BattleActionType.Retreat);
         }
@@ -6480,6 +6644,7 @@ public sealed partial class StaticPlaceholderWorldView
 
         DungeonRoomTemplateData currentRoom = GetCurrentPlannedRoomStep();
         _currentRoomIndex = currentRoom != null ? Mathf.Max(1, GetCurrentPlannedRoomIndex() + 1) : Mathf.Max(1, _currentRoomIndex);
+        bool battleActive = _dungeonRunState == DungeonRunState.Battle;
 
         for (int x = 0; x < DungeonGridWidth; x++)
         {
@@ -6487,6 +6652,12 @@ public sealed partial class StaticPlaceholderWorldView
             {
                 SpriteRenderer tile = _dungeonTileRenderers[x, y];
                 if (tile == null)
+                {
+                    continue;
+                }
+
+                tile.gameObject.SetActive(!battleActive);
+                if (battleActive)
                 {
                     continue;
                 }
@@ -6591,13 +6762,13 @@ public sealed partial class StaticPlaceholderWorldView
         bool eliteActive = _eliteEncounterActive || (_activeBattleMonster != null && _activeBattleMonster.IsElite);
         Color backdropColor = eliteActive ? new Color(0.10f, 0.06f, 0.08f, 0.96f) : new Color(0.10f, 0.13f, 0.18f, 0.94f);
         Color headerColor = eliteActive ? new Color(0.34f, 0.18f, 0.18f, 0.96f) : new Color(0.17f, 0.26f, 0.35f, 0.96f);
-        Color stageColor = eliteActive ? new Color(0.24f, 0.12f, 0.13f, 0.94f) : new Color(0.15f, 0.21f, 0.28f, 0.92f);
-        if (_battleBackdropRenderer != null) _battleBackdropRenderer.color = backdropColor;
-        if (_battleHeaderRenderer != null) _battleHeaderRenderer.color = headerColor;
-        if (_battleStageRenderer != null) _battleStageRenderer.color = stageColor;
-        if (_battleCommandPanelRenderer != null) _battleCommandPanelRenderer.color = new Color(0.08f, 0.10f, 0.13f, 0.95f);
-        if (_battlePartyPanelRenderer != null) _battlePartyPanelRenderer.color = new Color(0.08f, 0.10f, 0.13f, 0.95f);
-        if (_battleLogPanelRenderer != null) _battleLogPanelRenderer.color = new Color(0.08f, 0.10f, 0.13f, 0.95f);
+        Color stageColor = eliteActive ? new Color(0.32f, 0.19f, 0.20f, 0.60f) : new Color(0.24f, 0.32f, 0.42f, 0.56f);
+        if (_battleBackdropRenderer != null) _battleBackdropRenderer.color = new Color(backdropColor.r, backdropColor.g, backdropColor.b, 0f);
+        if (_battleHeaderRenderer != null) _battleHeaderRenderer.color = new Color(headerColor.r, headerColor.g, headerColor.b, 0f);
+        if (_battleStageRenderer != null) _battleStageRenderer.color = new Color(stageColor.r, stageColor.g, stageColor.b, 0f);
+        if (_battleCommandPanelRenderer != null) _battleCommandPanelRenderer.color = new Color(0.08f, 0.10f, 0.13f, 0f);
+        if (_battlePartyPanelRenderer != null) _battlePartyPanelRenderer.color = new Color(0.08f, 0.10f, 0.13f, 0f);
+        if (_battleLogPanelRenderer != null) _battleLogPanelRenderer.color = new Color(0.08f, 0.10f, 0.13f, 0f);
 
         for (int i = 0; i < _battlePartyViewRenderers.Length; i++)
         {
@@ -6618,15 +6789,13 @@ public sealed partial class StaticPlaceholderWorldView
                 continue;
             }
 
-            Vector3 position = BattlePartyViewPositions[i];
+            Vector3 position = GetBattlePartyViewPosition(i);
             if (plateRenderer != null)
             {
+                plateRenderer.transform.localPosition = position + new Vector3(0f, -0.05f, 0f);
+                plateRenderer.transform.localScale = new Vector3(1.72f, 1.38f, 1f);
                 bool isCurrentActor = _battleState != BattleState.EnemyTurn && _currentActorIndex == i && !member.IsDefeated;
-                plateRenderer.transform.localPosition = position + (isCurrentActor ? new Vector3(0f, 0.08f, 0f) : new Vector3(0f, -0.05f, 0f));
-                plateRenderer.transform.localScale = isCurrentActor
-                    ? new Vector3(2.12f, 1.70f, 1f)
-                    : new Vector3(1.90f, 1.48f, 1f);
-                Color plateColor = isCurrentActor ? new Color(0.70f, 0.58f, 0.24f, 0.96f) : new Color(0.18f, 0.22f, 0.30f, 0.80f);
+                Color plateColor = isCurrentActor ? new Color(0.46f, 0.66f, 0.88f, 0.98f) : new Color(0.30f, 0.36f, 0.46f, 0.94f);
                 if (member.IsDefeated)
                 {
                     plateColor = new Color(0.14f, 0.14f, 0.14f, 0.52f);
@@ -6636,14 +6805,14 @@ public sealed partial class StaticPlaceholderWorldView
 
             if (viewRenderer != null)
             {
+                viewRenderer.transform.localPosition = position;
                 bool isCurrentActor = _battleState != BattleState.EnemyTurn && _currentActorIndex == i && !member.IsDefeated;
-                viewRenderer.transform.localPosition = position + (isCurrentActor ? new Vector3(0f, 0.10f, 0f) : Vector3.zero);
-                float scale = member.IsDefeated ? 1.08f : isCurrentActor ? 1.40f : 1.12f;
+                float scale = member.IsDefeated ? 1.10f : isCurrentActor ? 1.24f : 1.12f;
                 viewRenderer.transform.localScale = new Vector3(scale, scale, 1f);
-                Color viewColor = i == 0 ? new Color(0.73f, 0.50f, 0.29f, 1f)
-                    : i == 1 ? new Color(0.36f, 0.69f, 0.60f, 1f)
-                    : i == 2 ? new Color(0.42f, 0.68f, 0.84f, 1f)
-                    : new Color(0.84f, 0.79f, 0.47f, 1f);
+                Color viewColor = i == 0 ? new Color(0.83f, 0.60f, 0.38f, 1f)
+                    : i == 1 ? new Color(0.48f, 0.79f, 0.70f, 1f)
+                    : i == 2 ? new Color(0.53f, 0.78f, 0.93f, 1f)
+                    : new Color(0.92f, 0.86f, 0.58f, 1f);
                 if (_partyFeedbackUntilTimes[i] > Time.unscaledTime)
                 {
                     viewColor = _partyFeedbackColors[i];
@@ -6679,8 +6848,8 @@ public sealed partial class StaticPlaceholderWorldView
             if (plateRenderer != null)
             {
                 plateRenderer.transform.localPosition = position + new Vector3(0f, -0.08f, 0f);
-                plateRenderer.transform.localScale = monster.IsElite ? new Vector3(2.45f, 1.90f, 1f) : new Vector3(2.10f, 1.60f, 1f);
-                Color plateColor = monster.IsElite ? new Color(0.46f, 0.18f, 0.18f, 0.92f) : new Color(0.22f, 0.25f, 0.31f, 0.82f);
+                plateRenderer.transform.localScale = monster.IsElite ? new Vector3(2.28f, 1.76f, 1f) : new Vector3(1.96f, 1.50f, 1f);
+                Color plateColor = monster.IsElite ? new Color(0.58f, 0.29f, 0.29f, 0.96f) : new Color(0.34f, 0.38f, 0.44f, 0.92f);
                 if (monster.IsDefeated)
                 {
                     plateColor = new Color(0.14f, 0.14f, 0.14f, 0.48f);
@@ -6830,9 +6999,9 @@ public sealed partial class StaticPlaceholderWorldView
 
         for (int i = 0; i < _battlePartyPlateRenderers.Length; i++)
         {
-            GameObject plate = CreateBattleVisual(_battleViewRoot.transform, "PartyPlate_" + i, BattlePartyViewPositions[i], new Vector2(1.85f, 1.45f), 104);
+            GameObject plate = CreateBattleVisual(_battleViewRoot.transform, "PartyPlate_" + i, GetBattlePartyViewPosition(i), new Vector2(1.85f, 1.45f), 104);
             _battlePartyPlateRenderers[i] = plate.GetComponent<SpriteRenderer>();
-            GameObject view = CreateBattleVisual(_battleViewRoot.transform, "PartyView_" + i, BattlePartyViewPositions[i], new Vector2(1.05f, 1.05f), 105);
+            GameObject view = CreateBattleVisual(_battleViewRoot.transform, "PartyView_" + i, GetBattlePartyViewPosition(i), new Vector2(1.05f, 1.05f), 105);
             _battlePartyViewRenderers[i] = view.GetComponent<SpriteRenderer>();
         }
 

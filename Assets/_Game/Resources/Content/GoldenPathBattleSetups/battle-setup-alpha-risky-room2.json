@@ -1,8 +1,8 @@
 {
   "BattleSetupId": "battle-setup-alpha-risky-room2",
   "EnemyGroupLabel": "Goblin Pair",
-  "SetupSummaryText": "Twin goblins try to cut the run short while the party is still waiting on the unstable shrine.",
+  "SetupSummaryText": "Twin goblins try to cut the run short before the unstable shrine.",
   "RetreatAllowed": true,
-  "WinRelevanceText": "Clearing the pair preserves the Standard Path's higher shard tempo through the threshold.",
-  "LossRelevanceText": "Losing pace here turns the Standard Path into strain without the bigger payout."
+  "WinRelevanceText": "Clearing the pair preserves the route's higher shard tempo through the threshold.",
+  "LossRelevanceText": "Losing pace here turns the Standard Path into strain without payoff."
 }

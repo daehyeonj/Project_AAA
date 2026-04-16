@@ -234,13 +234,14 @@ public sealed class BootEntry : MonoBehaviour
     public string DungeonRunRouteControlsLabel => GetText("DungeonRouteControlsValue");
     public bool IsDungeonRunHudMode => HasGameFlowCoordinator && CurrentState == GameStateId.DungeonRun;
     public bool IsDungeonBattleViewActive => _worldView != null && _worldView.IsBattleViewActive;
-    // Legacy fallback bridge only. ExpeditionPrep owns the normal launch seam.
-    public bool IsLegacyDungeonRouteChoiceVisible => _worldView != null && _worldView.IsDungeonRouteChoiceVisible;
-    public bool IsDungeonRouteChoiceVisible => IsExpeditionPrepBoardOpen || IsLegacyDungeonRouteChoiceVisible;
-    public bool IsDungeonRunEventDecisionVisible => _worldView != null && _worldView.IsDungeonEventChoiceVisible;
-    public bool IsDungeonEventChoiceVisible => IsDungeonRunEventDecisionVisible;
-    public bool IsDungeonRunPreEliteDecisionVisible => _worldView != null && _worldView.IsDungeonPreEliteChoiceVisible;
-    public bool IsDungeonPreEliteChoiceVisible => IsDungeonRunPreEliteDecisionVisible;
+    // Runtime baseline recovery: ExpeditionPrep owns route selection and the retired
+    // dungeon-side choice shells should never be surfaced back through bootstrap.
+    public bool IsLegacyDungeonRouteChoiceVisible => false;
+    public bool IsDungeonRouteChoiceVisible => IsExpeditionPrepBoardOpen;
+    public bool IsDungeonRunEventDecisionVisible => false;
+    public bool IsDungeonEventChoiceVisible => false;
+    public bool IsDungeonRunPreEliteDecisionVisible => false;
+    public bool IsDungeonPreEliteChoiceVisible => false;
     public bool IsDungeonResultPanelVisible => _worldView != null && _worldView.IsDungeonResultPanelVisible;
     public string DungeonRunStateLabel => _worldView != null ? _worldView.DungeonRunStateText : "None";
     public string CurrentDungeonRunLabel => _worldView != null ? _worldView.CurrentDungeonRunText : "None";
@@ -947,25 +948,21 @@ public sealed class BootEntry : MonoBehaviour
 
     public bool IsLegacyDungeonRouteChoiceHovered(string optionKey)
     {
-        return _worldView != null && _worldView.IsRouteChoiceHovered(optionKey);
+        return false;
     }
 
     public bool IsLegacyDungeonRouteChoiceSelected(string optionKey)
     {
-        return _worldView != null && _worldView.IsRouteChoiceSelected(optionKey);
+        return false;
     }
 
     public void SetLegacyDungeonRouteChoiceHover(string optionKey)
     {
-        if (_worldView != null)
-        {
-            _worldView.SetRouteChoiceHover(optionKey);
-        }
     }
 
     public bool CanConfirmLegacyDungeonRouteChoice()
     {
-        return _worldView != null && _worldView.CanConfirmRouteChoice();
+        return false;
     }
 
     public bool CanConfirmRouteChoice()
@@ -977,7 +974,7 @@ public sealed class BootEntry : MonoBehaviour
 
     public bool TryConfirmLegacyDungeonRouteChoice()
     {
-        return _worldView != null && _worldView.TryConfirmRouteChoice();
+        return false;
     }
 
     public bool TryConfirmRouteChoice()
@@ -989,7 +986,7 @@ public sealed class BootEntry : MonoBehaviour
 
     public bool TryTriggerLegacyDungeonRouteChoice(string optionKey)
     {
-        return _worldView != null && _worldView.TryTriggerRouteChoice(optionKey);
+        return false;
     }
 
     public bool TryTriggerRouteChoice(string optionKey)

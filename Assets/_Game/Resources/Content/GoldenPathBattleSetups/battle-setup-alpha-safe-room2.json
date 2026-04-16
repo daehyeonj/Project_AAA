@@ -1,8 +1,8 @@
 {
   "BattleSetupId": "battle-setup-alpha-safe-room2",
   "EnemyGroupLabel": "Slime Watch Pair",
-  "SetupSummaryText": "A guard slime and skirmisher try to punish any party that wastes the Rest Path's earlier reset.",
+  "SetupSummaryText": "A guard slime and skirmisher trying to hold the watch hall.",
   "RetreatAllowed": true,
-  "WinRelevanceText": "Winning here preserves the Rest Path's clean finish into the monarch chamber.",
-  "LossRelevanceText": "Getting stalled here turns the safer route into a low-payout grind."
+  "WinRelevanceText": "Winning here keeps the run on track for the monarch chamber.",
+  "LossRelevanceText": "Getting stalled here leaves the safe route short of its final payout."
 }

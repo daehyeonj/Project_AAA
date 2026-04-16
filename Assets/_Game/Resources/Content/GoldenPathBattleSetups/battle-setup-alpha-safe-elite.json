@@ -1,10 +1,10 @@
 {
   "BattleSetupId": "battle-setup-alpha-safe-elite",
   "EnemyGroupLabel": "Slime Monarch",
-  "SetupSummaryText": "A solo elite slime anchoring the exit chamber.",
+  "SetupSummaryText": "A solo elite slime anchors the exit chamber after the route's recovery-first pacing.",
   "RetreatAllowed": true,
-  "WinRelevanceText": "Defeating the monarch seals the route and turns the run into a clean mana_shard return.",
-  "LossRelevanceText": "Failing here wastes the safer pacing that the route was built around.",
+  "WinRelevanceText": "Defeating the monarch seals a clean Rest Path clear and a stable mana_shard return.",
+  "LossRelevanceText": "Failing here wastes the safer pacing that the Rest Path was built around.",
   "EliteTypeText": "Royal Slime Elite | Surging Pressure",
   "RewardHintText": "Royal Gel Cache"
 }

@@ -134,6 +134,18 @@ Batch 22 locked the baseline with representative chain #1, and batch 23 proves t
   - draft-promotion tooling now also reports supported-rail slot inventory directly instead of forcing operators to infer saturation from the blocked draft alone
   - the current Alpha/Beta surfaced rail reports `SupportedRailSlots=4`, `OccupiedSupportedRailSlots=4`, `OpenSupportedRailSlots=None`, and `OpenSupportedResolverKeys=None`
   - the current template draft still resolves to `city-a::dungeon-alpha::safe`, but the helper can now say that this is a collision on a saturated supported rail, not only a generic canonical-owner clash
+- Batch 47 draft-retarget note:
+  - the current Alpha/Beta surfaced rail still remains saturated and unchanged at four surfaced safe/risky routes
+  - draft tooling can now surface a non-colliding off-rail retarget candidate for a blocked draft instead of leaving the next step as a vague manual rewrite
+  - the current helper-generated retarget draft is `Assets/_Game/AuthoringDrafts/GoldenPathChains/draft-city-a-dungeon-alpha-safe-off-rail-v1.json`
+  - its resolver key is `city-a::dungeon-alpha::safe-off-rail-v1`
+  - it should be read as `hidden-canonical-if-promoted`, not as a silent fifth surfaced opportunity on the current Alpha/Beta rail
+- Batch 48 hidden-canonical promotion note:
+  - the batch-47 retarget draft has now been promoted into `Resources/Content/GoldenPathChains` as canonical hidden content
+  - the promoted asset is `Assets/_Game/Resources/Content/GoldenPathChains/city-a-dungeon-alpha-safe-off-rail-v1.json`
+  - it resolves as `city-a -> dungeon-alpha -> safe-off-rail-v1`
+  - it remains `hidden-canonical`, so the surfaced portfolio still stays at four routes
+  - the original template draft is still blocked on `city-a::dungeon-alpha::safe`, but its next honest off-rail helper suggestion is now `safe-off-rail-v2`
 
 ## Baseline Compatibility Note
 
@@ -161,6 +173,8 @@ Batch 22 locked the baseline with representative chain #1, and batch 23 proves t
 - Batch 44 keeps gameplay behavior intact while adding an explicit surfaced-expansion gate summary: it does not widen the player-facing set, but it makes the next-step decision readable from one tooling pass instead of a manual three-log comparison.
 - Batch 45 keeps gameplay behavior intact while aligning draft-promotion tooling with the surfaced-expansion gate: it does not widen the player-facing set, but it makes "no open surfaced slot on the current rail" explicit before someone tries to promote a colliding draft.
 - Batch 46 keeps gameplay behavior intact while strengthening draft-promotion preflight: it does not widen the player-facing set, but it makes supported-rail saturation explicit with slot counts and resolver-key inventory before anyone pretends a blocked draft can still promote on the current rail.
+- Batch 47 keeps gameplay behavior intact while closing the retarget-helper gap: blocked drafts can now be retargeted into non-colliding off-rail hidden-canonical candidates, but the player-facing surfaced portfolio and current grid-dungeon + standard-JRPG baseline remain unchanged.
+- Batch 48 keeps gameplay behavior intact while proving owner-safe off-surface promotion: one off-rail retarget draft is now canonical hidden content in `Resources`, but the surfaced portfolio, grid-dungeon baseline, and standard JRPG battle baseline remain unchanged.
 
 ## Batch 22 Guardrail
 

@@ -1,8 +1,8 @@
 {
   "BattleSetupId": "battle-setup-alpha-safe-room1",
   "EnemyGroupLabel": "Slime Bulwark Pair",
-  "SetupSummaryText": "Two steady slimes screening the safer entry hall.",
+  "SetupSummaryText": "Two steady slimes screen the calmer entry hall before the recovery window opens.",
   "RetreatAllowed": true,
-  "WinRelevanceText": "Clearing the front line keeps the safe route stable.",
-  "LossRelevanceText": "Failing here burns the route before the party reaches the safer recovery rooms."
+  "WinRelevanceText": "Clearing the front line keeps the Rest Path on schedule for its early shrine reset.",
+  "LossRelevanceText": "Failing here burns the safer route before the party can bank its recovery window."
 }

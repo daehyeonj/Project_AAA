@@ -82,9 +82,6 @@ Project AAA is a Unity vertical slice prototype that turns city pressure into ex
 - Batch 43 aligns representative-validator surface labels with the surfaced-matrix reality, so primary player-facing chains no longer look hidden in authoring output when the current surfaced portfolio is already full.
 - Batch 44 adds a surfaced-expansion gate summary so post-slice audits can answer “close out target, align matrix, or go tooling-first next?” from one editor/tooling log instead of manually reconciling multiple summaries.
 - Use `docs/post-slice-batch-status.md` when you need the shortest GitHub/GPT-friendly snapshot of the current post-slice state without reading the longer baseline/content notes first.
-- Batch 46 strengthens draft-promotion preflight with explicit supported-rail slot counts and resolver-key inventory, so operators can tell the current Alpha/Beta surface is saturated without pretending a blocked draft still has a hidden open slot.
-- Batch 47 adds draft-retarget helper flow on top of readiness/preflight/context, so a blocked draft can produce or point at a non-colliding off-rail hidden-canonical candidate without widening the current player-facing safe/risky rail.
-- Batch 48 adds hidden-canonical promotion flow on top of the retarget helper, so an off-rail draft can be promoted into canonical `Resources` content without widening the current player-facing safe/risky rail.
 - Treat that safe route as supported content, not as a tolerated hardcoded exception.
 
 ## Read This First

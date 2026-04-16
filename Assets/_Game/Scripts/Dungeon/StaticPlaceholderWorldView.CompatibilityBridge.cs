@@ -79,6 +79,7 @@ public sealed partial class StaticPlaceholderWorldView
         return "Battle " + template.BattleLootAmount +
             " | Chest " + template.ChestRewardAmount +
             " | Event " + template.BonusLootAmount +
+            " | Recover " + BuildRawHpAmountText(template.RecoverAmount) +
             " | Total " + totalReward;
     }
 

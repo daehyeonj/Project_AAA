@@ -124,6 +124,7 @@
 - `GoldenPathAuthoringValidationRunner.RunRepresentativeChainStatusSummary` now gives a no-approval-friendly representative/surfaced status report on top of the existing validator and surfaced matrix summary.
 - The surfaced matrix summary now classifies each authored route with explicit status labels:
   - `PASS:fully-canonical-and-surfaced`
+  - `PASS:hidden-canonical-inventory`
   - `WARN:canonical-but-not-surfaced`
   - `WARN:surfaced-with-chain-override`
   - `FAIL:surfaced-using-fallback`
@@ -141,7 +142,8 @@
   - `city-a -> dungeon-alpha -> risky`
   - `city-b -> dungeon-beta -> risky`
   - `city-b -> dungeon-beta -> safe`
-- Treat `CanonicalButNotSurfaced=None` plus `OfficialSurfacedSet=Yes` as the sign that the current surfaced portfolio matches the authored canonical route set.
+- Treat `CanonicalButNotSurfaced=None` plus `OfficialSurfacedSet=Yes` as the old pre-Batch-49 sign that the current surfaced portfolio matched the authored canonical route set.
+- Batch 49 narrows that meaning: use `CurrentRailCanonicalButNotSurfaced=None` plus `OfficialSurfacedSet=Yes` when you mean the current supported surfaced rail is healthy even if off-surface hidden canonical inventory exists elsewhere.
 
 ## What Batch 37 Adds
 
@@ -334,6 +336,56 @@
   - the promoted route should appear in surfaced-matrix/tooling output as `hidden-canonical` / `canonical-but-not-surfaced`
   - that warning is expected for this off-surface proof batch and does not mean surfaced regression by itself
 
+## What Batch 49 Clarifies
+
+- Batch 49 does not add a new surfaced opportunity.
+- It only closes the operator-facing ambiguity left after Batch 48:
+  - `CurrentRailCanonicalButNotSurfaced`
+  - `OffSurfaceHiddenCanonicalRoutes`
+  - `HiddenCanonicalInventoryCount`
+  are now reported separately in the surfaced summaries.
+- Read those fields with this policy:
+  - `CurrentRailCanonicalButNotSurfaced` answers whether the current supported Alpha/Beta `safe/risky` surfaced rail still has a hidden canonical gap that blocks surfaced-rail health.
+  - `OffSurfaceHiddenCanonicalRoutes` answers how many hidden canonical routes exist outside that current surfaced rail.
+  - `HiddenCanonicalInventoryCount` is the aggregate canonical hidden inventory count across both categories.
+- `OfficialSurfacedSet=Yes` and `ExpansionGate=C:tooling-next` now only care about the health of the current surfaced rail.
+- Hidden off-surface canonical inventory stays visible, but it no longer forces the surfaced rail to look unhealthy by itself.
+
+## What Batch 50 Adds
+
+- Hidden canonical inventory helper: `Tools/Project AAA/Show Hidden Canonical Inventory`
+- Batch entry point: `GoldenPathAuthoringValidationRunner.RunHiddenCanonicalInventorySummary`
+- The helper is intentionally narrow:
+  - it reports already-promoted off-surface canonical routes only
+  - it does not treat hidden canonical inventory as a surfaced portfolio problem
+  - it keeps current supported-rail health separate from off-surface hidden inventory
+- The summary now gives one operator-facing place to read:
+  - `CurrentRailCanonicalButNotSurfaced`
+  - `OffSurfaceHiddenCanonicalRoutes`
+  - `HiddenCanonicalInventoryCount`
+  - one line per hidden inventory route with city / dungeon / route / status / asset path
+- Treat that helper as the operational follow-up to Batch 49's semantic split:
+  - Batch 49 clarified the counts
+  - Batch 50 makes the already-promoted hidden inventory inspectable without re-mixing it into surfaced-health tooling
+
+## What Batch 51 Sharpens
+
+- Batch 51 does not widen the surfaced portfolio.
+- It sharpens only the current `city-a -> dungeon-alpha` surfaced pair:
+  - `safe` (`Rest Path`) now leans harder into sustain / cleaner completion
+  - `risky` (`Standard Path`) now leans harder into payout / thinner recovery
+- The current alpha-only tuning change is split across the existing authoring rail:
+  - chain-local route description plus payout / recover numbers
+  - shared route-meaning framing for risk / shrine read / reward preview
+  - shared outcome meaning for the city-side aftermath
+  - battle setup wording for the alpha rooms and elite
+- The existing route-option preview seam now also surfaces `Recover` directly on the reward line, so the player can see the safe-vs-risky sustain trade-off before committing the route.
+- Treat Batch 51 as the first honest gameplay pass after the tooling batches:
+  - no new route
+  - no hidden promotion
+  - no surfaced seam widening
+  - no combat-system rewrite
+
 ## How The Representative Chain Is Authored
 
 The current data-driven samples are:
@@ -393,6 +445,7 @@ The shared meaning assets currently own:
 - Run `Tools/Project AAA/Show Surfaced Opportunity Matrix` when you need to confirm which authored routes are actually surfaced versus hidden canonical
 - Run `Tools/Project AAA/Show Surfaced Opportunity Portfolio` when you want the player-facing surfaced set only, without the hidden canonical rows
 - Run `Tools/Project AAA/Show Surfaced Opportunity Expansion Gate` when you want the batch-44 style decision summary that collapses target stability, surfaced-matrix health, and next-step direction into one log
+- Run `Tools/Project AAA/Show Hidden Canonical Inventory` when you want the already-promoted off-surface canonical inventory only, without reinterpreting it as surfaced drift
 - Run `Tools/Project AAA/Show Representative Chain Status` when you want the compact branch-B style summary for representative chains plus currently surfaced opportunity variants
 - Run `Tools/Project AAA/Trace Surfaced Opportunity Resolution` when you need the surfaced-only cityhub/prep trace for each route before widening the portfolio or debugging a rationale mismatch
 - Run `Tools/Project AAA/Show Representative Chain Reference Trace` when you need the shared-definition asset-path trace plus per-route `Issues=` drill-down for representative chains and surfaced opportunity variants
@@ -431,8 +484,12 @@ The shared meaning assets currently own:
   - if the trace reports `near-duplicate:*` on a surfaced route, treat that as surfaced-portfolio thinness or rationale drift before adding more player-facing variety
 - Read `ExpansionGate=` before deciding whether the next batch should be a surfaced close-out, matrix-alignment pass, or tooling-first pass:
   - `A:target-close-out` means the tracked surfaced target is still not fully canonical + surfaced + prep-linked + recommendation-linked
-  - `B:matrix-align` means the target is fine, but the broader surfaced matrix still has hidden/fallback/mismatch drift
+  - `B:matrix-align` means the target is fine, but the current supported surfaced rail still has canonical-but-not-surfaced, fallback, or consumer-mismatch drift
   - `C:tooling-next` means the current surfaced portfolio is healthy enough that the next honest bottleneck is tooling/operations, not another forced surfacing pass
+- Read `CurrentRailCanonicalButNotSurfaced=` / `OffSurfaceHiddenCanonicalRoutes=` / `HiddenCanonicalInventoryCount=` together before opening the next surfacing batch:
+  - `CurrentRailCanonicalButNotSurfaced=None` means the current Alpha/Beta surfaced rail itself has no hidden canonical gap left
+  - `OffSurfaceHiddenCanonicalRoutes>0` means hidden canonical inventory exists, but outside the current surfaced rail
+  - `HiddenCanonicalInventoryCount` is the aggregate hidden canonical inventory number; do not use it by itself to judge surfaced-rail health
 - Run `Tools/Project AAA/Quick Open Golden Path Chain Assets` when you need to jump directly to the current chain assets before editing
 - Read `Issues=` in the surfaced matrix, surfaced portfolio, representative status, and surfaced trace summaries before copying a route pattern:
   - `clean` means no current surfaced/canonical/prep/recommendation problem was detected
@@ -458,6 +515,7 @@ The shared meaning assets currently own:
 - In batch mode, run `GoldenPathAuthoringValidationRunner.RunSurfacedOpportunityMatrixSummary` when you want the surfaced/canonical/fallback snapshot in CI-style logs
 - In batch mode, run `GoldenPathAuthoringValidationRunner.RunSurfacedOpportunityPortfolioSummary` when you want the official surfaced-set rollup for CityHub/ExpeditionPrep-focused audits
 - In batch mode, run `GoldenPathAuthoringValidationRunner.RunSurfacedOpportunityExpansionGateSummary` when you want the batch-44 style “close out / align / tooling-next” decision in one log
+- In batch mode, run `GoldenPathAuthoringValidationRunner.RunHiddenCanonicalInventorySummary` when you want the hidden off-surface canonical inventory summary without reopening surfaced-health interpretation
 - In batch mode, run `GoldenPathAuthoringValidationRunner.RunRepresentativeChainStatusSummary` when you want the compact representative/surfaced status rollup without opening the full surfaced matrix dump
 - In batch mode, run `GoldenPathAuthoringValidationRunner.RunSurfacedOpportunityResolutionTrace` when you need the surfaced-only trace log with CityHub summary, prep recommendation, why-now, usefulness, and shared reference ids in one place
 - In batch mode, run `GoldenPathAuthoringValidationRunner.RunRepresentativeChainReferenceTrace` when you need the tracked representative/surfaced routes with asset paths plus per-route issue drill-down in one log

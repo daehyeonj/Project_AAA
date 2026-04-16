@@ -1125,7 +1125,7 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         int totalReward = template.BattleLootAmount + template.ChestRewardAmount + template.BonusLootAmount;
-        return template.RewardPreview + " | Total " + BuildLootAmountText(totalReward);
+        return template.RewardPreview + " | Recover " + BuildRawHpAmountText(template.RecoverAmount) + " | Total " + BuildLootAmountText(totalReward);
     }
 
     private string BuildShrineChoiceOutcomeHintText(string choiceId)

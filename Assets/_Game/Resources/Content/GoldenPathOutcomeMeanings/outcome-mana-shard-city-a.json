@@ -1,7 +1,7 @@
 {
   "OutcomeMeaningId": "outcome-mana-shard-city-a",
   "RewardResourceId": "mana_shard",
-  "RewardMeaningText": "Dungeon Alpha is the main expedition lever connected to this city right now.",
-  "CityImpactMeaningText": "Stabilizes the next dispatch window once mana_shard stock returns.",
-  "RecommendationShiftText": "Mana shard pressure eased, so City A can push the next stable dispatch instead of waiting."
+  "RewardMeaningText": "The Rest Path is the reliable mana_shard refill when City A wants the next dispatch window to stay stable.",
+  "CityImpactMeaningText": "Returns a smaller shard burst, but it buys back dispatch stability and a cleaner recovery window.",
+  "RecommendationShiftText": "City A can keep acting on schedule after the Rest Path instead of spending the next turn rebuilding recovery."
 }

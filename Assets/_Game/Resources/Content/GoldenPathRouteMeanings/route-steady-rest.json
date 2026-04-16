@@ -1,7 +1,7 @@
 {
   "RouteMeaningId": "route-steady-rest",
   "RiskLabel": "Low",
-  "EventFocus": "Recover choice is strongest.",
-  "RewardPreview": "Steady shards with a safer elite bounty.",
-  "ExpectedNeedImpactText": "Lower risk, lower return."
+  "EventFocus": "Early shrine recovery and safer elite prep.",
+  "RewardPreview": "Smaller shard haul with the cleanest recover window.",
+  "ExpectedNeedImpactText": "Stabilizes the next dispatch by buying heal and a cleaner clear."
 }

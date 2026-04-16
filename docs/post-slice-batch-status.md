@@ -1,5 +1,13 @@
 # Project AAA Post-Slice Batch Status
 
+## Current Mainline Snapshot
+
+- Snapshot date: `2026-04-17`
+- Sync intent: `preserve the current local runtime state on GitHub main so repository readers can inspect the live working baseline`
+- Active runtime baseline to preserve: `grid dungeon explore shell` + `current battleScene HUD`
+- UI safety rule: `reject prompts that would change or roll back the currently accepted runtime UI without explicit approval`
+- Runtime decision note: see `docs/runtime/mainline-snapshot-2026-04-17.md`
+
 ## Current Verdict
 
 - Latest closed batch: `Batch 46`

@@ -17,6 +17,7 @@
 - Alpha surfaced pair: `content-completed on current rail`
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-b -> dungeon-beta`
+- Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
 - Next honest bottleneck: stronger manual proof of the signature loop and longer-lived world consequence persistence, not route-surface expansion or fallback cleanup
 
 ## Batch 70 Close-Out

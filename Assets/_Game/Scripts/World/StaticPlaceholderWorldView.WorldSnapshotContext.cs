@@ -574,23 +574,43 @@ public sealed partial class StaticPlaceholderWorldView
             return "None";
         }
 
+        return BuildPressureBoardSummaryText(
+            priorityBoard.CityLabel,
+            priorityBoard.UrgencyText,
+            priorityBoard.RecentResultEvidenceText,
+            priorityBoard.AnswerText);
+    }
+
+    private string BuildPressureBoardSummaryText(
+        string cityLabel,
+        string urgencyText,
+        string recentResultEvidenceText,
+        string answerText)
+    {
         List<string> parts = new List<string>();
-        if (IsMeaningfulSnapshotText(priorityBoard.CityLabel))
+        if (IsMeaningfulSnapshotText(cityLabel))
         {
-            parts.Add(priorityBoard.CityLabel);
+            parts.Add(cityLabel);
         }
 
-        if (IsMeaningfulSnapshotText(priorityBoard.UrgencyText))
+        if (IsMeaningfulSnapshotText(urgencyText))
         {
-            parts.Add(priorityBoard.UrgencyText);
+            parts.Add(urgencyText);
         }
 
-        if (IsMeaningfulSnapshotText(priorityBoard.AnswerText))
+        if (IsMeaningfulSnapshotText(recentResultEvidenceText))
         {
-            parts.Add("Answer " + priorityBoard.AnswerText);
+            parts.Add("Evidence " + recentResultEvidenceText);
         }
 
-        return string.Join(" | ", parts.ToArray());
+        if (IsMeaningfulSnapshotText(answerText))
+        {
+            parts.Add("Answer " + answerText);
+        }
+
+        return parts.Count > 0
+            ? string.Join(" | ", parts.ToArray())
+            : "None";
     }
 
     private static T GetFirstBoardItem<T>(T[] items) where T : class

@@ -10,13 +10,45 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 69`
+- Latest closed batch: `Batch 70`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
 - Alpha surfaced pair: `content-completed on current rail`
 - Beta surfaced pair: `content-thickened on current rail`
-- Next honest bottleneck: longer-lived world consequence persistence and stronger manual proof of the world-to-prep decision loop, not route-surface expansion or fallback cleanup
+- Current signature demo pair: `city-b -> dungeon-beta`
+- Next honest bottleneck: stronger manual proof of the signature loop and longer-lived world consequence persistence, not route-surface expansion or fallback cleanup
+
+## Batch 70 Close-Out
+
+- Selected branch: `A`
+- Selected signature pair: `city-b -> dungeon-beta`
+- Integration polish focused on the existing signature loop instead of adding a new mechanic seam.
+- World/result readback polish:
+  - priority-board summary now carries urgency, latest result evidence, and current route answer in the same line
+  - selected-city pressure-board summary now mirrors that same evidence-first structure
+  - world alert/city summaries now read more like a loop close-out than a neutral status snapshot
+- Why Beta was chosen:
+  - its guarded vs greedy split is still the clearest operating-scenario contrast on the surfaced rail
+  - the City B pressure -> route answer -> burst payoff -> restart feedback chain is the easiest 3-5 minute demo story
+- UI shape changed?: `No`
+
+## Batch 70 Validation Snapshot
+
+- Compile: `BLOCKED (Unity batch compile aborted because the project was already open in another editor instance)`
+- Targeted audit:
+  - 66~69 landing on current branch: `PASS`
+  - Beta world -> prep -> route -> battle -> result loop continuity: `PASS`
+  - result-pressure board summary alignment: `PASS`
+- Manual verification: `DEFERRED`
+- Smoke: `DEFERRED`
+
+## Batch 70 Why It Matters
+
+- Batch 66~69 already landed on the current branch, so Batch 70 did not reopen that work or fake a new demo seam.
+- The strongest current signature rail is `city-b -> dungeon-beta`, because the world pressure, guarded vs greedy route split, burst-window combat payoff, and restart-focused world feedback already exist on the same canonical path.
+- The remaining gap was presentation parity: the result-pressure board was carrying the right data, but not summarizing the latest return as directly as the surrounding prep/route/battle readback.
+- Batch 70 closes that gap without changing the accepted runtime UI or widening the surfaced portfolio.
 
 ## Batch 69 Close-Out
 

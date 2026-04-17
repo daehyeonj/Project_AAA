@@ -1,5 +1,20 @@
 # Golden-Path Content Authoring
 
+## What Batch 70 Adds
+
+- The current signature demo pair is now explicitly treated as `city-b -> dungeon-beta`.
+- Batch 70 does not add a new route, city, dungeon, or battle system.
+- It tightens the already-landed 66~69 loop so the same Beta story reads in one pass:
+  - world pressure
+  - party-fit / growth-aware recommendation
+  - guarded vs greedy operating scenario
+  - burst-window combat payoff
+  - result-pressure board follow-through
+- The main runtime polish is on the world/result seam:
+  - pressure-board summaries now carry urgency + latest result evidence + current answer in the same line
+  - selected-city readback mirrors that same structure so the post-run board closes the same story the prep side opened
+- Treat this batch as signature-loop integration polish on the current surfaced rail, not as a new content-expansion batch.
+
 ## What Batch 69 Adds
 
 - The world/city presentation now leans on the existing world-board + city-decision seams to read like a result-pressure board instead of a neutral bridge.

@@ -390,27 +390,19 @@ public sealed partial class StaticPlaceholderWorldView
         CityDecisionReadModel decision = city.Decision ?? new CityDecisionReadModel();
         CityBottleneckSignal topBottleneck = GetFirstBoardItem(decision.Bottlenecks);
         CityActionRecommendation topAction = GetFirstBoardItem(decision.RecommendedActions);
-        List<string> parts = new List<string>();
-
-        if (IsMeaningfulSnapshotText(topBottleneck != null ? topBottleneck.SummaryText : string.Empty))
-        {
-            parts.Add(topBottleneck.SummaryText);
-        }
-        else
-        {
-            parts.Add(BuildCityUrgencyFallbackText(city));
-        }
-
-        if (IsMeaningfulSnapshotText(topAction != null ? topAction.SummaryText : string.Empty))
-        {
-            parts.Add("Answer " + topAction.SummaryText);
-        }
-        else if (IsMeaningfulSnapshotText(city.RecommendedRouteSummaryText))
-        {
-            parts.Add("Answer " + city.RecommendedRouteSummaryText);
-        }
-
-        return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : "None";
+        string urgencyText = IsMeaningfulSnapshotText(topBottleneck != null ? topBottleneck.SummaryText : string.Empty)
+            ? topBottleneck.SummaryText
+            : BuildCityUrgencyFallbackText(city);
+        string answerText = IsMeaningfulSnapshotText(topAction != null ? topAction.SummaryText : string.Empty)
+            ? topAction.SummaryText
+            : IsMeaningfulSnapshotText(city.RecommendedRouteSummaryText)
+                ? city.RecommendedRouteSummaryText
+                : "None";
+        return BuildPressureBoardSummaryText(
+            city.DisplayName,
+            urgencyText,
+            BuildCityRecentResultEvidenceText(city),
+            answerText);
     }
 
     private CitySimSurfaceData BuildSelectedCitySimSurfaceData(WorldObservationSurfaceData observation)

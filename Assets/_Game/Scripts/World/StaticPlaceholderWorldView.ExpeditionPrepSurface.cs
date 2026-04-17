@@ -740,15 +740,7 @@ public sealed partial class StaticPlaceholderWorldView
 
     private PrototypeRpgPartyRuntimeResolveSurface BuildExpeditionPartyRuntimeResolveSurface(string partyId)
     {
-        if (string.IsNullOrEmpty(partyId))
-        {
-            return null;
-        }
-
-        PrototypeRpgPartyDefinition partyDefinition = PrototypeRpgPartyCatalog.CreateDefaultPlaceholderParty(partyId);
-        return PrototypeRpgRuntimeResolveBuilder.BuildPartySurface(
-            partyDefinition,
-            memberDefinition => memberDefinition != null ? memberDefinition.EquipmentLoadoutId : string.Empty);
+        return BuildRuntimePartyResolveSurface(partyId);
     }
 
     private ExpeditionPartyManifest BuildExpeditionPartyManifest(string partyId, string fallbackPartyLabel)

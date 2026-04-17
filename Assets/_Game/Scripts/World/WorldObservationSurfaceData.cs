@@ -12,12 +12,27 @@ public sealed class WorldObservationSurfaceData
     public ExpeditionStartContext CurrentExpeditionStartContext = new ExpeditionStartContext();
     public WorldObservationCurrentContextData CurrentContext = new WorldObservationCurrentContextData();
     public WorldObservationSelectedEntityData SelectedEntity = new WorldObservationSelectedEntityData();
+    public WorldObservationPriorityBoardData PriorityBoard = new WorldObservationPriorityBoardData();
     public ExpeditionPrepSurfaceData ExpeditionPrep = new ExpeditionPrepSurfaceData();
     public WorldObservationLaunchData Launch = new WorldObservationLaunchData();
     public WorldObservationActiveExpeditionData ActiveExpedition = new WorldObservationActiveExpeditionData();
     public WorldObservationRecentOutcomeData RecentOutcome = new WorldObservationRecentOutcomeData();
     public CityHubSurfaceData CityHub = new CityHubSurfaceData();
     public WorldObservationLogData Logs = new WorldObservationLogData();
+}
+
+public sealed class WorldObservationPriorityBoardData
+{
+    public bool HasPriorityCity;
+    public string CityId = string.Empty;
+    public string CityLabel = "None";
+    public string UrgencyText = "None";
+    public string WhyCityMattersText = "None";
+    public string AnswerText = "None";
+    public string RecentResultEvidenceText = "None";
+    public string PartyReadinessText = "None";
+    public string NextActionText = "None";
+    public string SummaryText = "None";
 }
 
 public sealed class WorldObservationCurrentContextData

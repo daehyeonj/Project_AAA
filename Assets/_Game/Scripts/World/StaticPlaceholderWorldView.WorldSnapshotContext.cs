@@ -100,6 +100,7 @@ public sealed partial class StaticPlaceholderWorldView
     public WorldObservationSurfaceData BuildWorldObservationSurfaceData()
     {
         WorldObservationSurfaceData data = new WorldObservationSurfaceData();
+        WorldBoardReadModel board = BuildWorldBoardReadModel();
         string cityId = !string.IsNullOrEmpty(_currentHomeCityId)
             ? _currentHomeCityId
             : ResolveDispatchBriefingCityId();
@@ -129,11 +130,12 @@ public sealed partial class StaticPlaceholderWorldView
 
         PopulateWorldObservationCurrentContext(data.CurrentContext, snapshot);
         PopulateWorldObservationSelectedEntity(data.SelectedEntity, snapshot);
+        PopulateWorldObservationPriorityBoard(data.PriorityBoard, board);
         data.ExpeditionPrep = BuildCanonicalExpeditionPrepSurfaceData(snapshot, briefing, startContext);
         PopulateWorldObservationLaunch(data.Launch, data.ExpeditionPrep, snapshot, briefing, startContext);
         PopulateWorldObservationActiveExpedition(data.ActiveExpedition);
         PopulateWorldObservationRecentOutcome(data.RecentOutcome, snapshot);
-        PopulateWorldObservationCityHub(data.CityHub, data);
+        PopulateWorldObservationCityHub(data.CityHub, data, board);
         PopulateWorldObservationLogs(data.Logs);
         return data;
     }
@@ -327,6 +329,273 @@ public sealed partial class StaticPlaceholderWorldView
             ? context.LaunchManifestSummaryText + " | " + snapshot.ModifierSummary.RecommendationHintText
             : snapshot.SnapshotSummaryText + " | " + snapshot.ModifierSummary.RecommendationHintText;
         return context;
+    }
+
+    private void PopulateWorldObservationPriorityBoard(WorldObservationPriorityBoardData priorityBoard, WorldBoardReadModel board)
+    {
+        if (priorityBoard == null)
+        {
+            return;
+        }
+
+        CityStatusReadModel priorityCity = FindHighestPriorityCity(board);
+        if (priorityCity == null)
+        {
+            return;
+        }
+
+        CityDecisionReadModel decision = priorityCity.Decision ?? new CityDecisionReadModel();
+        CityBottleneckSignal topBottleneck = GetFirstBoardItem(decision.Bottlenecks);
+        CityActionRecommendation topAction = GetFirstBoardItem(decision.RecommendedActions);
+
+        priorityBoard.HasPriorityCity = true;
+        priorityBoard.CityId = priorityCity.CityId ?? string.Empty;
+        priorityBoard.CityLabel = IsMeaningfulSnapshotText(priorityCity.DisplayName) ? priorityCity.DisplayName : "None";
+        priorityBoard.UrgencyText = IsMeaningfulSnapshotText(topBottleneck != null ? topBottleneck.SummaryText : string.Empty)
+            ? topBottleneck.SummaryText
+            : BuildCityUrgencyFallbackText(priorityCity);
+        priorityBoard.WhyCityMattersText = IsMeaningfulSnapshotText(decision.WhyCityMattersText)
+            ? decision.WhyCityMattersText
+            : priorityBoard.UrgencyText;
+        priorityBoard.AnswerText = IsMeaningfulSnapshotText(topAction != null ? topAction.SummaryText : string.Empty)
+            ? topAction.SummaryText
+            : IsMeaningfulSnapshotText(priorityCity.RecommendedRouteSummaryText)
+                ? priorityCity.RecommendedRouteSummaryText
+                : "Review the linked dungeon and route answer.";
+        priorityBoard.RecentResultEvidenceText = BuildCityRecentResultEvidenceText(priorityCity);
+        priorityBoard.PartyReadinessText = BuildCityPartyReadinessSummaryText(priorityCity);
+        priorityBoard.NextActionText = IsMeaningfulSnapshotText(topAction != null ? topAction.ReasonText : string.Empty)
+            ? topAction.ReasonText
+            : BuildCityNextActionFallbackText(priorityCity);
+        priorityBoard.SummaryText = BuildWorldPriorityBoardSummaryText(priorityBoard);
+    }
+
+    private CityStatusReadModel FindHighestPriorityCity(WorldBoardReadModel board)
+    {
+        CityStatusReadModel[] cities = board != null ? board.Cities : null;
+        if (cities == null || cities.Length <= 0)
+        {
+            return null;
+        }
+
+        CityStatusReadModel bestCity = null;
+        int bestScore = int.MinValue;
+        for (int i = 0; i < cities.Length; i++)
+        {
+            CityStatusReadModel city = cities[i];
+            if (city == null)
+            {
+                continue;
+            }
+
+            int score = CalculateCityPriorityScore(city);
+            if (bestCity == null || score > bestScore)
+            {
+                bestCity = city;
+                bestScore = score;
+            }
+        }
+
+        return bestCity;
+    }
+
+    private int CalculateCityPriorityScore(CityStatusReadModel city)
+    {
+        if (city == null)
+        {
+            return int.MinValue;
+        }
+
+        CityDecisionReadModel decision = city.Decision ?? new CityDecisionReadModel();
+        CityBottleneckSignal topBottleneck = GetFirstBoardItem(decision.Bottlenecks);
+        CityActionRecommendation topAction = GetFirstBoardItem(decision.RecommendedActions);
+        RecentImpactSummary topImpact = GetFirstBoardItem(decision.RecentImpacts);
+
+        int score = 0;
+        score += topBottleneck != null ? topBottleneck.Severity : 0;
+        score += topAction != null ? topAction.Priority : 0;
+        score += topImpact != null ? topImpact.Priority : 0;
+
+        string needText = city.NeedPressureStateId != null ? city.NeedPressureStateId.ToLowerInvariant() : string.Empty;
+        if (needText.Contains("urgent"))
+        {
+            score += 140;
+        }
+        else if (needText.Contains("elevated") || needText.Contains("high"))
+        {
+            score += 90;
+        }
+        else if (needText.Contains("watch"))
+        {
+            score += 40;
+        }
+
+        string readinessText = city.DispatchReadinessStateId != null ? city.DispatchReadinessStateId.ToLowerInvariant() : string.Empty;
+        if (readinessText.Contains("strained"))
+        {
+            score += 80;
+        }
+        else if (readinessText.Contains("recover"))
+        {
+            score += 45;
+        }
+
+        if (city.ActiveExpeditionCount > 0)
+        {
+            score += 25;
+        }
+
+        return score;
+    }
+
+    private string BuildCityUrgencyFallbackText(CityStatusReadModel city)
+    {
+        if (city == null)
+        {
+            return "None";
+        }
+
+        List<string> parts = new List<string>();
+        if (IsMeaningfulSnapshotText(city.NeedPressureStateId))
+        {
+            parts.Add("Need " + city.NeedPressureStateId);
+        }
+
+        if (IsMeaningfulSnapshotText(city.DispatchReadinessStateId))
+        {
+            parts.Add("Readiness " + city.DispatchReadinessStateId);
+        }
+
+        if (parts.Count == 0)
+        {
+            return "No pressure signal is currently dominant.";
+        }
+
+        return string.Join(" | ", parts.ToArray());
+    }
+
+    private string BuildCityRecentResultEvidenceText(CityStatusReadModel city)
+    {
+        if (city == null)
+        {
+            return "None";
+        }
+
+        CityDecisionReadModel decision = city.Decision ?? new CityDecisionReadModel();
+        RecentImpactSummary topImpact = GetFirstBoardItem(decision.RecentImpacts);
+        if (topImpact != null && IsMeaningfulSnapshotText(topImpact.SummaryText))
+        {
+            return topImpact.SummaryText;
+        }
+
+        if (city.LatestResult != null && IsMeaningfulSnapshotText(city.LatestResult.WorldReturnSummaryText))
+        {
+            return city.LatestResult.WorldReturnSummaryText;
+        }
+
+        if (IsMeaningfulSnapshotText(city.LastDispatchImpactText))
+        {
+            return city.LastDispatchImpactText;
+        }
+
+        if (IsMeaningfulSnapshotText(city.LastNeedPressureChangeText))
+        {
+            return "Need pressure changed: " + city.LastNeedPressureChangeText;
+        }
+
+        if (IsMeaningfulSnapshotText(city.LastDispatchReadinessChangeText))
+        {
+            return "Dispatch status changed: " + city.LastDispatchReadinessChangeText;
+        }
+
+        return "No recent expedition evidence is reshaping this city yet.";
+    }
+
+    private string BuildCityPartyReadinessSummaryText(CityStatusReadModel city)
+    {
+        if (city == null)
+        {
+            return "None";
+        }
+
+        List<string> parts = new List<string>();
+        if (IsMeaningfulSnapshotText(city.DispatchReadinessStateId))
+        {
+            parts.Add("Readiness " + city.DispatchReadinessStateId);
+        }
+
+        if (city.DispatchRecoveryDaysRemaining > 0)
+        {
+            parts.Add("Recovery " + BuildDayCountText(city.DispatchRecoveryDaysRemaining));
+        }
+
+        if (city.IdlePartyCount > 0)
+        {
+            parts.Add("Idle parties " + city.IdlePartyCount);
+        }
+        else if (city.ActiveExpeditionCount > 0)
+        {
+            parts.Add("Active expeditions " + city.ActiveExpeditionCount);
+        }
+        else
+        {
+            parts.Add("No idle party");
+        }
+
+        return string.Join(" | ", parts.ToArray());
+    }
+
+    private string BuildCityNextActionFallbackText(CityStatusReadModel city)
+    {
+        if (city == null)
+        {
+            return "Review the world board before the next dispatch.";
+        }
+
+        CityDecisionReadModel decision = city.Decision ?? new CityDecisionReadModel();
+        RecentImpactSummary topImpact = GetFirstBoardItem(decision.RecentImpacts);
+        if (topImpact != null && IsMeaningfulSnapshotText(topImpact.NextDecisionHintText))
+        {
+            return topImpact.NextDecisionHintText;
+        }
+
+        if (IsMeaningfulSnapshotText(city.RecommendationReasonText))
+        {
+            return city.RecommendationReasonText;
+        }
+
+        return "Review the latest result and commit the next dispatch from the board.";
+    }
+
+    private string BuildWorldPriorityBoardSummaryText(WorldObservationPriorityBoardData priorityBoard)
+    {
+        if (priorityBoard == null || !priorityBoard.HasPriorityCity)
+        {
+            return "None";
+        }
+
+        List<string> parts = new List<string>();
+        if (IsMeaningfulSnapshotText(priorityBoard.CityLabel))
+        {
+            parts.Add(priorityBoard.CityLabel);
+        }
+
+        if (IsMeaningfulSnapshotText(priorityBoard.UrgencyText))
+        {
+            parts.Add(priorityBoard.UrgencyText);
+        }
+
+        if (IsMeaningfulSnapshotText(priorityBoard.AnswerText))
+        {
+            parts.Add("Answer " + priorityBoard.AnswerText);
+        }
+
+        return string.Join(" | ", parts.ToArray());
+    }
+
+    private static T GetFirstBoardItem<T>(T[] items) where T : class
+    {
+        return items != null && items.Length > 0 ? items[0] : null;
     }
 
     private void PopulateWorldObservationCurrentContext(WorldObservationCurrentContextData context, PrototypeWorldSnapshot snapshot)
@@ -836,36 +1105,42 @@ public sealed partial class StaticPlaceholderWorldView
     {
         if (IsMeaningfulSnapshotText(blockedReasonText) && blockedReasonText != "None")
         {
-            return "Resolve the current launch blocker before committing the expedition.";
+            return "Dispatch is blocked: " + blockedReasonText;
         }
 
         string aftermathText = snapshot != null ? snapshot.RecentAftermathEchoText.ToLowerInvariant() : string.Empty;
         if (aftermathText.Contains("defeat") || aftermathText.Contains("failed"))
         {
-            return "Recent defeat fallout suggests a steadier follow-up launch.";
+            return "Recent defeat fallout is still on the board, so rebuild on the steadier answer before the next push.";
         }
 
         if (aftermathText.Contains("retreat") || aftermathText.Contains("contested"))
         {
-            return "Recent retreat fallout suggests caution before the next push.";
+            return "Recent retreat fallout is still active, so respect recovery and avoid another forced push.";
         }
 
         if (briefing != null && IsMeaningfulSnapshotText(snapshot.SelectedRouteId) && IsMeaningfulSnapshotText(briefing.RecommendationRouteId) && snapshot.SelectedRouteId != briefing.RecommendationRouteId)
         {
-            return "Current launch diverges from the recommended route, so expect extra risk drift.";
+            return "Current launch is off the recommended route, so the board expects extra risk drift.";
         }
 
         if (snapshot != null && IsMeaningfulSnapshotText(snapshot.DungeonSummary.AvailabilityText) && snapshot.DungeonSummary.AvailabilityText.ToLowerInvariant().Contains("elevated threat"))
         {
-            return "Dungeon threat remains elevated, so the next launch should respect the current danger readback.";
+            return "Dungeon threat remains elevated, so the next launch should follow the current danger readback.";
         }
 
-        return "Current launch context matches the latest world readback.";
+        return "Current pressure, readiness, and route answer are aligned for the next dispatch.";
     }
 
     private string BuildWorldModifierSummaryText(PrototypeWorldSnapshot snapshot, PrototypeWorldModifierSummary modifier, string availabilityText, string aftermathText, string needText, string readinessText)
     {
         List<string> parts = new List<string>();
+        string answerText = snapshot != null && IsMeaningfulSnapshotText(snapshot.SelectedRouteLabel)
+            ? snapshot.SelectedRouteLabel
+            : snapshot != null && IsMeaningfulSnapshotText(snapshot.RecommendedRouteLabel)
+                ? snapshot.RecommendedRouteLabel
+                : string.Empty;
+
         if (IsMeaningfulSnapshotText(needText))
         {
             parts.Add("Need " + needText);
@@ -874,6 +1149,11 @@ public sealed partial class StaticPlaceholderWorldView
         if (IsMeaningfulSnapshotText(readinessText))
         {
             parts.Add("Readiness " + readinessText);
+        }
+
+        if (IsMeaningfulSnapshotText(answerText))
+        {
+            parts.Add("Answer " + answerText);
         }
 
         if (IsMeaningfulSnapshotText(availabilityText))
@@ -909,7 +1189,20 @@ public sealed partial class StaticPlaceholderWorldView
         string modifierText = snapshot.ModifierSummary != null && IsMeaningfulSnapshotText(snapshot.ModifierSummary.RecommendationHintText)
             ? snapshot.ModifierSummary.RecommendationHintText
             : "Launch context pending.";
-        return "Day " + snapshot.WorldDay + " | " + snapshot.SelectedCityLabel + " -> " + snapshot.SelectedDungeonLabel + " | " + routeText + " | " + modifierText;
+        string evidenceText = IsMeaningfulSnapshotText(snapshot.RecentAftermathEchoText) &&
+                              snapshot.RecentAftermathEchoText != "No recent aftermath is shaping the next launch."
+            ? snapshot.RecentAftermathEchoText
+            : IsMeaningfulSnapshotText(snapshot.CitySummary.LastWritebackText)
+                ? snapshot.CitySummary.LastWritebackText
+                : "No recent return evidence.";
+        return "Day " + snapshot.WorldDay +
+               " | " + snapshot.SelectedCityLabel +
+               " pressure board" +
+               " | Need " + snapshot.CitySummary.NeedPressureText +
+               " / Readiness " + snapshot.CitySummary.ReadinessText +
+               " | Answer " + routeText +
+               " | Evidence " + evidenceText +
+               " | Next " + modifierText;
     }
 
     private string BuildCurrentBlockedLaunchReasonSummaryText()

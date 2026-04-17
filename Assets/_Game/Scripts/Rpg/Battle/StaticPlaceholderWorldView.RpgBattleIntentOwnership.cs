@@ -457,6 +457,7 @@ public sealed partial class StaticPlaceholderWorldView
 
     private void RecordRpgOwnedCurrentPartyTurnStartEvent()
     {
+        RefreshRpgOwnedEnemyIntentPreviewState();
         DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
         if (member == null)
         {
@@ -538,6 +539,7 @@ public sealed partial class StaticPlaceholderWorldView
         _hoverBattleAction = BattleActionType.None;
         ClearBattleHoverState();
         ClearBattleInputLock();
+        AdvanceRpgOwnedBurstWindowsAfterPartyAction();
 
         if (GetLivingBattleMonsterCount() <= 0)
         {

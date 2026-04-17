@@ -251,7 +251,8 @@ public sealed partial class StaticPlaceholderWorldView
             : _battleState == BattleState.PartyActionSelect
                 ? "Awaiting command"
                 : "Ready";
-        actor.StatusText = statusText;
+        string growthTag = BuildRpgOwnedBattleGrowthTag(member);
+        actor.StatusText = string.IsNullOrEmpty(growthTag) ? statusText : statusText + " | " + growthTag;
         return actor;
     }
 
@@ -391,19 +392,27 @@ public sealed partial class StaticPlaceholderWorldView
             return "Traits pending";
         }
 
+        string baseTraitText;
         if (monster.IsElite)
         {
             string eliteTypeText = string.IsNullOrEmpty(_eliteType) ? "Elite pattern" : _eliteType;
-            return string.IsNullOrEmpty(monster.SpecialActionName)
+            baseTraitText = string.IsNullOrEmpty(monster.SpecialActionName)
                 ? eliteTypeText
                 : eliteTypeText + " | " + monster.SpecialActionName;
         }
+        else
+        {
+            baseTraitText = monster.EncounterRole == MonsterEncounterRole.Striker
+                ? "Fast pressure"
+                : monster.EncounterRole == MonsterEncounterRole.Skirmisher
+                    ? "Flexible flank"
+                    : "Front guard";
+        }
 
-        return monster.EncounterRole == MonsterEncounterRole.Striker
-            ? "Fast pressure"
-            : monster.EncounterRole == MonsterEncounterRole.Skirmisher
-                ? "Flexible flank"
-                : "Front guard";
+        string burstWindowText = BuildRpgOwnedBurstWindowTraitText(monster);
+        return string.IsNullOrEmpty(burstWindowText)
+            ? baseTraitText
+            : baseTraitText + " | " + burstWindowText;
     }
 
     private PrototypeBattleUiMessageSurfaceData BuildRpgOwnedBattleUiMessageSurfaceData()
@@ -504,8 +513,39 @@ public sealed partial class StaticPlaceholderWorldView
                 : data.IsTargeted
                     ? "Targeted"
                     : "Ready";
+        string growthTag = BuildRpgOwnedBattleGrowthTag(member);
+        if (!string.IsNullOrEmpty(growthTag))
+        {
+            data.StatusText += " | " + growthTag;
+        }
 
         return data;
+    }
+
+    private string BuildRpgOwnedBattleGrowthTag(DungeonPartyMemberRuntimeData member)
+    {
+        if (member == null || string.IsNullOrEmpty(member.EquipmentSummaryText))
+        {
+            return string.Empty;
+        }
+
+        string gearText = member.EquipmentSummaryText;
+        if (gearText.Contains("(Elite"))
+        {
+            return "Elite kit";
+        }
+
+        if (gearText.Contains("(Field"))
+        {
+            return "Field kit";
+        }
+
+        if (gearText.Contains("(Base"))
+        {
+            return "Recruit kit";
+        }
+
+        return gearText;
     }
 
     private PrototypeBattleUiEnemyData[] BuildRpgOwnedBattleUiEnemyRoster()
@@ -585,9 +625,12 @@ public sealed partial class StaticPlaceholderWorldView
         data.IsHovered = isHovered;
         data.IsActing = isActing;
         data.IsDefeated = monster.IsDefeated;
+        string burstWindowStateText = BuildRpgOwnedBurstWindowStateText(monster);
         data.StateLabel = monster.IsDefeated
             ? "Defeated"
-            : isActing
+            : !string.IsNullOrEmpty(burstWindowStateText)
+                ? burstWindowStateText
+                : isActing
                 ? "Acting"
                 : isHovered
                     ? "Hover"
@@ -793,6 +836,8 @@ public sealed partial class StaticPlaceholderWorldView
             : GetBattleUiActionDisplayLabel(selectedActionKey, actor);
 
         DungeonPartyMemberRuntimeData currentMember = actor != null && !actor.IsEnemy ? GetCurrentActorMember() : null;
+        PrototypeRpgSkillDefinition currentSkillDefinition = currentMember != null ? ResolveMemberSkillDefinition(currentMember) : null;
+        DungeonMonsterRuntimeData previewMonster = GetBattleUiPrimaryPreviewMonster();
         int basicAttackPower = currentMember != null ? Mathf.Max(1, currentMember.Attack) : 1;
         string skillLabel = actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedSkillLabel)
             ? actionContext.ResolvedSkillLabel
@@ -815,12 +860,10 @@ public sealed partial class StaticPlaceholderWorldView
         string skillTargetText = actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedTargetKind)
             ? GetBattleUiTargetTypeLabel(actionContext.ResolvedTargetKind)
             : "Single enemy";
-        string skillEffectText = actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedEffectType)
-            ? GetBattleUiEffectText(actionContext.ResolvedEffectType, actionContext.ResolvedPowerValue)
-            : skillDescription;
+        string skillEffectText = BuildRpgOwnedBattleSkillEffectText(currentMember, currentSkillDefinition, actionContext, previewMonster);
 
         string attackTargetText = "Single enemy";
-        string attackEffectText = "Expected damage " + basicAttackPower + ".";
+        string attackEffectText = BuildRpgOwnedBattleAttackEffectText(currentMember, previewMonster, basicAttackPower);
 
         string moveDescription = "Choose one adjacent row and spend the turn.";
         string moveTargetText = "Self";
@@ -1148,7 +1191,12 @@ public sealed partial class StaticPlaceholderWorldView
             actionContext.RangeText = laneResolution.RangeText;
             actionContext.LaneImpactText = laneResolution.LaneImpactText;
             actionContext.ReachabilitySummaryText = laneResolution.ReachabilitySummaryText;
-            actionContext.ThreatSummaryText = laneResolution.ThreatSummaryText;
+            actionContext.ThreatSummaryText = BuildRpgOwnedBattleThreatSummary(
+                laneResolution.ThreatSummaryText,
+                "skill",
+                member,
+                skillDefinition,
+                selectedMonster);
             actionContext.RequiresTarget = actionContext.ResolvedTargetKind == "single_enemy";
             return actionContext;
         }
@@ -1167,7 +1215,12 @@ public sealed partial class StaticPlaceholderWorldView
             actionContext.RangeText = laneResolution.RangeText;
             actionContext.LaneImpactText = laneResolution.LaneImpactText;
             actionContext.ReachabilitySummaryText = laneResolution.ReachabilitySummaryText;
-            actionContext.ThreatSummaryText = laneResolution.ThreatSummaryText;
+            actionContext.ThreatSummaryText = BuildRpgOwnedBattleThreatSummary(
+                laneResolution.ThreatSummaryText,
+                "attack",
+                member,
+                null,
+                selectedMonster);
             actionContext.RequiresTarget = true;
             return actionContext;
         }
@@ -1265,10 +1318,14 @@ public sealed partial class StaticPlaceholderWorldView
         DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
         if (member != null && (_queuedBattleAction == BattleActionType.Attack || _queuedBattleAction == BattleActionType.Skill))
         {
+            DungeonMonsterRuntimeData selectedMonster = GetMonsterById(selectedEnemy.MonsterId);
             PrototypeRpgSkillDefinition skillDefinition = _queuedBattleAction == BattleActionType.Skill ? ResolveMemberSkillDefinition(member) : null;
-            PrototypeBattleLaneRuleResolution laneResolution = BuildPartyActionLaneResolution(member, GetMonsterById(selectedEnemy.MonsterId), _queuedBattleAction, skillDefinition);
+            PrototypeBattleLaneRuleResolution laneResolution = BuildPartyActionLaneResolution(member, selectedMonster, _queuedBattleAction, skillDefinition);
             targetContext.ReachabilityStateKey = laneResolution.ReachabilityStateKey;
-            targetContext.TargetRuleText = laneResolution.TargetRuleText;
+            string burstWindowText = BuildRpgOwnedBurstWindowTraitText(selectedMonster);
+            targetContext.TargetRuleText = string.IsNullOrEmpty(burstWindowText)
+                ? laneResolution.TargetRuleText
+                : burstWindowText + " | " + laneResolution.TargetRuleText;
             targetContext.ReachabilitySummaryText = laneResolution.ReachabilitySummaryText;
         }
 

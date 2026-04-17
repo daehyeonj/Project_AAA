@@ -119,6 +119,9 @@ public sealed class CityInteraction
         CityWriteback writeback = cityHub != null && cityHub.ResultPipelineCityWriteback != null
             ? cityHub.ResultPipelineCityWriteback
             : new CityWriteback();
+        WorldObservationPriorityBoardData priorityBoard = safeObservation.PriorityBoard != null
+            ? safeObservation.PriorityBoard
+            : new WorldObservationPriorityBoardData();
         ExpeditionPostRunRevealState postRunReveal = safeObservation.RecentOutcome != null &&
             safeObservation.RecentOutcome.PostRunReveal != null
             ? safeObservation.RecentOutcome.PostRunReveal
@@ -137,9 +140,9 @@ public sealed class CityInteraction
         data.Header.ActiveExpeditions = safeObservation.ActiveExpeditions;
         data.Header.IdleParties = safeObservation.IdleParties;
 
-        data.AlertRibbon.Title = ResolveAlertTitle(postRunReveal, readback);
-        data.AlertRibbon.SummaryText = ResolveAlertSummary(postRunReveal, readback);
-        data.AlertRibbon.FooterText = ResolveAlertFooter(postRunReveal);
+        data.AlertRibbon.Title = ResolveAlertTitle(postRunReveal, readback, priorityBoard);
+        data.AlertRibbon.SummaryText = ResolveAlertSummary(postRunReveal, readback, priorityBoard);
+        data.AlertRibbon.FooterText = ResolveAlertFooter(postRunReveal, priorityBoard);
 
         data.Selection.HasSelection = HasMeaningfulText(safeObservation.SelectedEntity.SelectedEntityLabel);
         data.Selection.IsCitySelection = entry.HasSelectedCity;
@@ -164,6 +167,18 @@ public sealed class CityInteraction
         data.Selection.DispatchReadinessText = HasMeaningfulText(citySim.DispatchReadinessText) ? citySim.DispatchReadinessText : entry.DispatchReadinessText;
         data.Selection.RecoveryProgressText = HasMeaningfulText(citySim.RecoveryProgressText) ? citySim.RecoveryProgressText : entry.RecoveryProgressText;
         data.Selection.DispatchPolicyText = HasMeaningfulText(citySim.DispatchPolicyText) ? citySim.DispatchPolicyText : entry.DispatchPolicyText;
+        data.Selection.PressureBoardSummaryText = HasMeaningfulText(entry.PressureBoardSummaryText)
+            ? entry.PressureBoardSummaryText
+            : safeObservation.CurrentWorldObservationSummaryText;
+        data.Selection.WhyCityMattersText = HasMeaningfulText(entry.WhyCityMattersText)
+            ? entry.WhyCityMattersText
+            : citySim.RecommendationReasonText;
+        data.Selection.RecentResultEvidenceText = HasMeaningfulText(entry.RecentResultEvidenceText)
+            ? entry.RecentResultEvidenceText
+            : entry.RecentOutcomeText;
+        data.Selection.PartyReadinessSummaryText = HasMeaningfulText(entry.PartyReadinessSummaryText)
+            ? entry.PartyReadinessSummaryText
+            : entry.PartyRosterSummaryText;
         data.Selection.RecommendedRouteText = HasMeaningfulText(citySim.RecommendedRouteSummaryText) ? citySim.RecommendedRouteSummaryText : entry.RecommendedRouteSummaryText;
         data.Selection.RecommendationReasonText = prep != null && HasMeaningfulText(prep.RecommendationReasonText)
             ? prep.RecommendationReasonText
@@ -274,6 +289,15 @@ public sealed class CityInteraction
         data.Overview.TotalParties = safeObservation.TotalParties;
         data.Overview.IdleParties = safeObservation.IdleParties;
         data.Overview.ActiveExpeditions = safeObservation.ActiveExpeditions;
+        data.Overview.PriorityCityText = priorityBoard.HasPriorityCity && HasMeaningfulText(priorityBoard.CityLabel)
+            ? priorityBoard.CityLabel
+            : "None";
+        data.Overview.PrioritySummaryText = HasMeaningfulText(priorityBoard.SummaryText)
+            ? priorityBoard.SummaryText
+            : "None";
+        data.Overview.PriorityNextActionText = HasMeaningfulText(priorityBoard.NextActionText)
+            ? priorityBoard.NextActionText
+            : "None";
         data.Overview.ActiveExpeditionLaneText = safeObservation.ActiveExpedition != null &&
             HasMeaningfulText(safeObservation.ActiveExpedition.WorldActiveExpeditionLaneText)
             ? safeObservation.ActiveExpedition.WorldActiveExpeditionLaneText
@@ -475,11 +499,16 @@ public sealed class CityInteraction
         return !string.IsNullOrEmpty(value) && value != "None";
     }
 
-    private static string ResolveAlertTitle(ExpeditionPostRunRevealState reveal, OutcomeReadback readback)
+    private static string ResolveAlertTitle(ExpeditionPostRunRevealState reveal, OutcomeReadback readback, WorldObservationPriorityBoardData priorityBoard)
     {
         if (reveal != null && reveal.HasPendingReveal)
         {
             return HasMeaningfulText(reveal.HeadlineText) ? reveal.HeadlineText : "Return Spotlight";
+        }
+
+        if (priorityBoard != null && priorityBoard.HasPriorityCity && HasMeaningfulText(priorityBoard.CityLabel))
+        {
+            return "Priority City: " + priorityBoard.CityLabel;
         }
 
         if (readback != null && HasMeaningfulText(readback.LatestReturnAftermathText))
@@ -495,7 +524,7 @@ public sealed class CityInteraction
         return "World Board";
     }
 
-    private static string ResolveAlertSummary(ExpeditionPostRunRevealState reveal, OutcomeReadback readback)
+    private static string ResolveAlertSummary(ExpeditionPostRunRevealState reveal, OutcomeReadback readback, WorldObservationPriorityBoardData priorityBoard)
     {
         if (reveal != null && reveal.HasPendingReveal)
         {
@@ -517,6 +546,11 @@ public sealed class CityInteraction
             }
         }
 
+        if (priorityBoard != null && HasMeaningfulText(priorityBoard.SummaryText))
+        {
+            return priorityBoard.SummaryText;
+        }
+
         if (readback != null && HasMeaningfulText(readback.LatestReturnAftermathText))
         {
             return "Latest Return: " + readback.LatestReturnAftermathText;
@@ -535,11 +569,38 @@ public sealed class CityInteraction
         return "None";
     }
 
-    private static string ResolveAlertFooter(ExpeditionPostRunRevealState reveal)
+    private static string ResolveAlertFooter(ExpeditionPostRunRevealState reveal, WorldObservationPriorityBoardData priorityBoard)
     {
-        return reveal != null && reveal.HasPendingReveal
-            ? "Press X to review the return, Esc to dismiss the spotlight."
-            : "Selected = bright link | Return = pinned pulse | Relief = calm green | Rebound = warning amber";
+        if (reveal != null && reveal.HasPendingReveal)
+        {
+            return "Press X to review the return, Esc to dismiss the spotlight.";
+        }
+
+        if (priorityBoard != null && priorityBoard.HasPriorityCity)
+        {
+            string nextAction = HasMeaningfulText(priorityBoard.NextActionText)
+                ? "Next: " + priorityBoard.NextActionText
+                : string.Empty;
+            string readiness = HasMeaningfulText(priorityBoard.PartyReadinessText)
+                ? "Party: " + priorityBoard.PartyReadinessText
+                : string.Empty;
+            if (HasMeaningfulText(nextAction) && HasMeaningfulText(readiness))
+            {
+                return nextAction + " | " + readiness;
+            }
+
+            if (HasMeaningfulText(nextAction))
+            {
+                return nextAction;
+            }
+
+            if (HasMeaningfulText(readiness))
+            {
+                return readiness;
+            }
+        }
+
+        return "Selected = bright link | Return = pinned pulse | Relief = calm green | Rebound = warning amber";
     }
 
     private PrototypeCityHubActionResult ExecuteRecruitSelectedCityParty(string actionKey)

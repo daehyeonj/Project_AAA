@@ -884,15 +884,12 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         {
             return BuildWorldLines(
                 V(selection.DisplayName),
-                Line(T("CityManaShardStock"), V(selection.CityManaShardStockText)),
-                Line(T("NeedPressure"), V(selection.NeedPressureText)),
-                Line(T("DispatchReadiness"), V(selection.DispatchReadinessText)),
-                Line(T("DispatchPolicy"), V(selection.DispatchPolicyText)),
-                Line(T("LinkedDungeon"), V(selection.LinkedDungeonText)),
-                Line(T("RecommendedRoute"), V(selection.RecommendedRouteText)),
-                Line(T("DispatchParty"), V(selection.DispatchPartySummaryText)),
-                Line(T("LaunchLock"), V(selection.LaunchLockSummaryText)),
-                Line(T("ReturnEta"), V(selection.ReturnEtaText)),
+                "Pressure Board: " + V(selection.PressureBoardSummaryText),
+                "Why City Matters: " + V(selection.WhyCityMattersText),
+                "Route Answer: " + V(selection.RecommendedRouteText),
+                "Party Readiness: " + V(selection.PartyReadinessSummaryText),
+                "Latest Evidence: " + V(selection.RecentResultEvidenceText),
+                "Next Action: " + V(cityHubUi.Outcome.CorrectiveFollowUpText),
                 BuildWorldReturnHandoffBriefBody(cityHubUi.Outcome));
         }
 
@@ -921,15 +918,20 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         {
             return BuildWorldLines(
                 V(selection.DisplayName),
+                "Pressure Board: " + V(selection.PressureBoardSummaryText),
+                "Why City Matters: " + V(selection.WhyCityMattersText),
                 Line(T("SelectedType"), V(selection.TypeLabel)),
                 Line(T("LinkedDungeon"), V(selection.LinkedDungeonText)),
                 Line(T("NeedPressure"), V(selection.NeedPressureText)),
                 Line(T("DispatchReadiness"), V(selection.DispatchReadinessText)),
                 Line(T("RecoveryProgress"), V(selection.RecoveryProgressText)),
+                "Party Readiness: " + V(selection.PartyReadinessSummaryText),
                 Line(T("DispatchPolicy"), V(selection.DispatchPolicyText)),
-                Line(T("RecommendedRoute"), V(selection.RecommendedRouteText)),
+                "Route Answer: " + V(selection.RecommendedRouteText),
+                "Recommendation Reason: " + V(selection.RecommendationReasonText),
                 Line(T("RouteFit"), V(cityHubUi.Actions.RouteFitSummaryText)),
                 Line(T("LaunchLock"), V(selection.LaunchLockSummaryText)),
+                "Latest Evidence: " + V(selection.RecentResultEvidenceText),
                 Line(T("ProjectedOutcome"), V(selection.ProjectedOutcomeSummaryText)),
                 BuildWorldReturnHandoffDetailBody(cityHubUi.Outcome));
         }
@@ -951,6 +953,9 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
     {
         PrototypeCityHubOverviewSurfaceData overview = GetCityHubUiSurfaceData().Overview;
         return BuildWorldLines(
+            "Priority City: " + V(overview.PriorityCityText),
+            "Pressure Board: " + V(overview.PrioritySummaryText),
+            "Next Action: " + V(overview.PriorityNextActionText),
             Line(T("WorldDay"), overview.WorldDayCount.ToString()),
             Line(T("TradeStepCount"), overview.TradeStepCount.ToString()),
             Line(T("TotalParties"), overview.TotalParties.ToString()),
@@ -982,8 +987,8 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
     private string BuildWorldReturnHandoffBriefBody(PrototypeCityHubOutcomeSurfaceData outcome)
     {
         return BuildWorldLines(
-            "Latest Return Aftermath: " + V(outcome != null ? outcome.LatestReturnAftermathText : "None"),
-            "Outcome Readback: " + V(outcome != null ? outcome.OutcomeReadbackText : "None"),
+            "World Writeback: " + V(outcome != null ? outcome.WorldWritebackText : "None"),
+            "Dungeon Status: " + V(outcome != null ? outcome.DungeonStatusText : "None"),
             "Corrective Follow-Up: " + V(outcome != null ? outcome.CorrectiveFollowUpText : "None"));
     }
 
@@ -1008,7 +1013,7 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
     {
         return BuildWorldLines(
             "Latest Return Aftermath: " + V(outcome != null ? outcome.LatestReturnAftermathText : "None"),
-            "Outcome Readback: " + V(outcome != null ? outcome.OutcomeReadbackText : "None"),
+            "World Writeback: " + V(outcome != null ? outcome.WorldWritebackText : "None"),
             "Corrective Follow-Up: " + V(outcome != null ? outcome.CorrectiveFollowUpText : "None"));
     }
 

@@ -857,12 +857,17 @@ public static class CityDecisionModelBuilder
         string sharedReason = cityDecisionMeaning != null && HasText(cityDecisionMeaning.OpportunityReasonText)
             ? cityDecisionMeaning.OpportunityReasonText
             : BuildOpportunityReason(city, linkedDungeon, rewardResourceId, null);
-        string routeReason = routeMeaning != null && HasText(routeMeaning.ExpectedNeedImpactText)
-            ? routeMeaning.ExpectedNeedImpactText
-            : routeMeaning != null && HasText(routeMeaning.RewardPreview)
-                ? routeMeaning.RewardPreview
-                : string.Empty;
-        return CombineSentences(sharedReason, routeReason);
+        string routeReason = routeMeaning != null && HasText(routeMeaning.ChooseWhenText)
+            ? routeMeaning.ChooseWhenText
+            : routeMeaning != null && HasText(routeMeaning.ExpectedNeedImpactText)
+                ? routeMeaning.ExpectedNeedImpactText
+                : routeMeaning != null && HasText(routeMeaning.RewardPreview)
+                    ? routeMeaning.RewardPreview
+                    : string.Empty;
+        string followUpReason = routeMeaning != null && HasText(routeMeaning.FollowUpHintText)
+            ? routeMeaning.FollowUpHintText
+            : string.Empty;
+        return CombineSentences(sharedReason, CombineSentences(routeReason, followUpReason));
     }
 
     private static string BuildLatestResultFallback(ExpeditionResultReadModel result)

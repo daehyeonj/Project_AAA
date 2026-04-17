@@ -75,6 +75,17 @@ public sealed partial class StaticPlaceholderWorldView
             return "None";
         }
 
+        string cityId = ResolveScenarioContextCityId();
+        string rewardFocusText = TryBuildRouteRewardFocusTextFromContent(cityId, dungeonId, routeId);
+        string partyFitText = TryBuildRoutePartyFitTextFromContent(cityId, dungeonId, routeId);
+        string strategicPreview = BuildScenarioPipeText(
+            BuildLabeledScenarioClause("Reward", rewardFocusText),
+            BuildLabeledScenarioClause("Party fit", partyFitText));
+        if (strategicPreview != "None")
+        {
+            return strategicPreview;
+        }
+
         int totalReward = template.BattleLootAmount + template.ChestRewardAmount + template.BonusLootAmount;
         return "Battle " + template.BattleLootAmount +
             " | Chest " + template.ChestRewardAmount +

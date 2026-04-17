@@ -5,6 +5,16 @@ public sealed class PrototypeRpgPartyRuntimeResolveSurface
 {
     public string PartyId = string.Empty;
     public string DisplayName = string.Empty;
+    public string ArchetypeId = string.Empty;
+    public string ArchetypeLabel = string.Empty;
+    public string StrengthSummaryText = string.Empty;
+    public string RouteFitSummaryText = string.Empty;
+    public string DoctrineSummaryText = string.Empty;
+    public string PromotionStateId = string.Empty;
+    public string PromotionStateLabel = string.Empty;
+    public string PromotionSummaryText = string.Empty;
+    public int DerivedPower;
+    public int DerivedCarryCapacity;
     public PrototypeRpgMemberRuntimeResolveSurface[] Members = Array.Empty<PrototypeRpgMemberRuntimeResolveSurface>();
     public string AppliedProgressionSummaryText = string.Empty;
     public string CurrentRunSummaryText = string.Empty;
@@ -44,6 +54,16 @@ public static class PrototypeRpgRuntimeResolveBuilder
         PrototypeRpgPartyRuntimeResolveSurface surface = new PrototypeRpgPartyRuntimeResolveSurface();
         surface.PartyId = partyDefinition != null && !string.IsNullOrWhiteSpace(partyDefinition.PartyId) ? partyDefinition.PartyId.Trim() : string.Empty;
         surface.DisplayName = partyDefinition != null && !string.IsNullOrWhiteSpace(partyDefinition.DisplayName) ? partyDefinition.DisplayName.Trim() : "Party";
+        surface.ArchetypeId = partyDefinition != null && !string.IsNullOrWhiteSpace(partyDefinition.ArchetypeId) ? partyDefinition.ArchetypeId.Trim() : string.Empty;
+        surface.ArchetypeLabel = partyDefinition != null && !string.IsNullOrWhiteSpace(partyDefinition.ArchetypeLabel) ? partyDefinition.ArchetypeLabel.Trim() : string.Empty;
+        surface.StrengthSummaryText = partyDefinition != null && !string.IsNullOrWhiteSpace(partyDefinition.StrengthSummaryText) ? partyDefinition.StrengthSummaryText.Trim() : string.Empty;
+        surface.RouteFitSummaryText = partyDefinition != null && !string.IsNullOrWhiteSpace(partyDefinition.RouteFitSummaryText) ? partyDefinition.RouteFitSummaryText.Trim() : string.Empty;
+        surface.DoctrineSummaryText = partyDefinition != null && !string.IsNullOrWhiteSpace(partyDefinition.DoctrineSummaryText) ? partyDefinition.DoctrineSummaryText.Trim() : string.Empty;
+        surface.PromotionStateId = partyDefinition != null && !string.IsNullOrWhiteSpace(partyDefinition.PromotionStateId) ? partyDefinition.PromotionStateId.Trim() : string.Empty;
+        surface.PromotionStateLabel = partyDefinition != null && !string.IsNullOrWhiteSpace(partyDefinition.PromotionStateLabel) ? partyDefinition.PromotionStateLabel.Trim() : string.Empty;
+        surface.PromotionSummaryText = partyDefinition != null && !string.IsNullOrWhiteSpace(partyDefinition.PromotionSummaryText) ? partyDefinition.PromotionSummaryText.Trim() : string.Empty;
+        surface.DerivedPower = partyDefinition != null ? Mathf.Max(1, partyDefinition.DerivedPower) : 1;
+        surface.DerivedCarryCapacity = partyDefinition != null ? Mathf.Max(1, partyDefinition.DerivedCarryCapacity) : 1;
 
         if (partyDefinition == null || partyDefinition.Members == null || partyDefinition.Members.Length == 0)
         {
@@ -72,9 +92,38 @@ public static class PrototypeRpgRuntimeResolveBuilder
         }
 
         surface.Members = members;
-        surface.AppliedProgressionSummaryText = JoinNonEmpty(appliedParts, " | ", "No applied progression.");
-        surface.CurrentRunSummaryText = JoinNonEmpty(currentRunParts, " | ", "No runtime party.");
-        surface.NextRunPreviewSummaryText = JoinNonEmpty(nextRunParts, " | ", "No next-run preview.");
+        string memberAppliedText = JoinNonEmpty(appliedParts, " | ", string.Empty);
+        string memberCurrentRunText = JoinNonEmpty(currentRunParts, " | ", string.Empty);
+        string memberNextRunText = JoinNonEmpty(nextRunParts, " | ", string.Empty);
+        surface.AppliedProgressionSummaryText = JoinNonEmpty(
+            new[]
+            {
+                surface.ArchetypeLabel,
+                surface.PromotionStateLabel,
+                surface.DoctrineSummaryText,
+                memberAppliedText
+            },
+            " | ",
+            "No applied progression.");
+        surface.CurrentRunSummaryText = JoinNonEmpty(
+            new[]
+            {
+                surface.StrengthSummaryText,
+                "Power " + surface.DerivedPower,
+                "Carry " + surface.DerivedCarryCapacity,
+                memberCurrentRunText
+            },
+            " | ",
+            "No runtime party.");
+        surface.NextRunPreviewSummaryText = JoinNonEmpty(
+            new[]
+            {
+                surface.RouteFitSummaryText,
+                surface.PromotionSummaryText,
+                memberNextRunText
+            },
+            " | ",
+            "No next-run preview.");
         return surface;
     }
 

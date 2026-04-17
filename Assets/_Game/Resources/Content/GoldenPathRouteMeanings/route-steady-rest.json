@@ -7,7 +7,7 @@
   "FollowUpHintText": "Usually leaves the next dispatch cleaner instead of forcing another hard reset.",
   "PartyFitText": "Best with Bulwark or Salvager-style crews that convert steady rooms into reliable haul.",
   "CombatPlanText": "Expect slime-heavy sustain fights, stronger shrine value, and a steadier elite setup.",
-  "EventFocus": "Recover choice is strongest.",
-  "RewardPreview": "Steady shards with a safer elite bounty.",
-  "ExpectedNeedImpactText": "Refills shard stock more slowly, but protects party sustain and city pacing."
+  "EventFocus": "Shrine recovery and supply prep stay online.",
+  "RewardPreview": "Reliable shards, stronger recovery, clean monarch finish.",
+  "ExpectedNeedImpactText": "Best route for stabilizing City A's next dispatch window."
 }

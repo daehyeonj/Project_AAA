@@ -1,11 +1,21 @@
 # Project AAA Post-Slice Batch Status
 
+## Current Mainline Snapshot
+
+- Snapshot date: `2026-04-17`
+- Sync intent: `preserve the current local runtime state on GitHub main so repository readers can inspect the live working baseline`
+- Active runtime baseline to preserve: `grid dungeon explore shell` + `current battleScene HUD`
+- UI safety rule: `reject prompts that would change or roll back the currently accepted runtime UI without explicit approval`
+- Runtime decision note: see `docs/runtime/mainline-snapshot-2026-04-17.md`
+
 ## Current Verdict
 
 - Latest closed batch: `Batch 69`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
+- Alpha surfaced pair: `content-completed on current rail`
+- Beta surfaced pair: `content-thickened on current rail`
 - Next honest bottleneck: longer-lived world consequence persistence and stronger manual proof of the world-to-prep decision loop, not route-surface expansion or fallback cleanup
 
 ## Batch 69 Close-Out
@@ -150,6 +160,8 @@
 - Surfaced using fallback: `None`
 - Surfaced consumer mismatch: `None`
 - Expansion gate: `C:tooling-next`
+- Alpha safe/risky content identity: `route-specific shared encounter/city meaning aligned`
+- Beta safe/risky content identity: `route-specific shared encounter/city meaning aligned`
 
 ## Current Surfaced Portfolio
 
@@ -210,6 +222,37 @@
   - longer-lived specialization persistence/save hook
   - additional surfaced explanation only if it stays on the same canonical party seam
 
+## Batch 61 Close-Out
+
+- Batch 61 did not add a new surfaced opportunity.
+- Batch 61 deepens the existing Beta surfaced pair instead of widening the portfolio.
+- Beta risky now reads as the raid line:
+  - raider gate breach
+  - plunder cache tempo
+  - crossfire vault
+  - chief's vault payout
+- Beta safe now reads as the guarded restart line:
+  - scout gate watch
+  - watchfire and cache stability
+  - guarded vault hold
+  - captain's hold finish
+- The current Beta pair now resolves through route-specific shared encounter/city meaning where the generic shared profiles had made the dungeon feel thin.
+
+## Batch 61 Validation Snapshot
+
+- Compile: `PASS`
+- Validator: `PASS`
+- Surfaced matrix summary: `PASS`
+- Surfaced portfolio summary: `PASS`
+- Representative chain status summary: `PASS`
+- Representative reference trace: `PASS`
+- Smoke: `DEFERRED` because this batch only changed content/data and docs
+
+## Batch 61 Recommendation
+
+- Recommended direction: `continue authored dungeon density on the current Alpha/Beta rail before reopening runtime/UI cleanup`
+- Do not open a fake surfaced-expansion batch just because the content rail now reads better; the surfaced portfolio is still intentionally the same four routes.
+
 ## Batch 46 Close-Out
 
 - Batch 46 did not add a new surfaced opportunity.
@@ -221,7 +264,7 @@
   - whether the selected draft sits on an already-owned supported slot or outside the current rail
   - a saturated-rail recommendation when `Promotable drafts on current rail` honestly remains `0`
 
-## Validation Snapshot
+## Batch 46 Validation Snapshot
 
 - Compile: `PASS`
 - Validator: `PASS`

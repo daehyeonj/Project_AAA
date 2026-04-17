@@ -1,7 +1,7 @@
 {
   "OutcomeMeaningId": "outcome-mana-shard-city-b-guarded-processing",
   "RewardResourceId": "mana_shard",
-  "RewardMeaningText": "mana_shard from Dungeon Beta's Guarded Path helps reopen City B's processors without leaning as hard on recovery strain.",
-  "CityImpactMeaningText": "Reopens refined_mana processing while keeping the next dispatch window steadier than the Greedy Path.",
-  "RecommendationShiftText": "Processing can restart, and City B can stabilize the next dispatch before taking another high-strain push."
+  "RewardMeaningText": "The Guarded Path brings back enough mana_shard to restart City B's processors without leaning as hard on recovery strain.",
+  "CityImpactMeaningText": "Restarts refined_mana on a steadier line, even if the guarded route gives up the Greedy Path's ceiling.",
+  "RecommendationShiftText": "Processing can restart, and City B can stabilize the next dispatch before choosing another aggressive haul."
 }

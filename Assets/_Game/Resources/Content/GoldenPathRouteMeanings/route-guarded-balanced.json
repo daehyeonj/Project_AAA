@@ -7,7 +7,7 @@
   "FollowUpHintText": "Usually leaves the next dispatch steadier and easier to chain if the city still needs another run.",
   "PartyFitText": "Best with Bulwark or Salvager-style crews that prefer guarded tempo and reliable carry.",
   "CombatPlanText": "Expect guarded goblin fights, modest recovery windows, and a steadier route into the elite room.",
-  "EventFocus": "Recover is modest, bonus loot is stronger.",
-  "RewardPreview": "Balanced payout with a guarded elite bounty.",
-  "ExpectedNeedImpactText": "Steadier restart, lower payout ceiling."
+  "EventFocus": "Watchfire recovery and guard cache keep the line orderly.",
+  "RewardPreview": "Steadier processing restart with a guarded captain finish.",
+  "ExpectedNeedImpactText": "Lower ceiling, cleaner restart for City B."
 }

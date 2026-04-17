@@ -1,8 +1,8 @@
 {
   "BattleSetupId": "battle-setup-beta-safe-room1",
   "EnemyGroupLabel": "Slime Scout + Goblin Watch",
-  "SetupSummaryText": "A mixed scout pair screening the guarded entry before the vault rooms.",
+  "SetupSummaryText": "A scout pair screening the watchfire route into Beta's safer vault line.",
   "RetreatAllowed": true,
-  "WinRelevanceText": "Clearing the gate keeps the guarded route steady without ceding the vault.",
-  "LossRelevanceText": "Stalling here gives up the safer restart before City B even reaches the guarded payout rooms."
+  "WinRelevanceText": "Clearing the scout gate keeps the Guarded Path orderly through the watchfire and cache rooms.",
+  "LossRelevanceText": "Stalling here gives up the route's steadier processing restart before the guarded line is even set."
 }

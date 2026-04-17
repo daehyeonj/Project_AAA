@@ -1,10 +1,10 @@
 {
   "BattleSetupId": "battle-setup-beta-safe-elite",
   "EnemyGroupLabel": "Goblin Captain",
-  "SetupSummaryText": "A disciplined captain defending the guarded payout room.",
+  "SetupSummaryText": "The Goblin Captain defends the final hold after the guarded route's prep rooms are spent.",
   "RetreatAllowed": true,
-  "WinRelevanceText": "Defeating the captain converts the guarded route into a steadier mana_shard return for City B.",
-  "LossRelevanceText": "Failing here leaves processing stalled after taking the safer but lower-ceiling route.",
+  "WinRelevanceText": "Defeating the captain converts the Guarded Path into a steadier mana_shard return for City B.",
+  "LossRelevanceText": "Failing here wastes the safer restart line after paying the route's full guarded march.",
   "EliteTypeText": "Goblin Elite | Focused Command",
   "RewardHintText": "Captain's Stash"
 }

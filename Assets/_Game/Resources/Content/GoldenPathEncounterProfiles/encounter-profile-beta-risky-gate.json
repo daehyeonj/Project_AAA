@@ -1,0 +1,6 @@
+{
+  "EncounterProfileId": "encounter-profile-beta-risky-gate",
+  "EncounterRoleTagsText": "raider screen, plunder tempo",
+  "MissionRelevanceText": "This raider gate decides whether the Greedy Path hits the plunder cache fast enough to justify the route's strain.",
+  "BattleContextText": "Beta Greedy Path breach before the plunder cache."
+}

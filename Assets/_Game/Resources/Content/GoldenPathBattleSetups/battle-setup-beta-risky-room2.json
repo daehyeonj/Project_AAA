@@ -1,8 +1,8 @@
 {
   "BattleSetupId": "battle-setup-beta-risky-room2",
   "EnemyGroupLabel": "Raider Ambush Pair",
-  "SetupSummaryText": "A guard and striker trying to collapse the run before the war-table prep room.",
+  "SetupSummaryText": "A raider ambush holding the crossfire vault before the war table.",
   "RetreatAllowed": true,
-  "WinRelevanceText": "Breaking the ambush preserves the route's big-shard upside.",
-  "LossRelevanceText": "Losing tempo here makes the greedy path pay the risk without reaching the reward."
+  "WinRelevanceText": "Breaking the vault ambush preserves the route's biggest shard upside.",
+  "LossRelevanceText": "Losing ground here turns the Greedy Path into a costly raid that never reaches its chief's vault payoff."
 }

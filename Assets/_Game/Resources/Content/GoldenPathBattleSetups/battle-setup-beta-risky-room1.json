@@ -1,8 +1,8 @@
 {
   "BattleSetupId": "battle-setup-beta-risky-room1",
   "EnemyGroupLabel": "Raider Scout Pair",
-  "SetupSummaryText": "A scout and striker testing whether the greedy route can break through the gate fast.",
+  "SetupSummaryText": "Raider scouts and a striker trying to stop the plunder push at the gate.",
   "RetreatAllowed": true,
-  "WinRelevanceText": "Clearing the scouts keeps the greedy route's loot tempo alive.",
-  "LossRelevanceText": "If this opening stalls, the high-risk payout route loses its edge immediately."
+  "WinRelevanceText": "Clearing the gate keeps the Greedy Path on pace for its vault haul.",
+  "LossRelevanceText": "If the raid stalls here, the route pays strain before the plunder rooms ever matter."
 }

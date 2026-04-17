@@ -601,6 +601,11 @@ public sealed partial class PrototypePresentationShell
                 CompactShellText(slot.Label, 10) + (HasMeaningfulValue(slot.LaneLabel) ? " " + BuildDungeonBattleLaneTag(slot.LaneLabel) : string.Empty),
                 14);
             float chipWidth = Mathf.Clamp(_badgeStyle.CalcSize(new GUIContent(chipText)).x + 32f, 104f, 156f);
+            if (chipX + chipWidth > timelineRect.xMax)
+            {
+                break;
+            }
+
             Color fill = slot.IsCurrent
                 ? new Color(0.76f, 0.58f, 0.24f, 0.96f)
                 : slot.IsEnemy

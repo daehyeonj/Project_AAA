@@ -276,6 +276,9 @@ public sealed partial class StaticPlaceholderWorldView
         public string RoleLabel => RuntimeState != null ? RuntimeState.RoleLabel : "Adventurer";
         public string RoleTag => RuntimeState != null ? RuntimeState.RoleTag : "adventurer";
         public string DefaultSkillId => RuntimeState != null ? RuntimeState.DefaultSkillId : string.Empty;
+        public string EquipmentSummaryText => RuntimeState != null ? RuntimeState.EquipmentSummaryText : "No gear";
+        public string AppliedProgressionSummaryText => RuntimeState != null ? RuntimeState.AppliedProgressionSummaryText : "No applied progression.";
+        public string CurrentRunSummaryText => RuntimeState != null ? RuntimeState.CurrentRunSummaryText : "No current-run summary.";
         public string SkillName;
         public string SkillShortText;
         public PartySkillType SkillType;
@@ -311,15 +314,20 @@ public sealed partial class StaticPlaceholderWorldView
 
         public Color ViewColor;
 
-        public DungeonPartyMemberRuntimeData(string memberId, string displayName, string roleLabel, string roleTag, string defaultSkillId, string skillName, string skillShortText, PartySkillType skillType, int partySlotIndex, int maxHp, int attack, int defense, int speed, int skillPower, Color viewColor)
+        public DungeonPartyMemberRuntimeData(PrototypeRpgPartyMemberRuntimeState runtimeState, string skillName, string skillShortText, PartySkillType skillType, int partySlotIndex, int skillPower, Color viewColor)
         {
-            RuntimeState = new PrototypeRpgPartyMemberRuntimeState(memberId, displayName, roleTag, roleLabel, defaultSkillId, maxHp, attack, defense, speed);
+            RuntimeState = runtimeState ?? new PrototypeRpgPartyMemberRuntimeState(string.Empty, "Adventurer", "adventurer", "Adventurer", string.Empty, 1, 1, 0, 0);
             SkillName = string.IsNullOrEmpty(skillName) ? "Skill" : skillName;
             SkillShortText = string.IsNullOrEmpty(skillShortText) ? string.Empty : skillShortText;
             SkillType = skillType;
             PartySlotIndex = partySlotIndex >= 0 ? partySlotIndex : 0;
             SkillPower = skillPower > 0 ? skillPower : Attack + 1;
             ViewColor = viewColor.a > 0f ? viewColor : Color.white;
+        }
+
+        public DungeonPartyMemberRuntimeData(string memberId, string displayName, string roleLabel, string roleTag, string defaultSkillId, string skillName, string skillShortText, PartySkillType skillType, int partySlotIndex, int maxHp, int attack, int defense, int speed, int skillPower, Color viewColor)
+            : this(new PrototypeRpgPartyMemberRuntimeState(memberId, displayName, roleTag, roleLabel, defaultSkillId, maxHp, attack, defense, speed), skillName, skillShortText, skillType, partySlotIndex, skillPower, viewColor)
+        {
         }
 
         public void ResetForRun()
@@ -1160,7 +1168,7 @@ public sealed partial class StaticPlaceholderWorldView
             case "heal":
                 return "Restore " + safePower + " HP to all allies.";
             case "finisher_damage":
-                return "Deal " + safePower + " damage. Gains +2 against weakened targets.";
+                return "Deal " + safePower + " damage. Gains a bonus on exposed or weakened targets.";
             case "move":
                 return "Reposition to a different lane.";
             case "end_turn":
@@ -2373,15 +2381,36 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string BuildRoutePreviewSummaryText(string routeId)
     {
-        return BuildRoutePreviewSummaryText(_currentDungeonId, routeId);
+        return BuildRoutePreviewSummaryText(ResolveScenarioContextCityId(), _currentDungeonId, routeId);
     }
 
     private string BuildRoutePreviewSummaryText(string dungeonId, string routeId)
+    {
+        return BuildRoutePreviewSummaryText(ResolveScenarioContextCityId(), dungeonId, routeId);
+    }
+
+    private string BuildRoutePreviewSummaryText(string cityId, string dungeonId, string routeId)
     {
         DungeonRouteTemplate template = GetRouteTemplateById(dungeonId, routeId);
         if (template == null)
         {
             return "None";
+        }
+
+        string scenarioLabel = TryBuildRouteScenarioLabelFromContent(cityId, dungeonId, routeId);
+        string chooseWhenText = TryBuildRouteChooseWhenTextFromContent(cityId, dungeonId, routeId);
+        string watchOutText = TryBuildRouteWatchOutTextFromContent(cityId, dungeonId, routeId);
+        string followUpHintText = TryBuildRouteFollowUpHintTextFromContent(cityId, dungeonId, routeId);
+        string strategicPreview = BuildScenarioPipeText(
+            HasText(scenarioLabel)
+                ? template.RouteLabel + " | " + scenarioLabel
+                : template.RouteLabel + " | " + template.RiskLabel + " Risk",
+            BuildLabeledScenarioClause("Choose when", chooseWhenText),
+            BuildLabeledScenarioClause("Watch", watchOutText),
+            BuildLabeledScenarioClause("Follow-up", followUpHintText));
+        if (strategicPreview != "None")
+        {
+            return strategicPreview;
         }
 
         return template.RouteLabel + " | " + template.RiskLabel + " Risk | " + template.Description + " | Rooms: " + BuildRoomPathPreviewText(dungeonId, routeId) + " | Threats: " + template.EncounterPreview + " | Shrine Read: " + template.EventFocus;
@@ -2394,11 +2423,35 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string BuildRouteRewardPreviewText(string dungeonId)
     {
+        string cityId = ResolveScenarioContextCityId();
         DungeonRouteTemplate route1 = GetRouteTemplateById(dungeonId, SafeRouteId);
         DungeonRouteTemplate route2 = GetRouteTemplateById(dungeonId, RiskyRouteId);
         if (route1 == null || route2 == null)
         {
             return "None";
+        }
+
+        string route1Preview = BuildScenarioPipeText(
+            route1.RouteLabel,
+            BuildLabeledScenarioClause("Reward", TryBuildRouteRewardFocusTextFromContent(cityId, dungeonId, SafeRouteId)),
+            BuildLabeledScenarioClause("Party fit", TryBuildRoutePartyFitTextFromContent(cityId, dungeonId, SafeRouteId)));
+        string route2Preview = BuildScenarioPipeText(
+            route2.RouteLabel,
+            BuildLabeledScenarioClause("Reward", TryBuildRouteRewardFocusTextFromContent(cityId, dungeonId, RiskyRouteId)),
+            BuildLabeledScenarioClause("Party fit", TryBuildRoutePartyFitTextFromContent(cityId, dungeonId, RiskyRouteId)));
+        if (route1Preview != "None" && route2Preview != "None")
+        {
+            return route1Preview + " || " + route2Preview;
+        }
+
+        if (route1Preview != "None")
+        {
+            return route1Preview;
+        }
+
+        if (route2Preview != "None")
+        {
+            return route2Preview;
         }
 
         int route1Total = route1.BattleLootAmount + route1.ChestRewardAmount + route1.BonusLootAmount;
@@ -2414,11 +2467,35 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string BuildRouteEventPreviewText(string dungeonId)
     {
+        string cityId = ResolveScenarioContextCityId();
         DungeonRouteTemplate route1 = GetRouteTemplateById(dungeonId, SafeRouteId);
         DungeonRouteTemplate route2 = GetRouteTemplateById(dungeonId, RiskyRouteId);
         if (route1 == null || route2 == null)
         {
             return "None";
+        }
+
+        string route1Preview = BuildScenarioPipeText(
+            route1.RouteLabel,
+            BuildLabeledScenarioClause("Combat", TryBuildRouteCombatPlanTextFromContent(cityId, dungeonId, SafeRouteId)),
+            BuildLabeledScenarioClause("Event", route1.EventFocus));
+        string route2Preview = BuildScenarioPipeText(
+            route2.RouteLabel,
+            BuildLabeledScenarioClause("Combat", TryBuildRouteCombatPlanTextFromContent(cityId, dungeonId, RiskyRouteId)),
+            BuildLabeledScenarioClause("Event", route2.EventFocus));
+        if (route1Preview != "None" && route2Preview != "None")
+        {
+            return route1Preview + " || " + route2Preview;
+        }
+
+        if (route1Preview != "None")
+        {
+            return route1Preview;
+        }
+
+        if (route2Preview != "None")
+        {
+            return route2Preview;
         }
 
         return route1.RouteLabel + ": " + route1.EventFocus + " | Recover +" + route1.RecoverAmount + " HP each or " + BuildLootAmountText(route1.BonusLootAmount) +
@@ -3267,10 +3344,14 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string BuildRecommendedRouteSummaryText(string cityId, string dungeonId)
     {
-        DungeonRouteTemplate template = GetRouteTemplateById(dungeonId, GetRecommendedRouteId(cityId, dungeonId));
+        string routeId = GetRecommendedRouteId(cityId, dungeonId);
+        DungeonRouteTemplate template = GetRouteTemplateById(dungeonId, routeId);
+        string scenarioLabel = TryBuildRouteScenarioLabelFromContent(cityId, dungeonId, routeId);
         return template == null
             ? "None"
-            : template.RouteLabel + " | " + template.RiskLabel + " Risk";
+            : HasText(scenarioLabel)
+                ? template.RouteLabel + " | " + scenarioLabel + " | " + template.RiskLabel + " Risk"
+                : template.RouteLabel + " | " + template.RiskLabel + " Risk";
     }
 
     private string BuildBaseRecommendationReasonText(string cityId, string dungeonId)
@@ -3343,16 +3424,18 @@ public sealed partial class StaticPlaceholderWorldView
 
         string baseRecommendedRouteId = GetBaseRecommendedRouteId(cityId, dungeonId);
         string finalRecommendedRouteId = ApplyPolicyBiasToRecommendedRoute(cityId, dungeonId, baseRecommendedRouteId);
-        return BuildBaseRecommendationReasonText(cityId, dungeonId) + " " + BuildPolicyRecommendationReasonText(cityId, dungeonId, baseRecommendedRouteId, finalRecommendedRouteId);
+        string summary = BuildScenarioSentenceText(
+            BuildBaseRecommendationReasonText(cityId, dungeonId),
+            BuildPolicyRecommendationReasonText(cityId, dungeonId, baseRecommendedRouteId, finalRecommendedRouteId),
+            TryBuildRouteChooseWhenTextFromContent(cityId, dungeonId, finalRecommendedRouteId),
+            TryBuildRouteFollowUpHintTextFromContent(cityId, dungeonId, finalRecommendedRouteId));
+        string partyFitText = BuildRuntimePartyRouteFitText(ResolveDispatchReadyPartyId(cityId), dungeonId, finalRecommendedRouteId);
+        string finalText = BuildScenarioSentenceText(summary, partyFitText);
+        return HasText(finalText) ? finalText : "None";
     }
 
-    private string BuildExpectedNeedImpactText(string cityId, string dungeonId, string routeId)
+    private string BuildFallbackExpectedNeedImpactText(string cityId, string dungeonId, string routeId)
     {
-        if (string.IsNullOrEmpty(dungeonId) || string.IsNullOrEmpty(routeId))
-        {
-            return "None";
-        }
-
         string needPressure = BuildNeedPressureText(cityId);
         DispatchReadinessState readiness = GetDispatchReadinessState(cityId);
         string balancedRouteId = GetBalancedRouteId(dungeonId);
@@ -3391,6 +3474,25 @@ public sealed partial class StaticPlaceholderWorldView
             : routeId == SafeRouteId
                 ? "Best line for letting the city and party recover together."
                 : "Adds reward, but drags recovery out.";
+    }
+
+    private string BuildExpectedNeedImpactText(string cityId, string dungeonId, string routeId)
+    {
+        if (string.IsNullOrEmpty(dungeonId) || string.IsNullOrEmpty(routeId))
+        {
+            return "None";
+        }
+
+        string impactText = TryBuildExpectedNeedImpactFromContent(cityId, dungeonId, routeId);
+        if (!HasText(impactText))
+        {
+            impactText = BuildFallbackExpectedNeedImpactText(cityId, dungeonId, routeId);
+        }
+
+        string followUpHintText = TryBuildRouteFollowUpHintTextFromContent(cityId, dungeonId, routeId);
+        string partyFitText = BuildRuntimePartyRouteFitText(ResolveDispatchReadyPartyId(cityId), dungeonId, routeId);
+        string finalText = BuildScenarioSentenceText(impactText, followUpHintText, partyFitText);
+        return HasText(finalText) ? finalText : "None";
     }
 
     private string GetCurrentExpectedNeedImpactText()
@@ -5606,51 +5708,67 @@ public sealed partial class StaticPlaceholderWorldView
 
     private TestDungeonPartyData CreatePlaceholderDungeonParty(string cityId, string partyId)
     {
-        PrototypeRpgPartyDefinition partyDefinition = PrototypeRpgPartyCatalog.CreateDefaultPlaceholderParty(partyId);
+        PrototypeRpgPartyDefinition partyDefinition = BuildRuntimePartyDefinition(partyId) ?? PrototypeRpgPartyCatalog.CreateDefaultPlaceholderParty(partyId);
         return new TestDungeonPartyData(partyId, cityId, partyDefinition, CreateDungeonRuntimeMembers(partyDefinition));
     }
 
     private DungeonPartyMemberRuntimeData[] CreateDungeonRuntimeMembers(PrototypeRpgPartyDefinition partyDefinition)
     {
-        if (partyDefinition == null || partyDefinition.Members == null || partyDefinition.Members.Length == 0)
+        if (partyDefinition == null)
         {
             return System.Array.Empty<DungeonPartyMemberRuntimeData>();
         }
 
-        DungeonPartyMemberRuntimeData[] members = new DungeonPartyMemberRuntimeData[partyDefinition.Members.Length];
+        PrototypeRpgPartyRuntimeResolveSurface partySurface = PrototypeRpgRuntimeResolveBuilder.BuildPartySurface(
+            partyDefinition,
+            memberDefinition => memberDefinition != null ? memberDefinition.EquipmentLoadoutId : string.Empty);
+        return CreateDungeonRuntimeMembers(partySurface);
+    }
+
+    private DungeonPartyMemberRuntimeData[] CreateDungeonRuntimeMembers(PrototypeRpgPartyRuntimeResolveSurface partySurface)
+    {
+        if (partySurface == null || partySurface.Members == null || partySurface.Members.Length == 0)
+        {
+            return System.Array.Empty<DungeonPartyMemberRuntimeData>();
+        }
+
+        DungeonPartyMemberRuntimeData[] members = new DungeonPartyMemberRuntimeData[partySurface.Members.Length];
         for (int i = 0; i < members.Length; i++)
         {
-            members[i] = CreateDungeonRuntimeMember(partyDefinition.Members[i], i);
+            members[i] = CreateDungeonRuntimeMember(partySurface.Members[i], i);
         }
 
         return members;
     }
 
-    private DungeonPartyMemberRuntimeData CreateDungeonRuntimeMember(PrototypeRpgPartyMemberDefinition memberDefinition, int fallbackPartySlotIndex)
+    private DungeonPartyMemberRuntimeData CreateDungeonRuntimeMember(PrototypeRpgMemberRuntimeResolveSurface memberSurface, int fallbackPartySlotIndex)
     {
-        PrototypeRpgStatBlock baseStats = memberDefinition != null && memberDefinition.BaseStats != null
-            ? memberDefinition.BaseStats
-            : new PrototypeRpgStatBlock(1, 1, 0, 0);
-        string memberId = memberDefinition != null ? memberDefinition.MemberId : string.Empty;
-        string displayName = memberDefinition != null && !string.IsNullOrEmpty(memberDefinition.DisplayName) ? memberDefinition.DisplayName : "Adventurer";
-        string roleTag = memberDefinition != null ? memberDefinition.RoleTag : string.Empty;
-        string roleLabel = memberDefinition != null && !string.IsNullOrEmpty(memberDefinition.RoleLabel) ? memberDefinition.RoleLabel : "Adventurer";
-        string defaultSkillId = memberDefinition != null ? memberDefinition.DefaultSkillId : string.Empty;
-        string skillName = memberDefinition != null && !string.IsNullOrEmpty(memberDefinition.DefaultSkillName) ? memberDefinition.DefaultSkillName : "Skill";
-        string skillShortText = memberDefinition != null ? memberDefinition.DefaultSkillShortText : string.Empty;
-        int partySlotIndex = memberDefinition != null ? memberDefinition.PartySlotIndex : fallbackPartySlotIndex;
+        PrototypeRpgPartyMemberRuntimeState runtimeState = new PrototypeRpgPartyMemberRuntimeState(memberSurface);
+        string roleTag = memberSurface != null ? memberSurface.RoleTag : string.Empty;
+        string defaultSkillId = memberSurface != null ? memberSurface.DefaultSkillId : string.Empty;
+        string skillName = memberSurface != null && !string.IsNullOrEmpty(memberSurface.ResolvedSkillName) ? memberSurface.ResolvedSkillName : "Skill";
+        string skillShortText = memberSurface != null && !string.IsNullOrEmpty(memberSurface.ResolvedSkillShortText) ? memberSurface.ResolvedSkillShortText : string.Empty;
+        if (memberSurface != null && !string.IsNullOrEmpty(memberSurface.EquipmentSummaryText))
+        {
+            skillShortText = string.IsNullOrEmpty(skillShortText)
+                ? memberSurface.EquipmentSummaryText
+                : skillShortText + " | " + memberSurface.EquipmentSummaryText;
+        }
+
+        int partySlotIndex = memberSurface != null ? memberSurface.PartySlotIndex : fallbackPartySlotIndex;
 
         PartySkillType skillType = PartySkillType.SingleHeavy;
-        int skillPower = Mathf.Max(1, baseStats.Attack + 1);
+        int skillPower = memberSurface != null && memberSurface.SkillPower > 0 ? memberSurface.SkillPower : Mathf.Max(1, runtimeState.Attack + 1);
         Color viewColor = Color.white;
 
         PrototypeRpgSkillDefinition sharedSkillDefinition = PrototypeRpgSkillCatalog.ResolveDefinition(defaultSkillId, roleTag);
-        ApplySharedSkillDefinition(sharedSkillDefinition, baseStats, ref roleLabel, ref defaultSkillId, ref skillName, ref skillShortText, ref skillType, ref skillPower, ref viewColor);
+        string roleLabel = runtimeState.RoleLabel;
+        ApplySharedSkillDefinition(sharedSkillDefinition, new PrototypeRpgStatBlock(runtimeState.MaxHp, runtimeState.Attack, runtimeState.Defense, runtimeState.Speed), ref roleLabel, ref defaultSkillId, ref skillName, ref skillShortText, ref skillType, ref skillPower, ref viewColor);
 
         if (string.IsNullOrEmpty(defaultSkillId) && !string.IsNullOrEmpty(roleTag))
         {
             PrototypeRpgSkillDefinition fallbackDefinition = PrototypeRpgSkillCatalog.GetFallbackDefinitionForRoleTag(roleTag);
-            ApplySharedSkillDefinition(fallbackDefinition, baseStats, ref roleLabel, ref defaultSkillId, ref skillName, ref skillShortText, ref skillType, ref skillPower, ref viewColor);
+            ApplySharedSkillDefinition(fallbackDefinition, new PrototypeRpgStatBlock(runtimeState.MaxHp, runtimeState.Attack, runtimeState.Defense, runtimeState.Speed), ref roleLabel, ref defaultSkillId, ref skillName, ref skillShortText, ref skillType, ref skillPower, ref viewColor);
         }
 
         if (string.IsNullOrEmpty(roleLabel))
@@ -5663,7 +5781,7 @@ public sealed partial class StaticPlaceholderWorldView
             skillName = "Skill";
         }
 
-        return new DungeonPartyMemberRuntimeData(memberId, displayName, roleLabel, roleTag, defaultSkillId, skillName, skillShortText, skillType, partySlotIndex, baseStats.MaxHp, baseStats.Attack, baseStats.Defense, baseStats.Speed, skillPower, viewColor);
+        return new DungeonPartyMemberRuntimeData(runtimeState, skillName, skillShortText, skillType, partySlotIndex, skillPower, viewColor);
     }
 
     private void ApplySharedSkillDefinition(
@@ -5766,14 +5884,11 @@ public sealed partial class StaticPlaceholderWorldView
         {
             party.PartyId = partyId;
             party.HomeCityId = cityId;
-            party.PartyDefinition = party.PartyDefinition ?? PrototypeRpgPartyCatalog.CreateDefaultPlaceholderParty(partyId);
+            party.PartyDefinition = BuildRuntimePartyDefinition(partyId) ?? PrototypeRpgPartyCatalog.CreateDefaultPlaceholderParty(partyId);
             party.DisplayName = party.PartyDefinition != null && !string.IsNullOrEmpty(party.PartyDefinition.DisplayName)
                 ? party.PartyDefinition.DisplayName
                 : partyId;
-            if (party.Members == null || party.Members.Length == 0)
-            {
-                party.Members = CreateDungeonRuntimeMembers(party.PartyDefinition);
-            }
+            party.Members = CreateDungeonRuntimeMembers(party.PartyDefinition);
         }
 
         return party;

@@ -20,7 +20,10 @@ public sealed class ManualTradeRuntimeState
     private sealed class PartyRuntimeData
     {
         public string PartyId;
+        public string DisplayName;
         public string HomeCityId;
+        public string ArchetypeId;
+        public string PromotionStateId;
         public PartyState State;
         public int Power;
         public int CarryCapacity;
@@ -31,13 +34,16 @@ public sealed class ManualTradeRuntimeState
         public int ProjectedReturnDay;
         public string LastResultSummary;
 
-        public PartyRuntimeData(string partyId, string homeCityId, int power, int carryCapacity)
+        public PartyRuntimeData(string partyId, string displayName, string homeCityId, string archetypeId, string promotionStateId)
         {
             PartyId = partyId ?? string.Empty;
+            DisplayName = string.IsNullOrWhiteSpace(displayName) ? PartyId : displayName.Trim();
             HomeCityId = homeCityId ?? string.Empty;
+            ArchetypeId = string.IsNullOrWhiteSpace(archetypeId) ? PrototypeRpgPartyCatalog.ResolveArchetypeIdForSeed(homeCityId, 1) : archetypeId.Trim().ToLowerInvariant();
+            PromotionStateId = string.IsNullOrWhiteSpace(promotionStateId) ? PrototypeRpgPartyCatalog.GetInitialPromotionStateId() : promotionStateId.Trim().ToLowerInvariant();
             State = PartyState.Idle;
-            Power = power > 0 ? power : 1;
-            CarryCapacity = carryCapacity > 0 ? carryCapacity : 1;
+            Power = 1;
+            CarryCapacity = 1;
             TargetDungeonId = string.Empty;
             ActiveRouteId = string.Empty;
             DaysRemaining = 0;
@@ -572,11 +578,21 @@ public sealed class ManualTradeRuntimeState
         }
 
         _nextPartySequence += 1;
-        PartyRuntimeData party = new PartyRuntimeData("Party " + _nextPartySequence, cityId, DefaultPartyPower, DefaultPartyCarryCapacity);
+        string partyId = "Party " + _nextPartySequence;
+        string archetypeId = PrototypeRpgPartyCatalog.ResolveArchetypeIdForSeed(cityId, _nextPartySequence);
+        string promotionStateId = PrototypeRpgPartyCatalog.GetInitialPromotionStateId();
+        PartyRuntimeData party = new PartyRuntimeData(partyId, partyId, cityId, archetypeId, promotionStateId);
+        UpdatePartyDerivedStats(party);
         party.LastResultSummary = "Ready in " + city.DisplayName;
         _parties.Add(party);
         _lastExpeditionResultByCityId[cityId] = party.LastResultSummary;
-        AppendRecentExpeditionLog("Day " + WorldDayCount + " | " + city.DisplayName + " recruited " + party.PartyId + " (Power " + party.Power + ", Carry " + party.CarryCapacity + ")");
+        AppendRecentExpeditionLog(
+            "Day " + WorldDayCount + " | " + city.DisplayName +
+            " recruited " + party.PartyId +
+            " [" + PrototypeRpgPartyCatalog.GetArchetypeLabel(party.ArchetypeId) + "]" +
+            " (" + PrototypeRpgPartyCatalog.GetPromotionStateLabel(party.PromotionStateId) +
+            ", Power " + party.Power +
+            ", Carry " + party.CarryCapacity + ")");
         return true;
     }
 
@@ -1080,6 +1096,30 @@ public sealed class ManualTradeRuntimeState
     {
         PartyRuntimeData party = FindActivePartyForCity(cityId);
         return party != null ? party.CarryCapacity : 0;
+    }
+
+    public string GetPartyDisplayName(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null && !string.IsNullOrEmpty(party.DisplayName) ? party.DisplayName : string.Empty;
+    }
+
+    public string GetPartyHomeCityId(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null ? party.HomeCityId : string.Empty;
+    }
+
+    public string GetPartyArchetypeId(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null ? party.ArchetypeId : string.Empty;
+    }
+
+    public string GetPartyPromotionStateId(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null ? party.PromotionStateId : string.Empty;
     }
 
     public string GetReadyPartyLastResultSummaryForCity(string cityId)
@@ -2118,6 +2158,10 @@ public sealed class ManualTradeRuntimeState
         string lootSummary = success && !string.IsNullOrEmpty(rewardResourceId) && safeLootReturned > 0
             ? rewardResourceId + " x" + safeLootReturned
             : "None";
+        bool partyPromoted = success && TryAdvancePartyPromotion(party);
+        string promotionEcho = partyPromoted
+            ? " | " + PrototypeRpgPartyCatalog.GetPromotionStateLabel(party.PromotionStateId)
+            : string.Empty;
 
         if (success)
         {
@@ -2169,7 +2213,7 @@ public sealed class ManualTradeRuntimeState
         party.DaysRemaining = 0;
         party.DepartureDay = -1;
         party.ProjectedReturnDay = -1;
-        party.LastResultSummary = safeResultSummary;
+        party.LastResultSummary = safeResultSummary + promotionEcho;
         _lastExpeditionResultByCityId[cityId] = safeResultSummary;
 
         if (!string.IsNullOrEmpty(dungeonId))
@@ -2177,7 +2221,7 @@ public sealed class ManualTradeRuntimeState
             _lastExpeditionResultByDungeonId[dungeonId] = safeResultSummary;
         }
 
-        AppendRecentExpeditionLog("Day " + WorldDayCount + " | " + safeResultSummary);
+        AppendRecentExpeditionLog("Day " + WorldDayCount + " | " + safeResultSummary + promotionEcho);
     }
 
     private WorldWriteback BuildWorldWritebackFromExpeditionResult(ExpeditionResult expeditionResult, string resultSummary, string survivingMembersSummary, string routeSummary, string dungeonSummary, int lootReturned)
@@ -2958,6 +3002,25 @@ public sealed class ManualTradeRuntimeState
         return null;
     }
 
+    private PartyRuntimeData FindPartyById(string partyId)
+    {
+        if (string.IsNullOrEmpty(partyId))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < _parties.Count; i++)
+        {
+            PartyRuntimeData party = _parties[i];
+            if (party != null && party.PartyId == partyId)
+            {
+                return party;
+            }
+        }
+
+        return null;
+    }
+
     private PartyRuntimeData FindIdleParty(string cityId)
     {
         if (string.IsNullOrEmpty(cityId))
@@ -2975,6 +3038,35 @@ public sealed class ManualTradeRuntimeState
         }
 
         return null;
+    }
+
+    private void UpdatePartyDerivedStats(PartyRuntimeData party)
+    {
+        if (party == null)
+        {
+            return;
+        }
+
+        party.Power = PrototypeRpgPartyCatalog.ResolveDerivedPower(party.ArchetypeId, party.PromotionStateId);
+        party.CarryCapacity = PrototypeRpgPartyCatalog.ResolveDerivedCarryCapacity(party.ArchetypeId, party.PromotionStateId);
+    }
+
+    private bool TryAdvancePartyPromotion(PartyRuntimeData party)
+    {
+        if (party == null)
+        {
+            return false;
+        }
+
+        string nextPromotionStateId = PrototypeRpgPartyCatalog.GetNextPromotionStateId(party.PromotionStateId);
+        if (string.IsNullOrEmpty(nextPromotionStateId) || nextPromotionStateId == party.PromotionStateId)
+        {
+            return false;
+        }
+
+        party.PromotionStateId = nextPromotionStateId;
+        UpdatePartyDerivedStats(party);
+        return true;
     }
 
     private PartyRuntimeData FindActivePartyForCity(string cityId)

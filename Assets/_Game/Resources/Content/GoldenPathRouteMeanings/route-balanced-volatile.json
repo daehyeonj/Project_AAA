@@ -1,6 +1,12 @@
 {
   "RouteMeaningId": "route-balanced-volatile",
+  "ScenarioLabel": "Surge Window",
   "RiskLabel": "Medium",
+  "ChooseWhenText": "Choose it when City A needs a sharper shard spike before the next dispatch window tightens again.",
+  "WatchOutText": "Mixed pressure and a rougher recovery line can leave the follow-up run less stable.",
+  "FollowUpHintText": "Often solves the immediate stock problem, but the next dispatch has to respect the volatility bill it creates.",
+  "PartyFitText": "Best with Outrider-style burst crews that can turn pressure rooms into a fast payoff.",
+  "CombatPlanText": "Expect mixed slime-goblin pressure, a sharper mid-run spike, and a burst-focused elite finish.",
   "EventFocus": "Cache-first push into unstable shrine strain.",
   "RewardPreview": "Higher shards if the party survives the mixed front and Gel Core.",
   "ExpectedNeedImpactText": "Bigger shard spike, but the next dispatch window stays rougher."

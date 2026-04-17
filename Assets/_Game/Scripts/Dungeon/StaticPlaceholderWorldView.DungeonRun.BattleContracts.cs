@@ -89,6 +89,9 @@ public sealed partial class StaticPlaceholderWorldView
                record.EventKey == PrototypeBattleEventKeys.RangeRuleResolved ||
                record.EventKey == PrototypeBattleEventKeys.LaneRuleResolved ||
                record.EventKey == PrototypeBattleEventKeys.GuardInterceptTriggered ||
+               record.EventKey == PrototypeBattleEventKeys.BurstWindowOpened ||
+               record.EventKey == PrototypeBattleEventKeys.BurstWindowExtended ||
+               record.EventKey == PrototypeBattleEventKeys.BurstWindowConsumed ||
                record.EventKey == PrototypeBattleEventKeys.EnemyIntentShown;
     }
 

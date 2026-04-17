@@ -28,6 +28,15 @@ public sealed class PrototypeRpgEnemyRuntimeState
     public string IntentRangeText { get; private set; }
     public string IntentPredictedReachabilityText { get; private set; }
     public string IntentTargetRuleText { get; private set; }
+    public string BurstWindowStateKey { get; private set; }
+    public string BurstWindowLabel { get; private set; }
+    public string BurstWindowSummaryText { get; private set; }
+    public string BurstWindowSourceRoleLabel { get; private set; }
+    public string BurstWindowSourceSkillLabel { get; private set; }
+    public int BurstWindowBonusDamage { get; private set; }
+    public int BurstWindowRemainingPartyActions { get; private set; }
+    public bool HasBurstWindow => BurstWindowRemainingPartyActions > 0 && !IsDefeated;
+    private bool BurstWindowSkipDecayOnce { get; set; }
 
     public PrototypeRpgEnemyRuntimeState(
         string enemyId,
@@ -65,12 +74,17 @@ public sealed class PrototypeRpgEnemyRuntimeState
         CurrentHp = MaxHp;
         IsDefeated = false;
         ClearIntent();
+        ClearBurstWindow();
     }
 
     public void SetCurrentHp(int currentHp)
     {
         CurrentHp = Mathf.Clamp(currentHp, 0, MaxHp);
         IsDefeated = CurrentHp <= 0;
+        if (IsDefeated)
+        {
+            ClearBurstWindow();
+        }
     }
 
     public void SetDefeated(bool isDefeated)
@@ -79,6 +93,7 @@ public sealed class PrototypeRpgEnemyRuntimeState
         {
             CurrentHp = 0;
             IsDefeated = true;
+            ClearBurstWindow();
             return;
         }
 
@@ -127,5 +142,79 @@ public sealed class PrototypeRpgEnemyRuntimeState
     public void SetIntentLabel(string intentLabel)
     {
         IntentLabel = string.IsNullOrWhiteSpace(intentLabel) ? string.Empty : intentLabel.Trim();
+    }
+
+    public void OpenBurstWindow(string sourceRoleLabel, string sourceSkillLabel, int bonusDamage, int futurePartyActions, string summaryText)
+    {
+        BurstWindowStateKey = "burst_ready";
+        BurstWindowLabel = "Burst Ready";
+        BurstWindowSourceRoleLabel = string.IsNullOrWhiteSpace(sourceRoleLabel) ? string.Empty : sourceRoleLabel.Trim();
+        BurstWindowSourceSkillLabel = string.IsNullOrWhiteSpace(sourceSkillLabel) ? string.Empty : sourceSkillLabel.Trim();
+        BurstWindowBonusDamage = Mathf.Max(1, bonusDamage);
+        BurstWindowRemainingPartyActions = Mathf.Max(1, futurePartyActions);
+        BurstWindowSummaryText = string.IsNullOrWhiteSpace(summaryText)
+            ? "Payoff +" + BurstWindowBonusDamage + " for " + BurstWindowRemainingPartyActions + " ally action(s)."
+            : summaryText.Trim();
+        BurstWindowSkipDecayOnce = true;
+    }
+
+    public void ExtendBurstWindow(int additionalPartyActions, string summaryText)
+    {
+        if (!HasBurstWindow)
+        {
+            return;
+        }
+
+        BurstWindowRemainingPartyActions = Mathf.Max(1, BurstWindowRemainingPartyActions + Mathf.Max(1, additionalPartyActions));
+        if (!string.IsNullOrWhiteSpace(summaryText))
+        {
+            BurstWindowSummaryText = summaryText.Trim();
+        }
+
+        BurstWindowSkipDecayOnce = true;
+    }
+
+    public int ConsumeBurstWindowBonus()
+    {
+        if (!HasBurstWindow)
+        {
+            return 0;
+        }
+
+        int bonus = Mathf.Max(0, BurstWindowBonusDamage);
+        ClearBurstWindow();
+        return bonus;
+    }
+
+    public void AdvanceBurstWindowActionWindow()
+    {
+        if (!HasBurstWindow)
+        {
+            return;
+        }
+
+        if (BurstWindowSkipDecayOnce)
+        {
+            BurstWindowSkipDecayOnce = false;
+            return;
+        }
+
+        BurstWindowRemainingPartyActions = Mathf.Max(0, BurstWindowRemainingPartyActions - 1);
+        if (BurstWindowRemainingPartyActions <= 0)
+        {
+            ClearBurstWindow();
+        }
+    }
+
+    public void ClearBurstWindow()
+    {
+        BurstWindowStateKey = string.Empty;
+        BurstWindowLabel = string.Empty;
+        BurstWindowSummaryText = string.Empty;
+        BurstWindowSourceRoleLabel = string.Empty;
+        BurstWindowSourceSkillLabel = string.Empty;
+        BurstWindowBonusDamage = 0;
+        BurstWindowRemainingPartyActions = 0;
+        BurstWindowSkipDecayOnce = false;
     }
 }

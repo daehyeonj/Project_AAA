@@ -1,6 +1,12 @@
 {
   "RouteMeaningId": "route-steady-rest",
+  "ScenarioLabel": "Stability Run",
   "RiskLabel": "Low",
+  "ChooseWhenText": "Choose it when City A needs a clean shard refill and you want the next dispatch window to stay steady.",
+  "WatchOutText": "It gives up the bigger shard spike and accepts a lower payout ceiling.",
+  "FollowUpHintText": "Usually leaves the next dispatch cleaner instead of forcing another hard reset.",
+  "PartyFitText": "Best with Bulwark or Salvager-style crews that convert steady rooms into reliable haul.",
+  "CombatPlanText": "Expect slime-heavy sustain fights, stronger shrine value, and a steadier elite setup.",
   "EventFocus": "Shrine recovery and supply prep stay online.",
   "RewardPreview": "Reliable shards, stronger recovery, clean monarch finish.",
   "ExpectedNeedImpactText": "Best route for stabilizing City A's next dispatch window."

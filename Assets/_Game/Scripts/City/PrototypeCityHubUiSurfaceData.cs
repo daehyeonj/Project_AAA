@@ -49,6 +49,10 @@ public sealed class PrototypeCityHubSelectionSurfaceData
     public string DispatchReadinessText = "None";
     public string RecoveryProgressText = "None";
     public string DispatchPolicyText = "None";
+    public string PressureBoardSummaryText = "None";
+    public string WhyCityMattersText = "None";
+    public string RecentResultEvidenceText = "None";
+    public string PartyReadinessSummaryText = "None";
     public string RecommendedRouteText = "None";
     public string RecommendationReasonText = "None";
     public string DispatchPartySummaryText = "None";
@@ -129,6 +133,9 @@ public sealed class PrototypeCityHubOverviewSurfaceData
     public int TotalParties;
     public int IdleParties;
     public int ActiveExpeditions;
+    public string PriorityCityText = "None";
+    public string PrioritySummaryText = "None";
+    public string PriorityNextActionText = "None";
     public string ActiveExpeditionLaneText = "None";
     public string ReturnEtaText = "None";
     public string WorldWritebackText = "None";

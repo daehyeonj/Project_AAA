@@ -1,5 +1,55 @@
 # Golden-Path Content Authoring
 
+## What Batch 69 Adds
+
+- The world/city presentation now leans on the existing world-board + city-decision seams to read like a result-pressure board instead of a neutral bridge.
+- Current world-facing summaries now surface, in one decision context:
+  - priority city / urgency
+  - why the city matters now
+  - route answer
+  - recent-result evidence
+  - party readiness / recovery pressure
+  - next action follow-through
+- The selected city world source snapshot now carries explicit pressure-board framing instead of only loose status text.
+- The world alert ribbon and city/world summary bodies now reuse that framing so recent expedition results look like evidence for the next recommendation, not dead-end logs.
+
+## What Batch 67 Adds
+
+- The battle presentation core is now explicitly:
+  - `read intent -> create window -> cash payoff`
+- Enemy intent is no longer only an enemy-turn telegraph; living enemies now refresh a preview readback during party turns so current target/action context has something real to read.
+- Current role skills now map to one readable battle loop instead of only isolated numbers:
+  - `Power Strike`: opens the burst window
+  - `Weak Point`: consumes the burst window
+  - `Arcane Burst`: punishes exposed targets in the sweep
+  - `Radiant Hymn`: extends active windows while healing
+- The accepted battle HUD structure stays the same, but setup/payoff state now appears through:
+  - enemy state labels
+  - enemy trait text
+  - command effect/context text
+  - target focus rule text
+
+## What Batch 66 Adds
+
+- The surfaced four-route Alpha/Beta portfolio stays unchanged:
+  - `city-a -> dungeon-alpha -> safe`
+  - `city-a -> dungeon-alpha -> risky`
+  - `city-b -> dungeon-beta -> risky`
+  - `city-b -> dungeon-beta -> safe`
+- Route-facing readback now resolves through a shared runtime party seam instead of a local placeholder rebuild.
+- Current party differentiation now has three runtime archetypes:
+  - `Bulwark Crew`
+  - `Outrider Cell`
+  - `Salvager Wing`
+- Current party growth now has one lightweight promotion axis:
+  - `Recruit Frame -> Field Promotion -> Elite Promotion`
+- Dispatch / ExpeditionPrep now surface:
+  - current party strength
+  - route fit
+  - promotion state
+  - derived power / carry context
+- Battle now consumes the same promotion-aware party resolve path, so the surfaced route choice, prep readback, and battle stats no longer drift apart.
+
 ## What Batch 22 Added
 
 - Representative chain asset: `Assets/_Game/Resources/Content/GoldenPathChains/city-a-dungeon-alpha-rest-path.json`

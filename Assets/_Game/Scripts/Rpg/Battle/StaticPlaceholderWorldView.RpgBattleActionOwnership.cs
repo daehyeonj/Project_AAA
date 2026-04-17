@@ -98,19 +98,29 @@ public sealed partial class StaticPlaceholderWorldView
         {
             int hitCount = 0;
             int totalDamage = 0;
+            int exposedHitCount = 0;
             var targetMonsters = GetTargetableBattleMonsters();
             for (int i = 0; i < targetMonsters.Count; i++)
             {
-                int applied = ApplyRpgOwnedBattleDamageToMonster(member, targetMonsters[i], resolvedSkillPower, new Color(0.46f, 0.75f, 1f, 1f));
+                DungeonMonsterRuntimeData targetMonster = targetMonsters[i];
+                int burstBonus = GetRpgOwnedArcaneBurstBonus(targetMonster);
+                int applied = ApplyRpgOwnedBattleDamageToMonster(member, targetMonster, resolvedSkillPower + burstBonus, new Color(0.46f, 0.75f, 1f, 1f));
                 if (applied > 0)
                 {
                     totalDamage += applied;
                     hitCount += 1;
+                    if (burstBonus > 0)
+                    {
+                        exposedHitCount += 1;
+                    }
                 }
             }
 
             AppendBattleLog(member.DisplayName + " used " + resolvedSkillName + " on all enemies.");
-            SetBattleFeedbackText(resolvedSkillName + " hit " + hitCount + " enemies.");
+            SetBattleFeedbackText(
+                exposedHitCount > 0
+                    ? resolvedSkillName + " hit " + hitCount + " enemies and spiked " + exposedHitCount + " exposed target(s)."
+                    : resolvedSkillName + " hit " + hitCount + " enemies.");
             RecordRpgOwnedBattleEvent(
                 PrototypeBattleEventKeys.SkillResolved,
                 member.MemberId,
@@ -135,8 +145,12 @@ public sealed partial class StaticPlaceholderWorldView
                 totalRecovered += ApplyRpgOwnedBattleHealToPartyMember(member, ally, memberIndex, resolvedSkillPower, new Color(0.56f, 1f, 0.68f, 1f));
             }
 
+            int extendedWindows = TryExtendRpgOwnedBurstWindowsFromSupport(member, resolvedSkillDefinition);
             AppendBattleLog(member.DisplayName + " used " + resolvedSkillName + " and restored " + totalRecovered + " HP.");
-            SetBattleFeedbackText(resolvedSkillName + " restored " + totalRecovered + " HP.");
+            SetBattleFeedbackText(
+                extendedWindows > 0
+                    ? resolvedSkillName + " restored " + totalRecovered + " HP and stabilized " + extendedWindows + " window(s)."
+                    : resolvedSkillName + " restored " + totalRecovered + " HP.");
             RecordRpgOwnedBattleEvent(
                 PrototypeBattleEventKeys.SkillResolved,
                 member.MemberId,
@@ -203,23 +217,58 @@ public sealed partial class StaticPlaceholderWorldView
 
         int damage;
         string actionName;
+        int burstBonus = 0;
+        string burstFeedbackText = string.Empty;
         if (_queuedBattleAction == BattleActionType.Skill)
         {
             string resolvedSkillEffectType = GetResolvedSkillEffectType(member, resolvedSkillDefinition);
             int resolvedSkillPower = GetResolvedSkillPower(member, resolvedSkillDefinition);
-            damage = resolvedSkillEffectType == "finisher_damage" && targetMonster.CurrentHp <= member.Attack ? resolvedSkillPower + 2 : resolvedSkillPower;
+            if (resolvedSkillEffectType == "finisher_damage")
+            {
+                burstBonus = ConsumeRpgOwnedBurstWindowPayoff(member, resolvedSkillDefinition, targetMonster);
+                if (burstBonus <= 0 && targetMonster.CurrentHp <= member.Attack)
+                {
+                    burstBonus = 1;
+                }
+
+                damage = resolvedSkillPower + burstBonus;
+                if (burstBonus > 0)
+                {
+                    burstFeedbackText = "Burst payoff +" + burstBonus + ".";
+                }
+            }
+            else
+            {
+                damage = resolvedSkillPower;
+            }
+
             actionName = GetResolvedSkillDisplayName(member, resolvedSkillDefinition);
         }
         else
         {
-            damage = member.Attack;
+            burstBonus = GetRpgOwnedAttackBurstBonus(targetMonster);
+            damage = member.Attack + burstBonus;
+            if (burstBonus > 0)
+            {
+                burstFeedbackText = "Exposed target +" + burstBonus + ".";
+            }
+
             actionName = "Attack";
         }
 
         RecordRpgOwnedBattleEvent(PrototypeBattleEventKeys.TargetSelected, member.MemberId, targetMonster.MonsterId, GetBattleMonsterDisplayIndex(targetMonster.MonsterId), member.DisplayName + " targeted " + targetMonster.DisplayName + ".", actionKey: actionKey, skillId: resolvedSkillId, phaseKey: "target_select", actorName: member.DisplayName, targetName: targetMonster.DisplayName, shortText: "Target locked");
         int appliedDamage = ApplyRpgOwnedBattleDamageToMonster(member, targetMonster, damage, new Color(1f, 0.48f, 0.30f, 1f));
+        bool openedBurstWindow = TryApplyRpgOwnedBurstWindowSetup(member, resolvedSkillDefinition, targetMonster);
         AppendBattleLog(member.DisplayName + " used " + actionName + " on " + targetMonster.DisplayName + " for " + appliedDamage + " damage.");
-        SetBattleFeedbackText(actionName + " dealt " + appliedDamage + " to " + targetMonster.DisplayName + ".");
+        if (openedBurstWindow)
+        {
+            burstFeedbackText = "Burst window opened.";
+        }
+
+        SetBattleFeedbackText(
+            string.IsNullOrEmpty(burstFeedbackText)
+                ? actionName + " dealt " + appliedDamage + " to " + targetMonster.DisplayName + "."
+                : actionName + " dealt " + appliedDamage + " to " + targetMonster.DisplayName + ". " + burstFeedbackText);
         RecordRpgOwnedBattleEvent(_queuedBattleAction == BattleActionType.Skill ? PrototypeBattleEventKeys.SkillResolved : PrototypeBattleEventKeys.AttackResolved, member.MemberId, targetMonster.MonsterId, appliedDamage, member.DisplayName + " resolved " + actionName + " on " + targetMonster.DisplayName + ".", actionKey: actionKey, skillId: resolvedSkillId, phaseKey: "resolution", actorName: member.DisplayName, targetName: targetMonster.DisplayName, shortText: actionName);
         AdvanceRpgOwnedBattleAfterPartyAction();
         return true;

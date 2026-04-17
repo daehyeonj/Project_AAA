@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 public sealed partial class StaticPlaceholderWorldView
 {
     public CityHubSurfaceData BuildSelectedCityHubSurfaceData()
@@ -29,7 +31,7 @@ public sealed partial class StaticPlaceholderWorldView
         return cityHub.ResultPipelineCityWriteback ?? new CityWriteback();
     }
 
-    private void PopulateWorldObservationCityHub(CityHubSurfaceData cityHub, WorldObservationSurfaceData observation)
+    private void PopulateWorldObservationCityHub(CityHubSurfaceData cityHub, WorldObservationSurfaceData observation, WorldBoardReadModel board)
     {
         if (cityHub == null)
         {
@@ -37,7 +39,7 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         WorldObservationSurfaceData safeObservation = observation ?? new WorldObservationSurfaceData();
-        WorldSimCitySourceData entrySnapshot = BuildSelectedCityWorldSimInputData(safeObservation);
+        WorldSimCitySourceData entrySnapshot = BuildSelectedCityWorldSimInputData(safeObservation, board);
         CityPartyRosterSurfaceData partyRoster = BuildSelectedCityPartyRosterSurfaceData();
         cityHub.EntrySnapshot = entrySnapshot;
         cityHub.WorldSimInput = entrySnapshot;
@@ -268,7 +270,7 @@ public sealed partial class StaticPlaceholderWorldView
         return BuildWorldSnapshotAftermathEchoText(cityId, dungeonId, null);
     }
 
-    private WorldSimCitySourceData BuildSelectedCityWorldSimInputData(WorldObservationSurfaceData observation)
+    private WorldSimCitySourceData BuildSelectedCityWorldSimInputData(WorldObservationSurfaceData observation, WorldBoardReadModel board)
     {
         WorldSimCitySourceData data = new WorldSimCitySourceData();
         WorldObservationSurfaceData safeObservation = observation ?? new WorldObservationSurfaceData();
@@ -280,6 +282,8 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         string dungeonId = ResolveDispatchBriefingDungeonId(cityId);
+        CityStatusReadModel city = FindBoardCityStatusReadModel(board, cityId);
+        CityDecisionReadModel decision = city != null ? city.Decision : new CityDecisionReadModel();
         data.HasSelectedCity = true;
         data.SelectedCityId = cityId;
         data.SelectedCityLabel = ResolveDispatchEntityDisplayName(cityId);
@@ -318,6 +322,12 @@ public sealed partial class StaticPlaceholderWorldView
                 IsMeaningfulSnapshotText(safeObservation.RecentOutcome.SelectedLastDispatchImpactText)
                 ? safeObservation.RecentOutcome.SelectedLastDispatchImpactText
                 : "None";
+        data.PressureBoardSummaryText = BuildSelectedCityPressureBoardSummaryText(city);
+        data.WhyCityMattersText = IsMeaningfulSnapshotText(decision != null ? decision.WhyCityMattersText : string.Empty)
+            ? decision.WhyCityMattersText
+            : data.RecentOutcomeText;
+        data.RecentResultEvidenceText = BuildCityRecentResultEvidenceText(city);
+        data.PartyReadinessSummaryText = BuildCityPartyReadinessSummaryText(city);
         data.CanRecruitParty = prep.TotalPartyCount == 0;
         data.CanOpenPartyRoster = true;
         data.HasStagedParty = prep.HasStagedParty;
@@ -348,6 +358,59 @@ public sealed partial class StaticPlaceholderWorldView
             ? safeObservation.CurrentWorldObservationSummaryText
             : data.SelectedCityLabel + " -> " + data.LinkedDungeonLabel;
         return data;
+    }
+
+    private CityStatusReadModel FindBoardCityStatusReadModel(WorldBoardReadModel board, string cityId)
+    {
+        CityStatusReadModel[] cities = board != null ? board.Cities : null;
+        if (cities == null || cities.Length <= 0 || string.IsNullOrEmpty(cityId))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < cities.Length; i++)
+        {
+            CityStatusReadModel city = cities[i];
+            if (city != null && city.CityId == cityId)
+            {
+                return city;
+            }
+        }
+
+        return null;
+    }
+
+    private string BuildSelectedCityPressureBoardSummaryText(CityStatusReadModel city)
+    {
+        if (city == null)
+        {
+            return "None";
+        }
+
+        CityDecisionReadModel decision = city.Decision ?? new CityDecisionReadModel();
+        CityBottleneckSignal topBottleneck = GetFirstBoardItem(decision.Bottlenecks);
+        CityActionRecommendation topAction = GetFirstBoardItem(decision.RecommendedActions);
+        List<string> parts = new List<string>();
+
+        if (IsMeaningfulSnapshotText(topBottleneck != null ? topBottleneck.SummaryText : string.Empty))
+        {
+            parts.Add(topBottleneck.SummaryText);
+        }
+        else
+        {
+            parts.Add(BuildCityUrgencyFallbackText(city));
+        }
+
+        if (IsMeaningfulSnapshotText(topAction != null ? topAction.SummaryText : string.Empty))
+        {
+            parts.Add("Answer " + topAction.SummaryText);
+        }
+        else if (IsMeaningfulSnapshotText(city.RecommendedRouteSummaryText))
+        {
+            parts.Add("Answer " + city.RecommendedRouteSummaryText);
+        }
+
+        return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : "None";
     }
 
     private CitySimSurfaceData BuildSelectedCitySimSurfaceData(WorldObservationSurfaceData observation)

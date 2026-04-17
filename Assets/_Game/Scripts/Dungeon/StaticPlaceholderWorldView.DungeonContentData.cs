@@ -27,6 +27,240 @@ public sealed partial class StaticPlaceholderWorldView
             : null;
     }
 
+    private string ResolveScenarioContextCityId()
+    {
+        if (HasText(_currentHomeCityId))
+        {
+            return _currentHomeCityId;
+        }
+
+        string briefingCityId = ResolveDispatchBriefingCityId();
+        return HasText(briefingCityId) ? briefingCityId : string.Empty;
+    }
+
+    private bool TryResolveCanonicalRouteScenarioContent(
+        string cityId,
+        string dungeonId,
+        string routeId,
+        out GoldenPathChainDefinition chainDefinition,
+        out GoldenPathRouteDefinition routeDefinition,
+        out GoldenPathRouteMeaningDefinition routeMeaning,
+        out GoldenPathOutcomeMeaningDefinition outcomeMeaning)
+    {
+        chainDefinition = null;
+        routeDefinition = null;
+        routeMeaning = null;
+        outcomeMeaning = null;
+
+        string resolvedCityId = HasText(cityId) ? cityId : ResolveScenarioContextCityId();
+        if (!GoldenPathContentRegistry.TryGetCanonicalRoute(
+                resolvedCityId,
+                dungeonId,
+                NormalizeRouteChoiceId(routeId),
+                out chainDefinition,
+                out routeDefinition) ||
+            routeDefinition == null)
+        {
+            return false;
+        }
+
+        routeMeaning = ResolveRouteMeaning(routeDefinition);
+        outcomeMeaning = ResolveOutcomeMeaning(chainDefinition);
+        return true;
+    }
+
+    private static string TrimScenarioText(string value)
+    {
+        return HasText(value)
+            ? value.Trim().TrimEnd(' ', '.', '!', '?')
+            : string.Empty;
+    }
+
+    private string BuildScenarioPipeText(params string[] segments)
+    {
+        List<string> parts = new List<string>();
+        for (int i = 0; i < segments.Length; i++)
+        {
+            if (HasText(segments[i]))
+            {
+                parts.Add(segments[i].Trim());
+            }
+        }
+
+        return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : "None";
+    }
+
+    private string BuildScenarioSentenceText(params string[] segments)
+    {
+        List<string> parts = new List<string>();
+        for (int i = 0; i < segments.Length; i++)
+        {
+            string text = TrimScenarioText(segments[i]);
+            if (HasText(text))
+            {
+                parts.Add(text);
+            }
+        }
+
+        return parts.Count > 0 ? string.Join(". ", parts.ToArray()) + "." : string.Empty;
+    }
+
+    private string BuildLabeledScenarioClause(string label, string text)
+    {
+        string trimmedText = TrimScenarioText(text);
+        return HasText(label) && HasText(trimmedText)
+            ? label + ": " + trimmedText
+            : string.Empty;
+    }
+
+    private string TryBuildRouteScenarioLabelFromContent(string cityId, string dungeonId, string routeId)
+    {
+        return TryResolveCanonicalRouteScenarioContent(
+                cityId,
+                dungeonId,
+                routeId,
+                out GoldenPathChainDefinition _,
+                out GoldenPathRouteDefinition _,
+                out GoldenPathRouteMeaningDefinition routeMeaning,
+                out GoldenPathOutcomeMeaningDefinition _)
+            && routeMeaning != null &&
+               HasText(routeMeaning.ScenarioLabel)
+            ? routeMeaning.ScenarioLabel
+            : string.Empty;
+    }
+
+    private string TryBuildRouteChooseWhenTextFromContent(string cityId, string dungeonId, string routeId)
+    {
+        return TryResolveCanonicalRouteScenarioContent(
+                cityId,
+                dungeonId,
+                routeId,
+                out GoldenPathChainDefinition _,
+                out GoldenPathRouteDefinition _,
+                out GoldenPathRouteMeaningDefinition routeMeaning,
+                out GoldenPathOutcomeMeaningDefinition _)
+            && routeMeaning != null &&
+               HasText(routeMeaning.ChooseWhenText)
+            ? routeMeaning.ChooseWhenText
+            : string.Empty;
+    }
+
+    private string TryBuildRouteWatchOutTextFromContent(string cityId, string dungeonId, string routeId)
+    {
+        return TryResolveCanonicalRouteScenarioContent(
+                cityId,
+                dungeonId,
+                routeId,
+                out GoldenPathChainDefinition _,
+                out GoldenPathRouteDefinition _,
+                out GoldenPathRouteMeaningDefinition routeMeaning,
+                out GoldenPathOutcomeMeaningDefinition _)
+            && routeMeaning != null &&
+               HasText(routeMeaning.WatchOutText)
+            ? routeMeaning.WatchOutText
+            : string.Empty;
+    }
+
+    private string TryBuildRouteFollowUpHintTextFromContent(string cityId, string dungeonId, string routeId)
+    {
+        if (!TryResolveCanonicalRouteScenarioContent(
+                cityId,
+                dungeonId,
+                routeId,
+                out GoldenPathChainDefinition chainDefinition,
+                out GoldenPathRouteDefinition _,
+                out GoldenPathRouteMeaningDefinition routeMeaning,
+                out GoldenPathOutcomeMeaningDefinition outcomeMeaning))
+        {
+            return string.Empty;
+        }
+
+        if (routeMeaning != null && HasText(routeMeaning.FollowUpHintText))
+        {
+            return routeMeaning.FollowUpHintText;
+        }
+
+        if (outcomeMeaning != null && HasText(outcomeMeaning.RecommendationShiftText))
+        {
+            return outcomeMeaning.RecommendationShiftText;
+        }
+
+        if (HasText(chainDefinition != null ? chainDefinition.ResultImpactMeaningText : string.Empty))
+        {
+            return chainDefinition.ResultImpactMeaningText;
+        }
+
+        return outcomeMeaning != null && HasText(outcomeMeaning.CityImpactMeaningText)
+            ? outcomeMeaning.CityImpactMeaningText
+            : string.Empty;
+    }
+
+    private string TryBuildRoutePartyFitTextFromContent(string cityId, string dungeonId, string routeId)
+    {
+        return TryResolveCanonicalRouteScenarioContent(
+                cityId,
+                dungeonId,
+                routeId,
+                out GoldenPathChainDefinition _,
+                out GoldenPathRouteDefinition _,
+                out GoldenPathRouteMeaningDefinition routeMeaning,
+                out GoldenPathOutcomeMeaningDefinition _)
+            && routeMeaning != null &&
+               HasText(routeMeaning.PartyFitText)
+            ? routeMeaning.PartyFitText
+            : string.Empty;
+    }
+
+    private string TryBuildRouteCombatPlanTextFromContent(string cityId, string dungeonId, string routeId)
+    {
+        return TryResolveCanonicalRouteScenarioContent(
+                cityId,
+                dungeonId,
+                routeId,
+                out GoldenPathChainDefinition _,
+                out GoldenPathRouteDefinition _,
+                out GoldenPathRouteMeaningDefinition routeMeaning,
+                out GoldenPathOutcomeMeaningDefinition _)
+            && routeMeaning != null &&
+               HasText(routeMeaning.CombatPlanText)
+            ? routeMeaning.CombatPlanText
+            : string.Empty;
+    }
+
+    private string TryBuildRouteRewardFocusTextFromContent(string cityId, string dungeonId, string routeId)
+    {
+        if (!TryResolveCanonicalRouteScenarioContent(
+                cityId,
+                dungeonId,
+                routeId,
+                out GoldenPathChainDefinition chainDefinition,
+                out GoldenPathRouteDefinition routeDefinition,
+                out GoldenPathRouteMeaningDefinition routeMeaning,
+                out GoldenPathOutcomeMeaningDefinition outcomeMeaning))
+        {
+            return string.Empty;
+        }
+
+        if (routeMeaning != null && HasText(routeMeaning.RewardPreview))
+        {
+            return routeMeaning.RewardPreview;
+        }
+
+        if (HasText(routeDefinition != null ? routeDefinition.RewardPreview : string.Empty))
+        {
+            return routeDefinition.RewardPreview;
+        }
+
+        if (HasText(chainDefinition != null ? chainDefinition.RewardMeaningText : string.Empty))
+        {
+            return chainDefinition.RewardMeaningText;
+        }
+
+        return outcomeMeaning != null && HasText(outcomeMeaning.RewardMeaningText)
+            ? outcomeMeaning.RewardMeaningText
+            : string.Empty;
+    }
+
     private bool TryResolveEncounterBattleAuthoring(
         string cityId,
         string dungeonId,
@@ -173,18 +407,22 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string TryBuildExpectedNeedImpactFromContent(string cityId, string dungeonId, string routeId)
     {
-        if (!GoldenPathContentRegistry.TryGetCanonicalRoute(cityId, dungeonId, NormalizeRouteChoiceId(routeId), out GoldenPathChainDefinition chainDefinition, out GoldenPathRouteDefinition routeDefinition))
+        if (!TryResolveCanonicalRouteScenarioContent(
+                cityId,
+                dungeonId,
+                routeId,
+                out GoldenPathChainDefinition chainDefinition,
+                out GoldenPathRouteDefinition routeDefinition,
+                out GoldenPathRouteMeaningDefinition routeMeaning,
+                out GoldenPathOutcomeMeaningDefinition outcomeMeaning))
         {
             return string.Empty;
         }
 
-        GoldenPathRouteMeaningDefinition routeMeaning = ResolveRouteMeaning(routeDefinition);
         if (routeMeaning != null && HasText(routeMeaning.ExpectedNeedImpactText))
         {
             return routeMeaning.ExpectedNeedImpactText;
         }
-
-        GoldenPathOutcomeMeaningDefinition outcomeMeaning = ResolveOutcomeMeaning(chainDefinition);
 
         return HasText(chainDefinition.ResultImpactMeaningText)
             ? chainDefinition.ResultImpactMeaningText

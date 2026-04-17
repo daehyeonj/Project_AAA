@@ -13,6 +13,9 @@ public static class PrototypeBattleEventKeys
     public const string KnockOut = "knock_out";
     public const string EnemyDefeated = "enemy_defeated";
     public const string EnemyIntentShown = "enemy_intent_shown";
+    public const string BurstWindowOpened = "burst_window_opened";
+    public const string BurstWindowExtended = "burst_window_extended";
+    public const string BurstWindowConsumed = "burst_window_consumed";
     public const string RangeRuleResolved = "range_rule_resolved";
     public const string LaneRuleResolved = "lane_rule_resolved";
     public const string AttackResolved = "attack_resolved";

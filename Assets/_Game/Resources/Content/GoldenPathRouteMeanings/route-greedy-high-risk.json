@@ -1,6 +1,12 @@
 {
   "RouteMeaningId": "route-greedy-high-risk",
+  "ScenarioLabel": "Emergency Restart",
   "RiskLabel": "High",
+  "ChooseWhenText": "Choose it when City B has to restart refined mana processing fast and can afford to burn tomorrow's comfort for today's intake.",
+  "WatchOutText": "It carries the sharpest ambush pressure, weakest recovery line, and the highest chance of pushing strain into the next dispatch.",
+  "FollowUpHintText": "Can reopen the line quickly, but the next dispatch often inherits recovery debt and a rougher operating posture.",
+  "PartyFitText": "Best with Outrider-style pressure crews or any party already built to cash in a short, violent window.",
+  "CombatPlanText": "Expect goblin ambush tempo, thin recovery, and an elite that rewards committing to the spike.",
   "EventFocus": "Plunder cache and war-room pressure are strongest.",
   "RewardPreview": "Biggest shard haul if the raid survives the chief's vault.",
   "ExpectedNeedImpactText": "Fastest processing restart, roughest follow-up dispatch."

@@ -34,6 +34,10 @@ public sealed class WorldSimCitySourceData
     public string RecoveryEtaText = "None";
     public string DispatchPolicyText = "None";
     public string RecentOutcomeText = "None";
+    public string PressureBoardSummaryText = "None";
+    public string WhyCityMattersText = "None";
+    public string RecentResultEvidenceText = "None";
+    public string PartyReadinessSummaryText = "None";
     public bool CanRecruitParty;
     public bool CanOpenPartyRoster;
     public bool HasStagedParty;

@@ -268,7 +268,7 @@ public sealed partial class StaticPlaceholderWorldView
             }
         }
 
-        return "Warrior / Mage / Cleric / Rogue";
+        return ResolveRuntimePartyRoleSummary(partyId);
     }
 
     private string GetDispatchPartyBlockerKey(string cityId)
@@ -315,9 +315,16 @@ public sealed partial class StaticPlaceholderWorldView
         int partyPower = _runtimeEconomyState.GetReadyPartyPowerForCity(cityId);
         DispatchReadinessState readiness = GetDispatchReadinessState(cityId);
         bool recentFailure = ContainsDispatchFailureEcho(_runtimeEconomyState.GetReadyPartyLastResultSummaryForCity(cityId));
-        string routeTone = routeId == SafeRouteId
-            ? "Safe route keeps the launch steadier."
-            : "Risky route leans into the higher payout lane.";
+        string routeTone = BuildScenarioSentenceText(
+            TryBuildRouteChooseWhenTextFromContent(cityId, dungeonId, routeId),
+            TryBuildRouteWatchOutTextFromContent(cityId, dungeonId, routeId));
+        if (!HasText(routeTone))
+        {
+            routeTone = routeId == SafeRouteId
+                ? "Safe route keeps the launch steadier."
+                : "Risky route leans into the higher payout lane.";
+        }
+
         string powerTone = recommendedPower > 0
             ? partyPower >= recommendedPower
                 ? "Party power meets the recommendation."
@@ -331,7 +338,8 @@ public sealed partial class StaticPlaceholderWorldView
         string echoTone = recentFailure
             ? "Recent failure suggests a steadier launch."
             : "Last run echo is stable.";
-        summary.RouteFitLabel = routeTone + " " + powerTone + " " + readinessTone + " " + echoTone;
+        string partyFitTone = BuildRuntimePartyRouteFitText(partyId, dungeonId, routeId);
+        summary.RouteFitLabel = BuildScenarioSentenceText(routeTone, powerTone, readinessTone, echoTone, partyFitTone);
         return summary;
     }
 
@@ -350,12 +358,24 @@ public sealed partial class StaticPlaceholderWorldView
                 : "No ready party in " + snapshot.CityLabel + ".";
         }
 
+        PrototypeRpgPartyRuntimeResolveSurface partySurface = BuildRuntimePartyResolveSurface(snapshot.PartyId);
         int partyPower = _runtimeEconomyState.GetReadyPartyPowerForCity(snapshot.CityId);
         int carryCapacity = _runtimeEconomyState.GetReadyPartyCarryCapacityForCity(snapshot.CityId);
         string lastEcho = string.IsNullOrEmpty(partyResultEcho) || partyResultEcho == "None" || partyResultEcho.StartsWith("Ready in ")
             ? string.Empty
             : " | Last: " + partyResultEcho;
-        return snapshot.PartyId + " | " + snapshot.PartyRoleSummary + " | Power " + partyPower + " | Carry " + carryCapacity + lastEcho;
+        if (partySurface == null)
+        {
+            return snapshot.PartyId + " | " + snapshot.PartyRoleSummary + " | Power " + partyPower + " | Carry " + carryCapacity + lastEcho;
+        }
+
+        return snapshot.PartyId +
+            " | " + partySurface.ArchetypeLabel +
+            " | " + partySurface.PromotionStateLabel +
+            " | Power " + partyPower +
+            " | Carry " + carryCapacity +
+            " | " + partySurface.StrengthSummaryText +
+            lastEcho;
     }
 
     private string BuildDispatchBriefingSummaryText(PrototypeWorldDispatchBriefingSnapshot snapshot, bool requireSelectedRoute)

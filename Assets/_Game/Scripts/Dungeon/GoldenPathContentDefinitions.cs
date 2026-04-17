@@ -61,7 +61,13 @@ public sealed class GoldenPathRoomDefinition
 public sealed class GoldenPathRouteMeaningDefinition
 {
     public string RouteMeaningId = string.Empty;
+    public string ScenarioLabel = string.Empty;
     public string RiskLabel = string.Empty;
+    public string ChooseWhenText = string.Empty;
+    public string WatchOutText = string.Empty;
+    public string FollowUpHintText = string.Empty;
+    public string PartyFitText = string.Empty;
+    public string CombatPlanText = string.Empty;
     public string EventFocus = string.Empty;
     public string RewardPreview = string.Empty;
     public string ExpectedNeedImpactText = string.Empty;

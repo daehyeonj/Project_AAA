@@ -1,10 +1,10 @@
 {
   "BattleSetupId": "battle-setup-alpha-risky-elite",
   "EnemyGroupLabel": "Gel Core",
-  "SetupSummaryText": "A volatile slime core guarding the exit through stored shard pressure.",
+  "SetupSummaryText": "A volatile Gel Core swells on stored shard runoff at the exit threshold.",
   "RetreatAllowed": true,
-  "WinRelevanceText": "Shattering the core converts the mixed route into a larger mana_shard return for City A.",
-  "LossRelevanceText": "Failing here trades away the route's extra risk without stabilizing the city.",
+  "WinRelevanceText": "Shattering the Gel Core converts the mixed route into a larger mana_shard return for City A.",
+  "LossRelevanceText": "Failing here spends the Standard Path's extra risk without reopening City A's shard window.",
   "EliteTypeText": "Gel Core Elite | Volatile Surge",
   "RewardHintText": "Volatile Shard Cache"
 }

@@ -1,7 +1,7 @@
 {
   "RouteMeaningId": "route-guarded-balanced",
   "RiskLabel": "Medium",
-  "EventFocus": "Recover is modest, bonus loot is stronger.",
-  "RewardPreview": "Balanced payout with a guarded elite bounty.",
-  "ExpectedNeedImpactText": "Steadier restart, lower payout ceiling."
+  "EventFocus": "Watchfire recovery and guard cache keep the line orderly.",
+  "RewardPreview": "Steadier processing restart with a guarded captain finish.",
+  "ExpectedNeedImpactText": "Lower ceiling, cleaner restart for City B."
 }

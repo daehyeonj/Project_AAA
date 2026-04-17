@@ -10,11 +10,13 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 46`
+- Latest closed batch: `Batch 61`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
-- Next honest bottleneck: retarget-or-widen draft promotion workflow, not fallback cleanup
+- Alpha surfaced pair: `content-completed on current rail`
+- Beta surfaced pair: `content-thickened on current rail`
+- Next honest bottleneck: continue pair-by-pair content density on the existing rail, not runtime/UI rollback or fake surfaced expansion
 
 ## GPT Quick Judge
 
@@ -25,6 +27,8 @@
 - Surfaced using fallback: `None`
 - Surfaced consumer mismatch: `None`
 - Expansion gate: `C:tooling-next`
+- Alpha safe/risky content identity: `route-specific shared encounter/city meaning aligned`
+- Beta safe/risky content identity: `route-specific shared encounter/city meaning aligned`
 
 ## Current Surfaced Portfolio
 
@@ -46,27 +50,33 @@
 - Open supported resolver keys: `None`
 - Promotion recommendation: `no-open-supported-resolver-key-on-current-rail`
 
-## Batch 46 Close-Out
+## Batch 61 Close-Out
 
-- Batch 46 did not add a new surfaced opportunity.
-- Batch 46 adds a draft-promotion preflight summary on top of readiness/context.
-- Draft tooling now reports:
-  - supported rail slot inventory
-  - occupied vs open supported slot counts
-  - open supported resolver keys
-  - whether the selected draft sits on an already-owned supported slot or outside the current rail
-  - a saturated-rail recommendation when `Promotable drafts on current rail` honestly remains `0`
+- Batch 61 did not add a new surfaced opportunity.
+- Batch 61 deepens the existing Beta surfaced pair instead of widening the portfolio.
+- Beta risky now reads as the raid line:
+  - raider gate breach
+  - plunder cache tempo
+  - crossfire vault
+  - chief's vault payout
+- Beta safe now reads as the guarded restart line:
+  - scout gate watch
+  - watchfire and cache stability
+  - guarded vault hold
+  - captain's hold finish
+- The current Beta pair now resolves through route-specific shared encounter/city meaning where the generic shared profiles had made the dungeon feel thin.
 
 ## Validation Snapshot
 
 - Compile: `PASS`
 - Validator: `PASS`
-- Draft readiness summary: `PASS`
-- Draft promotion preflight summary: `PASS`
-- Draft promotion context summary: `PASS`
-- Smoke: `DEFERRED` because this batch only changed editor/debug/helper and docs
+- Surfaced matrix summary: `PASS`
+- Surfaced portfolio summary: `PASS`
+- Representative chain status summary: `PASS`
+- Representative reference trace: `PASS`
+- Smoke: `DEFERRED` because this batch only changed content/data and docs
 
-## Batch 46 Recommendation
+## Batch 61 Recommendation
 
-- Recommended direction: `retarget the draft beyond the current surfaced rail` or `widen the surfaced route seam intentionally`
-- Do not open another surfaced-expansion batch on the current Alpha/Beta rail until the draft helper reports an open supported resolver key or the surfaced seam itself is deliberately widened.
+- Recommended direction: `continue authored dungeon density on the current Alpha/Beta rail before reopening runtime/UI cleanup`
+- Do not open a fake surfaced-expansion batch just because the content rail now reads better; the surfaced portfolio is still intentionally the same four routes.

@@ -292,6 +292,38 @@
   - if the rail is saturated, do not pretend a retargetable helper or a new non-colliding seed already exists on the current surface
   - use the preflight output to justify either retargeting the draft off the current rail or widening the surfaced seam on purpose
 
+## What Batch 60 Deepens
+
+- Batch 60 does not widen the surfaced portfolio.
+- It deepens the existing `city-a -> dungeon-alpha` surfaced pair so the same safe/risky rail reads like authored dungeon content instead of a mostly generic sample.
+- Alpha now uses route-specific shared encounter identities where the previous generic opening/midrun profiles made the dungeon feel too anonymous:
+  - `encounter-profile-alpha-safe-entry`
+  - `encounter-profile-alpha-safe-watch`
+  - `encounter-profile-alpha-risky-breach`
+  - `encounter-profile-alpha-risky-hall`
+- Alpha risky now also uses a route-specific shared city-side rationale asset:
+  - `city-decision-city-a-shard-surge-window`
+- Batch 60 also tightens the existing Alpha route meanings and battle setup text so the surfaced preview, room sequence, battle framing, and City A recommendation all point at the same authored story:
+  - Alpha safe = stability, shrine reset, cache prep, clean monarch close
+  - Alpha risky = mixed breach, greed-cache spike, unstable shrine strain, Gel Core payoff
+- Treat this batch as content completion on the current Alpha rail, not as a runtime or UI expansion.
+
+## What Batch 61 Deepens
+
+- Batch 61 does not widen the surfaced portfolio.
+- It deepens the existing `city-b -> dungeon-beta` surfaced pair so Beta safe/risky no longer read mostly like loot/recover number variants.
+- Beta now uses route-specific shared encounter identities where the previous generic opening/midrun wording flattened the dungeon:
+  - `encounter-profile-beta-risky-gate`
+  - `encounter-profile-beta-risky-vault`
+  - `encounter-profile-beta-safe-watch`
+  - `encounter-profile-beta-safe-vault`
+- Beta safe now also uses a guarded-route city-side rationale asset:
+  - `city-decision-city-b-guarded-processing-restart`
+- Batch 61 also tightens existing Beta route/outcome/battle text so the surfaced preview, room sequence, battle framing, and City B recommendation all point at the same authored split:
+  - Beta risky = raider vault, plunder tempo, war-room strain, chief's vault payout
+  - Beta safe = watchfire route, orderly cache/vault hold, captain finish, steadier restart
+- Treat this batch as Beta content density on the current surfaced rail, not as a runtime or UI expansion.
+
 ## How The Representative Chain Is Authored
 
 The current data-driven samples are:

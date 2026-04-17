@@ -1,8 +1,8 @@
 {
   "BattleSetupId": "battle-setup-alpha-safe-room2",
   "EnemyGroupLabel": "Slime Watch Pair",
-  "SetupSummaryText": "A guard slime and skirmisher trying to hold the watch hall.",
+  "SetupSummaryText": "Watch slimes holding the cache door before the quiet antechamber.",
   "RetreatAllowed": true,
-  "WinRelevanceText": "Winning here keeps the run on track for the monarch chamber.",
-  "LossRelevanceText": "Getting stalled here leaves the safe route short of its final payout."
+  "WinRelevanceText": "Winning here keeps the cache and quiet prep rooms from turning into wasted setup.",
+  "LossRelevanceText": "Getting stalled here leaves the Rest Path short of the clean monarch finish it promised."
 }

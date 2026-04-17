@@ -1,7 +1,7 @@
 {
   "RouteMeaningId": "route-steady-rest",
   "RiskLabel": "Low",
-  "EventFocus": "Recover choice is strongest.",
-  "RewardPreview": "Steady shards with a safer elite bounty.",
-  "ExpectedNeedImpactText": "Lower risk, lower return."
+  "EventFocus": "Shrine recovery and supply prep stay online.",
+  "RewardPreview": "Reliable shards, stronger recovery, clean monarch finish.",
+  "ExpectedNeedImpactText": "Best route for stabilizing City A's next dispatch window."
 }

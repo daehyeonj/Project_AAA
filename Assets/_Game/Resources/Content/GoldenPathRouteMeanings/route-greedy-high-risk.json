@@ -1,7 +1,7 @@
 {
   "RouteMeaningId": "route-greedy-high-risk",
   "RiskLabel": "High",
-  "EventFocus": "Bonus loot is strongest, recovery is weakest.",
-  "RewardPreview": "Highest shard payout with the sharpest elite risk.",
-  "ExpectedNeedImpactText": "Higher return, higher strain."
+  "EventFocus": "Plunder cache and war-room pressure are strongest.",
+  "RewardPreview": "Biggest shard haul if the raid survives the chief's vault.",
+  "ExpectedNeedImpactText": "Fastest processing restart, roughest follow-up dispatch."
 }

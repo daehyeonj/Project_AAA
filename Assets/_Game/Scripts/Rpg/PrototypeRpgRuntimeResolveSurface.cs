@@ -57,7 +57,10 @@ public sealed class PrototypeRpgMemberRuntimeResolveSurface
 
 public static class PrototypeRpgRuntimeResolveBuilder
 {
-    public static PrototypeRpgPartyRuntimeResolveSurface BuildPartySurface(PrototypeRpgPartyDefinition partyDefinition, Func<PrototypeRpgPartyMemberDefinition, string> equipmentLoadoutResolver = null)
+    public static PrototypeRpgPartyRuntimeResolveSurface BuildPartySurface(
+        PrototypeRpgPartyDefinition partyDefinition,
+        Func<PrototypeRpgPartyMemberDefinition, string> equipmentLoadoutResolver = null,
+        bool useDefinitionEquipmentLoadout = true)
     {
         PrototypeRpgPartyRuntimeResolveSurface surface = new PrototypeRpgPartyRuntimeResolveSurface();
         surface.PartyId = partyDefinition != null && !string.IsNullOrWhiteSpace(partyDefinition.PartyId) ? partyDefinition.PartyId.Trim() : string.Empty;
@@ -94,7 +97,8 @@ public static class PrototypeRpgRuntimeResolveBuilder
                 memberDefinition,
                 resolvedLoadoutId,
                 surface.ArchetypeId,
-                surface.PromotionStateId);
+                surface.PromotionStateId,
+                useDefinitionEquipmentLoadout);
         }
 
         surface.Members = members;
@@ -106,7 +110,8 @@ public static class PrototypeRpgRuntimeResolveBuilder
         PrototypeRpgPartyMemberDefinition memberDefinition,
         string resolvedEquipmentLoadoutId = null,
         string partyArchetypeId = "",
-        string promotionStateId = "")
+        string promotionStateId = "",
+        bool useDefinitionEquipmentLoadout = true)
     {
         PrototypeRpgMemberRuntimeResolveSurface surface = new PrototypeRpgMemberRuntimeResolveSurface();
         PrototypeRpgStatBlock baseStats = memberDefinition != null && memberDefinition.BaseStats != null
@@ -116,12 +121,16 @@ public static class PrototypeRpgRuntimeResolveBuilder
         string roleTag = memberDefinition != null && !string.IsNullOrWhiteSpace(memberDefinition.RoleTag)
             ? memberDefinition.RoleTag.Trim().ToLowerInvariant()
             : "adventurer";
-        string equipmentLoadoutId = !string.IsNullOrWhiteSpace(resolvedEquipmentLoadoutId)
-            ? resolvedEquipmentLoadoutId.Trim()
-            : (memberDefinition != null && !string.IsNullOrWhiteSpace(memberDefinition.EquipmentLoadoutId)
-                ? memberDefinition.EquipmentLoadoutId.Trim()
-                : string.Empty);
-        PrototypeRpgEquipmentDefinition equipmentDefinition = PrototypeRpgEquipmentCatalog.ResolveDefinition(equipmentLoadoutId, roleTag);
+        string equipmentLoadoutId = useDefinitionEquipmentLoadout
+            ? (!string.IsNullOrWhiteSpace(resolvedEquipmentLoadoutId)
+                ? resolvedEquipmentLoadoutId.Trim()
+                : (memberDefinition != null && !string.IsNullOrWhiteSpace(memberDefinition.EquipmentLoadoutId)
+                    ? memberDefinition.EquipmentLoadoutId.Trim()
+                    : string.Empty))
+            : string.Empty;
+        PrototypeRpgEquipmentDefinition equipmentDefinition = useDefinitionEquipmentLoadout
+            ? PrototypeRpgEquipmentCatalog.ResolveDefinition(equipmentLoadoutId, roleTag)
+            : null;
         PrototypeRpgSkillDefinition skillDefinition = PrototypeRpgSkillCatalog.ResolveDefinition(memberDefinition != null ? memberDefinition.DefaultSkillId : string.Empty, roleTag)
             ?? PrototypeRpgSkillCatalog.GetFallbackDefinitionForRoleTag(roleTag);
 
@@ -141,9 +150,10 @@ public static class PrototypeRpgRuntimeResolveBuilder
         surface.Attack = Mathf.Max(1, baseStats.Attack + (equipmentDefinition != null ? equipmentDefinition.AttackBonus : 0));
         surface.Defense = Mathf.Max(0, baseStats.Defense + (equipmentDefinition != null ? equipmentDefinition.DefenseBonus : 0));
         surface.Speed = Mathf.Max(0, baseStats.Speed + (equipmentDefinition != null ? equipmentDefinition.SpeedBonus : 0));
-        surface.SkillPower = skillDefinition != null && skillDefinition.PowerValue > 0
+        int skillPowerBase = skillDefinition != null && skillDefinition.PowerValue > 0
             ? skillDefinition.PowerValue
             : Mathf.Max(1, surface.Attack + 1);
+        surface.SkillPower = Mathf.Max(1, skillPowerBase + (equipmentDefinition != null ? equipmentDefinition.SkillPowerBonus : 0));
         surface.EquipmentSummaryText = PrototypeRpgEquipmentCatalog.BuildEquipmentSummaryText(equipmentDefinition);
         surface.GearContributionSummaryText = PrototypeRpgEquipmentCatalog.BuildStatContributionSummary(equipmentDefinition);
         RefreshMemberSummaryTexts(surface, partyArchetypeId, promotionStateId);

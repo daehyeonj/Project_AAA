@@ -14,6 +14,7 @@ public sealed partial class StaticPlaceholderWorldView
         {
             ExpeditionResult expeditionResult = BuildDungeonRunExpeditionResult(safeHandoffInput);
             _runtimeEconomyState.ResolveDungeonRun(expeditionResult);
+            SyncRuntimeEquipmentWritebackToLatestRunResult(expeditionResult);
         }
 
         _resultStockBefore = _preRunManaShardStock;
@@ -67,6 +68,126 @@ public sealed partial class StaticPlaceholderWorldView
                 cityWriteback.StockDelta,
                 cityWriteback.NeedPressureBeforeText,
                 cityWriteback.NeedPressureAfterText);
+    }
+
+    private void SyncRuntimeEquipmentWritebackToLatestRunResult(ExpeditionResult expeditionResult)
+    {
+        if (_latestRpgRunResultSnapshot == null || expeditionResult == null)
+        {
+            return;
+        }
+
+        _latestRpgRunResultSnapshot.GearRewardCandidateSummaryText = string.IsNullOrEmpty(expeditionResult.GearRewardCandidateSummaryText)
+            ? string.Empty
+            : expeditionResult.GearRewardCandidateSummaryText;
+        _latestRpgRunResultSnapshot.EquipSwapChoiceSummaryText = string.IsNullOrEmpty(expeditionResult.EquipSwapChoiceSummaryText)
+            ? string.Empty
+            : expeditionResult.EquipSwapChoiceSummaryText;
+        _latestRpgRunResultSnapshot.GearCarryContinuitySummaryText = string.IsNullOrEmpty(expeditionResult.GearCarryContinuitySummaryText)
+            ? string.Empty
+            : expeditionResult.GearCarryContinuitySummaryText;
+        _latestRpgRunResultSnapshot.PendingRewardSummaryText = string.IsNullOrEmpty(expeditionResult.PendingRewardSummaryText)
+            ? _latestRpgRunResultSnapshot.PendingRewardSummaryText
+            : expeditionResult.PendingRewardSummaryText;
+
+        string partyId = ResolveLatestRunResultPartyId();
+        if (string.IsNullOrEmpty(partyId))
+        {
+            return;
+        }
+
+        PrototypeRpgPartyRuntimeResolveSurface runtimePartySurface = BuildRuntimePartyResolveSurface(partyId);
+        if (runtimePartySurface == null || runtimePartySurface.Members == null || runtimePartySurface.Members.Length <= 0)
+        {
+            return;
+        }
+
+        PrototypeRpgPartyOutcomeSnapshot partyOutcome = _latestRpgRunResultSnapshot.PartyOutcome ?? new PrototypeRpgPartyOutcomeSnapshot();
+        PrototypeRpgPartyMemberOutcomeSnapshot[] snapshotMembers = partyOutcome.Members ?? System.Array.Empty<PrototypeRpgPartyMemberOutcomeSnapshot>();
+        if (snapshotMembers.Length <= 0)
+        {
+            snapshotMembers = new PrototypeRpgPartyMemberOutcomeSnapshot[runtimePartySurface.Members.Length];
+        }
+
+        for (int i = 0; i < runtimePartySurface.Members.Length; i++)
+        {
+            PrototypeRpgMemberRuntimeResolveSurface runtimeMember = runtimePartySurface.Members[i];
+            if (runtimeMember == null)
+            {
+                continue;
+            }
+
+            int snapshotIndex = FindPartyOutcomeMemberIndex(snapshotMembers, runtimeMember.MemberId, i);
+            PrototypeRpgPartyMemberOutcomeSnapshot snapshotMember = snapshotMembers[snapshotIndex] ?? new PrototypeRpgPartyMemberOutcomeSnapshot();
+            snapshotMember.MemberId = string.IsNullOrEmpty(snapshotMember.MemberId) ? runtimeMember.MemberId : snapshotMember.MemberId;
+            snapshotMember.DisplayName = string.IsNullOrEmpty(runtimeMember.DisplayName) ? snapshotMember.DisplayName : runtimeMember.DisplayName;
+            snapshotMember.RoleTag = string.IsNullOrEmpty(runtimeMember.RoleTag) ? snapshotMember.RoleTag : runtimeMember.RoleTag;
+            snapshotMember.RoleLabel = string.IsNullOrEmpty(runtimeMember.RoleLabel) ? snapshotMember.RoleLabel : runtimeMember.RoleLabel;
+            snapshotMember.DefaultSkillId = string.IsNullOrEmpty(runtimeMember.DefaultSkillId) ? snapshotMember.DefaultSkillId : runtimeMember.DefaultSkillId;
+            snapshotMember.GrowthTrackId = string.IsNullOrEmpty(runtimeMember.GrowthTrackId) ? snapshotMember.GrowthTrackId : runtimeMember.GrowthTrackId;
+            snapshotMember.JobId = string.IsNullOrEmpty(runtimeMember.JobId) ? snapshotMember.JobId : runtimeMember.JobId;
+            snapshotMember.EquipmentLoadoutId = string.IsNullOrEmpty(runtimeMember.EquipmentLoadoutId) ? snapshotMember.EquipmentLoadoutId : runtimeMember.EquipmentLoadoutId;
+            snapshotMember.SkillLoadoutId = string.IsNullOrEmpty(runtimeMember.SkillLoadoutId) ? snapshotMember.SkillLoadoutId : runtimeMember.SkillLoadoutId;
+            snapshotMember.ResolvedSkillName = string.IsNullOrEmpty(runtimeMember.ResolvedSkillName) ? snapshotMember.ResolvedSkillName : runtimeMember.ResolvedSkillName;
+            snapshotMember.ResolvedSkillShortText = string.IsNullOrEmpty(runtimeMember.ResolvedSkillShortText) ? snapshotMember.ResolvedSkillShortText : runtimeMember.ResolvedSkillShortText;
+            snapshotMember.EquipmentSummaryText = string.IsNullOrEmpty(runtimeMember.EquipmentSummaryText) ? snapshotMember.EquipmentSummaryText : runtimeMember.EquipmentSummaryText;
+            snapshotMember.GearContributionSummaryText = string.IsNullOrEmpty(runtimeMember.GearContributionSummaryText) ? snapshotMember.GearContributionSummaryText : runtimeMember.GearContributionSummaryText;
+            snapshotMember.AppliedProgressionSummaryText = string.IsNullOrEmpty(runtimeMember.AppliedProgressionSummaryText) ? snapshotMember.AppliedProgressionSummaryText : runtimeMember.AppliedProgressionSummaryText;
+            snapshotMember.CurrentRunSummaryText = string.IsNullOrEmpty(runtimeMember.CurrentRunSummaryText) ? snapshotMember.CurrentRunSummaryText : runtimeMember.CurrentRunSummaryText;
+            snapshotMember.NextRunPreviewSummaryText = string.IsNullOrEmpty(runtimeMember.NextRunPreviewSummaryText) ? snapshotMember.NextRunPreviewSummaryText : runtimeMember.NextRunPreviewSummaryText;
+            snapshotMember.Level = runtimeMember.Level > 0 ? runtimeMember.Level : snapshotMember.Level;
+            snapshotMember.Experience = runtimeMember.CurrentExperience >= 0 ? runtimeMember.CurrentExperience : snapshotMember.Experience;
+            snapshotMember.NextLevelExperience = runtimeMember.NextLevelExperience > 0 ? runtimeMember.NextLevelExperience : snapshotMember.NextLevelExperience;
+            snapshotMember.GrowthBonusMaxHp = runtimeMember.GrowthBonusMaxHp;
+            snapshotMember.GrowthBonusAttack = runtimeMember.GrowthBonusAttack;
+            snapshotMember.GrowthBonusDefense = runtimeMember.GrowthBonusDefense;
+            snapshotMember.GrowthBonusSpeed = runtimeMember.GrowthBonusSpeed;
+            snapshotMember.MaxHp = runtimeMember.MaxHp > 0 ? runtimeMember.MaxHp : snapshotMember.MaxHp;
+            snapshotMember.CurrentHp = snapshotMember.CurrentHp > snapshotMember.MaxHp ? snapshotMember.MaxHp : snapshotMember.CurrentHp;
+            snapshotMembers[snapshotIndex] = snapshotMember;
+        }
+
+        partyOutcome.Members = snapshotMembers;
+        _latestRpgRunResultSnapshot.PartyOutcome = partyOutcome;
+    }
+
+    private int FindPartyOutcomeMemberIndex(PrototypeRpgPartyMemberOutcomeSnapshot[] snapshotMembers, string memberId, int fallbackIndex)
+    {
+        if (snapshotMembers != null && !string.IsNullOrEmpty(memberId))
+        {
+            for (int i = 0; i < snapshotMembers.Length; i++)
+            {
+                PrototypeRpgPartyMemberOutcomeSnapshot member = snapshotMembers[i];
+                if (member != null && member.MemberId == memberId)
+                {
+                    return i;
+                }
+            }
+        }
+
+        if (snapshotMembers == null || snapshotMembers.Length <= 0)
+        {
+            return 0;
+        }
+
+        if (fallbackIndex < 0)
+        {
+            return 0;
+        }
+
+        return fallbackIndex >= snapshotMembers.Length ? snapshotMembers.Length - 1 : fallbackIndex;
+    }
+
+    private string ResolveLatestRunResultPartyId()
+    {
+        if (_activeDungeonParty != null && !string.IsNullOrEmpty(_activeDungeonParty.PartyId))
+        {
+            return _activeDungeonParty.PartyId;
+        }
+
+        return _runtimeEconomyState != null && !string.IsNullOrEmpty(_currentHomeCityId)
+            ? _runtimeEconomyState.GetIdlePartyIdInCity(_currentHomeCityId)
+            : string.Empty;
     }
 
     private CityWriteback BuildDungeonRunResultCityWritebackPreviewSurface()

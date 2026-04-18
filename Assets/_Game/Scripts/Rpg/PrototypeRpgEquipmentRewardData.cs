@@ -1,45 +1,135 @@
 using System;
+using System.Collections.Generic;
+
+public static class PrototypeRpgEquipmentSlotKeys
+{
+    public const string Head = "head";
+    public const string LeftArm = "left_arm";
+    public const string RightArm = "right_arm";
+    public const string Torso = "torso";
+    public const string Belt = "belt";
+    public const string Pants = "pants";
+    public const string Shoes = "shoes";
+
+    private static readonly string[] OrderedKeysInternal =
+    {
+        Head,
+        LeftArm,
+        RightArm,
+        Torso,
+        Belt,
+        Pants,
+        Shoes
+    };
+
+    public static string[] OrderedKeys => OrderedKeysInternal;
+
+    public static string ToDisplayLabel(string slotKey)
+    {
+        switch (Normalize(slotKey))
+        {
+            case Head:
+                return "Head";
+            case LeftArm:
+                return "Left Arm";
+            case RightArm:
+                return "Right Arm";
+            case Torso:
+                return "Torso";
+            case Belt:
+                return "Belt";
+            case Pants:
+                return "Pants";
+            case Shoes:
+                return "Shoes";
+            default:
+                return "Gear";
+        }
+    }
+
+    public static string ToShortLabel(string slotKey)
+    {
+        switch (Normalize(slotKey))
+        {
+            case Head:
+                return "H";
+            case LeftArm:
+                return "LA";
+            case RightArm:
+                return "RA";
+            case Torso:
+                return "T";
+            case Belt:
+                return "B";
+            case Pants:
+                return "P";
+            case Shoes:
+                return "S";
+            default:
+                return "G";
+        }
+    }
+
+    private static string Normalize(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
+    }
+}
 
 public sealed class PrototypeRpgEquipmentDefinition
 {
     public string LoadoutId { get; }
+    public string ItemId => LoadoutId;
     public string DisplayName { get; }
     public string RoleTag { get; }
+    public string SlotKey { get; }
     public string SlotLabel { get; }
+    public string TierKey { get; }
     public string TierLabel { get; }
     public int TierRank { get; }
     public int MaxHpBonus { get; }
     public int AttackBonus { get; }
     public int DefenseBonus { get; }
     public int SpeedBonus { get; }
+    public int SkillPowerBonus { get; }
 
     public PrototypeRpgEquipmentDefinition(
         string loadoutId,
         string displayName,
         string roleTag,
+        string slotKey,
         string slotLabel,
+        string tierKey,
         string tierLabel,
         int tierRank,
         int maxHpBonus,
         int attackBonus,
         int defenseBonus,
-        int speedBonus)
+        int speedBonus,
+        int skillPowerBonus)
     {
         LoadoutId = string.IsNullOrWhiteSpace(loadoutId) ? string.Empty : loadoutId.Trim();
         DisplayName = string.IsNullOrWhiteSpace(displayName) ? "Gear" : displayName.Trim();
         RoleTag = string.IsNullOrWhiteSpace(roleTag) ? string.Empty : roleTag.Trim().ToLowerInvariant();
-        SlotLabel = string.IsNullOrWhiteSpace(slotLabel) ? "Loadout" : slotLabel.Trim();
-        TierLabel = string.IsNullOrWhiteSpace(tierLabel) ? "Base" : tierLabel.Trim();
+        SlotKey = string.IsNullOrWhiteSpace(slotKey) ? string.Empty : slotKey.Trim().ToLowerInvariant();
+        SlotLabel = string.IsNullOrWhiteSpace(slotLabel) ? PrototypeRpgEquipmentSlotKeys.ToDisplayLabel(SlotKey) : slotLabel.Trim();
+        TierKey = string.IsNullOrWhiteSpace(tierKey) ? "starter" : tierKey.Trim().ToLowerInvariant();
+        TierLabel = string.IsNullOrWhiteSpace(tierLabel) ? "Starter" : tierLabel.Trim();
         TierRank = tierRank > 0 ? tierRank : 1;
         MaxHpBonus = maxHpBonus;
         AttackBonus = attackBonus;
         DefenseBonus = defenseBonus;
         SpeedBonus = speedBonus;
+        SkillPowerBonus = skillPowerBonus;
     }
 
     public int GetScore()
     {
-        return (MaxHpBonus * 2) + (AttackBonus * 4) + (DefenseBonus * 3) + (SpeedBonus * 3) + TierRank;
+        return (MaxHpBonus * 2) +
+               (AttackBonus * 4) +
+               (DefenseBonus * 3) +
+               (SpeedBonus * 3) +
+               (SkillPowerBonus * 4);
     }
 }
 
@@ -73,35 +163,22 @@ public sealed class PrototypeRpgEquipmentRewardChoice
 
 public static class PrototypeRpgEquipmentCatalog
 {
-    private static readonly PrototypeRpgEquipmentDefinition[] Definitions =
-    {
-        new PrototypeRpgEquipmentDefinition("equip_warrior_placeholder", "Recruit Harness", "warrior", "Armor", "Base", 1, 0, 0, 0, 0),
-        new PrototypeRpgEquipmentDefinition("equip_rogue_placeholder", "Scout Wraps", "rogue", "Blades", "Base", 1, 0, 0, 0, 0),
-        new PrototypeRpgEquipmentDefinition("equip_mage_placeholder", "Apprentice Focus", "mage", "Catalyst", "Base", 1, 0, 0, 0, 0),
-        new PrototypeRpgEquipmentDefinition("equip_cleric_placeholder", "Pilgrim Vestments", "cleric", "Relic", "Base", 1, 0, 0, 0, 0),
-
-        new PrototypeRpgEquipmentDefinition("equip_warrior_fieldkit", "Bulwark Harness", "warrior", "Armor", "Field", 2, 4, 0, 1, 0),
-        new PrototypeRpgEquipmentDefinition("equip_rogue_fieldkit", "Shadow Fang Set", "rogue", "Blades", "Field", 2, 0, 1, 0, 1),
-        new PrototypeRpgEquipmentDefinition("equip_mage_fieldkit", "Stormglass Focus", "mage", "Catalyst", "Field", 2, 0, 1, 0, 1),
-        new PrototypeRpgEquipmentDefinition("equip_cleric_fieldkit", "Sanctum Vestments", "cleric", "Relic", "Field", 2, 3, 0, 1, 0),
-
-        new PrototypeRpgEquipmentDefinition("equip_warrior_elite", "Vanguard Bulwark", "warrior", "Armor", "Elite", 3, 6, 1, 2, 0),
-        new PrototypeRpgEquipmentDefinition("equip_rogue_elite", "Nightblade Array", "rogue", "Blades", "Elite", 3, 0, 2, 0, 2),
-        new PrototypeRpgEquipmentDefinition("equip_mage_elite", "Emberwake Focus", "mage", "Catalyst", "Elite", 3, 0, 3, 0, 1),
-        new PrototypeRpgEquipmentDefinition("equip_cleric_elite", "Sunwell Relic", "cleric", "Relic", "Elite", 3, 4, 1, 2, 0)
-    };
+    private static readonly PrototypeRpgEquipmentDefinition[] Definitions = BuildDefinitions();
 
     public static PrototypeRpgEquipmentDefinition ResolveDefinition(string loadoutId, string roleTag)
     {
         string normalizedLoadoutId = Normalize(loadoutId);
         string normalizedRoleTag = Normalize(roleTag);
 
-        for (int i = 0; i < Definitions.Length; i++)
+        if (!string.IsNullOrEmpty(normalizedLoadoutId))
         {
-            PrototypeRpgEquipmentDefinition definition = Definitions[i];
-            if (definition != null && Normalize(definition.LoadoutId) == normalizedLoadoutId)
+            for (int i = 0; i < Definitions.Length; i++)
             {
-                return definition;
+                PrototypeRpgEquipmentDefinition definition = Definitions[i];
+                if (definition != null && Normalize(definition.LoadoutId) == normalizedLoadoutId)
+                {
+                    return definition;
+                }
             }
         }
 
@@ -132,49 +209,94 @@ public static class PrototypeRpgEquipmentCatalog
         return null;
     }
 
-    public static PrototypeRpgEquipmentDefinition GetRewardDefinition(string currentLoadoutId, string roleTag, bool eliteDefeated, string routeId, int openedChestCount)
+    public static PrototypeRpgEquipmentDefinition GetStarterDefinition(string roleTag, string slotKey)
     {
-        string normalizedRoleTag = Normalize(roleTag);
-        PrototypeRpgEquipmentDefinition currentDefinition = ResolveDefinition(currentLoadoutId, normalizedRoleTag);
-        bool highPressureReward = eliteDefeated || Normalize(routeId) == "risky" || openedChestCount > 0;
-        bool alreadyFieldTier = currentDefinition != null && currentDefinition.TierRank >= 2;
-        string targetId;
+        return ResolveDefinition(BuildSlotItemId(roleTag, slotKey, 1), roleTag);
+    }
 
-        if (highPressureReward && alreadyFieldTier)
+    public static PrototypeRpgEquipmentDefinition GetSlotUpgradeDefinition(
+        string roleTag,
+        string slotKey,
+        bool eliteDefeated,
+        string routeId,
+        int openedChestCount,
+        int currentTierRank)
+    {
+        int targetTierRank = ResolveRewardTierRank(eliteDefeated, routeId, openedChestCount);
+        if (targetTierRank <= currentTierRank)
         {
-            targetId = normalizedRoleTag switch
-            {
-                "warrior" => "equip_warrior_elite",
-                "rogue" => "equip_rogue_elite",
-                "mage" => "equip_mage_elite",
-                "cleric" => "equip_cleric_elite",
-                _ => string.Empty
-            };
-        }
-        else if (highPressureReward && currentDefinition != null && currentDefinition.TierRank < 2)
-        {
-            targetId = normalizedRoleTag switch
-            {
-                "warrior" => "equip_warrior_elite",
-                "rogue" => "equip_rogue_elite",
-                "mage" => "equip_mage_elite",
-                "cleric" => "equip_cleric_elite",
-                _ => string.Empty
-            };
-        }
-        else
-        {
-            targetId = normalizedRoleTag switch
-            {
-                "warrior" => "equip_warrior_fieldkit",
-                "rogue" => "equip_rogue_fieldkit",
-                "mage" => "equip_mage_fieldkit",
-                "cleric" => "equip_cleric_fieldkit",
-                _ => string.Empty
-            };
+            targetTierRank = currentTierRank + 1;
         }
 
-        return ResolveDefinition(targetId, normalizedRoleTag);
+        if (targetTierRank > 3)
+        {
+            return null;
+        }
+
+        return ResolveDefinition(BuildSlotItemId(roleTag, slotKey, targetTierRank), roleTag);
+    }
+
+    public static string[] GetRewardSlotPriority(string roleTag)
+    {
+        switch (Normalize(roleTag))
+        {
+            case "warrior":
+                return new[]
+                {
+                    PrototypeRpgEquipmentSlotKeys.RightArm,
+                    PrototypeRpgEquipmentSlotKeys.Torso,
+                    PrototypeRpgEquipmentSlotKeys.Head,
+                    PrototypeRpgEquipmentSlotKeys.LeftArm,
+                    PrototypeRpgEquipmentSlotKeys.Belt,
+                    PrototypeRpgEquipmentSlotKeys.Pants,
+                    PrototypeRpgEquipmentSlotKeys.Shoes
+                };
+
+            case "rogue":
+                return new[]
+                {
+                    PrototypeRpgEquipmentSlotKeys.RightArm,
+                    PrototypeRpgEquipmentSlotKeys.LeftArm,
+                    PrototypeRpgEquipmentSlotKeys.Shoes,
+                    PrototypeRpgEquipmentSlotKeys.Head,
+                    PrototypeRpgEquipmentSlotKeys.Belt,
+                    PrototypeRpgEquipmentSlotKeys.Torso,
+                    PrototypeRpgEquipmentSlotKeys.Pants
+                };
+
+            case "mage":
+                return new[]
+                {
+                    PrototypeRpgEquipmentSlotKeys.RightArm,
+                    PrototypeRpgEquipmentSlotKeys.Head,
+                    PrototypeRpgEquipmentSlotKeys.Belt,
+                    PrototypeRpgEquipmentSlotKeys.LeftArm,
+                    PrototypeRpgEquipmentSlotKeys.Torso,
+                    PrototypeRpgEquipmentSlotKeys.Shoes,
+                    PrototypeRpgEquipmentSlotKeys.Pants
+                };
+
+            case "cleric":
+                return new[]
+                {
+                    PrototypeRpgEquipmentSlotKeys.LeftArm,
+                    PrototypeRpgEquipmentSlotKeys.Torso,
+                    PrototypeRpgEquipmentSlotKeys.Head,
+                    PrototypeRpgEquipmentSlotKeys.Belt,
+                    PrototypeRpgEquipmentSlotKeys.RightArm,
+                    PrototypeRpgEquipmentSlotKeys.Pants,
+                    PrototypeRpgEquipmentSlotKeys.Shoes
+                };
+
+            default:
+                return PrototypeRpgEquipmentSlotKeys.OrderedKeys;
+        }
+    }
+
+    public static bool IsLegalForRole(PrototypeRpgEquipmentDefinition definition, string roleTag)
+    {
+        return definition != null &&
+               (string.IsNullOrEmpty(definition.RoleTag) || Normalize(definition.RoleTag) == Normalize(roleTag));
     }
 
     public static string BuildEquipmentSummaryText(PrototypeRpgEquipmentDefinition definition)
@@ -189,34 +311,315 @@ public static class PrototypeRpgEquipmentCatalog
 
     public static string BuildStatContributionSummary(PrototypeRpgEquipmentDefinition definition)
     {
-        if (definition == null)
-        {
-            return "No bonus";
-        }
+        return definition == null
+            ? "No bonus"
+            : BuildStatContributionSummary(
+                definition.MaxHpBonus,
+                definition.AttackBonus,
+                definition.DefenseBonus,
+                definition.SpeedBonus,
+                definition.SkillPowerBonus);
+    }
 
-        string summary = BuildSignedSegment("HP", definition.MaxHpBonus);
-        summary = AppendSegment(summary, BuildSignedSegment("ATK", definition.AttackBonus));
-        summary = AppendSegment(summary, BuildSignedSegment("DEF", definition.DefenseBonus));
-        summary = AppendSegment(summary, BuildSignedSegment("SPD", definition.SpeedBonus));
+    public static string BuildStatContributionSummary(
+        int maxHpBonus,
+        int attackBonus,
+        int defenseBonus,
+        int speedBonus,
+        int skillPowerBonus)
+    {
+        string summary = BuildSignedSegment("HP", maxHpBonus);
+        summary = AppendSegment(summary, BuildSignedSegment("ATK", attackBonus));
+        summary = AppendSegment(summary, BuildSignedSegment("DEF", defenseBonus));
+        summary = AppendSegment(summary, BuildSignedSegment("SPD", speedBonus));
+        summary = AppendSegment(summary, BuildSignedSegment("POW", skillPowerBonus));
         return string.IsNullOrEmpty(summary) ? "No bonus" : summary;
     }
 
-    public static string BuildComparisonSummary(PrototypeRpgEquipmentDefinition currentDefinition, PrototypeRpgEquipmentDefinition rewardDefinition)
+    public static int ResolveRewardTierRank(bool eliteDefeated, string routeId, int openedChestCount)
     {
-        if (rewardDefinition == null)
+        if (eliteDefeated || Normalize(routeId) == "risky" || openedChestCount > 0)
         {
-            return "No comparison";
+            return 3;
         }
 
-        int hpDelta = rewardDefinition.MaxHpBonus - (currentDefinition != null ? currentDefinition.MaxHpBonus : 0);
-        int attackDelta = rewardDefinition.AttackBonus - (currentDefinition != null ? currentDefinition.AttackBonus : 0);
-        int defenseDelta = rewardDefinition.DefenseBonus - (currentDefinition != null ? currentDefinition.DefenseBonus : 0);
-        int speedDelta = rewardDefinition.SpeedBonus - (currentDefinition != null ? currentDefinition.SpeedBonus : 0);
-        string summary = BuildSignedSegment("HP", hpDelta);
-        summary = AppendSegment(summary, BuildSignedSegment("ATK", attackDelta));
-        summary = AppendSegment(summary, BuildSignedSegment("DEF", defenseDelta));
-        summary = AppendSegment(summary, BuildSignedSegment("SPD", speedDelta));
-        return string.IsNullOrEmpty(summary) ? "No change" : summary;
+        return 2;
+    }
+
+    private static PrototypeRpgEquipmentDefinition[] BuildDefinitions()
+    {
+        List<PrototypeRpgEquipmentDefinition> definitions = new List<PrototypeRpgEquipmentDefinition>();
+        AddLegacyLoadoutDefinitions(definitions);
+        AddRoleSlotDefinitions(definitions, "warrior");
+        AddRoleSlotDefinitions(definitions, "rogue");
+        AddRoleSlotDefinitions(definitions, "mage");
+        AddRoleSlotDefinitions(definitions, "cleric");
+        return definitions.ToArray();
+    }
+
+    private static void AddLegacyLoadoutDefinitions(List<PrototypeRpgEquipmentDefinition> definitions)
+    {
+        definitions.Add(new PrototypeRpgEquipmentDefinition("equip_warrior_placeholder", "Recruit Harness", "warrior", PrototypeRpgEquipmentSlotKeys.Torso, "Armor", "legacy", "Base", 1, 0, 0, 0, 0, 0));
+        definitions.Add(new PrototypeRpgEquipmentDefinition("equip_rogue_placeholder", "Scout Wraps", "rogue", PrototypeRpgEquipmentSlotKeys.Torso, "Blades", "legacy", "Base", 1, 0, 0, 0, 0, 0));
+        definitions.Add(new PrototypeRpgEquipmentDefinition("equip_mage_placeholder", "Apprentice Focus", "mage", PrototypeRpgEquipmentSlotKeys.RightArm, "Catalyst", "legacy", "Base", 1, 0, 0, 0, 0, 0));
+        definitions.Add(new PrototypeRpgEquipmentDefinition("equip_cleric_placeholder", "Pilgrim Vestments", "cleric", PrototypeRpgEquipmentSlotKeys.Torso, "Relic", "legacy", "Base", 1, 0, 0, 0, 0, 0));
+
+        definitions.Add(new PrototypeRpgEquipmentDefinition("equip_warrior_fieldkit", "Bulwark Harness", "warrior", PrototypeRpgEquipmentSlotKeys.Torso, "Armor", "legacy", "Field", 2, 4, 0, 1, 0, 0));
+        definitions.Add(new PrototypeRpgEquipmentDefinition("equip_rogue_fieldkit", "Shadow Fang Set", "rogue", PrototypeRpgEquipmentSlotKeys.RightArm, "Blades", "legacy", "Field", 2, 0, 1, 0, 1, 0));
+        definitions.Add(new PrototypeRpgEquipmentDefinition("equip_mage_fieldkit", "Stormglass Focus", "mage", PrototypeRpgEquipmentSlotKeys.RightArm, "Catalyst", "legacy", "Field", 2, 0, 1, 0, 1, 1));
+        definitions.Add(new PrototypeRpgEquipmentDefinition("equip_cleric_fieldkit", "Sanctum Vestments", "cleric", PrototypeRpgEquipmentSlotKeys.Torso, "Relic", "legacy", "Field", 2, 3, 0, 1, 0, 1));
+
+        definitions.Add(new PrototypeRpgEquipmentDefinition("equip_warrior_elite", "Vanguard Bulwark", "warrior", PrototypeRpgEquipmentSlotKeys.Torso, "Armor", "legacy", "Elite", 3, 6, 1, 2, 0, 0));
+        definitions.Add(new PrototypeRpgEquipmentDefinition("equip_rogue_elite", "Nightblade Array", "rogue", PrototypeRpgEquipmentSlotKeys.RightArm, "Blades", "legacy", "Elite", 3, 0, 2, 0, 2, 0));
+        definitions.Add(new PrototypeRpgEquipmentDefinition("equip_mage_elite", "Emberwake Focus", "mage", PrototypeRpgEquipmentSlotKeys.RightArm, "Catalyst", "legacy", "Elite", 3, 0, 3, 0, 1, 2));
+        definitions.Add(new PrototypeRpgEquipmentDefinition("equip_cleric_elite", "Sunwell Relic", "cleric", PrototypeRpgEquipmentSlotKeys.LeftArm, "Relic", "legacy", "Elite", 3, 4, 1, 2, 0, 2));
+    }
+
+    private static void AddRoleSlotDefinitions(List<PrototypeRpgEquipmentDefinition> definitions, string roleTag)
+    {
+        string[] orderedKeys = PrototypeRpgEquipmentSlotKeys.OrderedKeys;
+        for (int i = 0; i < orderedKeys.Length; i++)
+        {
+            string slotKey = orderedKeys[i];
+            definitions.Add(CreateRoleSlotDefinition(roleTag, slotKey, 1));
+            definitions.Add(CreateRoleSlotDefinition(roleTag, slotKey, 2));
+            definitions.Add(CreateRoleSlotDefinition(roleTag, slotKey, 3));
+        }
+    }
+
+    private static PrototypeRpgEquipmentDefinition CreateRoleSlotDefinition(string roleTag, string slotKey, int tierRank)
+    {
+        ResolveRoleSlotBonuses(roleTag, slotKey, tierRank, out int maxHpBonus, out int attackBonus, out int defenseBonus, out int speedBonus, out int skillPowerBonus);
+        return new PrototypeRpgEquipmentDefinition(
+            BuildSlotItemId(roleTag, slotKey, tierRank),
+            ResolveRoleSlotDisplayName(roleTag, slotKey, tierRank),
+            Normalize(roleTag),
+            Normalize(slotKey),
+            PrototypeRpgEquipmentSlotKeys.ToDisplayLabel(slotKey),
+            ResolveTierKey(tierRank),
+            ResolveTierLabel(tierRank),
+            tierRank,
+            maxHpBonus,
+            attackBonus,
+            defenseBonus,
+            speedBonus,
+            skillPowerBonus);
+    }
+
+    private static string BuildSlotItemId(string roleTag, string slotKey, int tierRank)
+    {
+        return "gear_" + Normalize(roleTag) + "_" + Normalize(slotKey) + "_" + ResolveTierKey(tierRank);
+    }
+
+    private static string ResolveRoleSlotDisplayName(string roleTag, string slotKey, int tierRank)
+    {
+        return ResolveRoleSlotPrefix(roleTag, tierRank) + " " + ResolveRoleSlotNoun(roleTag, slotKey);
+    }
+
+    private static string ResolveRoleSlotPrefix(string roleTag, int tierRank)
+    {
+        switch (Normalize(roleTag))
+        {
+            case "warrior":
+                return tierRank >= 3 ? "Vanguard" : tierRank == 2 ? "Bulwark" : "Recruit";
+            case "rogue":
+                return tierRank >= 3 ? "Night" : tierRank == 2 ? "Shadow" : "Scout";
+            case "mage":
+                return tierRank >= 3 ? "Emberwake" : tierRank == 2 ? "Stormglass" : "Apprentice";
+            case "cleric":
+                return tierRank >= 3 ? "Sunwell" : tierRank == 2 ? "Sanctum" : "Pilgrim";
+            default:
+                return tierRank >= 3 ? "Veteran" : tierRank == 2 ? "Field" : "Starter";
+        }
+    }
+
+    private static string ResolveRoleSlotNoun(string roleTag, string slotKey)
+    {
+        string normalizedRoleTag = Normalize(roleTag);
+        switch (Normalize(slotKey))
+        {
+            case PrototypeRpgEquipmentSlotKeys.Head:
+                return normalizedRoleTag == "mage" ? "Circlet" : normalizedRoleTag == "cleric" ? "Hood" : normalizedRoleTag == "rogue" ? "Hood" : "Visor";
+            case PrototypeRpgEquipmentSlotKeys.LeftArm:
+                return normalizedRoleTag == "warrior" ? "Shield" : normalizedRoleTag == "rogue" ? "Dagger" : normalizedRoleTag == "mage" ? "Charm" : "Relic";
+            case PrototypeRpgEquipmentSlotKeys.RightArm:
+                return normalizedRoleTag == "warrior" ? "Blade" : normalizedRoleTag == "rogue" ? "Blade" : normalizedRoleTag == "mage" ? "Focus" : "Mace";
+            case PrototypeRpgEquipmentSlotKeys.Torso:
+                return normalizedRoleTag == "rogue" ? "Coat" : normalizedRoleTag == "mage" ? "Robe" : normalizedRoleTag == "cleric" ? "Vestments" : "Harness";
+            case PrototypeRpgEquipmentSlotKeys.Belt:
+                return normalizedRoleTag == "mage" ? "Sash" : normalizedRoleTag == "cleric" ? "Cord" : normalizedRoleTag == "rogue" ? "Harness" : "Warbelt";
+            case PrototypeRpgEquipmentSlotKeys.Pants:
+                return normalizedRoleTag == "cleric" ? "Legwraps" : "Trousers";
+            case PrototypeRpgEquipmentSlotKeys.Shoes:
+                return normalizedRoleTag == "mage" ? "Sandals" : normalizedRoleTag == "rogue" ? "Soles" : "Boots";
+            default:
+                return "Gear";
+        }
+    }
+
+    private static void ResolveRoleSlotBonuses(
+        string roleTag,
+        string slotKey,
+        int tierRank,
+        out int maxHpBonus,
+        out int attackBonus,
+        out int defenseBonus,
+        out int speedBonus,
+        out int skillPowerBonus)
+    {
+        int multiplier = tierRank <= 1 ? 0 : tierRank == 2 ? 1 : 2;
+        maxHpBonus = 0;
+        attackBonus = 0;
+        defenseBonus = 0;
+        speedBonus = 0;
+        skillPowerBonus = 0;
+
+        switch (Normalize(roleTag))
+        {
+            case "warrior":
+                switch (Normalize(slotKey))
+                {
+                    case PrototypeRpgEquipmentSlotKeys.Head:
+                        maxHpBonus = 2 * multiplier;
+                        defenseBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.LeftArm:
+                        defenseBonus = 2 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.RightArm:
+                        attackBonus = 2 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Torso:
+                        maxHpBonus = 4 * multiplier;
+                        defenseBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Belt:
+                        maxHpBonus = 2 * multiplier;
+                        attackBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Pants:
+                        maxHpBonus = 2 * multiplier;
+                        defenseBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Shoes:
+                        defenseBonus = 1 * multiplier;
+                        speedBonus = 1 * multiplier;
+                        break;
+                }
+                break;
+
+            case "rogue":
+                switch (Normalize(slotKey))
+                {
+                    case PrototypeRpgEquipmentSlotKeys.Head:
+                        attackBonus = 1 * multiplier;
+                        speedBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.LeftArm:
+                        attackBonus = 1 * multiplier;
+                        speedBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.RightArm:
+                        attackBonus = 2 * multiplier;
+                        speedBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Torso:
+                        maxHpBonus = 2 * multiplier;
+                        speedBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Belt:
+                        attackBonus = 1 * multiplier;
+                        speedBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Pants:
+                        attackBonus = 1 * multiplier;
+                        speedBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Shoes:
+                        speedBonus = 2 * multiplier;
+                        break;
+                }
+                break;
+
+            case "mage":
+                switch (Normalize(slotKey))
+                {
+                    case PrototypeRpgEquipmentSlotKeys.Head:
+                        attackBonus = 1 * multiplier;
+                        skillPowerBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.LeftArm:
+                        defenseBonus = 1 * multiplier;
+                        skillPowerBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.RightArm:
+                        attackBonus = 2 * multiplier;
+                        skillPowerBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Torso:
+                        maxHpBonus = 2 * multiplier;
+                        attackBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Belt:
+                        speedBonus = 1 * multiplier;
+                        skillPowerBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Pants:
+                        maxHpBonus = 1 * multiplier;
+                        defenseBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Shoes:
+                        speedBonus = 1 * multiplier;
+                        skillPowerBonus = 1 * multiplier;
+                        break;
+                }
+                break;
+
+            case "cleric":
+                switch (Normalize(slotKey))
+                {
+                    case PrototypeRpgEquipmentSlotKeys.Head:
+                        maxHpBonus = 2 * multiplier;
+                        defenseBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.LeftArm:
+                        maxHpBonus = 1 * multiplier;
+                        defenseBonus = 1 * multiplier;
+                        skillPowerBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.RightArm:
+                        attackBonus = 1 * multiplier;
+                        skillPowerBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Torso:
+                        maxHpBonus = 3 * multiplier;
+                        defenseBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Belt:
+                        maxHpBonus = 2 * multiplier;
+                        skillPowerBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Pants:
+                        maxHpBonus = 2 * multiplier;
+                        defenseBonus = 1 * multiplier;
+                        break;
+                    case PrototypeRpgEquipmentSlotKeys.Shoes:
+                        defenseBonus = 1 * multiplier;
+                        speedBonus = 1 * multiplier;
+                        break;
+                }
+                break;
+        }
+    }
+
+    private static string ResolveTierKey(int tierRank)
+    {
+        return tierRank >= 3 ? "elite" : tierRank == 2 ? "field" : "starter";
+    }
+
+    private static string ResolveTierLabel(int tierRank)
+    {
+        return tierRank >= 3 ? "Elite" : tierRank == 2 ? "Field" : "Starter";
     }
 
     private static string AppendSegment(string existing, string segment)

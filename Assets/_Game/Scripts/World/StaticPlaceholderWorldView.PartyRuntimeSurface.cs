@@ -24,7 +24,8 @@ public sealed partial class StaticPlaceholderWorldView
             ? null
             : PrototypeRpgRuntimeResolveBuilder.BuildPartySurface(
                 partyDefinition,
-                memberDefinition => memberDefinition != null ? memberDefinition.EquipmentLoadoutId : string.Empty);
+                memberDefinition => memberDefinition != null ? memberDefinition.EquipmentLoadoutId : string.Empty,
+                false);
         ApplyRuntimePartyProgressionSurface(partySurface, partyId);
         return partySurface;
     }
@@ -76,6 +77,7 @@ public sealed partial class StaticPlaceholderWorldView
             member.GrowthBonusAttack = growthBonus.AttackBonus;
             member.GrowthBonusDefense = growthBonus.DefenseBonus;
             member.GrowthBonusSpeed = growthBonus.SpeedBonus;
+            ApplyRuntimeMemberEquipmentSurface(member, partyId);
             member.MaxHp = Mathf.Max(1, member.MaxHp + growthBonus.MaxHpBonus);
             member.Attack = Mathf.Max(1, member.Attack + growthBonus.AttackBonus);
             member.Defense = Mathf.Max(0, member.Defense + growthBonus.DefenseBonus);
@@ -88,6 +90,23 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         PrototypeRpgRuntimeResolveBuilder.RefreshPartySummaryTexts(partySurface);
+    }
+
+    private void ApplyRuntimeMemberEquipmentSurface(PrototypeRpgMemberRuntimeResolveSurface member, string partyId)
+    {
+        if (member == null || _runtimeEconomyState == null)
+        {
+            return;
+        }
+
+        member.EquipmentLoadoutId = _runtimeEconomyState.GetPartyMemberEquipmentLoadoutId(partyId, member.MemberId);
+        member.EquipmentSummaryText = _runtimeEconomyState.GetPartyMemberEquipmentSummary(partyId, member.MemberId);
+        member.GearContributionSummaryText = _runtimeEconomyState.GetPartyMemberGearContributionSummary(partyId, member.MemberId);
+        member.MaxHp = Mathf.Max(1, member.MaxHp + _runtimeEconomyState.GetPartyMemberEquipmentMaxHpBonus(partyId, member.MemberId));
+        member.Attack = Mathf.Max(1, member.Attack + _runtimeEconomyState.GetPartyMemberEquipmentAttackBonus(partyId, member.MemberId));
+        member.Defense = Mathf.Max(0, member.Defense + _runtimeEconomyState.GetPartyMemberEquipmentDefenseBonus(partyId, member.MemberId));
+        member.Speed = Mathf.Max(0, member.Speed + _runtimeEconomyState.GetPartyMemberEquipmentSpeedBonus(partyId, member.MemberId));
+        member.SkillPower = Mathf.Max(1, member.SkillPower + _runtimeEconomyState.GetPartyMemberEquipmentSkillPowerBonus(partyId, member.MemberId));
     }
 
     private string ResolveRuntimePartyRoleSummary(string partyId)

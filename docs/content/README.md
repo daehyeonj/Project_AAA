@@ -1,5 +1,28 @@
 # Golden-Path Content Authoring
 
+## What Batch 73 Adds
+
+- Batch 73 does not redesign the world map, battle HUD, or route portfolio.
+- It extends the current Batch 72 / 72.1 progression seam into the first real inventory + equipment layer:
+  - runtime-owned party gear inventory
+  - per-member equipment slots:
+    - `head`
+    - `left arm`
+    - `right arm`
+    - `torso`
+    - `belt`
+    - `pants`
+    - `shoes`
+- The new layer stays on the canonical world/runtime rail:
+  - result writeback commits equipment drops into party-owned inventory
+  - better items can auto-equip onto the correct member + slot
+  - unequipped gear remains in party storage for the next dispatch
+- Existing prep / party / result readback surfaces are intentionally reused:
+  - slot-aware loadout summary
+  - carried inventory summary
+  - gear reward / equip swap / carry continuity result lines
+- Treat this batch as the first tangible loot-to-build-change seam on the current mainline rail, not as a final inventory UI or a generalized item-framework rewrite.
+
 ## What Batch 72 Adds
 
 - Batch 72 does not add a new route, city, dungeon, UI layout, or large progression framework.

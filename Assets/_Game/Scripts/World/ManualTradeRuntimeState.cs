@@ -24,6 +24,7 @@ public sealed class ManualTradeRuntimeState
         public string RoleTag;
         public int Level;
         public int Experience;
+        public readonly Dictionary<string, string> EquippedItemInstanceIdBySlotKey;
 
         public PartyMemberProgressionData(string memberId, string displayName, string roleTag)
         {
@@ -32,7 +33,34 @@ public sealed class ManualTradeRuntimeState
             RoleTag = string.IsNullOrWhiteSpace(roleTag) ? "adventurer" : roleTag.Trim().ToLowerInvariant();
             Level = PrototypeRpgMemberProgressionRules.GetStartingLevel();
             Experience = PrototypeRpgMemberProgressionRules.GetStartingExperience();
+            EquippedItemInstanceIdBySlotKey = new Dictionary<string, string>();
         }
+    }
+
+    private sealed class PartyInventoryItemData
+    {
+        public string ItemInstanceId;
+        public string EquipmentLoadoutId;
+        public string EquippedMemberId;
+        public string EquippedSlotKey;
+
+        public PartyInventoryItemData(string itemInstanceId, string equipmentLoadoutId)
+        {
+            ItemInstanceId = string.IsNullOrWhiteSpace(itemInstanceId) ? string.Empty : itemInstanceId.Trim();
+            EquipmentLoadoutId = string.IsNullOrWhiteSpace(equipmentLoadoutId) ? string.Empty : equipmentLoadoutId.Trim();
+            EquippedMemberId = string.Empty;
+            EquippedSlotKey = string.Empty;
+        }
+    }
+
+    private sealed class EquipmentRewardSelectionData
+    {
+        public PartyMemberProgressionData Member;
+        public string SlotKey;
+        public int PriorityIndex = int.MaxValue;
+        public PrototypeRpgEquipmentDefinition CurrentDefinition;
+        public PrototypeRpgEquipmentDefinition RewardDefinition;
+        public int ScoreDelta;
     }
 
     private sealed class PartyRuntimeData
@@ -53,7 +81,13 @@ public sealed class ManualTradeRuntimeState
         public string LastResultSummary;
         public PartyMemberProgressionData[] Members;
         public readonly Dictionary<string, int> PendingRewardInventory;
+        public readonly List<PartyInventoryItemData> InventoryItems;
         public string PendingRewardSummaryText;
+        public string InventorySummaryText;
+        public string LatestGearRewardSummaryText;
+        public string LatestEquipSwapSummaryText;
+        public string LatestGearContinuitySummaryText;
+        public int NextEquipmentItemSequence;
 
         public PartyRuntimeData(string partyId, string displayName, string homeCityId, string archetypeId, string promotionStateId)
         {
@@ -73,7 +107,13 @@ public sealed class ManualTradeRuntimeState
             LastResultSummary = "None";
             Members = System.Array.Empty<PartyMemberProgressionData>();
             PendingRewardInventory = new Dictionary<string, int>();
+            InventoryItems = new List<PartyInventoryItemData>();
             PendingRewardSummaryText = "None";
+            InventorySummaryText = "Owned 0 | Equipped 0 | Stored 0";
+            LatestGearRewardSummaryText = "None";
+            LatestEquipSwapSummaryText = "None";
+            LatestGearContinuitySummaryText = "Owned 0 | Equipped 0 | Stored 0";
+            NextEquipmentItemSequence = 1;
         }
     }
 
@@ -1167,6 +1207,14 @@ public sealed class ManualTradeRuntimeState
             : "None";
     }
 
+    public string GetPartyInventorySummary(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null && !string.IsNullOrEmpty(party.InventorySummaryText)
+            ? party.InventorySummaryText
+            : "Owned 0 | Equipped 0 | Stored 0";
+    }
+
     public int GetPartyMemberLevel(string partyId, string memberId)
     {
         PartyMemberProgressionData member = FindPartyMemberProgression(partyId, memberId);
@@ -1177,6 +1225,113 @@ public sealed class ManualTradeRuntimeState
     {
         PartyMemberProgressionData member = FindPartyMemberProgression(partyId, memberId);
         return member != null ? member.Experience : PrototypeRpgMemberProgressionRules.GetStartingExperience();
+    }
+
+    public string GetPartyMemberEquipmentLoadoutId(string partyId, string memberId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        PartyMemberProgressionData member = FindPartyMemberProgression(partyId, memberId);
+        PrototypeRpgEquipmentDefinition definition = GetFeaturedEquipmentDefinition(party, member);
+        return definition != null ? definition.LoadoutId : string.Empty;
+    }
+
+    public string GetPartyMemberEquipmentSummary(string partyId, string memberId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        PartyMemberProgressionData member = FindPartyMemberProgression(partyId, memberId);
+        return BuildMemberEquipmentSummaryText(party, member);
+    }
+
+    public string GetPartyMemberEquipmentSlotSummary(string partyId, string memberId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        PartyMemberProgressionData member = FindPartyMemberProgression(partyId, memberId);
+        return BuildMemberEquipmentSlotSummaryText(party, member);
+    }
+
+    public string GetPartyMemberGearContributionSummary(string partyId, string memberId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        PartyMemberProgressionData member = FindPartyMemberProgression(partyId, memberId);
+        ResolveMemberEquipmentBonuses(
+            party,
+            member,
+            out int maxHpBonus,
+            out int attackBonus,
+            out int defenseBonus,
+            out int speedBonus,
+            out int skillPowerBonus);
+        return PrototypeRpgEquipmentCatalog.BuildStatContributionSummary(
+            maxHpBonus,
+            attackBonus,
+            defenseBonus,
+            speedBonus,
+            skillPowerBonus);
+    }
+
+    public int GetPartyMemberEquipmentMaxHpBonus(string partyId, string memberId)
+    {
+        ResolvePartyMemberEquipmentBonuses(
+            partyId,
+            memberId,
+            out int maxHpBonus,
+            out _,
+            out _,
+            out _,
+            out _);
+        return maxHpBonus;
+    }
+
+    public int GetPartyMemberEquipmentAttackBonus(string partyId, string memberId)
+    {
+        ResolvePartyMemberEquipmentBonuses(
+            partyId,
+            memberId,
+            out _,
+            out int attackBonus,
+            out _,
+            out _,
+            out _);
+        return attackBonus;
+    }
+
+    public int GetPartyMemberEquipmentDefenseBonus(string partyId, string memberId)
+    {
+        ResolvePartyMemberEquipmentBonuses(
+            partyId,
+            memberId,
+            out _,
+            out _,
+            out int defenseBonus,
+            out _,
+            out _);
+        return defenseBonus;
+    }
+
+    public int GetPartyMemberEquipmentSpeedBonus(string partyId, string memberId)
+    {
+        ResolvePartyMemberEquipmentBonuses(
+            partyId,
+            memberId,
+            out _,
+            out _,
+            out _,
+            out int speedBonus,
+            out _);
+        return speedBonus;
+    }
+
+    public int GetPartyMemberEquipmentSkillPowerBonus(string partyId, string memberId)
+    {
+        ResolvePartyMemberEquipmentBonuses(
+            partyId,
+            memberId,
+            out _,
+            out _,
+            out _,
+            out _,
+            out int skillPowerBonus);
+        return skillPowerBonus;
     }
 
     public string GetReadyPartyLastResultSummaryForCity(string cityId)
@@ -2218,11 +2373,15 @@ public sealed class ManualTradeRuntimeState
         ApplyMemberProgressionResults(party, expeditionResult.MemberProgressionResults);
         ApplyPendingRewardBundles(party, expeditionResult.PendingRewardBundles);
         bool partyPromoted = success && TryAdvancePartyPromotion(party);
+        ApplyEquipmentRewardDrops(party, expeditionResult);
         string promotionEcho = partyPromoted
             ? " | " + PrototypeRpgPartyCatalog.GetPromotionStateLabel(party.PromotionStateId)
             : string.Empty;
         string pendingRewardEcho = !string.IsNullOrEmpty(party.PendingRewardSummaryText) && party.PendingRewardSummaryText != "None"
             ? " | Stash " + party.PendingRewardSummaryText
+            : string.Empty;
+        string gearEcho = !string.IsNullOrEmpty(party.LatestEquipSwapSummaryText) && party.LatestEquipSwapSummaryText != "None"
+            ? " | Gear " + party.LatestEquipSwapSummaryText
             : string.Empty;
 
         if (success)
@@ -2275,7 +2434,7 @@ public sealed class ManualTradeRuntimeState
         party.DaysRemaining = 0;
         party.DepartureDay = -1;
         party.ProjectedReturnDay = -1;
-        party.LastResultSummary = safeResultSummary + promotionEcho + pendingRewardEcho;
+        party.LastResultSummary = safeResultSummary + promotionEcho + pendingRewardEcho + gearEcho;
         _lastExpeditionResultByCityId[cityId] = safeResultSummary;
 
         if (!string.IsNullOrEmpty(dungeonId))
@@ -2283,7 +2442,7 @@ public sealed class ManualTradeRuntimeState
             _lastExpeditionResultByDungeonId[dungeonId] = safeResultSummary;
         }
 
-        AppendRecentExpeditionLog("Day " + WorldDayCount + " | " + safeResultSummary + promotionEcho);
+        AppendRecentExpeditionLog("Day " + WorldDayCount + " | " + safeResultSummary + promotionEcho + gearEcho);
     }
 
     private WorldWriteback BuildWorldWritebackFromExpeditionResult(ExpeditionResult expeditionResult, string resultSummary, string survivingMembersSummary, string routeSummary, string dungeonSummary, int lootReturned)
@@ -3109,7 +3268,9 @@ public sealed class ManualTradeRuntimeState
             return;
         }
 
-        party.Power = PrototypeRpgPartyCatalog.ResolveDerivedPower(party.ArchetypeId, party.PromotionStateId) + CalculatePartyLevelPowerBonus(party);
+        party.Power = PrototypeRpgPartyCatalog.ResolveDerivedPower(party.ArchetypeId, party.PromotionStateId)
+            + CalculatePartyLevelPowerBonus(party)
+            + CalculatePartyEquipmentPowerBonus(party);
         party.CarryCapacity = PrototypeRpgPartyCatalog.ResolveDerivedCarryCapacity(party.ArchetypeId, party.PromotionStateId);
     }
 
@@ -3145,6 +3306,7 @@ public sealed class ManualTradeRuntimeState
         }
 
         party.Members = progressionMembers;
+        RefreshPartyInventorySummary(party);
     }
 
     private int CalculatePartyLevelPowerBonus(PartyRuntimeData party)
@@ -3167,6 +3329,40 @@ public sealed class ManualTradeRuntimeState
         }
 
         return levelSteps / 2;
+    }
+
+    private int CalculatePartyEquipmentPowerBonus(PartyRuntimeData party)
+    {
+        if (party == null || party.Members == null || party.Members.Length <= 0)
+        {
+            return 0;
+        }
+
+        int totalEquipmentScore = 0;
+        for (int i = 0; i < party.Members.Length; i++)
+        {
+            PartyMemberProgressionData member = party.Members[i];
+            if (member == null)
+            {
+                continue;
+            }
+
+            ResolveMemberEquipmentBonuses(
+                party,
+                member,
+                out int maxHpBonus,
+                out int attackBonus,
+                out int defenseBonus,
+                out int speedBonus,
+                out int skillPowerBonus);
+            totalEquipmentScore += maxHpBonus +
+                                   (attackBonus * 2) +
+                                   (defenseBonus * 2) +
+                                   speedBonus +
+                                   (skillPowerBonus * 2);
+        }
+
+        return totalEquipmentScore / 8;
     }
 
     private PartyMemberProgressionData FindPartyMemberProgression(string partyId, string memberId)
@@ -3273,6 +3469,618 @@ public sealed class ManualTradeRuntimeState
         }
 
         return PrototypeRpgMemberProgressionRules.BuildRewardBundleSummaryText(bundles.ToArray());
+    }
+
+    private void ResolvePartyMemberEquipmentBonuses(
+        string partyId,
+        string memberId,
+        out int maxHpBonus,
+        out int attackBonus,
+        out int defenseBonus,
+        out int speedBonus,
+        out int skillPowerBonus)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        PartyMemberProgressionData member = FindPartyMemberProgression(partyId, memberId);
+        ResolveMemberEquipmentBonuses(
+            party,
+            member,
+            out maxHpBonus,
+            out attackBonus,
+            out defenseBonus,
+            out speedBonus,
+            out skillPowerBonus);
+    }
+
+    private void ResolveMemberEquipmentBonuses(
+        PartyRuntimeData party,
+        PartyMemberProgressionData member,
+        out int maxHpBonus,
+        out int attackBonus,
+        out int defenseBonus,
+        out int speedBonus,
+        out int skillPowerBonus)
+    {
+        maxHpBonus = 0;
+        attackBonus = 0;
+        defenseBonus = 0;
+        speedBonus = 0;
+        skillPowerBonus = 0;
+
+        if (member == null)
+        {
+            return;
+        }
+
+        string[] slotKeys = PrototypeRpgEquipmentSlotKeys.OrderedKeys;
+        for (int i = 0; i < slotKeys.Length; i++)
+        {
+            PrototypeRpgEquipmentDefinition definition = GetEquippedDefinition(party, member, slotKeys[i]);
+            if (definition == null)
+            {
+                continue;
+            }
+
+            maxHpBonus += definition.MaxHpBonus;
+            attackBonus += definition.AttackBonus;
+            defenseBonus += definition.DefenseBonus;
+            speedBonus += definition.SpeedBonus;
+            skillPowerBonus += definition.SkillPowerBonus;
+        }
+    }
+
+    private void ApplyEquipmentRewardDrops(PartyRuntimeData party, ExpeditionResult expeditionResult)
+    {
+        if (party == null)
+        {
+            return;
+        }
+
+        if (party.Members == null || party.Members.Length <= 0)
+        {
+            InitializePartyMembers(party);
+        }
+
+        party.LatestGearRewardSummaryText = "None";
+        party.LatestEquipSwapSummaryText = "None";
+        RefreshPartyInventorySummary(party);
+        party.LatestGearContinuitySummaryText = party.InventorySummaryText;
+
+        if (expeditionResult == null)
+        {
+            UpdatePartyDerivedStats(party);
+            return;
+        }
+
+        if (!expeditionResult.Success)
+        {
+            expeditionResult.GearRewardCandidateSummaryText = "None";
+            expeditionResult.EquipSwapChoiceSummaryText = "None";
+            expeditionResult.GearCarryContinuitySummaryText = party.InventorySummaryText;
+            return;
+        }
+
+        int rewardCount = ResolveEquipmentRewardCount(expeditionResult);
+        if (rewardCount <= 0)
+        {
+            expeditionResult.GearRewardCandidateSummaryText = "None";
+            expeditionResult.EquipSwapChoiceSummaryText = "None";
+            expeditionResult.GearCarryContinuitySummaryText = party.InventorySummaryText;
+            return;
+        }
+
+        List<string> rewardParts = new List<string>();
+        List<string> equipParts = new List<string>();
+        HashSet<string> reservedMemberIds = new HashSet<string>();
+        HashSet<string> reservedMemberSlotKeys = new HashSet<string>();
+
+        for (int i = 0; i < rewardCount; i++)
+        {
+            EquipmentRewardSelectionData selection = FindBestEquipmentRewardSelection(
+                    party,
+                    expeditionResult,
+                    reservedMemberIds,
+                    reservedMemberSlotKeys,
+                    false)
+                ?? FindBestEquipmentRewardSelection(
+                    party,
+                    expeditionResult,
+                    reservedMemberIds,
+                    reservedMemberSlotKeys,
+                    true);
+            if (selection == null || selection.Member == null || selection.RewardDefinition == null)
+            {
+                break;
+            }
+
+            PartyInventoryItemData inventoryItem = CreatePartyInventoryItem(party, selection.RewardDefinition);
+            if (inventoryItem == null)
+            {
+                continue;
+            }
+
+            party.InventoryItems.Add(inventoryItem);
+            reservedMemberIds.Add(selection.Member.MemberId);
+            reservedMemberSlotKeys.Add(BuildEquipmentReservationKey(selection.Member.MemberId, selection.SlotKey));
+            rewardParts.Add(BuildEquipmentRewardEntryText(selection.Member, selection.RewardDefinition));
+
+            if (TryAutoEquipInventoryItem(
+                party,
+                selection.Member,
+                selection.SlotKey,
+                inventoryItem,
+                selection.CurrentDefinition,
+                out string equipText))
+            {
+                equipParts.Add(equipText);
+            }
+        }
+
+        RefreshPartyInventorySummary(party);
+        UpdatePartyDerivedStats(party);
+
+        party.LatestGearRewardSummaryText = JoinSummaryText(rewardParts, " | ", "None");
+        party.LatestEquipSwapSummaryText = JoinSummaryText(equipParts, " | ", "None");
+        party.LatestGearContinuitySummaryText = BuildGearContinuitySummaryText(party, rewardParts.Count, equipParts.Count);
+
+        expeditionResult.GearRewardCandidateSummaryText = party.LatestGearRewardSummaryText;
+        expeditionResult.EquipSwapChoiceSummaryText = party.LatestEquipSwapSummaryText;
+        expeditionResult.GearCarryContinuitySummaryText = party.LatestGearContinuitySummaryText;
+        expeditionResult.PendingRewardSummaryText = party.PendingRewardSummaryText;
+    }
+
+    private int ResolveEquipmentRewardCount(ExpeditionResult expeditionResult)
+    {
+        if (expeditionResult == null || !expeditionResult.Success)
+        {
+            return 0;
+        }
+
+        int rewardCount = 1;
+        if (expeditionResult.OpenedChestCount > 0)
+        {
+            rewardCount += 1;
+        }
+
+        if (expeditionResult.EliteDefeated)
+        {
+            rewardCount += 1;
+        }
+
+        return Mathf.Clamp(rewardCount, 1, 3);
+    }
+
+    private EquipmentRewardSelectionData FindBestEquipmentRewardSelection(
+        PartyRuntimeData party,
+        ExpeditionResult expeditionResult,
+        HashSet<string> reservedMemberIds,
+        HashSet<string> reservedMemberSlotKeys,
+        bool allowReservedMembers)
+    {
+        if (party == null || expeditionResult == null || party.Members == null || party.Members.Length <= 0)
+        {
+            return null;
+        }
+
+        EquipmentRewardSelectionData bestSelection = null;
+        for (int i = 0; i < party.Members.Length; i++)
+        {
+            PartyMemberProgressionData member = party.Members[i];
+            if (member == null || string.IsNullOrEmpty(member.MemberId))
+            {
+                continue;
+            }
+
+            if (!allowReservedMembers && reservedMemberIds != null && reservedMemberIds.Contains(member.MemberId))
+            {
+                continue;
+            }
+
+            string[] slotPriority = PrototypeRpgEquipmentCatalog.GetRewardSlotPriority(member.RoleTag);
+            for (int priorityIndex = 0; priorityIndex < slotPriority.Length; priorityIndex++)
+            {
+                string slotKey = NormalizeEquipmentSlotKey(slotPriority[priorityIndex]);
+                if (string.IsNullOrEmpty(slotKey))
+                {
+                    continue;
+                }
+
+                string reservationKey = BuildEquipmentReservationKey(member.MemberId, slotKey);
+                if (reservedMemberSlotKeys != null && reservedMemberSlotKeys.Contains(reservationKey))
+                {
+                    continue;
+                }
+
+                PrototypeRpgEquipmentDefinition currentDefinition = GetEquippedDefinition(party, member, slotKey);
+                int currentTierRank = currentDefinition != null ? currentDefinition.TierRank : 1;
+                PrototypeRpgEquipmentDefinition rewardDefinition = PrototypeRpgEquipmentCatalog.GetSlotUpgradeDefinition(
+                    member.RoleTag,
+                    slotKey,
+                    expeditionResult.EliteDefeated,
+                    expeditionResult.RouteId,
+                    expeditionResult.OpenedChestCount,
+                    currentTierRank);
+                if (!PrototypeRpgEquipmentCatalog.IsLegalForRole(rewardDefinition, member.RoleTag))
+                {
+                    continue;
+                }
+
+                int currentScore = currentDefinition != null ? currentDefinition.GetScore() : 0;
+                int rewardScore = rewardDefinition != null ? rewardDefinition.GetScore() : 0;
+                int scoreDelta = rewardScore - currentScore;
+                if (scoreDelta <= 0)
+                {
+                    continue;
+                }
+
+                if (bestSelection == null ||
+                    rewardDefinition.TierRank > bestSelection.RewardDefinition.TierRank ||
+                    (rewardDefinition.TierRank == bestSelection.RewardDefinition.TierRank && scoreDelta > bestSelection.ScoreDelta) ||
+                    (rewardDefinition.TierRank == bestSelection.RewardDefinition.TierRank && scoreDelta == bestSelection.ScoreDelta && priorityIndex < bestSelection.PriorityIndex))
+                {
+                    bestSelection = new EquipmentRewardSelectionData
+                    {
+                        Member = member,
+                        SlotKey = slotKey,
+                        PriorityIndex = priorityIndex,
+                        CurrentDefinition = currentDefinition,
+                        RewardDefinition = rewardDefinition,
+                        ScoreDelta = scoreDelta
+                    };
+                }
+            }
+        }
+
+        return bestSelection;
+    }
+
+    private PartyInventoryItemData CreatePartyInventoryItem(PartyRuntimeData party, PrototypeRpgEquipmentDefinition definition)
+    {
+        if (party == null || definition == null || string.IsNullOrEmpty(definition.LoadoutId))
+        {
+            return null;
+        }
+
+        string itemInstanceId = party.PartyId + "-gear-" + party.NextEquipmentItemSequence.ToString("000");
+        party.NextEquipmentItemSequence += 1;
+        return new PartyInventoryItemData(itemInstanceId, definition.LoadoutId);
+    }
+
+    private bool TryAutoEquipInventoryItem(
+        PartyRuntimeData party,
+        PartyMemberProgressionData member,
+        string slotKey,
+        PartyInventoryItemData inventoryItem,
+        PrototypeRpgEquipmentDefinition currentDefinition,
+        out string equipText)
+    {
+        equipText = string.Empty;
+
+        if (party == null || member == null || inventoryItem == null)
+        {
+            return false;
+        }
+
+        string normalizedSlotKey = NormalizeEquipmentSlotKey(slotKey);
+        PrototypeRpgEquipmentDefinition rewardDefinition = ResolvePartyInventoryItemDefinition(inventoryItem, member.RoleTag);
+        if (!PrototypeRpgEquipmentCatalog.IsLegalForRole(rewardDefinition, member.RoleTag) ||
+            NormalizeEquipmentSlotKey(rewardDefinition != null ? rewardDefinition.SlotKey : string.Empty) != normalizedSlotKey)
+        {
+            return false;
+        }
+
+        PrototypeRpgEquipmentDefinition safeCurrentDefinition = currentDefinition ?? GetEquippedDefinition(party, member, normalizedSlotKey);
+        int currentScore = safeCurrentDefinition != null ? safeCurrentDefinition.GetScore() : 0;
+        if (rewardDefinition.GetScore() <= currentScore)
+        {
+            return false;
+        }
+
+        if (member.EquippedItemInstanceIdBySlotKey.TryGetValue(normalizedSlotKey, out string previousItemInstanceId))
+        {
+            PartyInventoryItemData previousItem = FindPartyInventoryItem(party, previousItemInstanceId);
+            if (previousItem != null)
+            {
+                previousItem.EquippedMemberId = string.Empty;
+                previousItem.EquippedSlotKey = string.Empty;
+            }
+        }
+
+        member.EquippedItemInstanceIdBySlotKey[normalizedSlotKey] = inventoryItem.ItemInstanceId;
+        inventoryItem.EquippedMemberId = member.MemberId;
+        inventoryItem.EquippedSlotKey = normalizedSlotKey;
+        equipText = member.DisplayName +
+            " " + PrototypeRpgEquipmentSlotKeys.ToShortLabel(normalizedSlotKey) +
+            " " + BuildReplacementEquipmentLabel(safeCurrentDefinition, member, normalizedSlotKey) +
+            " -> " + rewardDefinition.DisplayName;
+        return true;
+    }
+
+    private PrototypeRpgEquipmentDefinition GetFeaturedEquipmentDefinition(PartyRuntimeData party, PartyMemberProgressionData member)
+    {
+        if (member == null)
+        {
+            return null;
+        }
+
+        PrototypeRpgEquipmentDefinition featuredDefinition = null;
+        string[] slotPriority = PrototypeRpgEquipmentCatalog.GetRewardSlotPriority(member.RoleTag);
+        for (int i = 0; i < slotPriority.Length; i++)
+        {
+            PrototypeRpgEquipmentDefinition definition = GetEquippedDefinition(party, member, slotPriority[i]);
+            if (definition == null || definition.TierRank <= 1)
+            {
+                continue;
+            }
+
+            if (featuredDefinition == null ||
+                definition.TierRank > featuredDefinition.TierRank ||
+                (definition.TierRank == featuredDefinition.TierRank && definition.GetScore() > featuredDefinition.GetScore()))
+            {
+                featuredDefinition = definition;
+            }
+        }
+
+        return featuredDefinition ?? PrototypeRpgEquipmentCatalog.GetFallbackDefinitionForRoleTag(member.RoleTag);
+    }
+
+    private string BuildMemberEquipmentSummaryText(PartyRuntimeData party, PartyMemberProgressionData member)
+    {
+        if (member == null)
+        {
+            return "No gear";
+        }
+
+        int upgradedSlotCount = CountUpgradedEquipmentSlots(party, member);
+        PrototypeRpgEquipmentDefinition featuredDefinition = GetFeaturedEquipmentDefinition(party, member);
+        string featuredSummary = PrototypeRpgEquipmentCatalog.BuildEquipmentSummaryText(featuredDefinition);
+        return upgradedSlotCount <= 0
+            ? featuredSummary
+            : featuredSummary + " | " + upgradedSlotCount + (upgradedSlotCount == 1 ? " upgraded slot" : " upgraded slots");
+    }
+
+    private string BuildMemberEquipmentSlotSummaryText(PartyRuntimeData party, PartyMemberProgressionData member)
+    {
+        if (member == null)
+        {
+            return "No gear";
+        }
+
+        List<string> upgradedParts = new List<string>();
+        List<string> starterSlots = new List<string>();
+        string[] slotKeys = PrototypeRpgEquipmentSlotKeys.OrderedKeys;
+        for (int i = 0; i < slotKeys.Length; i++)
+        {
+            string slotKey = slotKeys[i];
+            PrototypeRpgEquipmentDefinition definition = GetEquippedDefinition(party, member, slotKey);
+            string shortLabel = PrototypeRpgEquipmentSlotKeys.ToShortLabel(slotKey);
+            if (definition != null && definition.TierRank > 1)
+            {
+                upgradedParts.Add(shortLabel + " " + definition.DisplayName);
+            }
+            else
+            {
+                starterSlots.Add(shortLabel);
+            }
+        }
+
+        if (upgradedParts.Count <= 0)
+        {
+            return "Starter set across " + string.Join("/", starterSlots.ToArray());
+        }
+
+        string summary = "Slots " + string.Join(" / ", upgradedParts.ToArray());
+        if (starterSlots.Count > 0)
+        {
+            summary += " | Base " + string.Join("/", starterSlots.ToArray());
+        }
+
+        return summary;
+    }
+
+    private int CountUpgradedEquipmentSlots(PartyRuntimeData party, PartyMemberProgressionData member)
+    {
+        if (member == null)
+        {
+            return 0;
+        }
+
+        int upgradedSlots = 0;
+        string[] slotKeys = PrototypeRpgEquipmentSlotKeys.OrderedKeys;
+        for (int i = 0; i < slotKeys.Length; i++)
+        {
+            PrototypeRpgEquipmentDefinition definition = GetEquippedDefinition(party, member, slotKeys[i]);
+            if (definition != null && definition.TierRank > 1)
+            {
+                upgradedSlots += 1;
+            }
+        }
+
+        return upgradedSlots;
+    }
+
+    private string BuildInventorySummaryText(PartyRuntimeData party)
+    {
+        if (party == null || party.InventoryItems == null || party.InventoryItems.Count <= 0)
+        {
+            return "Owned 0 | Equipped 0 | Stored 0";
+        }
+
+        int ownedCount = 0;
+        int equippedCount = 0;
+        List<string> storedParts = new List<string>();
+        for (int i = 0; i < party.InventoryItems.Count; i++)
+        {
+            PartyInventoryItemData item = party.InventoryItems[i];
+            if (item == null || string.IsNullOrEmpty(item.ItemInstanceId))
+            {
+                continue;
+            }
+
+            ownedCount += 1;
+            if (!string.IsNullOrEmpty(item.EquippedMemberId))
+            {
+                equippedCount += 1;
+                continue;
+            }
+
+            PrototypeRpgEquipmentDefinition definition = ResolvePartyInventoryItemDefinition(item, string.Empty);
+            if (definition != null)
+            {
+                storedParts.Add(PrototypeRpgEquipmentCatalog.BuildEquipmentSummaryText(definition));
+            }
+        }
+
+        int storedCount = Mathf.Max(0, ownedCount - equippedCount);
+        string summary = "Owned " + ownedCount + " | Equipped " + equippedCount + " | Stored " + storedCount;
+        if (storedParts.Count <= 0)
+        {
+            return summary;
+        }
+
+        int previewCount = Mathf.Min(2, storedParts.Count);
+        string[] previewParts = storedParts.GetRange(0, previewCount).ToArray();
+        string previewText = string.Join(" / ", previewParts);
+        if (storedParts.Count > previewCount)
+        {
+            previewText += " +" + (storedParts.Count - previewCount) + " more";
+        }
+
+        return summary + " | " + previewText;
+    }
+
+    private void RefreshPartyInventorySummary(PartyRuntimeData party)
+    {
+        if (party == null)
+        {
+            return;
+        }
+
+        party.InventorySummaryText = BuildInventorySummaryText(party);
+        if (string.IsNullOrEmpty(party.LatestGearContinuitySummaryText) || party.LatestGearContinuitySummaryText == "None")
+        {
+            party.LatestGearContinuitySummaryText = party.InventorySummaryText;
+        }
+    }
+
+    private string BuildGearContinuitySummaryText(PartyRuntimeData party, int rewardCount, int autoEquipCount)
+    {
+        string inventorySummary = party != null && !string.IsNullOrEmpty(party.InventorySummaryText)
+            ? party.InventorySummaryText
+            : "Owned 0 | Equipped 0 | Stored 0";
+
+        if (rewardCount <= 0 && autoEquipCount <= 0)
+        {
+            return inventorySummary;
+        }
+
+        return inventorySummary + " | New " + rewardCount + " | Auto-equipped " + autoEquipCount;
+    }
+
+    private PrototypeRpgEquipmentDefinition GetEquippedDefinition(PartyRuntimeData party, PartyMemberProgressionData member, string slotKey)
+    {
+        if (member == null)
+        {
+            return null;
+        }
+
+        string normalizedSlotKey = NormalizeEquipmentSlotKey(slotKey);
+        if (party != null &&
+            member.EquippedItemInstanceIdBySlotKey.TryGetValue(normalizedSlotKey, out string itemInstanceId))
+        {
+            PartyInventoryItemData inventoryItem = FindPartyInventoryItem(party, itemInstanceId);
+            PrototypeRpgEquipmentDefinition inventoryDefinition = ResolvePartyInventoryItemDefinition(inventoryItem, member.RoleTag);
+            if (inventoryDefinition != null &&
+                NormalizeEquipmentSlotKey(inventoryDefinition.SlotKey) == normalizedSlotKey &&
+                PrototypeRpgEquipmentCatalog.IsLegalForRole(inventoryDefinition, member.RoleTag))
+            {
+                return inventoryDefinition;
+            }
+        }
+
+        return PrototypeRpgEquipmentCatalog.GetStarterDefinition(member.RoleTag, normalizedSlotKey)
+            ?? PrototypeRpgEquipmentCatalog.GetFallbackDefinitionForRoleTag(member.RoleTag);
+    }
+
+    private PrototypeRpgEquipmentDefinition ResolvePartyInventoryItemDefinition(PartyInventoryItemData item, string roleTag)
+    {
+        return item == null || string.IsNullOrEmpty(item.EquipmentLoadoutId)
+            ? null
+            : PrototypeRpgEquipmentCatalog.ResolveDefinition(item.EquipmentLoadoutId, roleTag);
+    }
+
+    private PartyInventoryItemData FindPartyInventoryItem(PartyRuntimeData party, string itemInstanceId)
+    {
+        if (party == null || party.InventoryItems == null || party.InventoryItems.Count <= 0 || string.IsNullOrEmpty(itemInstanceId))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < party.InventoryItems.Count; i++)
+        {
+            PartyInventoryItemData item = party.InventoryItems[i];
+            if (item != null && item.ItemInstanceId == itemInstanceId)
+            {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
+    private string BuildEquipmentRewardEntryText(PartyMemberProgressionData member, PrototypeRpgEquipmentDefinition definition)
+    {
+        if (member == null || definition == null)
+        {
+            return "None";
+        }
+
+        return member.DisplayName + " " + PrototypeRpgEquipmentCatalog.BuildEquipmentSummaryText(definition);
+    }
+
+    private string BuildReplacementEquipmentLabel(PrototypeRpgEquipmentDefinition currentDefinition, PartyMemberProgressionData member, string slotKey)
+    {
+        if (currentDefinition != null)
+        {
+            return currentDefinition.DisplayName;
+        }
+
+        PrototypeRpgEquipmentDefinition starterDefinition = member != null
+            ? PrototypeRpgEquipmentCatalog.GetStarterDefinition(member.RoleTag, slotKey)
+            : null;
+        return starterDefinition != null ? starterDefinition.DisplayName : "Starter gear";
+    }
+
+    private string BuildEquipmentReservationKey(string memberId, string slotKey)
+    {
+        return (string.IsNullOrEmpty(memberId) ? string.Empty : memberId) + "|" + NormalizeEquipmentSlotKey(slotKey);
+    }
+
+    private string NormalizeEquipmentSlotKey(string slotKey)
+    {
+        return string.IsNullOrWhiteSpace(slotKey) ? string.Empty : slotKey.Trim().ToLowerInvariant();
+    }
+
+    private string JoinSummaryText(List<string> parts, string separator, string fallback)
+    {
+        if (parts == null || parts.Count <= 0)
+        {
+            return fallback;
+        }
+
+        string summary = string.Empty;
+        for (int i = 0; i < parts.Count; i++)
+        {
+            string part = parts[i];
+            if (string.IsNullOrEmpty(part))
+            {
+                continue;
+            }
+
+            summary = string.IsNullOrEmpty(summary) ? part : summary + separator + part;
+        }
+
+        return string.IsNullOrEmpty(summary) ? fallback : summary;
     }
 
     private string ResolveRewardLabel(string rewardId)

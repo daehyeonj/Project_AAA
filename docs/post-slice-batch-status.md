@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 72`
+- Latest closed batch: `Batch 73`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,7 +18,45 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-b -> dungeon-beta`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: stronger manual/runtime proof that the party-readable signature loop stays legible across repeated returns, plus longer-lived world consequence persistence, not route-surface expansion or UI churn
+- Next honest bottleneck: equip-choice interaction and longer-run inventory pressure on the current UI rail, not route-surface expansion or UI churn
+
+## Batch 73 Close-Out
+
+- Selected branch: `A`
+- Batch 73 finishes the next honest RPG seam on top of the existing 72 / 72.1 rail instead of reopening UI layout or worldmap work.
+- World/runtime truth now owns:
+  - party-carried gear inventory
+  - per-member equipment slot state
+  - slot legality and auto-equip resolution
+  - persistent carryover into the next prep / run
+- Character equipment is now explicit across seven slots:
+  - `head`
+  - `left arm`
+  - `right arm`
+  - `torso`
+  - `belt`
+  - `pants`
+  - `shoes`
+- Result writeback now makes gear progression tangible:
+  - successful runs can mint real equipment drops
+  - stronger drops auto-equip onto the correct member + slot
+  - replaced gear stays in the party inventory if it is no longer equipped
+- Readback proof stays on the accepted UI rail:
+  - prep / party loadout summary now echoes slot-aware equipment state + carried inventory
+  - result reward lines now explain gear reward, equip swap, and carry continuity from the same runtime truth
+  - next-run battle stats now inherit level growth plus equipped gear bonuses
+- UI shape changed?: `No`
+
+## Batch 73 Validation Snapshot
+
+- Compile: `PASS`
+- Targeted audit:
+  - party inventory truth persists on the canonical world/runtime rail: `PASS`
+  - per-member slot equipment affects next-run numbers and derived party power: `PASS`
+  - prep / party / result readback now exposes gained gear, equipped upgrades, and stored carryover: `PASS`
+  - Batch 72.1 result handoff remains on the stable return path after runtime writeback sync: `PASS`
+- Manual verification: `DEFERRED`
+- Smoke: `PARTIAL (Batch10 smoke reached the DungeonRun -> BattleScene -> DungeonRun continuity checkpoint and passed it, then the runner timed out later at ResolveCoreLoop)`
 
 ## Batch 72 Close-Out
 

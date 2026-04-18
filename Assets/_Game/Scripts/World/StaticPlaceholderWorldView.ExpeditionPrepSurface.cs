@@ -936,9 +936,26 @@ public sealed partial class StaticPlaceholderWorldView
             }
 
             string label = string.IsNullOrEmpty(member.DisplayName) ? member.RoleLabel : member.DisplayName;
-            string gear = string.IsNullOrEmpty(member.EquipmentSummaryText) ? "No gear" : member.EquipmentSummaryText;
+            string gear = _runtimeEconomyState != null
+                ? _runtimeEconomyState.GetPartyMemberEquipmentSlotSummary(partySurface.PartyId, member.MemberId)
+                : string.Empty;
+            if (!IsMeaningfulSnapshotText(gear))
+            {
+                gear = string.IsNullOrEmpty(member.EquipmentSummaryText) ? "No gear" : member.EquipmentSummaryText;
+            }
+
             string part = label + ": " + gear;
             summary = string.IsNullOrEmpty(summary) ? part : summary + " | " + part;
+        }
+
+        string inventorySummary = _runtimeEconomyState != null
+            ? _runtimeEconomyState.GetPartyInventorySummary(partySurface.PartyId)
+            : string.Empty;
+        if (IsMeaningfulSnapshotText(inventorySummary))
+        {
+            summary = string.IsNullOrEmpty(summary)
+                ? "Inventory " + inventorySummary
+                : summary + " | Inventory " + inventorySummary;
         }
 
         return string.IsNullOrEmpty(summary) ? "None" : summary;

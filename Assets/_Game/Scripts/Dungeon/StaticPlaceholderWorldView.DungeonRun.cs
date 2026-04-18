@@ -5719,9 +5719,14 @@ public sealed partial class StaticPlaceholderWorldView
             return System.Array.Empty<DungeonPartyMemberRuntimeData>();
         }
 
-        PrototypeRpgPartyRuntimeResolveSurface partySurface = PrototypeRpgRuntimeResolveBuilder.BuildPartySurface(
-            partyDefinition,
-            memberDefinition => memberDefinition != null ? memberDefinition.EquipmentLoadoutId : string.Empty);
+        PrototypeRpgPartyRuntimeResolveSurface partySurface = BuildRuntimePartyResolveSurface(partyDefinition.PartyId);
+        if (partySurface == null)
+        {
+            partySurface = PrototypeRpgRuntimeResolveBuilder.BuildPartySurface(
+                partyDefinition,
+                memberDefinition => memberDefinition != null ? memberDefinition.EquipmentLoadoutId : string.Empty);
+        }
+
         return CreateDungeonRuntimeMembers(partySurface);
     }
 

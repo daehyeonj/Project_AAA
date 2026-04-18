@@ -11,6 +11,11 @@ public sealed partial class StaticPlaceholderWorldView
     private void CaptureDungeonRunCompatibilityShellState(string outcomeKey, PostRunResolutionInput handoffInput)
     {
         PostRunProgressionOutput progressionOutput = ResultPipelineProgression.Build(handoffInput);
+        if (handoffInput != null)
+        {
+            handoffInput.ProgressionOutput = progressionOutput ?? new PostRunProgressionOutput();
+        }
+
         _latestRpgProgressionSeedSnapshot = progressionOutput != null
             ? progressionOutput.ProgressionSeed ?? new PrototypeRpgProgressionSeedSnapshot()
             : new PrototypeRpgProgressionSeedSnapshot();
@@ -20,6 +25,7 @@ public sealed partial class StaticPlaceholderWorldView
         _latestRpgProgressionPreviewSnapshot = progressionOutput != null
             ? progressionOutput.ProgressionPreview ?? new PrototypeRpgProgressionPreviewSnapshot()
             : new PrototypeRpgProgressionPreviewSnapshot();
+        ApplyProgressionOutputToLatestRunResult(progressionOutput);
         UpdateBattleResultSnapshot(outcomeKey);
     }
 
@@ -66,5 +72,49 @@ public sealed partial class StaticPlaceholderWorldView
         CaptureDungeonRunCompatibilityShellState(outcomeKey, handoffInput);
         ApplyDungeonRunResultPipelineWriteback(handoffInput);
         CaptureLatestRunResultContext(_latestRpgRunResultSnapshot);
+    }
+
+    private void ApplyProgressionOutputToLatestRunResult(PostRunProgressionOutput progressionOutput)
+    {
+        if (_latestRpgRunResultSnapshot == null || progressionOutput == null)
+        {
+            return;
+        }
+
+        _latestRpgRunResultSnapshot.PendingRewardSummaryText = string.IsNullOrEmpty(progressionOutput.PendingRewardSummaryText)
+            ? string.Empty
+            : progressionOutput.PendingRewardSummaryText;
+        _latestRpgRunResultSnapshot.PendingRewardBundles = progressionOutput.PendingRewardBundles ?? System.Array.Empty<PrototypeRpgRewardBundle>();
+
+        PrototypeRpgPartyOutcomeSnapshot partyOutcome = _latestRpgRunResultSnapshot.PartyOutcome ?? new PrototypeRpgPartyOutcomeSnapshot();
+        PrototypeRpgPartyMemberOutcomeSnapshot[] members = partyOutcome.Members ?? System.Array.Empty<PrototypeRpgPartyMemberOutcomeSnapshot>();
+        PrototypeRpgMemberProgressionResult[] results = progressionOutput.MemberProgressionResults ?? System.Array.Empty<PrototypeRpgMemberProgressionResult>();
+        for (int i = 0; i < members.Length && i < results.Length; i++)
+        {
+            PrototypeRpgPartyMemberOutcomeSnapshot member = members[i] ?? new PrototypeRpgPartyMemberOutcomeSnapshot();
+            PrototypeRpgMemberProgressionResult result = results[i] ?? new PrototypeRpgMemberProgressionResult();
+            member.Level = result.LevelAfter > 0 ? result.LevelAfter : member.Level;
+            member.Experience = result.ExperienceAfter > 0 ? result.ExperienceAfter : 0;
+            member.NextLevelExperience = result.NextLevelExperience > 0 ? result.NextLevelExperience : member.NextLevelExperience;
+            member.GrowthBonusMaxHp = result.GrowthBonusMaxHp;
+            member.GrowthBonusAttack = result.GrowthBonusAttack;
+            member.GrowthBonusDefense = result.GrowthBonusDefense;
+            member.GrowthBonusSpeed = result.GrowthBonusSpeed;
+            member.AppliedProgressionSummaryText = string.IsNullOrEmpty(result.GrowthSummaryText)
+                ? member.AppliedProgressionSummaryText
+                : "Level " + PrototypeRpgMemberProgressionRules.BuildLevelProgressText(member.Level, member.Experience, member.NextLevelExperience) +
+                  " | Growth " + result.GrowthSummaryText;
+            member.NextRunPreviewSummaryText = "Next Level " + PrototypeRpgMemberProgressionRules.BuildNextLevelHintText(
+                member.Level,
+                member.Experience,
+                member.NextLevelExperience) +
+                (string.IsNullOrEmpty(result.RewardDropSummaryText) || result.RewardDropSummaryText == "None"
+                    ? string.Empty
+                    : " | Loot " + result.RewardDropSummaryText);
+            members[i] = member;
+        }
+
+        partyOutcome.Members = members;
+        _latestRpgRunResultSnapshot.PartyOutcome = partyOutcome;
     }
 }

@@ -169,18 +169,72 @@ public sealed partial class StaticPlaceholderWorldView
         return BuildRpgOwnedBattleResultSnapshot(outcomeKey);
     }
 
+    private PrototypeBattleRequest GetStableBattleEntryRequestForResultSnapshot()
+    {
+        return HasMeaningfulBattleRequest(_activeBattleRequest)
+            ? _activeBattleRequest
+            : null;
+    }
+
+    private string ResolveBattleResultEncounterId(
+        DungeonEncounterRuntimeData encounter,
+        DungeonRoomTemplateData room,
+        PrototypeBattleRequest request)
+    {
+        if (encounter != null && HasText(encounter.EncounterId))
+        {
+            return encounter.EncounterId;
+        }
+
+        if (HasText(request != null ? request.EncounterId : string.Empty))
+        {
+            return request.EncounterId;
+        }
+
+        if (room != null && HasText(room.EncounterId))
+        {
+            return room.EncounterId;
+        }
+
+        return string.Empty;
+    }
+
+    private string ResolveBattleResultEncounterName(
+        DungeonEncounterRuntimeData encounter,
+        DungeonRoomTemplateData room,
+        PrototypeBattleRequest request)
+    {
+        if (encounter != null && HasText(encounter.DisplayName))
+        {
+            return encounter.DisplayName;
+        }
+
+        if (HasText(request != null ? request.EncounterName : string.Empty))
+        {
+            return request.EncounterName;
+        }
+
+        if (room != null && HasText(room.DisplayName))
+        {
+            return room.DisplayName;
+        }
+
+        return HasText(_eliteName) ? _eliteName : string.Empty;
+    }
+
     private PrototypeBattleResultSnapshot BuildRpgOwnedBattleResultSnapshot(string outcomeKey)
     {
         PrototypeBattleResultSnapshot snapshot = new PrototypeBattleResultSnapshot();
         DungeonEncounterRuntimeData encounter = GetActiveEncounter();
         DungeonRoomTemplateData room = GetCurrentPlannedRoomStep();
-        string encounterId = encounter != null ? encounter.EncounterId : room != null ? room.EncounterId : string.Empty;
-        string encounterName = encounter != null ? encounter.DisplayName : room != null ? room.DisplayName : string.Empty;
+        PrototypeBattleRequest request = GetStableBattleEntryRequestForResultSnapshot();
+        string encounterId = ResolveBattleResultEncounterId(encounter, room, request);
+        string encounterName = ResolveBattleResultEncounterName(encounter, room, request);
 
         snapshot.OutcomeKey = string.IsNullOrEmpty(outcomeKey) ? PrototypeBattleOutcomeKeys.None : outcomeKey;
         snapshot.ResultStateKey = snapshot.OutcomeKey;
         snapshot.EncounterId = string.IsNullOrEmpty(encounterId) ? string.Empty : encounterId;
-        snapshot.EncounterName = string.IsNullOrEmpty(encounterName) ? (!string.IsNullOrEmpty(_eliteName) ? _eliteName : string.Empty) : encounterName;
+        snapshot.EncounterName = encounterName;
         snapshot.RouteLabel = string.IsNullOrEmpty(_selectedRouteLabel) ? "None" : _selectedRouteLabel;
         snapshot.CurrentDungeonName = string.IsNullOrEmpty(_currentDungeonName) ? "None" : _currentDungeonName;
         snapshot.PartyMembersAtEndSummary = BuildPartyMembersAtEndSummary();

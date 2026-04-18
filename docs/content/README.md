@@ -1,5 +1,47 @@
 # Golden-Path Content Authoring
 
+## What Batch 72 Adds
+
+- Batch 72 does not add a new route, city, dungeon, UI layout, or large progression framework.
+- It closes the player-facing party differentiation / growth story on the current rail by reusing the runtime seam from Batch 66.
+- Before dispatch and in ExpeditionPrep, the same party now reads as:
+  - a clear archetype + promotion identity
+  - a route-fit answer with an operational reason
+  - a next-edge / next-dispatch consequence
+- During battle, the current command readback now layers party doctrine + member battle role on top of the existing burst-window setup/payoff explanation.
+- After the run, progression readback now prefers:
+  - what this party sharpened
+  - what that changes for the next dispatch
+  rather than collapsing only to city writeback text.
+- Treat this batch as party-growth close-out on the current mainline rail, not as a new RPG framework batch.
+
+## What Batch 72.1 Adds
+
+- Batch 72.1 does not add a new route, city, dungeon, battle layout, visible inventory screen, or equipment-body-slot framework.
+- It extends the existing Batch 72 party/runtime seam with one small but real RPG progression layer:
+  - character `Level`
+  - character `Experience`
+  - next-level threshold
+  - role/archetype-biased growth bonuses on `HP / Attack / Defense / Speed`
+- The progression seam stays on the current canonical rail:
+  - world/runtime truth stores per-member level/xp
+  - battle/result return converts contribution into XP
+  - result/world follow-through keeps a hidden pending reward stash on the same party runtime
+- Loot/drop output is intentionally lightweight and forward-compatible:
+  - `gear fragment`
+  - `pressure token`
+  - `arcane shard`
+  - `recovery token`
+  - `volatile essence`
+  - `cache token`
+- Treat those as pre-inventory reward classes, not as a finished inventory UI.
+- Existing prep/result readback surfaces now have enough data to answer:
+  - did this character grow?
+  - what stat edge improved?
+  - what reward bundle dropped?
+  - what does the next dispatch now want?
+- Treat this batch as the minimal level/stat/loot loop on the current mainline rail, so a later Batch 73 inventory/equipment pass can attach to an already-real reward schema instead of starting from flavor-only text.
+
 ## What Batch 70 Adds
 
 - The current signature demo pair is now explicitly treated as `city-b -> dungeon-beta`.

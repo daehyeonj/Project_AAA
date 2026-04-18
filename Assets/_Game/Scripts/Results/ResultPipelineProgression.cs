@@ -23,6 +23,9 @@ public sealed class PostRunProgressionOutput
     public PrototypeRpgProgressionSeedSnapshot ProgressionSeed = new PrototypeRpgProgressionSeedSnapshot();
     public PrototypeRpgCombatContributionSnapshot CombatContribution = new PrototypeRpgCombatContributionSnapshot();
     public PrototypeRpgProgressionPreviewSnapshot ProgressionPreview = new PrototypeRpgProgressionPreviewSnapshot();
+    public PrototypeRpgMemberProgressionResult[] MemberProgressionResults = Array.Empty<PrototypeRpgMemberProgressionResult>();
+    public PrototypeRpgRewardBundle[] PendingRewardBundles = Array.Empty<PrototypeRpgRewardBundle>();
+    public string PendingRewardSummaryText = string.Empty;
 }
 
 public static class ResultPipelineProgression
@@ -48,7 +51,19 @@ public static class ResultPipelineProgression
         PostRunProgressionOutput output = new PostRunProgressionOutput();
         output.ProgressionSeed = BuildProgressionSeed(runResult, context, battleResult, safeInput);
         output.CombatContribution = BuildCombatContribution(runResult, battleResult, safeInput);
-        output.ProgressionPreview = BuildProgressionPreview(runResult, output.ProgressionSeed, output.CombatContribution);
+        output.MemberProgressionResults = BuildMemberProgressionResults(runResult, output.ProgressionSeed);
+        output.PendingRewardBundles = PrototypeRpgMemberProgressionRules.AggregateRewardBundles(output.MemberProgressionResults);
+        output.PendingRewardSummaryText = PrototypeRpgMemberProgressionRules.BuildRewardBundleSummaryText(output.PendingRewardBundles);
+        output.ProgressionSeed.PendingRewardBundles = output.PendingRewardBundles;
+        output.ProgressionSeed.PendingRewardSummaryText = output.PendingRewardSummaryText;
+        ApplyProgressionResultsToSeed(output.ProgressionSeed, output.MemberProgressionResults);
+        output.ProgressionPreview = BuildProgressionPreview(
+            runResult,
+            output.ProgressionSeed,
+            output.CombatContribution,
+            output.MemberProgressionResults,
+            output.PendingRewardBundles,
+            output.PendingRewardSummaryText);
         return output;
     }
 
@@ -115,6 +130,13 @@ public static class ResultPipelineProgression
                 AppliedProgressionSummaryText = Value(member.AppliedProgressionSummaryText),
                 CurrentRunSummaryText = Value(member.CurrentRunSummaryText),
                 NextRunPreviewSummaryText = Value(member.NextRunPreviewSummaryText),
+                Level = Max(1, member.Level),
+                Experience = Max(0, member.Experience),
+                NextLevelExperience = Max(1, member.NextLevelExperience),
+                GrowthBonusMaxHp = member.GrowthBonusMaxHp,
+                GrowthBonusAttack = member.GrowthBonusAttack,
+                GrowthBonusDefense = member.GrowthBonusDefense,
+                GrowthBonusSpeed = member.GrowthBonusSpeed,
                 Survived = member.Survived,
                 KnockedOut = member.KnockedOut,
                 CurrentHp = Max(0, member.CurrentHp),
@@ -124,7 +146,8 @@ public static class ResultPipelineProgression
                     DamageDealt = Contribution(input.MemberDamageDealt, i),
                     DamageTaken = Contribution(input.MemberDamageTaken, i),
                     HealingDone = Contribution(input.MemberHealingDone, i),
-                    ActionCount = Contribution(input.MemberActionCount, i)
+                    ActionCount = Contribution(input.MemberActionCount, i),
+                    KillCount = Contribution(input.MemberKillCount, i)
                 }
             };
         }
@@ -182,13 +205,92 @@ public static class ResultPipelineProgression
         return snapshot;
     }
 
+    private static PrototypeRpgMemberProgressionResult[] BuildMemberProgressionResults(
+        PrototypeRpgRunResultSnapshot runResult,
+        PrototypeRpgProgressionSeedSnapshot seed)
+    {
+        PrototypeRpgMemberProgressionSeed[] seedMembers = seed != null
+            ? seed.Members ?? Array.Empty<PrototypeRpgMemberProgressionSeed>()
+            : Array.Empty<PrototypeRpgMemberProgressionSeed>();
+        if (seedMembers.Length <= 0)
+        {
+            return Array.Empty<PrototypeRpgMemberProgressionResult>();
+        }
+
+        PrototypeRpgLootOutcomeSnapshot lootOutcome = runResult != null ? runResult.LootOutcome ?? new PrototypeRpgLootOutcomeSnapshot() : new PrototypeRpgLootOutcomeSnapshot();
+        PrototypeRpgEliteOutcomeSnapshot eliteOutcome = runResult != null ? runResult.EliteOutcome ?? new PrototypeRpgEliteOutcomeSnapshot() : new PrototypeRpgEliteOutcomeSnapshot();
+        PrototypeRpgEncounterOutcomeSnapshot encounterOutcome = runResult != null ? runResult.EncounterOutcome ?? new PrototypeRpgEncounterOutcomeSnapshot() : new PrototypeRpgEncounterOutcomeSnapshot();
+        PrototypeRpgMemberProgressionResult[] results = new PrototypeRpgMemberProgressionResult[seedMembers.Length];
+        bool success = IsSuccessfulOutcome(runResult != null ? runResult.ResultStateKey : string.Empty);
+
+        for (int i = 0; i < seedMembers.Length; i++)
+        {
+            PrototypeRpgMemberProgressionSeed memberSeed = seedMembers[i] ?? new PrototypeRpgMemberProgressionSeed();
+            results[i] = PrototypeRpgMemberProgressionRules.ResolveMemberProgression(
+                memberSeed.MemberId,
+                memberSeed.DisplayName,
+                memberSeed.RoleTag,
+                memberSeed.RoleLabel,
+                ResolveArchetypeId(memberSeed),
+                runResult != null ? runResult.RouteId : string.Empty,
+                runResult != null ? runResult.DungeonId : string.Empty,
+                success,
+                memberSeed.Survived,
+                memberSeed.KnockedOut,
+                eliteOutcome.IsEliteDefeated,
+                lootOutcome.BattleLootGained,
+                encounterOutcome.OpenedChestCount,
+                runResult != null ? runResult.TotalTurnsTaken : 0,
+                lootOutcome.TotalLootGained,
+                memberSeed.Level,
+                memberSeed.Experience,
+                memberSeed.Combat,
+                i);
+        }
+
+        return results;
+    }
+
+    private static void ApplyProgressionResultsToSeed(
+        PrototypeRpgProgressionSeedSnapshot seed,
+        PrototypeRpgMemberProgressionResult[] memberResults)
+    {
+        if (seed == null || seed.Members == null || seed.Members.Length <= 0 || memberResults == null || memberResults.Length <= 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < seed.Members.Length && i < memberResults.Length; i++)
+        {
+            PrototypeRpgMemberProgressionSeed memberSeed = seed.Members[i] ?? new PrototypeRpgMemberProgressionSeed();
+            PrototypeRpgMemberProgressionResult progressionResult = memberResults[i] ?? new PrototypeRpgMemberProgressionResult();
+            memberSeed.Level = Max(1, progressionResult.LevelAfter);
+            memberSeed.Experience = Max(0, progressionResult.ExperienceAfter);
+            memberSeed.NextLevelExperience = Max(1, progressionResult.NextLevelExperience);
+            memberSeed.GrowthBonusMaxHp = progressionResult.GrowthBonusMaxHp;
+            memberSeed.GrowthBonusAttack = progressionResult.GrowthBonusAttack;
+            memberSeed.GrowthBonusDefense = progressionResult.GrowthBonusDefense;
+            memberSeed.GrowthBonusSpeed = progressionResult.GrowthBonusSpeed;
+            memberSeed.ExperienceGained = Max(0, progressionResult.ExperienceGained);
+            memberSeed.LeveledUp = progressionResult.LeveledUp;
+            memberSeed.RewardDropSummaryText = Value(progressionResult.RewardDropSummaryText);
+            memberSeed.AppliedProgressionSummaryText = BuildMemberAppliedProgressionSummary(memberSeed, progressionResult);
+            memberSeed.CurrentRunSummaryText = BuildMemberCurrentRunSummary(memberSeed, progressionResult);
+            memberSeed.NextRunPreviewSummaryText = BuildMemberNextRunPreviewSummary(memberSeed, progressionResult);
+        }
+    }
+
     private static PrototypeRpgProgressionPreviewSnapshot BuildProgressionPreview(
         PrototypeRpgRunResultSnapshot runResult,
         PrototypeRpgProgressionSeedSnapshot seed,
-        PrototypeRpgCombatContributionSnapshot contribution)
+        PrototypeRpgCombatContributionSnapshot contribution,
+        PrototypeRpgMemberProgressionResult[] memberResults,
+        PrototypeRpgRewardBundle[] pendingRewardBundles,
+        string pendingRewardSummaryText)
     {
         PrototypeRpgMemberContributionSnapshot[] contributions = contribution.Members ?? Array.Empty<PrototypeRpgMemberContributionSnapshot>();
         PrototypeRpgMemberProgressionSeed[] seedMembers = seed.Members ?? Array.Empty<PrototypeRpgMemberProgressionSeed>();
+        PrototypeRpgMemberProgressionResult[] safeMemberResults = memberResults ?? Array.Empty<PrototypeRpgMemberProgressionResult>();
 
         PrototypeRpgProgressionPreviewSnapshot preview = new PrototypeRpgProgressionPreviewSnapshot();
         preview.ResultStateKey = Value(runResult.ResultStateKey);
@@ -207,6 +309,8 @@ public static class ResultPipelineProgression
         preview.GearRewardCandidateSummaryText = Value(seed.GearRewardCandidateSummaryText);
         preview.EquipSwapChoiceSummaryText = Value(seed.EquipSwapChoiceSummaryText);
         preview.GearCarryContinuitySummaryText = Value(seed.GearCarryContinuitySummaryText);
+        preview.PendingRewardSummaryText = Value(pendingRewardSummaryText);
+        preview.PendingRewardBundles = pendingRewardBundles ?? Array.Empty<PrototypeRpgRewardBundle>();
         preview.RewardHintTags = BuildPreviewRewardHintTags(runResult, seed);
         preview.GrowthHintTags = BuildPreviewGrowthHintTags(seed, contribution);
 
@@ -215,6 +319,7 @@ public static class ResultPipelineProgression
         {
             PrototypeRpgMemberContributionSnapshot memberContribution = contributions[i] ?? new PrototypeRpgMemberContributionSnapshot();
             PrototypeRpgMemberProgressionSeed seedMember = i < seedMembers.Length ? seedMembers[i] ?? new PrototypeRpgMemberProgressionSeed() : new PrototypeRpgMemberProgressionSeed();
+            PrototypeRpgMemberProgressionResult progressionResult = i < safeMemberResults.Length ? safeMemberResults[i] ?? new PrototypeRpgMemberProgressionResult() : new PrototypeRpgMemberProgressionResult();
             members[i] = new PrototypeRpgMemberProgressPreview
             {
                 MemberId = FirstValue(memberContribution.MemberId, seedMember.MemberId),
@@ -232,6 +337,16 @@ public static class ResultPipelineProgression
                 AppliedProgressionSummaryText = Value(seedMember.AppliedProgressionSummaryText),
                 CurrentRunSummaryText = Value(seedMember.CurrentRunSummaryText),
                 NextRunPreviewSummaryText = Value(seedMember.NextRunPreviewSummaryText),
+                Level = Max(1, progressionResult.LevelAfter),
+                Experience = Max(0, progressionResult.ExperienceAfter),
+                NextLevelExperience = Max(1, progressionResult.NextLevelExperience),
+                GrowthBonusMaxHp = progressionResult.GrowthBonusMaxHp,
+                GrowthBonusAttack = progressionResult.GrowthBonusAttack,
+                GrowthBonusDefense = progressionResult.GrowthBonusDefense,
+                GrowthBonusSpeed = progressionResult.GrowthBonusSpeed,
+                ExperienceGained = Max(0, progressionResult.ExperienceGained),
+                LeveledUp = progressionResult.LeveledUp,
+                RewardDropSummaryText = Value(progressionResult.RewardDropSummaryText),
                 Survived = memberContribution.Survived,
                 Contribution = memberContribution,
                 SuggestedGrowthHintTags = BuildMemberGrowthHintTags(memberContribution),
@@ -396,6 +511,132 @@ public static class ResultPipelineProgression
         if (runResult.ResultStateKey == PrototypeBattleOutcomeKeys.RunRetreat) return "retreat_penalty_hint";
         if (runResult.RouteId == RiskyRouteId) return "risky_route_hint";
         return contribution.Survived ? "survivor" : string.Empty;
+    }
+
+    private static string BuildMemberAppliedProgressionSummary(
+        PrototypeRpgMemberProgressionSeed seedMember,
+        PrototypeRpgMemberProgressionResult result)
+    {
+        return JoinSummaryParts(
+            BuildClause("Level", PrototypeRpgMemberProgressionRules.BuildLevelProgressText(
+                result != null ? result.LevelAfter : seedMember.Level,
+                result != null ? result.ExperienceAfter : seedMember.Experience,
+                result != null ? result.NextLevelExperience : seedMember.NextLevelExperience)),
+            BuildClause("Role", FirstMeaningful(seedMember.RoleLabel, seedMember.RoleTag)),
+            BuildClause("Loadout", seedMember.EquipmentSummaryText),
+            BuildClause("Skill", seedMember.ResolvedSkillName),
+            BuildClause("Growth", result != null ? result.GrowthSummaryText : seedMember.AppliedProgressionSummaryText));
+    }
+
+    private static string BuildMemberCurrentRunSummary(
+        PrototypeRpgMemberProgressionSeed seedMember,
+        PrototypeRpgMemberProgressionResult result)
+    {
+        return JoinSummaryParts(
+            ExtractSummaryClause(seedMember.CurrentRunSummaryText, "Battle Role"),
+            BuildClause("Level", PrototypeRpgMemberProgressionRules.BuildLevelProgressText(
+                result != null ? result.LevelAfter : seedMember.Level,
+                result != null ? result.ExperienceAfter : seedMember.Experience,
+                result != null ? result.NextLevelExperience : seedMember.NextLevelExperience)),
+            ExtractSummaryClause(seedMember.CurrentRunSummaryText, "Stats"),
+            BuildClause("Loot", result != null ? result.RewardDropSummaryText : string.Empty),
+            ExtractSummaryClause(seedMember.CurrentRunSummaryText, "Gear Edge"));
+    }
+
+    private static string BuildMemberNextRunPreviewSummary(
+        PrototypeRpgMemberProgressionSeed seedMember,
+        PrototypeRpgMemberProgressionResult result)
+    {
+        int resolvedLevel = result != null ? result.LevelAfter : seedMember.Level;
+        int resolvedExperience = result != null ? result.ExperienceAfter : seedMember.Experience;
+        int resolvedNextLevelExperience = result != null ? result.NextLevelExperience : seedMember.NextLevelExperience;
+        return JoinSummaryParts(
+            ExtractSummaryClause(seedMember.NextRunPreviewSummaryText, "Next Dispatch"),
+            BuildClause("Next Level", PrototypeRpgMemberProgressionRules.BuildNextLevelHintText(
+                resolvedLevel,
+                resolvedExperience,
+                resolvedNextLevelExperience)),
+            BuildClause("Loot", result != null ? result.RewardDropSummaryText : string.Empty),
+            ExtractSummaryClause(seedMember.NextRunPreviewSummaryText, "Carry Forward"));
+    }
+
+    private static string ResolveArchetypeId(PrototypeRpgMemberProgressionSeed seedMember)
+    {
+        if (seedMember == null)
+        {
+            return string.Empty;
+        }
+
+        string growthTrackId = Value(seedMember.GrowthTrackId);
+        if (!string.IsNullOrEmpty(growthTrackId))
+        {
+            string[] growthParts = growthTrackId.Split('_');
+            if (growthParts.Length >= 2)
+            {
+                return growthParts[growthParts.Length - 2];
+            }
+        }
+
+        string jobId = Value(seedMember.JobId);
+        if (!string.IsNullOrEmpty(jobId))
+        {
+            string[] jobParts = jobId.Split('_');
+            if (jobParts.Length > 0)
+            {
+                return jobParts[jobParts.Length - 1];
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static bool IsSuccessfulOutcome(string resultStateKey)
+    {
+        return resultStateKey == PrototypeBattleOutcomeKeys.RunClear ||
+               resultStateKey == PrototypeBattleOutcomeKeys.EncounterVictory;
+    }
+
+    private static string ExtractSummaryClause(string summaryText, string label)
+    {
+        if (!string.IsNullOrEmpty(summaryText) && !string.IsNullOrEmpty(label))
+        {
+            string[] clauses = summaryText.Split('|');
+            string prefix = label.Trim() + " ";
+            for (int i = 0; i < clauses.Length; i++)
+            {
+                string clause = clauses[i] != null ? clauses[i].Trim() : string.Empty;
+                if (clause.StartsWith(prefix))
+                {
+                    return clause;
+                }
+            }
+        }
+
+        return BuildClause(label, string.Empty);
+    }
+
+    private static string JoinSummaryParts(params string[] values)
+    {
+        List<string> parts = new List<string>();
+        if (values != null)
+        {
+            for (int i = 0; i < values.Length; i++)
+            {
+                if (!string.IsNullOrEmpty(values[i]))
+                {
+                    parts.Add(values[i]);
+                }
+            }
+        }
+
+        return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : string.Empty;
+    }
+
+    private static string BuildClause(string label, string value)
+    {
+        return !string.IsNullOrEmpty(label) && !string.IsNullOrEmpty(value)
+            ? label.Trim() + " " + value.Trim()
+            : string.Empty;
     }
 
     private static PrototypeBattleEventRecord[] CopyBattleEventRecords(PrototypeBattleEventRecord[] source)

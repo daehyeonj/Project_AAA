@@ -4,6 +4,7 @@ public sealed class PostRunResolutionInput
     public PrototypeDungeonRunResultContext CompatibilityRunResultContext = new PrototypeDungeonRunResultContext();
     public BattleResult BattleResult = new BattleResult();
     public PostRunProgressionInput ProgressionInput = new PostRunProgressionInput();
+    public PostRunProgressionOutput ProgressionOutput = new PostRunProgressionOutput();
     public string SourceCityId = string.Empty;
     public string SourceCityLabel = "None";
     public string RewardResourceId = string.Empty;

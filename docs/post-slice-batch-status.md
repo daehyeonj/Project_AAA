@@ -2,7 +2,7 @@
 
 ## Current Mainline Snapshot
 
-- Snapshot date: `2026-04-17`
+- Snapshot date: `2026-04-18`
 - Sync intent: `preserve the current local runtime state on GitHub main so repository readers can inspect the live working baseline`
 - Active runtime baseline to preserve: `grid dungeon explore shell` + `current battleScene HUD`
 - UI safety rule: `reject prompts that would change or roll back the currently accepted runtime UI without explicit approval`
@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 70`
+- Latest closed batch: `Batch 72`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,7 +18,76 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-b -> dungeon-beta`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: stronger manual proof of the signature loop and longer-lived world consequence persistence, not route-surface expansion or fallback cleanup
+- Next honest bottleneck: stronger manual/runtime proof that the party-readable signature loop stays legible across repeated returns, plus longer-lived world consequence persistence, not route-surface expansion or UI churn
+
+## Batch 72 Close-Out
+
+- Selected branch: `A`
+- Batch 72 closes party growth / differentiation on the existing runtime seam instead of inventing a second progression framework.
+- World / prep readback now answers the party question in one throughline:
+  - archetype + promotion identity
+  - why that identity fits the route
+  - what next edge the current promotion state is unlocking
+- Battle command readback now carries party doctrine + member battle-role context on top of the existing burst-window setup/payoff loop.
+- Result / return readback now preserves party growth consequence instead of letting city writeback text fully overwrite it:
+  - result progression now prefers next-run consequence before raw applied text
+  - return aftermath / next-prep follow-up can now echo party growth as well as city impact
+- UI shape changed?: `No`
+
+## Batch 72 Validation Snapshot
+
+- Compile: `PASS`
+- Targeted audit:
+  - dispatch / recommendation / route-fit party throughline: `PASS`
+  - ExpeditionPrep staged-party / launch-manifest growth readback: `PASS`
+  - battle command setup-payoff text varies by party identity: `PASS`
+  - result / next-prep growth consequence survives the return path: `PASS`
+- Manual verification: `DEFERRED`
+- Smoke: `DEFERRED`
+
+## Batch 72.1 Close-Out
+
+- Selected branch: `B`
+- Batch 72.1 adds one thin progression seam on top of the current Batch 72 party rail instead of opening a full inventory or equipment framework.
+- Character runtime progression now persists on the canonical world/runtime path:
+  - per-member `Level`
+  - per-member `Experience`
+  - per-member next-level threshold
+  - role/archetype-biased growth bonuses for `HP / Attack / Defense / Speed`
+- Battle/result return now converts combat contribution into real post-run growth:
+  - XP gain
+  - level-up resolution
+  - stat-growth readback
+  - lightweight loot-drop bundles
+- Loot is intentionally staged as a hidden pending stash instead of a visible inventory screen:
+  - stash bundles accumulate on the party runtime
+  - result/readback text can surface the reward without changing the accepted UI layout
+  - the reward schema is now ready to hand into a future Batch 73 inventory/equipment surface
+- UI shape changed?: `No`
+
+## Batch 72.1 Validation Snapshot
+
+- Compile: `PASS`
+- Targeted audit:
+  - world/runtime party seam now persists per-member level/xp: `PASS`
+  - result pipeline now resolves XP + level-up + stat growth on the canonical return path: `PASS`
+  - lightweight loot/drop bundles now flow into a hidden pending stash: `PASS`
+  - existing prep/result readback surfaces can now echo next-level and loot continuity without a UI redesign: `PASS`
+- Manual verification: `DEFERRED`
+- Smoke: `FAIL (existing BattleScene -> DungeonRun return continuity check still breaks before full result/world re-entry proof)`
+
+## Batch 72.1 Continuity Repair Note
+
+- The first reported blocker after Batch 72.1 was not the progression seam itself, but the adjacent `DungeonRun -> BattleScene -> DungeonRun` return seam.
+- The concrete drift was:
+  - battle return could rebuild from the current room after combat
+  - the rebuilt snapshot could fall forward to the next room context
+  - `EncounterId / EncounterName / EncounterRoomType / Objective` could therefore collapse away from the original battle-entry context
+- The active fix keeps this narrow:
+  - battle result snapshot rebuild now prefers the stable battle-entry request before falling back to current-room data
+  - battle return payload now prefers the same stable battle-entry request for encounter identity, room type, objective, and summary naming
+- UI shape remains unchanged.
+- Next required proof: rerun the Batch 10 smoke after closing any already-open Unity editor instance for `Project_AAA`, so the repaired continuity seam can be verified end-to-end.
 
 ## Batch 70 Close-Out
 

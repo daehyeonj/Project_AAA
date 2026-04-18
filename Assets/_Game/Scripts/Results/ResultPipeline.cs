@@ -1,3 +1,5 @@
+using System;
+
 public static class ResultPipeline
 {
     public static ExpeditionOutcome BuildExpeditionOutcome(
@@ -234,7 +236,7 @@ public static class ResultPipeline
     public static ExpeditionResult BuildExpeditionResult(PostRunResolutionInput handoffInput)
     {
         PostRunResolutionInput safeInput = handoffInput ?? new PostRunResolutionInput();
-        return BuildExpeditionResult(
+        ExpeditionResult result = BuildExpeditionResult(
             safeInput.CompatibilityRunResultContext,
             safeInput.BattleResult,
             safeInput.SourceCityId,
@@ -243,6 +245,8 @@ public static class ResultPipeline
             safeInput.Success,
             safeInput.ReturnedLootAmount,
             safeInput.ElapsedDays);
+        ApplyProgressionOutput(result, safeInput.ProgressionOutput);
+        return result;
     }
 
     public static ExpeditionResult BuildExpeditionResult(
@@ -334,6 +338,13 @@ public static class ResultPipeline
         result.GearRewardCandidateSummaryText = ChooseText(context.GearRewardCandidateSummaryText, "None");
         result.EquipSwapChoiceSummaryText = ChooseText(context.EquipSwapChoiceSummaryText, "None");
         result.GearCarryContinuitySummaryText = ChooseText(context.GearCarryContinuitySummaryText, "None");
+        result.LatestReturnAftermathSummaryText = ChooseMeaningfulText(
+            BuildPartyGrowthAftermathSummary(partyOutcome),
+            result.ResultSummaryText);
+        result.NextPrepFollowUpSummaryText = ChooseMeaningfulText(
+            BuildPartyGrowthFollowUpSummary(partyOutcome),
+            "None");
+        result.NextSuggestedActionText = result.NextPrepFollowUpSummaryText;
         result.BattleResult = CopyBattleResult(safeBattleResult);
         return result;
     }
@@ -466,11 +477,17 @@ public static class ResultPipeline
         result.ResultStateKey = ChooseValue(resultStateKey, ChooseValue(safeExpeditionResult.ResultStateKey, safeCityWriteback.ResultStateKey));
         result.Success = safeExpeditionResult.Success;
         result.AcknowledgementText = ChooseText(acknowledgementText, "None");
-        result.LatestReturnAftermathText = ChooseText(latestReturnAftermathText, worldWritebackSummaryText);
+        result.LatestReturnAftermathText = ChooseMeaningfulText(
+            latestReturnAftermathText,
+            ChooseMeaningfulText(safeExpeditionResult.LatestReturnAftermathSummaryText, worldWritebackSummaryText));
         result.PostRunSummaryText = ChooseText(safeSelectedWorldWriteback.ResultSummaryText, ChooseText(safeExpeditionResult.ResultSummaryText, lastExpeditionResultText));
         result.SummaryText = result.PostRunSummaryText;
-        result.NextSuggestedActionText = ChooseText(nextSuggestedActionText, "None");
-        result.FollowUpHintText = ChooseText(followUpHintText, nextSuggestedActionText);
+        result.NextSuggestedActionText = ChooseMeaningfulText(
+            nextSuggestedActionText,
+            ChooseMeaningfulText(safeExpeditionResult.NextSuggestedActionText, "None"));
+        result.FollowUpHintText = ChooseMeaningfulText(
+            followUpHintText,
+            ChooseMeaningfulText(safeExpeditionResult.NextPrepFollowUpSummaryText, result.NextSuggestedActionText));
         result.LastExpeditionResultText = ChooseText(lastExpeditionResultText, result.PostRunSummaryText);
         result.WorldWritebackSummaryText = ChooseText(worldWritebackSummaryText, "None");
         result.SelectedWorldWritebackText = ChooseText(safeSelectedWorldWriteback.WritebackSummaryText, "None");
@@ -579,13 +596,13 @@ public static class ResultPipeline
                 safeWorldWriteback.WritebackSummaryText));
         result.LatestReturnAftermathSummaryText = ChooseMeaningfulText(
             safeOutcomeReadback.LatestReturnAftermathText,
-            result.WorldWritebackSummaryText);
+            ChooseMeaningfulText(result.LatestReturnAftermathSummaryText, result.WorldWritebackSummaryText));
         result.NextSuggestedActionText = ChooseMeaningfulText(
             safeOutcomeReadback.NextSuggestedActionText,
-            safeCityWriteback.FollowUpHintText);
+            ChooseMeaningfulText(safeCityWriteback.FollowUpHintText, result.NextSuggestedActionText));
         result.NextPrepFollowUpSummaryText = ChooseMeaningfulText(
             safeOutcomeReadback.FollowUpHintText,
-            result.NextSuggestedActionText);
+            ChooseMeaningfulText(result.NextPrepFollowUpSummaryText, result.NextSuggestedActionText));
         return result;
     }
 
@@ -629,6 +646,67 @@ public static class ResultPipeline
         copy.LaneRuleSummaryText = source.LaneRuleSummaryText;
         copy.AbsorbSummaryText = source.AbsorbSummaryText;
         return copy;
+    }
+
+    private static PrototypeRpgRewardBundle[] CopyRewardBundles(PrototypeRpgRewardBundle[] source)
+    {
+        PrototypeRpgRewardBundle[] safeSource = source ?? Array.Empty<PrototypeRpgRewardBundle>();
+        if (safeSource.Length <= 0)
+        {
+            return Array.Empty<PrototypeRpgRewardBundle>();
+        }
+
+        PrototypeRpgRewardBundle[] copies = new PrototypeRpgRewardBundle[safeSource.Length];
+        for (int i = 0; i < safeSource.Length; i++)
+        {
+            PrototypeRpgRewardBundle bundle = safeSource[i] ?? new PrototypeRpgRewardBundle();
+            copies[i] = new PrototypeRpgRewardBundle
+            {
+                RewardId = Value(bundle.RewardId),
+                RewardLabel = ChooseText(bundle.RewardLabel, "None"),
+                Amount = NonNegative(bundle.Amount)
+            };
+        }
+
+        return copies;
+    }
+
+    private static PrototypeRpgMemberProgressionResult[] CopyMemberProgressionResults(PrototypeRpgMemberProgressionResult[] source)
+    {
+        PrototypeRpgMemberProgressionResult[] safeSource = source ?? Array.Empty<PrototypeRpgMemberProgressionResult>();
+        if (safeSource.Length <= 0)
+        {
+            return Array.Empty<PrototypeRpgMemberProgressionResult>();
+        }
+
+        PrototypeRpgMemberProgressionResult[] copies = new PrototypeRpgMemberProgressionResult[safeSource.Length];
+        for (int i = 0; i < safeSource.Length; i++)
+        {
+            PrototypeRpgMemberProgressionResult item = safeSource[i] ?? new PrototypeRpgMemberProgressionResult();
+            copies[i] = new PrototypeRpgMemberProgressionResult
+            {
+                MemberId = Value(item.MemberId),
+                DisplayName = ChooseText(item.DisplayName, "Adventurer"),
+                RoleTag = Value(item.RoleTag),
+                RoleLabel = ChooseText(item.RoleLabel, "Adventurer"),
+                LevelBefore = item.LevelBefore > 0 ? item.LevelBefore : 1,
+                LevelAfter = item.LevelAfter > 0 ? item.LevelAfter : 1,
+                ExperienceBefore = NonNegative(item.ExperienceBefore),
+                ExperienceAfter = NonNegative(item.ExperienceAfter),
+                ExperienceGained = NonNegative(item.ExperienceGained),
+                NextLevelExperience = item.NextLevelExperience > 0 ? item.NextLevelExperience : PrototypeRpgMemberProgressionRules.GetNextLevelExperience(1),
+                GrowthBonusMaxHp = item.GrowthBonusMaxHp,
+                GrowthBonusAttack = item.GrowthBonusAttack,
+                GrowthBonusDefense = item.GrowthBonusDefense,
+                GrowthBonusSpeed = item.GrowthBonusSpeed,
+                LeveledUp = item.LeveledUp,
+                GrowthSummaryText = ChooseText(item.GrowthSummaryText, "None"),
+                RewardDropSummaryText = ChooseText(item.RewardDropSummaryText, "None"),
+                RewardBundles = CopyRewardBundles(item.RewardBundles)
+            };
+        }
+
+        return copies;
     }
 
     private static ExpeditionResult CopyExpeditionResult(ExpeditionResult source)
@@ -705,12 +783,44 @@ public static class ResultPipeline
         copy.GearRewardCandidateSummaryText = source.GearRewardCandidateSummaryText;
         copy.EquipSwapChoiceSummaryText = source.EquipSwapChoiceSummaryText;
         copy.GearCarryContinuitySummaryText = source.GearCarryContinuitySummaryText;
+        copy.PendingRewardSummaryText = source.PendingRewardSummaryText;
         copy.WorldWritebackSummaryText = source.WorldWritebackSummaryText;
         copy.LatestReturnAftermathSummaryText = source.LatestReturnAftermathSummaryText;
         copy.NextSuggestedActionText = source.NextSuggestedActionText;
         copy.NextPrepFollowUpSummaryText = source.NextPrepFollowUpSummaryText;
+        copy.PendingRewardBundles = CopyRewardBundles(source.PendingRewardBundles);
+        copy.MemberProgressionResults = CopyMemberProgressionResults(source.MemberProgressionResults);
         copy.BattleResult = CopyBattleResult(source.BattleResult);
         return copy;
+    }
+
+    private static void ApplyProgressionOutput(ExpeditionResult result, PostRunProgressionOutput progressionOutput)
+    {
+        if (result == null || progressionOutput == null)
+        {
+            return;
+        }
+
+        result.PendingRewardBundles = CopyRewardBundles(progressionOutput.PendingRewardBundles);
+        result.PendingRewardSummaryText = ChooseMeaningfulText(progressionOutput.PendingRewardSummaryText, "None");
+        result.MemberProgressionResults = CopyMemberProgressionResults(progressionOutput.MemberProgressionResults);
+        if (IsMeaningfulText(result.PendingRewardSummaryText))
+        {
+            string stashText = "Hidden Stash " + result.PendingRewardSummaryText;
+            result.LootBreakdownSummaryText = ChooseMeaningfulText(
+                AppendSummarySegment(result.LootBreakdownSummaryText, stashText),
+                result.LootBreakdownSummaryText);
+        }
+
+        string progressionAftermath = BuildProgressionAftermathSummary(result.MemberProgressionResults, result.PendingRewardSummaryText);
+        string progressionFollowUp = BuildProgressionFollowUpSummary(result.MemberProgressionResults, result.PendingRewardSummaryText);
+        result.LatestReturnAftermathSummaryText = ChooseMeaningfulText(
+            progressionAftermath,
+            result.LatestReturnAftermathSummaryText);
+        result.NextPrepFollowUpSummaryText = ChooseMeaningfulText(
+            progressionFollowUp,
+            result.NextPrepFollowUpSummaryText);
+        result.NextSuggestedActionText = ChooseMeaningfulText(result.NextPrepFollowUpSummaryText, result.NextSuggestedActionText);
     }
 
     private static string ChooseMeaningfulText(string primary, string fallback)
@@ -743,6 +853,183 @@ public static class ResultPipeline
         return HasText(rewardResourceId) && returnedLootAmount > 0
             ? rewardResourceId + " x" + returnedLootAmount
             : "None";
+    }
+
+    private static string BuildPartyGrowthAftermathSummary(PrototypeRpgPartyOutcomeSnapshot partyOutcome)
+    {
+        PrototypeRpgPartyMemberOutcomeSnapshot[] members = partyOutcome != null
+            ? partyOutcome.Members
+            : null;
+        if (members == null || members.Length <= 0)
+        {
+            return "None";
+        }
+
+        string summary = string.Empty;
+        int written = 0;
+        for (int i = 0; i < members.Length && written < 2; i++)
+        {
+            PrototypeRpgPartyMemberOutcomeSnapshot member = members[i] ?? new PrototypeRpgPartyMemberOutcomeSnapshot();
+            string growthText = ExtractSummaryClauseText(member.AppliedProgressionSummaryText, "Growth");
+            string detail = ChooseMeaningfulText(growthText, ChooseMeaningfulText(member.AppliedProgressionSummaryText, member.CurrentRunSummaryText));
+            if (!IsMeaningfulText(detail))
+            {
+                continue;
+            }
+
+            string displayName = IsMeaningfulText(member.DisplayName) ? member.DisplayName : "Party";
+            string segment = displayName + ": " + CompactSummaryText(detail, 112);
+            summary = string.IsNullOrEmpty(summary) ? segment : summary + " | " + segment;
+            written++;
+        }
+
+        return IsMeaningfulText(summary) ? summary : "None";
+    }
+
+    private static string BuildPartyGrowthFollowUpSummary(PrototypeRpgPartyOutcomeSnapshot partyOutcome)
+    {
+        PrototypeRpgPartyMemberOutcomeSnapshot[] members = partyOutcome != null
+            ? partyOutcome.Members
+            : null;
+        if (members == null || members.Length <= 0)
+        {
+            return "None";
+        }
+
+        string summary = string.Empty;
+        int written = 0;
+        for (int i = 0; i < members.Length && written < 2; i++)
+        {
+            PrototypeRpgPartyMemberOutcomeSnapshot member = members[i] ?? new PrototypeRpgPartyMemberOutcomeSnapshot();
+            string nextDispatchText = ExtractSummaryClauseText(member.NextRunPreviewSummaryText, "Next Dispatch");
+            string detail = ChooseMeaningfulText(nextDispatchText, ChooseMeaningfulText(member.NextRunPreviewSummaryText, member.CurrentRunSummaryText));
+            if (!IsMeaningfulText(detail))
+            {
+                continue;
+            }
+
+            string displayName = IsMeaningfulText(member.DisplayName) ? member.DisplayName : "Party";
+            string segment = displayName + ": " + CompactSummaryText(detail, 112);
+            summary = string.IsNullOrEmpty(summary) ? segment : summary + " | " + segment;
+            written++;
+        }
+
+        return IsMeaningfulText(summary) ? summary : "None";
+    }
+
+    private static string BuildProgressionAftermathSummary(
+        PrototypeRpgMemberProgressionResult[] memberResults,
+        string pendingRewardSummaryText)
+    {
+        PrototypeRpgMemberProgressionResult[] safeResults = memberResults ?? Array.Empty<PrototypeRpgMemberProgressionResult>();
+        string summary = string.Empty;
+        int written = 0;
+        for (int i = 0; i < safeResults.Length && written < 2; i++)
+        {
+            PrototypeRpgMemberProgressionResult result = safeResults[i] ?? new PrototypeRpgMemberProgressionResult();
+            if (!IsMeaningfulText(result.GrowthSummaryText))
+            {
+                continue;
+            }
+
+            string displayName = IsMeaningfulText(result.DisplayName) ? result.DisplayName : "Party";
+            string segment = displayName + ": " + CompactSummaryText(result.GrowthSummaryText, 112);
+            summary = string.IsNullOrEmpty(summary) ? segment : summary + " | " + segment;
+            written++;
+        }
+
+        if (IsMeaningfulText(pendingRewardSummaryText))
+        {
+            summary = AppendSummarySegment(summary, "Stash " + pendingRewardSummaryText);
+        }
+
+        return IsMeaningfulText(summary) ? summary : "None";
+    }
+
+    private static string BuildProgressionFollowUpSummary(
+        PrototypeRpgMemberProgressionResult[] memberResults,
+        string pendingRewardSummaryText)
+    {
+        PrototypeRpgMemberProgressionResult[] safeResults = memberResults ?? Array.Empty<PrototypeRpgMemberProgressionResult>();
+        string summary = string.Empty;
+        int written = 0;
+        for (int i = 0; i < safeResults.Length && written < 2; i++)
+        {
+            PrototypeRpgMemberProgressionResult result = safeResults[i] ?? new PrototypeRpgMemberProgressionResult();
+            string nextLevelText = PrototypeRpgMemberProgressionRules.BuildNextLevelHintText(
+                result.LevelAfter,
+                result.ExperienceAfter,
+                result.NextLevelExperience);
+            string detail = AppendSummarySegment(nextLevelText, IsMeaningfulText(result.RewardDropSummaryText) ? "Loot " + result.RewardDropSummaryText : string.Empty);
+            if (!IsMeaningfulText(detail))
+            {
+                continue;
+            }
+
+            string displayName = IsMeaningfulText(result.DisplayName) ? result.DisplayName : "Party";
+            string segment = displayName + ": " + CompactSummaryText(detail, 112);
+            summary = string.IsNullOrEmpty(summary) ? segment : summary + " | " + segment;
+            written++;
+        }
+
+        if (IsMeaningfulText(pendingRewardSummaryText))
+        {
+            summary = AppendSummarySegment(summary, "Stash " + pendingRewardSummaryText);
+        }
+
+        return IsMeaningfulText(summary) ? summary : "None";
+    }
+
+    private static string ExtractSummaryClauseText(string summaryText, string label)
+    {
+        if (!IsMeaningfulText(summaryText) || !IsMeaningfulText(label))
+        {
+            return string.Empty;
+        }
+
+        string[] clauses = summaryText.Split('|');
+        string prefix = label.Trim() + " ";
+        for (int i = 0; i < clauses.Length; i++)
+        {
+            string clause = clauses[i] != null ? clauses[i].Trim() : string.Empty;
+            if (clause.StartsWith(prefix))
+            {
+                return clause.Substring(prefix.Length).Trim();
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string CompactSummaryText(string text, int maxLength)
+    {
+        if (!IsMeaningfulText(text))
+        {
+            return string.Empty;
+        }
+
+        string trimmed = text.Trim();
+        if (trimmed.Length <= maxLength || maxLength < 4)
+        {
+            return trimmed;
+        }
+
+        return trimmed.Substring(0, maxLength - 3).TrimEnd() + "...";
+    }
+
+    private static string AppendSummarySegment(string existing, string segment)
+    {
+        if (!IsMeaningfulText(segment))
+        {
+            return existing;
+        }
+
+        return IsMeaningfulText(existing) ? existing + " | " + segment : segment;
+    }
+
+    private static string Value(string value)
+    {
+        return string.IsNullOrEmpty(value) ? string.Empty : value;
     }
 
     private static void PopulateSharedOutcomeMeaning(ExpeditionOutcome result, string routeId)

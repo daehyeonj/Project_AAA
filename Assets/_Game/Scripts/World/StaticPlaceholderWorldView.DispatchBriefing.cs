@@ -361,21 +361,15 @@ public sealed partial class StaticPlaceholderWorldView
         PrototypeRpgPartyRuntimeResolveSurface partySurface = BuildRuntimePartyResolveSurface(snapshot.PartyId);
         int partyPower = _runtimeEconomyState.GetReadyPartyPowerForCity(snapshot.CityId);
         int carryCapacity = _runtimeEconomyState.GetReadyPartyCarryCapacityForCity(snapshot.CityId);
-        string lastEcho = string.IsNullOrEmpty(partyResultEcho) || partyResultEcho == "None" || partyResultEcho.StartsWith("Ready in ")
-            ? string.Empty
-            : " | Last: " + partyResultEcho;
         if (partySurface == null)
         {
+            string lastEcho = string.IsNullOrEmpty(partyResultEcho) || partyResultEcho == "None" || partyResultEcho.StartsWith("Ready in ")
+                ? string.Empty
+                : " | Last: " + partyResultEcho;
             return snapshot.PartyId + " | " + snapshot.PartyRoleSummary + " | Power " + partyPower + " | Carry " + carryCapacity + lastEcho;
         }
 
-        return snapshot.PartyId +
-            " | " + partySurface.ArchetypeLabel +
-            " | " + partySurface.PromotionStateLabel +
-            " | Power " + partyPower +
-            " | Carry " + carryCapacity +
-            " | " + partySurface.StrengthSummaryText +
-            lastEcho;
+        return BuildRuntimePartyPrepSummaryText(partySurface, partyPower, carryCapacity, partyResultEcho);
     }
 
     private string BuildDispatchBriefingSummaryText(PrototypeWorldDispatchBriefingSnapshot snapshot, bool requireSelectedRoute)

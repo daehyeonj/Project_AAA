@@ -814,11 +814,7 @@ public sealed partial class StaticPlaceholderWorldView
         manifest.AppliedProgressionSummaryText = string.IsNullOrEmpty(member.AppliedProgressionSummaryText) ? "None" : member.AppliedProgressionSummaryText;
         manifest.CurrentRunSummaryText = string.IsNullOrEmpty(member.CurrentRunSummaryText) ? "None" : member.CurrentRunSummaryText;
         manifest.NextRunPreviewSummaryText = string.IsNullOrEmpty(member.NextRunPreviewSummaryText) ? "None" : member.NextRunPreviewSummaryText;
-        manifest.SummaryText =
-            manifest.DisplayName + " [" + manifest.RoleLabel + "] | Job " +
-            (IsMeaningfulSnapshotText(manifest.JobId) ? manifest.JobId : "None") +
-            " | Skill " + manifest.ResolvedSkillName +
-            " | Gear " + manifest.EquipmentSummaryText;
+        manifest.SummaryText = BuildExpeditionPartyMemberSummaryLine(manifest);
         return manifest;
     }
 
@@ -839,11 +835,15 @@ public sealed partial class StaticPlaceholderWorldView
             }
 
             string roleLabel = IsMeaningfulSnapshotText(member.RoleLabel) ? member.RoleLabel : "Adventurer";
-            string jobId = IsMeaningfulSnapshotText(member.JobId) ? member.JobId : "None";
-            string skillName = IsMeaningfulSnapshotText(member.ResolvedSkillName) ? member.ResolvedSkillName : "Skill";
-            string part = (IsMeaningfulSnapshotText(member.DisplayName) ? member.DisplayName : roleLabel) +
-                " [" + roleLabel + "] | Job " + jobId +
-                " | Skill " + skillName;
+            string displayName = IsMeaningfulSnapshotText(member.DisplayName) ? member.DisplayName : roleLabel;
+            string battleRoleText = ExtractRuntimeSummaryClauseText(member.CurrentRunSummaryText, "Battle Role");
+            string nextDispatchText = ExtractRuntimeSummaryClauseText(member.NextRunPreviewSummaryText, "Next Dispatch");
+            string fallbackText = IsMeaningfulSnapshotText(member.ResolvedSkillName) ? member.ResolvedSkillName : "Skill";
+            string part = displayName +
+                " [" + roleLabel + "] | " +
+                ChooseRuntimePartySummaryText(battleRoleText, fallbackText) +
+                " | " +
+                ChooseRuntimePartySummaryText(nextDispatchText, member.EquipmentSummaryText);
             summary = string.IsNullOrEmpty(summary) ? part : summary + "\n" + part;
         }
 
@@ -858,9 +858,17 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         string partyLabel = IsMeaningfulSnapshotText(manifest.PartyLabel) ? manifest.PartyLabel : "Party";
-        string previewText = IsMeaningfulSnapshotText(manifest.NextRunPreviewSummaryText)
-            ? manifest.NextRunPreviewSummaryText
-            : manifest.MemberSummaryText;
+        string partyIdentityText = ExtractRuntimeSummaryClauseText(manifest.AppliedProgressionSummaryText, "Party");
+        string nextEdgeText = ExtractRuntimeSummaryClauseText(manifest.NextRunPreviewSummaryText, "Next Edge");
+        string battlePlanText = ExtractRuntimeSummaryClauseText(manifest.CurrentRunSummaryText, "Battle Plan");
+        string previewText = ChooseRuntimePartySummaryText(
+            partyIdentityText,
+            ChooseRuntimePartySummaryText(nextEdgeText, battlePlanText));
+        if (!IsMeaningfulSnapshotText(previewText))
+        {
+            previewText = manifest.MemberSummaryText;
+        }
+
         return partyLabel + " | " + Mathf.Max(0, manifest.MemberCount) + " members ready | " + previewText;
     }
 
@@ -887,7 +895,28 @@ public sealed partial class StaticPlaceholderWorldView
         return "Selected " + selectedRoute +
             " | Recommended " + recommendedRoute +
             " | " + routeDecision +
-            " | " + partySummary;
+            " | " + partySummary +
+            " | Fit " + (IsMeaningfulSnapshotText(context.RouteFitSummaryText) ? context.RouteFitSummaryText : "None");
+    }
+
+    private string BuildExpeditionPartyMemberSummaryLine(ExpeditionPartyMemberManifest manifest)
+    {
+        if (manifest == null)
+        {
+            return "None";
+        }
+
+        string displayName = IsMeaningfulSnapshotText(manifest.DisplayName) ? manifest.DisplayName : "Adventurer";
+        string roleLabel = IsMeaningfulSnapshotText(manifest.RoleLabel) ? manifest.RoleLabel : "Adventurer";
+        string battleRoleText = ExtractRuntimeSummaryClauseText(manifest.CurrentRunSummaryText, "Battle Role");
+        string nextDispatchText = ExtractRuntimeSummaryClauseText(manifest.NextRunPreviewSummaryText, "Next Dispatch");
+        return displayName +
+            " [" + roleLabel + "] | " +
+            ChooseRuntimePartySummaryText(
+                battleRoleText,
+                ChooseRuntimePartySummaryText(manifest.ResolvedSkillName, manifest.EquipmentSummaryText)) +
+            " | " +
+            ChooseRuntimePartySummaryText(nextDispatchText, manifest.EquipmentSummaryText);
     }
 
     private string BuildPartyLoadoutSummaryText(PrototypeRpgPartyRuntimeResolveSurface partySurface)

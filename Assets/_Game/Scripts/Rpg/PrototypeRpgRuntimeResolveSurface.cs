@@ -19,6 +19,7 @@ public sealed class PrototypeRpgPartyRuntimeResolveSurface
     public string AppliedProgressionSummaryText = string.Empty;
     public string CurrentRunSummaryText = string.Empty;
     public string NextRunPreviewSummaryText = string.Empty;
+    public string PendingRewardSummaryText = string.Empty;
 }
 
 public sealed class PrototypeRpgMemberRuntimeResolveSurface
@@ -45,6 +46,13 @@ public sealed class PrototypeRpgMemberRuntimeResolveSurface
     public string AppliedProgressionSummaryText = string.Empty;
     public string CurrentRunSummaryText = string.Empty;
     public string NextRunPreviewSummaryText = string.Empty;
+    public int Level = 1;
+    public int CurrentExperience;
+    public int NextLevelExperience = 18;
+    public int GrowthBonusMaxHp;
+    public int GrowthBonusAttack;
+    public int GrowthBonusDefense;
+    public int GrowthBonusSpeed;
 }
 
 public static class PrototypeRpgRuntimeResolveBuilder
@@ -75,9 +83,6 @@ public static class PrototypeRpgRuntimeResolveBuilder
         }
 
         PrototypeRpgMemberRuntimeResolveSurface[] members = new PrototypeRpgMemberRuntimeResolveSurface[partyDefinition.Members.Length];
-        string[] appliedParts = new string[members.Length];
-        string[] currentRunParts = new string[members.Length];
-        string[] nextRunParts = new string[members.Length];
 
         for (int i = 0; i < members.Length; i++)
         {
@@ -85,49 +90,23 @@ public static class PrototypeRpgRuntimeResolveBuilder
             string resolvedLoadoutId = equipmentLoadoutResolver != null && memberDefinition != null
                 ? equipmentLoadoutResolver(memberDefinition)
                 : null;
-            members[i] = BuildMemberSurface(memberDefinition, resolvedLoadoutId);
-            appliedParts[i] = members[i].DisplayName + ": " + members[i].AppliedProgressionSummaryText;
-            currentRunParts[i] = members[i].DisplayName + ": " + members[i].CurrentRunSummaryText;
-            nextRunParts[i] = members[i].DisplayName + ": " + members[i].NextRunPreviewSummaryText;
+            members[i] = BuildMemberSurface(
+                memberDefinition,
+                resolvedLoadoutId,
+                surface.ArchetypeId,
+                surface.PromotionStateId);
         }
 
         surface.Members = members;
-        string memberAppliedText = JoinNonEmpty(appliedParts, " | ", string.Empty);
-        string memberCurrentRunText = JoinNonEmpty(currentRunParts, " | ", string.Empty);
-        string memberNextRunText = JoinNonEmpty(nextRunParts, " | ", string.Empty);
-        surface.AppliedProgressionSummaryText = JoinNonEmpty(
-            new[]
-            {
-                surface.ArchetypeLabel,
-                surface.PromotionStateLabel,
-                surface.DoctrineSummaryText,
-                memberAppliedText
-            },
-            " | ",
-            "No applied progression.");
-        surface.CurrentRunSummaryText = JoinNonEmpty(
-            new[]
-            {
-                surface.StrengthSummaryText,
-                "Power " + surface.DerivedPower,
-                "Carry " + surface.DerivedCarryCapacity,
-                memberCurrentRunText
-            },
-            " | ",
-            "No runtime party.");
-        surface.NextRunPreviewSummaryText = JoinNonEmpty(
-            new[]
-            {
-                surface.RouteFitSummaryText,
-                surface.PromotionSummaryText,
-                memberNextRunText
-            },
-            " | ",
-            "No next-run preview.");
+        RefreshPartySummaryTexts(surface);
         return surface;
     }
 
-    public static PrototypeRpgMemberRuntimeResolveSurface BuildMemberSurface(PrototypeRpgPartyMemberDefinition memberDefinition, string resolvedEquipmentLoadoutId = null)
+    public static PrototypeRpgMemberRuntimeResolveSurface BuildMemberSurface(
+        PrototypeRpgPartyMemberDefinition memberDefinition,
+        string resolvedEquipmentLoadoutId = null,
+        string partyArchetypeId = "",
+        string promotionStateId = "")
     {
         PrototypeRpgMemberRuntimeResolveSurface surface = new PrototypeRpgMemberRuntimeResolveSurface();
         PrototypeRpgStatBlock baseStats = memberDefinition != null && memberDefinition.BaseStats != null
@@ -167,51 +146,179 @@ public static class PrototypeRpgRuntimeResolveBuilder
             : Mathf.Max(1, surface.Attack + 1);
         surface.EquipmentSummaryText = PrototypeRpgEquipmentCatalog.BuildEquipmentSummaryText(equipmentDefinition);
         surface.GearContributionSummaryText = PrototypeRpgEquipmentCatalog.BuildStatContributionSummary(equipmentDefinition);
-        surface.AppliedProgressionSummaryText = BuildAppliedProgressionSummary(surface);
-        surface.CurrentRunSummaryText = BuildCurrentRunSummary(surface);
-        surface.NextRunPreviewSummaryText = BuildNextRunPreviewSummary(surface);
+        RefreshMemberSummaryTexts(surface, partyArchetypeId, promotionStateId);
         return surface;
     }
 
-    private static string BuildAppliedProgressionSummary(PrototypeRpgMemberRuntimeResolveSurface surface)
+    public static void RefreshPartySummaryTexts(PrototypeRpgPartyRuntimeResolveSurface surface)
+    {
+        if (surface == null)
+        {
+            return;
+        }
+
+        string[] appliedParts = new string[surface.Members != null ? surface.Members.Length : 0];
+        string[] currentRunParts = new string[appliedParts.Length];
+        string[] nextRunParts = new string[appliedParts.Length];
+        int highestLevel = 1;
+        int totalLevel = 0;
+        int memberCount = 0;
+
+        for (int i = 0; i < appliedParts.Length; i++)
+        {
+            PrototypeRpgMemberRuntimeResolveSurface member = surface.Members[i];
+            if (member == null)
+            {
+                continue;
+            }
+
+            appliedParts[i] = member.DisplayName + ": " + member.AppliedProgressionSummaryText;
+            currentRunParts[i] = member.DisplayName + ": " + member.CurrentRunSummaryText;
+            nextRunParts[i] = member.DisplayName + ": " + member.NextRunPreviewSummaryText;
+            highestLevel = Mathf.Max(highestLevel, member.Level > 0 ? member.Level : 1);
+            totalLevel += member.Level > 0 ? member.Level : 1;
+            memberCount += 1;
+        }
+
+        string memberAppliedText = JoinNonEmpty(appliedParts, " | ", string.Empty);
+        string memberCurrentRunText = JoinNonEmpty(currentRunParts, " | ", string.Empty);
+        string memberNextRunText = JoinNonEmpty(nextRunParts, " | ", string.Empty);
+        string levelRailText = BuildPartyLevelRailSummaryText(highestLevel, totalLevel, memberCount);
+        surface.AppliedProgressionSummaryText = BuildPartyAppliedProgressionSummary(surface, memberAppliedText, levelRailText);
+        surface.CurrentRunSummaryText = BuildPartyCurrentRunSummary(surface, memberCurrentRunText, levelRailText);
+        surface.NextRunPreviewSummaryText = BuildPartyNextRunPreviewSummary(surface, memberNextRunText, levelRailText);
+    }
+
+    public static void RefreshMemberSummaryTexts(
+        PrototypeRpgMemberRuntimeResolveSurface surface,
+        string partyArchetypeId,
+        string promotionStateId)
+    {
+        if (surface == null)
+        {
+            return;
+        }
+
+        surface.AppliedProgressionSummaryText = BuildAppliedProgressionSummary(surface, partyArchetypeId, promotionStateId);
+        surface.CurrentRunSummaryText = BuildCurrentRunSummary(surface, partyArchetypeId);
+        surface.NextRunPreviewSummaryText = BuildNextRunPreviewSummary(surface, partyArchetypeId, promotionStateId);
+    }
+
+    private static string BuildPartyAppliedProgressionSummary(PrototypeRpgPartyRuntimeResolveSurface surface, string memberAppliedText, string levelRailText)
     {
         return JoinNonEmpty(
             new[]
             {
-                BuildLabelValue("Growth", surface.GrowthTrackId),
-                BuildLabelValue("Job", surface.JobId),
-                BuildLabelValue("Gear", surface.EquipmentSummaryText),
-                BuildLabelValue("Skill", surface.SkillLoadoutId)
+                BuildLabelValue("Party", JoinNonEmpty(
+                    new[]
+                    {
+                        surface != null ? surface.ArchetypeLabel : string.Empty,
+                        surface != null ? surface.PromotionStateLabel : string.Empty
+                    },
+                    " / ",
+                    string.Empty)),
+                BuildLabelValue("Level Rail", levelRailText),
+                BuildLabelValue("Doctrine", surface != null ? surface.DoctrineSummaryText : string.Empty),
+                BuildLabelValue("Growth", surface != null ? surface.PromotionSummaryText : string.Empty),
+                memberAppliedText
             },
             " | ",
             "No applied progression.");
     }
 
-    private static string BuildCurrentRunSummary(PrototypeRpgMemberRuntimeResolveSurface surface)
+    private static string BuildPartyCurrentRunSummary(PrototypeRpgPartyRuntimeResolveSurface surface, string memberCurrentRunText, string levelRailText)
     {
         return JoinNonEmpty(
             new[]
             {
-                surface.ResolvedSkillName,
-                "HP " + surface.MaxHp,
-                "ATK " + surface.Attack,
-                "DEF " + surface.Defense,
-                "SPD " + surface.Speed,
-                surface.GearContributionSummaryText
+                surface != null ? surface.StrengthSummaryText : string.Empty,
+                BuildLabelValue("Battle Plan", BuildPartyTacticalLoopText(surface != null ? surface.ArchetypeId : string.Empty)),
+                BuildLabelValue("Level Rail", levelRailText),
+                BuildLabelValue("Power", surface != null ? surface.DerivedPower.ToString() : string.Empty),
+                BuildLabelValue("Carry", surface != null ? surface.DerivedCarryCapacity.ToString() : string.Empty),
+                memberCurrentRunText
+            },
+            " | ",
+            "No runtime party.");
+    }
+
+    private static string BuildPartyNextRunPreviewSummary(PrototypeRpgPartyRuntimeResolveSurface surface, string memberNextRunText, string levelRailText)
+    {
+        return JoinNonEmpty(
+            new[]
+            {
+                surface != null ? surface.RouteFitSummaryText : string.Empty,
+                BuildLabelValue("Next Edge", BuildPartyPromotionPreviewText(
+                    surface != null ? surface.ArchetypeId : string.Empty,
+                    surface != null ? surface.PromotionStateId : string.Empty)),
+                BuildLabelValue("Level Rail", levelRailText),
+                BuildLabelValue("Stash", surface != null ? surface.PendingRewardSummaryText : string.Empty),
+                memberNextRunText
+            },
+            " | ",
+            "No next-run preview.");
+    }
+
+    private static string BuildAppliedProgressionSummary(
+        PrototypeRpgMemberRuntimeResolveSurface surface,
+        string partyArchetypeId,
+        string promotionStateId)
+    {
+        return JoinNonEmpty(
+            new[]
+            {
+                BuildLabelValue("Level", BuildMemberLevelProgressText(surface)),
+                BuildLabelValue("Role", BuildMemberRoleFocusText(surface != null ? surface.RoleTag : string.Empty, partyArchetypeId)),
+                BuildLabelValue("Loadout", surface != null ? surface.EquipmentSummaryText : string.Empty),
+                BuildLabelValue("Skill", surface != null ? surface.ResolvedSkillName : string.Empty),
+                BuildLabelValue("Growth", BuildMemberPromotionEdgeText(
+                    surface != null ? surface.RoleTag : string.Empty,
+                    partyArchetypeId,
+                    promotionStateId,
+                    surface))
+            },
+            " | ",
+            "No applied progression.");
+    }
+
+    private static string BuildCurrentRunSummary(PrototypeRpgMemberRuntimeResolveSurface surface, string partyArchetypeId)
+    {
+        return JoinNonEmpty(
+            new[]
+            {
+                BuildLabelValue("Battle Role", BuildMemberBattleRoleText(
+                    surface != null ? surface.RoleTag : string.Empty,
+                    partyArchetypeId,
+                    surface != null ? surface.ResolvedSkillName : string.Empty)),
+                BuildLabelValue("Level", BuildMemberLevelProgressText(surface)),
+                BuildLabelValue("Stats", BuildMemberStatSummary(surface)),
+                BuildLabelValue("Gear Edge", surface != null ? surface.GearContributionSummaryText : string.Empty)
             },
             " | ",
             "No current-run summary.");
     }
 
-    private static string BuildNextRunPreviewSummary(PrototypeRpgMemberRuntimeResolveSurface surface)
+    private static string BuildNextRunPreviewSummary(
+        PrototypeRpgMemberRuntimeResolveSurface surface,
+        string partyArchetypeId,
+        string promotionStateId)
     {
         return JoinNonEmpty(
             new[]
             {
-                "Next " + surface.RoleLabel,
-                surface.EquipmentSummaryText,
-                surface.ResolvedSkillName,
-                "Power " + surface.SkillPower
+                BuildLabelValue("Next Dispatch", BuildMemberNextDispatchText(
+                    surface != null ? surface.RoleTag : string.Empty,
+                    partyArchetypeId,
+                    promotionStateId)),
+                BuildLabelValue("Next Level", BuildMemberNextLevelHintText(surface)),
+                BuildLabelValue("Carry Forward", JoinNonEmpty(
+                    new[]
+                    {
+                        surface != null ? surface.ResolvedSkillName : string.Empty,
+                        surface != null ? surface.EquipmentSummaryText : string.Empty
+                    },
+                    " / ",
+                    string.Empty))
             },
             " | ",
             "No next-run preview.");
@@ -220,6 +327,273 @@ public static class PrototypeRpgRuntimeResolveBuilder
     private static string BuildLabelValue(string label, string value)
     {
         return string.IsNullOrWhiteSpace(value) ? string.Empty : label + " " + value.Trim();
+    }
+
+    private static string BuildPartyTacticalLoopText(string archetypeId)
+    {
+        switch (NormalizeKey(archetypeId))
+        {
+            case "outrider":
+                return "Open the burst window fast, cash it with the finisher, then let the mage sweep exposed packs while support keeps tempo alive.";
+
+            case "salvager":
+                return "Stabilize first, protect the cleaner haul, and turn steady clears into better carry plus safer follow-up.";
+
+            default:
+                return "Hold the frontline, keep attrition stable, and let the backline close once the restart line is safe.";
+        }
+    }
+
+    private static string BuildPartyPromotionPreviewText(string archetypeId, string promotionStateId)
+    {
+        string normalizedArchetypeId = NormalizeKey(archetypeId);
+        switch (NormalizeKey(promotionStateId))
+        {
+            case "elite":
+                return normalizedArchetypeId == "outrider"
+                    ? "Elite burst pacing now supports the highest-pressure shard answer."
+                    : normalizedArchetypeId == "salvager"
+                        ? "Elite haul discipline can justify longer balanced routes without losing recovery."
+                        : "Elite frontline stability can absorb the harder middle answer without giving up the safer reset.";
+
+            case "field":
+                return normalizedArchetypeId == "outrider"
+                    ? "Field promotion makes the risky route a cleaner answer when pressure turns urgent."
+                    : normalizedArchetypeId == "salvager"
+                        ? "Field promotion turns balanced routes into better carry conversions for the next city answer."
+                        : "Field promotion makes safer or balanced recovery answers easier to commit to on the next dispatch.";
+
+            default:
+                return normalizedArchetypeId == "outrider"
+                    ? "Recruit pacing still wants city readiness before fully leaning into the risky answer."
+                    : normalizedArchetypeId == "salvager"
+                        ? "Recruit salvagers already fit balanced routes, but the real carry payoff still needs a clean return."
+                        : "Recruit bulwarks already fit safer recovery lines while the first promotion is still pending.";
+        }
+    }
+
+    private static string BuildMemberRoleFocusText(string roleTag, string archetypeId)
+    {
+        string normalizedArchetypeId = NormalizeKey(archetypeId);
+        switch (NormalizeKey(roleTag))
+        {
+            case "warrior":
+                return normalizedArchetypeId == "outrider"
+                    ? "Burst opener that starts the pressure line."
+                    : normalizedArchetypeId == "salvager"
+                        ? "Carry anchor that keeps the haul line standing."
+                        : "Frontline anchor that protects the safer restart line.";
+
+            case "rogue":
+                return normalizedArchetypeId == "outrider"
+                    ? "Payoff finisher that cashes exposed targets fast."
+                    : normalizedArchetypeId == "salvager"
+                        ? "Clean finisher that preserves the steadier haul."
+                        : "Controlled finisher that closes once the front is stable.";
+
+            case "mage":
+                return normalizedArchetypeId == "outrider"
+                    ? "Sweep caster that punishes exposed packs."
+                    : normalizedArchetypeId == "salvager"
+                        ? "Control caster that keeps balanced fights from dragging."
+                        : "Backline closer that follows the stable frontline.";
+
+            case "cleric":
+                return normalizedArchetypeId == "outrider"
+                    ? "Tempo support that keeps the burst line online."
+                    : normalizedArchetypeId == "salvager"
+                        ? "Recovery support that protects clean returns."
+                        : "Stability support that keeps the restart line alive.";
+
+            default:
+                return "Flexible role in the current party plan.";
+        }
+    }
+
+    private static string BuildMemberPromotionEdgeText(
+        string roleTag,
+        string archetypeId,
+        string promotionStateId,
+        PrototypeRpgMemberRuntimeResolveSurface surface)
+    {
+        string gearName = surface != null && !string.IsNullOrWhiteSpace(surface.EquipmentSummaryText)
+            ? surface.EquipmentSummaryText
+            : "current gear";
+        string growthBonusText = PrototypeRpgMemberProgressionRules.BuildGrowthBonusSummaryText(
+            surface != null ? surface.GrowthBonusMaxHp : 0,
+            surface != null ? surface.GrowthBonusAttack : 0,
+            surface != null ? surface.GrowthBonusDefense : 0,
+            surface != null ? surface.GrowthBonusSpeed : 0);
+        string levelText = BuildMemberLevelProgressText(surface);
+        string normalizedPromotionStateId = NormalizeKey(promotionStateId);
+        if (normalizedPromotionStateId == "elite")
+        {
+            return levelText + " | " + growthBonusText + " | " + gearName + " and veteran pacing keep this role online on the hardest answer.";
+        }
+
+        if (normalizedPromotionStateId == "field")
+        {
+            return levelText + " | " + growthBonusText + " | " + gearName + " sharpens this role enough to matter on the next committed route.";
+        }
+
+        switch (NormalizeKey(roleTag))
+        {
+            case "warrior":
+                return levelText + " | " + growthBonusText + " | Recruit frame is still building a tougher frontline answer.";
+            case "rogue":
+                return levelText + " | " + growthBonusText + " | Recruit frame is still sharpening the finisher timing.";
+            case "mage":
+                return levelText + " | " + growthBonusText + " | Recruit frame is still proving the sweep turn.";
+            case "cleric":
+                return levelText + " | " + growthBonusText + " | Recruit frame is still stabilizing the sustain answer.";
+            default:
+                return levelText + " | " + growthBonusText + " | Recruit frame is still looking for its first clean return.";
+        }
+    }
+
+    private static string BuildMemberBattleRoleText(string roleTag, string archetypeId, string skillName)
+    {
+        string resolvedSkillName = string.IsNullOrWhiteSpace(skillName) ? "Skill" : skillName.Trim();
+        string rolePlan = NormalizeKey(roleTag) switch
+        {
+            "warrior" => "open or hold the frontline",
+            "rogue" => "cash the payoff kill",
+            "mage" => "sweep or close the board",
+            "cleric" => "stabilize the party plan",
+            _ => "support the current turn plan"
+        };
+
+        if (NormalizeKey(archetypeId) == "outrider")
+        {
+            rolePlan = NormalizeKey(roleTag) switch
+            {
+                "warrior" => "open the burst window",
+                "rogue" => "cash the exposed target",
+                "mage" => "punish the exposed pack",
+                "cleric" => "keep burst tempo alive",
+                _ => rolePlan
+            };
+        }
+
+        return resolvedSkillName + " keeps this role focused on " + rolePlan + ".";
+    }
+
+    private static string BuildMemberStatSummary(PrototypeRpgMemberRuntimeResolveSurface surface)
+    {
+        if (surface == null)
+        {
+            return string.Empty;
+        }
+
+        return "HP " + surface.MaxHp + " | ATK " + surface.Attack + " | DEF " + surface.Defense + " | SPD " + surface.Speed;
+    }
+
+    private static string BuildMemberLevelProgressText(PrototypeRpgMemberRuntimeResolveSurface surface)
+    {
+        return surface == null
+            ? string.Empty
+            : PrototypeRpgMemberProgressionRules.BuildLevelProgressText(
+                surface.Level,
+                surface.CurrentExperience,
+                surface.NextLevelExperience);
+    }
+
+    private static string BuildMemberNextLevelHintText(PrototypeRpgMemberRuntimeResolveSurface surface)
+    {
+        return surface == null
+            ? string.Empty
+            : PrototypeRpgMemberProgressionRules.BuildNextLevelHintText(
+                surface.Level,
+                surface.CurrentExperience,
+                surface.NextLevelExperience);
+    }
+
+    private static string BuildPartyLevelRailSummaryText(int highestLevel, int totalLevel, int memberCount)
+    {
+        int safeHighestLevel = highestLevel > 0 ? highestLevel : 1;
+        int safeMemberCount = memberCount > 0 ? memberCount : 0;
+        string averageText = safeMemberCount > 0
+            ? (totalLevel / (float)safeMemberCount).ToString("0.0")
+            : "1.0";
+        return "Peak Lv " + safeHighestLevel + " | Avg Lv " + averageText;
+    }
+
+    private static string BuildMemberNextDispatchText(string roleTag, string archetypeId, string promotionStateId)
+    {
+        string normalizedArchetypeId = NormalizeKey(archetypeId);
+        string normalizedPromotionStateId = NormalizeKey(promotionStateId);
+        switch (NormalizeKey(roleTag))
+        {
+            case "warrior":
+                if (normalizedArchetypeId == "outrider")
+                {
+                    return normalizedPromotionStateId == "recruit"
+                        ? "Open the risky pressure line only if the city can absorb a swingy opener."
+                        : "Start the risky pressure line early so the payoff party can spike before attrition sticks.";
+                }
+
+                if (normalizedArchetypeId == "salvager")
+                {
+                    return normalizedPromotionStateId == "elite"
+                        ? "Anchor a longer balanced haul without giving up carry stability."
+                        : "Keep the balanced haul line standing so cleaner returns still convert.";
+                }
+
+                return normalizedPromotionStateId == "elite"
+                    ? "Hold either safe or balanced recovery answers without risking a collapse."
+                    : "Hold the safe restart line while the city recovery answer stays online.";
+
+            case "rogue":
+                if (normalizedArchetypeId == "outrider")
+                {
+                    return normalizedPromotionStateId == "elite"
+                        ? "Cash the greedy route payoff on purpose once the target is exposed."
+                        : "Turn exposed targets into the faster shard answer on the next risky dispatch.";
+                }
+
+                if (normalizedArchetypeId == "salvager")
+                {
+                    return "Close cleaner fights so balanced routes keep their haul value.";
+                }
+
+                return "Finish stable fights without forcing the safer route into a risky overcommit.";
+
+            case "mage":
+                if (normalizedArchetypeId == "outrider")
+                {
+                    return "Sweep exposed packs once the burst window is open.";
+                }
+
+                if (normalizedArchetypeId == "salvager")
+                {
+                    return "Keep balanced routes from dragging long enough to threaten recovery.";
+                }
+
+                return "Close the board after the frontline absorbs the safer push.";
+
+            case "cleric":
+                if (normalizedArchetypeId == "outrider")
+                {
+                    return normalizedPromotionStateId == "elite"
+                        ? "Keep the burst line alive long enough to justify the hardest pressure answer."
+                        : "Extend the burst line so the risky route can finish before attrition snowballs.";
+                }
+
+                if (normalizedArchetypeId == "salvager")
+                {
+                    return "Protect survivors so steadier haul routes remain worth repeating.";
+                }
+
+                return "Preserve restart stability so safer recovery routes stay the sensible answer.";
+
+            default:
+                return "Carry this role cleanly into the next dispatch.";
+        }
+    }
+
+    private static string NormalizeKey(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
     }
 
     private static string JoinNonEmpty(string[] values, string separator, string fallback)

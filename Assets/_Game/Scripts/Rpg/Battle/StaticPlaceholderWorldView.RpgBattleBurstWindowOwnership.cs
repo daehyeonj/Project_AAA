@@ -309,11 +309,45 @@ public sealed partial class StaticPlaceholderWorldView
         }
     }
 
+    private PrototypeRpgPartyRuntimeResolveSurface BuildRpgOwnedBattlePartyResolveSurface()
+    {
+        return _activeDungeonParty != null && !string.IsNullOrEmpty(_activeDungeonParty.PartyId)
+            ? BuildRuntimePartyResolveSurface(_activeDungeonParty.PartyId)
+            : null;
+    }
+
+    private string BuildRpgOwnedBattleRoleDirectiveText(DungeonPartyMemberRuntimeData member)
+    {
+        if (member == null)
+        {
+            return string.Empty;
+        }
+
+        string memberRoleText = member.RuntimeState != null
+            ? ExtractRuntimeSummaryClauseText(member.RuntimeState.CurrentRunSummaryText, "Battle Role")
+            : string.Empty;
+        PrototypeRpgPartyRuntimeResolveSurface partySurface = BuildRpgOwnedBattlePartyResolveSurface();
+        return ChooseRuntimePartySummaryText(memberRoleText, BuildRuntimePartyDoctrineText(partySurface));
+    }
+
+    private string BuildRpgOwnedBattleTacticalIdentityText(DungeonPartyMemberRuntimeData member)
+    {
+        PrototypeRpgPartyRuntimeResolveSurface partySurface = BuildRpgOwnedBattlePartyResolveSurface();
+        string partyIdentityText = BuildRuntimePartyIdentitySummaryText(partySurface);
+        string partyDoctrineText = BuildRuntimePartyDoctrineText(partySurface);
+        string roleDirectiveText = BuildRpgOwnedBattleRoleDirectiveText(member);
+        return BuildScenarioSentenceText(
+            BuildLabeledScenarioClause("Party", partyIdentityText),
+            roleDirectiveText,
+            partyDoctrineText);
+    }
+
     private string BuildRpgOwnedBattleAttackEffectText(DungeonPartyMemberRuntimeData currentMember, DungeonMonsterRuntimeData previewMonster, int basicAttackPower)
     {
         string baseText = "Expected damage " + Mathf.Max(1, basicAttackPower) + ".";
+        string partyPlanText = BuildRpgOwnedBattleTacticalIdentityText(currentMember);
         string burstText = BuildRpgOwnedBurstWindowActionReadback("attack", currentMember, null, previewMonster);
-        return string.IsNullOrEmpty(burstText) ? baseText : baseText + " " + burstText;
+        return BuildScenarioSentenceText(baseText, partyPlanText, burstText);
     }
 
     private string BuildRpgOwnedBattleSkillEffectText(
@@ -325,8 +359,9 @@ public sealed partial class StaticPlaceholderWorldView
         string fallbackText = actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedEffectType)
             ? GetBattleUiEffectText(actionContext.ResolvedEffectType, actionContext.ResolvedPowerValue)
             : "Use the active skill.";
+        string partyPlanText = BuildRpgOwnedBattleTacticalIdentityText(currentMember);
         string burstText = BuildRpgOwnedBurstWindowActionReadback("skill", currentMember, skillDefinition, previewMonster);
-        return string.IsNullOrEmpty(burstText) ? fallbackText : fallbackText + " " + burstText;
+        return BuildScenarioSentenceText(fallbackText, partyPlanText, burstText);
     }
 
     private string BuildRpgOwnedBattleThreatSummary(
@@ -336,17 +371,30 @@ public sealed partial class StaticPlaceholderWorldView
         PrototypeRpgSkillDefinition skillDefinition,
         DungeonMonsterRuntimeData targetMonster)
     {
+        string roleDirectiveText = BuildRpgOwnedBattleRoleDirectiveText(member);
         string burstText = BuildRpgOwnedBurstWindowActionReadback(selectedActionKey, member, skillDefinition, targetMonster);
         if (string.IsNullOrEmpty(defaultThreatSummary))
         {
-            return burstText;
+            if (string.IsNullOrEmpty(roleDirectiveText))
+            {
+                return burstText;
+            }
+
+            return string.IsNullOrEmpty(burstText)
+                ? roleDirectiveText
+                : roleDirectiveText + " | " + burstText;
         }
 
         if (string.IsNullOrEmpty(burstText))
         {
-            return defaultThreatSummary;
+            return string.IsNullOrEmpty(roleDirectiveText)
+                ? defaultThreatSummary
+                : roleDirectiveText + " | " + defaultThreatSummary;
         }
 
-        return burstText + " | " + defaultThreatSummary;
+        string summary = burstText + " | " + defaultThreatSummary;
+        return string.IsNullOrEmpty(roleDirectiveText)
+            ? summary
+            : roleDirectiveText + " | " + summary;
     }
 }

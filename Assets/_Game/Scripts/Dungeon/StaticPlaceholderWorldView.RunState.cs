@@ -271,7 +271,11 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (HasRecordedBattleReturn(_currentBattleResultSnapshot))
         {
-            return BuildBattleReturnSummaryText(_currentBattleResultSnapshot);
+            PrototypeBattleRequest request = HasMeaningfulBattleRequest(_activeBattleRequest)
+                ? _activeBattleRequest
+                : null;
+            string encounterName = ResolveBattleReturnEncounterName(_currentBattleResultSnapshot, request);
+            return BuildBattleReturnSummaryText(_currentBattleResultSnapshot, encounterName);
         }
 
         return "None";
@@ -472,16 +476,17 @@ public sealed partial class StaticPlaceholderWorldView
 
         ExpeditionPlan launchPlan = GetCurrentExpeditionPlanForAppFlow();
         PrototypeBattleResultSnapshot snapshot = CopyBattleResultSnapshot(_currentBattleResultSnapshot);
-        DungeonRoomTemplateData encounterRoom = GetRoomStepByEncounterId(snapshot != null ? snapshot.EncounterId : string.Empty);
+        PrototypeBattleRequest request = HasMeaningfulBattleRequest(_activeBattleRequest)
+            ? _activeBattleRequest
+            : null;
+        string encounterId = ResolveBattleReturnEncounterId(snapshot, request);
+        string encounterName = ResolveBattleReturnEncounterName(snapshot, request);
+        DungeonRoomTemplateData encounterRoom = GetRoomStepByEncounterId(encounterId);
         payload.OutcomeKey = HasText(snapshot.ResultStateKey) ? snapshot.ResultStateKey : PrototypeBattleOutcomeKeys.None;
-        payload.EncounterId = snapshot.EncounterId ?? string.Empty;
-        payload.EncounterName = HasText(snapshot.EncounterName) ? snapshot.EncounterName : "None";
-        payload.EncounterRoomTypeText = encounterRoom != null && HasText(encounterRoom.RoomTypeLabel)
-            ? encounterRoom.RoomTypeLabel
-            : GetEncounterRoomTypeText();
-        payload.ObjectiveText = HasText(launchPlan != null ? launchPlan.ObjectiveText : string.Empty)
-            ? launchPlan.ObjectiveText
-            : "None";
+        payload.EncounterId = encounterId;
+        payload.EncounterName = encounterName;
+        payload.EncounterRoomTypeText = ResolveBattleReturnEncounterRoomTypeText(encounterRoom, request);
+        payload.ObjectiveText = ResolveBattleReturnObjectiveText(launchPlan, request);
         payload.WhyNowText = HasText(launchPlan != null ? launchPlan.WhyNowText : string.Empty)
             ? launchPlan.WhyNowText
             : "None";
@@ -490,7 +495,7 @@ public sealed partial class StaticPlaceholderWorldView
             : "None";
         payload.RoomProgressText = BuildEncounterRoomProgressText(encounterRoom);
         payload.NextGoalText = GetNextMajorGoalText();
-        payload.ResultSummaryText = BuildBattleReturnSummaryText(snapshot);
+        payload.ResultSummaryText = BuildBattleReturnSummaryText(snapshot, encounterName);
         payload.PartyConditionText = HasText(_resultPartyConditionText)
             ? _resultPartyConditionText
             : GetPartyConditionText();
@@ -507,6 +512,66 @@ public sealed partial class StaticPlaceholderWorldView
         payload.ResultSnapshot = snapshot;
         payload.Resolution = GetLatestBattleResolution();
         return payload;
+    }
+
+    private string ResolveBattleReturnEncounterId(PrototypeBattleResultSnapshot snapshot, PrototypeBattleRequest request)
+    {
+        if (HasText(request != null ? request.EncounterId : string.Empty))
+        {
+            return request.EncounterId;
+        }
+
+        if (HasText(snapshot != null ? snapshot.EncounterId : string.Empty))
+        {
+            return snapshot.EncounterId;
+        }
+
+        return string.Empty;
+    }
+
+    private string ResolveBattleReturnEncounterName(PrototypeBattleResultSnapshot snapshot, PrototypeBattleRequest request)
+    {
+        if (HasText(request != null ? request.EncounterName : string.Empty))
+        {
+            return request.EncounterName;
+        }
+
+        if (HasText(snapshot != null ? snapshot.EncounterName : string.Empty))
+        {
+            return snapshot.EncounterName;
+        }
+
+        return "None";
+    }
+
+    private string ResolveBattleReturnEncounterRoomTypeText(DungeonRoomTemplateData encounterRoom, PrototypeBattleRequest request)
+    {
+        if (HasText(request != null ? request.RoomTypeLabel : string.Empty))
+        {
+            return request.RoomTypeLabel;
+        }
+
+        if (encounterRoom != null && HasText(encounterRoom.RoomTypeLabel))
+        {
+            return encounterRoom.RoomTypeLabel;
+        }
+
+        return GetEncounterRoomTypeText();
+    }
+
+    private string ResolveBattleReturnObjectiveText(ExpeditionPlan launchPlan, PrototypeBattleRequest request)
+    {
+        if (HasText(request != null ? request.ObjectiveText : string.Empty))
+        {
+            return request.ObjectiveText;
+        }
+
+        if (HasText(launchPlan != null ? launchPlan.ObjectiveText : string.Empty))
+        {
+            return launchPlan.ObjectiveText;
+        }
+
+        return "None";
     }
 
     private string BuildEncounterRoomProgressText(DungeonRoomTemplateData room)
@@ -534,16 +599,22 @@ public sealed partial class StaticPlaceholderWorldView
         return GetRoomProgressText();
     }
 
-    private string BuildBattleReturnSummaryText(PrototypeBattleResultSnapshot snapshot)
+    private string BuildBattleReturnSummaryText(PrototypeBattleResultSnapshot snapshot, string encounterNameOverride)
     {
         if (snapshot == null)
         {
             return "None";
         }
 
+        string encounterName = HasText(encounterNameOverride)
+            ? encounterNameOverride
+            : HasText(snapshot.EncounterName)
+                ? snapshot.EncounterName
+                : "None";
+
         if (snapshot.ResultStateKey == PrototypeBattleOutcomeKeys.EncounterVictory)
         {
-            return snapshot.EncounterName + " cleared. Continue the expedition.";
+            return encounterName + " cleared. Continue the expedition.";
         }
 
         if (snapshot.ResultStateKey == PrototypeBattleOutcomeKeys.RunClear && HasText(_latestRpgRunResultSnapshot != null ? _latestRpgRunResultSnapshot.ResultSummary : string.Empty))
@@ -561,9 +632,9 @@ public sealed partial class StaticPlaceholderWorldView
             return _latestRpgRunResultSnapshot.ResultSummary;
         }
 
-        if (HasText(snapshot.EncounterName))
+        if (HasText(encounterName))
         {
-            return snapshot.EncounterName + " resolved.";
+            return encounterName + " resolved.";
         }
 
         return "None";

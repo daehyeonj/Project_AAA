@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public sealed partial class StaticPlaceholderWorldView
 {
     private PrototypeRpgPartyDefinition BuildRuntimePartyDefinition(string partyId)
@@ -18,11 +20,74 @@ public sealed partial class StaticPlaceholderWorldView
     private PrototypeRpgPartyRuntimeResolveSurface BuildRuntimePartyResolveSurface(string partyId)
     {
         PrototypeRpgPartyDefinition partyDefinition = BuildRuntimePartyDefinition(partyId);
-        return partyDefinition == null
+        PrototypeRpgPartyRuntimeResolveSurface partySurface = partyDefinition == null
             ? null
             : PrototypeRpgRuntimeResolveBuilder.BuildPartySurface(
                 partyDefinition,
                 memberDefinition => memberDefinition != null ? memberDefinition.EquipmentLoadoutId : string.Empty);
+        ApplyRuntimePartyProgressionSurface(partySurface, partyId);
+        return partySurface;
+    }
+
+    private void ApplyRuntimePartyProgressionSurface(PrototypeRpgPartyRuntimeResolveSurface partySurface, string partyId)
+    {
+        if (partySurface == null)
+        {
+            return;
+        }
+
+        if (_runtimeEconomyState != null)
+        {
+            int resolvedPower = _runtimeEconomyState.GetPartyPower(partyId);
+            int resolvedCarryCapacity = _runtimeEconomyState.GetPartyCarryCapacity(partyId);
+            if (resolvedPower > 0)
+            {
+                partySurface.DerivedPower = resolvedPower;
+            }
+
+            if (resolvedCarryCapacity > 0)
+            {
+                partySurface.DerivedCarryCapacity = resolvedCarryCapacity;
+            }
+
+            partySurface.PendingRewardSummaryText = _runtimeEconomyState.GetPartyPendingRewardSummary(partyId);
+        }
+
+        PrototypeRpgMemberRuntimeResolveSurface[] members = partySurface.Members ?? System.Array.Empty<PrototypeRpgMemberRuntimeResolveSurface>();
+        for (int i = 0; i < members.Length; i++)
+        {
+            PrototypeRpgMemberRuntimeResolveSurface member = members[i];
+            if (member == null || _runtimeEconomyState == null)
+            {
+                continue;
+            }
+
+            int level = _runtimeEconomyState.GetPartyMemberLevel(partyId, member.MemberId);
+            int currentExperience = _runtimeEconomyState.GetPartyMemberExperience(partyId, member.MemberId);
+            PrototypeRpgLevelStatBonus growthBonus = PrototypeRpgMemberProgressionRules.ResolveLevelStatBonus(
+                member.RoleTag,
+                partySurface.ArchetypeId,
+                level);
+
+            member.Level = level > 0 ? level : PrototypeRpgMemberProgressionRules.GetStartingLevel();
+            member.CurrentExperience = currentExperience > 0 ? currentExperience : PrototypeRpgMemberProgressionRules.GetStartingExperience();
+            member.NextLevelExperience = PrototypeRpgMemberProgressionRules.GetNextLevelExperience(member.Level);
+            member.GrowthBonusMaxHp = growthBonus.MaxHpBonus;
+            member.GrowthBonusAttack = growthBonus.AttackBonus;
+            member.GrowthBonusDefense = growthBonus.DefenseBonus;
+            member.GrowthBonusSpeed = growthBonus.SpeedBonus;
+            member.MaxHp = Mathf.Max(1, member.MaxHp + growthBonus.MaxHpBonus);
+            member.Attack = Mathf.Max(1, member.Attack + growthBonus.AttackBonus);
+            member.Defense = Mathf.Max(0, member.Defense + growthBonus.DefenseBonus);
+            member.Speed = Mathf.Max(0, member.Speed + growthBonus.SpeedBonus);
+            member.SkillPower = Mathf.Max(1, member.SkillPower + growthBonus.AttackBonus);
+            PrototypeRpgRuntimeResolveBuilder.RefreshMemberSummaryTexts(
+                member,
+                partySurface.ArchetypeId,
+                partySurface.PromotionStateId);
+        }
+
+        PrototypeRpgRuntimeResolveBuilder.RefreshPartySummaryTexts(partySurface);
     }
 
     private string ResolveRuntimePartyRoleSummary(string partyId)
@@ -61,47 +126,176 @@ public sealed partial class StaticPlaceholderWorldView
         bool isRiskyRoute = normalizedRouteId == RiskyRouteId;
         bool isSafeRoute = normalizedRouteId == SafeRouteId;
         bool isBalancedRoute = !string.IsNullOrEmpty(balancedRouteId) && normalizedRouteId == balancedRouteId;
+        string routeReasonText;
 
         switch (partySurface.ArchetypeId)
         {
             case "outrider":
                 if (isRiskyRoute)
                 {
-                    return "Outrider Cell matches the pressure lane and can turn the push into a shard-spike clear.";
+                    routeReasonText = "Riskier pressure lanes are the cleanest fit because this crew wants exposed targets and faster shard conversion.";
+                    break;
                 }
 
                 if (isSafeRoute)
                 {
-                    return "Outrider Cell stays alive on the safer lane, but it gives up some of its pressure ceiling.";
+                    routeReasonText = "Safer recovery lanes keep the crew alive, but they intentionally trade away some of the burst ceiling.";
+                    break;
                 }
 
-                return "Outrider Cell handles the middle line, but its best payoff still lives on the pressure route.";
+                routeReasonText = "Balanced lanes are playable, but the best payoff still lives on a route that lets the burst line spike first.";
+                break;
 
             case "salvager":
                 if (isRiskyRoute)
                 {
-                    return "Salvager Wing can survive the harder lane, but its better carry usually converts more cleanly on steadier runs.";
+                    routeReasonText = "Harder lanes are survivable, but the carry plan usually converts more cleanly on steadier runs.";
+                    break;
                 }
 
                 if (isBalancedRoute)
                 {
-                    return "Salvager Wing fits the middle line where safer payout and carry both stay online.";
+                    routeReasonText = "Balanced lanes fit best because payout, carry, and recovery can all stay online together.";
+                    break;
                 }
 
-                return "Salvager Wing matches safer recovery lanes and stretches the haul without spiking volatility.";
+                routeReasonText = "Safer recovery lanes still work because this crew stretches the haul without forcing volatility.";
+                break;
 
             default:
                 if (isRiskyRoute)
                 {
-                    return "Bulwark Crew can absorb the risky push, but this crew is strongest when restart stability matters.";
+                    routeReasonText = "Riskier pushes are absorbable, but this crew is strongest when restart stability matters more than spike payout.";
+                    break;
                 }
 
                 if (isBalancedRoute)
                 {
-                    return "Bulwark Crew can hold the middle line while keeping the frontline stable.";
+                    routeReasonText = "Balanced lanes work because the frontline can stay stable while the party keeps the reset line intact.";
+                    break;
                 }
 
-                return "Bulwark Crew matches the safer lane and protects recovery plus restart stability.";
+                routeReasonText = "Safer lanes are the natural fit because recovery and restart stability stay protected.";
+                break;
         }
+
+        return BuildScenarioSentenceText(
+            BuildLabeledScenarioClause("Party", BuildRuntimePartyIdentitySummaryText(partySurface)),
+            ChooseRuntimePartySummaryText(partySurface.RouteFitSummaryText, routeReasonText),
+            routeReasonText,
+            BuildRuntimePartyNextEdgeText(partySurface));
+    }
+
+    private string BuildRuntimePartyIdentitySummaryText(PrototypeRpgPartyRuntimeResolveSurface partySurface)
+    {
+        if (partySurface == null)
+        {
+            return string.Empty;
+        }
+
+        if (HasText(partySurface.ArchetypeLabel) && HasText(partySurface.PromotionStateLabel))
+        {
+            return partySurface.ArchetypeLabel + " / " + partySurface.PromotionStateLabel;
+        }
+
+        if (HasText(partySurface.ArchetypeLabel))
+        {
+            return partySurface.ArchetypeLabel;
+        }
+
+        if (HasText(partySurface.PromotionStateLabel))
+        {
+            return partySurface.PromotionStateLabel;
+        }
+
+        return HasText(partySurface.DisplayName) ? partySurface.DisplayName : string.Empty;
+    }
+
+    private string BuildRuntimePartyDoctrineText(PrototypeRpgPartyRuntimeResolveSurface partySurface)
+    {
+        return partySurface == null
+            ? string.Empty
+            : ChooseRuntimePartySummaryText(
+                partySurface.DoctrineSummaryText,
+                ExtractRuntimeSummaryClauseText(partySurface.CurrentRunSummaryText, "Battle Plan"));
+    }
+
+    private string BuildRuntimePartyNextEdgeText(PrototypeRpgPartyRuntimeResolveSurface partySurface)
+    {
+        return partySurface == null
+            ? string.Empty
+            : ChooseRuntimePartySummaryText(
+                ExtractRuntimeSummaryClauseText(partySurface.NextRunPreviewSummaryText, "Next Edge"),
+                partySurface.PromotionSummaryText);
+    }
+
+    private string BuildRuntimePartyPrepSummaryText(PrototypeRpgPartyRuntimeResolveSurface partySurface, int partyPower, int carryCapacity, string partyResultEcho)
+    {
+        if (partySurface == null)
+        {
+            return string.Empty;
+        }
+
+        string powerText = partyPower > 0 || carryCapacity > 0
+            ? "Power " + Mathf.Max(0, partyPower) + " / Carry " + Mathf.Max(0, carryCapacity)
+            : string.Empty;
+        string lastReturnText = HasText(partyResultEcho) && partyResultEcho != "None" && !partyResultEcho.StartsWith("Ready in ")
+            ? "Last Return: " + partyResultEcho
+            : string.Empty;
+        return BuildScenarioSentenceText(
+            BuildLabeledScenarioClause("Party", BuildRuntimePartyIdentitySummaryText(partySurface)),
+            ChooseRuntimePartySummaryText(partySurface.StrengthSummaryText, BuildRuntimePartyDoctrineText(partySurface)),
+            BuildRuntimePartyDoctrineText(partySurface),
+            BuildRuntimePartyNextEdgeText(partySurface),
+            powerText,
+            lastReturnText);
+    }
+
+    private string BuildRuntimePartyBattleIdentityText(PrototypeRpgPartyRuntimeResolveSurface partySurface)
+    {
+        if (partySurface == null)
+        {
+            return string.Empty;
+        }
+
+        return BuildScenarioSentenceText(
+            BuildLabeledScenarioClause("Party", BuildRuntimePartyIdentitySummaryText(partySurface)),
+            BuildRuntimePartyDoctrineText(partySurface),
+            BuildRuntimePartyNextEdgeText(partySurface));
+    }
+
+    private string ExtractRuntimeSummaryClauseText(string summaryText, string label)
+    {
+        if (!HasText(summaryText) || !HasText(label))
+        {
+            return string.Empty;
+        }
+
+        string[] clauses = summaryText.Split('|');
+        string prefix = label.Trim() + " ";
+        for (int i = 0; i < clauses.Length; i++)
+        {
+            string clause = clauses[i] != null ? clauses[i].Trim() : string.Empty;
+            if (!HasText(clause))
+            {
+                continue;
+            }
+
+            if (clause.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return clause.Substring(prefix.Length).Trim();
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private string ChooseRuntimePartySummaryText(string primary, string fallback)
+    {
+        return HasText(primary)
+            ? primary.Trim()
+            : HasText(fallback)
+                ? fallback.Trim()
+                : string.Empty;
     }
 }

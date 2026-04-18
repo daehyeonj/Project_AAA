@@ -20,10 +20,12 @@ public sealed class PrototypeRpgRunResultSnapshot
     public string GearRewardCandidateSummaryText = string.Empty;
     public string EquipSwapChoiceSummaryText = string.Empty;
     public string GearCarryContinuitySummaryText = string.Empty;
+    public string PendingRewardSummaryText = string.Empty;
     public PrototypeRpgPartyOutcomeSnapshot PartyOutcome = new PrototypeRpgPartyOutcomeSnapshot();
     public PrototypeRpgLootOutcomeSnapshot LootOutcome = new PrototypeRpgLootOutcomeSnapshot();
     public PrototypeRpgEliteOutcomeSnapshot EliteOutcome = new PrototypeRpgEliteOutcomeSnapshot();
     public PrototypeRpgEncounterOutcomeSnapshot EncounterOutcome = new PrototypeRpgEncounterOutcomeSnapshot();
+    public PrototypeRpgRewardBundle[] PendingRewardBundles = Array.Empty<PrototypeRpgRewardBundle>();
 }
 
 public sealed class PrototypeRpgPartyOutcomeSnapshot
@@ -54,6 +56,13 @@ public sealed class PrototypeRpgPartyMemberOutcomeSnapshot
     public string AppliedProgressionSummaryText = string.Empty;
     public string CurrentRunSummaryText = string.Empty;
     public string NextRunPreviewSummaryText = string.Empty;
+    public int Level = 1;
+    public int Experience;
+    public int NextLevelExperience = 18;
+    public int GrowthBonusMaxHp;
+    public int GrowthBonusAttack;
+    public int GrowthBonusDefense;
+    public int GrowthBonusSpeed;
     public int CurrentHp;
     public int MaxHp = 1;
     public bool Survived;

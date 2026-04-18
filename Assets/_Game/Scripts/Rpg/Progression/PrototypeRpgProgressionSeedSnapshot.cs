@@ -27,8 +27,10 @@ public sealed class PrototypeRpgProgressionSeedSnapshot
     public string GearRewardCandidateSummaryText = string.Empty;
     public string EquipSwapChoiceSummaryText = string.Empty;
     public string GearCarryContinuitySummaryText = string.Empty;
+    public string PendingRewardSummaryText = string.Empty;
     public PrototypeRpgLootSeed Loot = new PrototypeRpgLootSeed();
     public PrototypeRpgMemberProgressionSeed[] Members = Array.Empty<PrototypeRpgMemberProgressionSeed>();
+    public PrototypeRpgRewardBundle[] PendingRewardBundles = Array.Empty<PrototypeRpgRewardBundle>();
     public string[] RewardTags = Array.Empty<string>();
     public string[] GrowthTags = Array.Empty<string>();
 }
@@ -51,6 +53,16 @@ public sealed class PrototypeRpgMemberProgressionSeed
     public string AppliedProgressionSummaryText = string.Empty;
     public string CurrentRunSummaryText = string.Empty;
     public string NextRunPreviewSummaryText = string.Empty;
+    public int Level = 1;
+    public int Experience;
+    public int NextLevelExperience = 18;
+    public int GrowthBonusMaxHp;
+    public int GrowthBonusAttack;
+    public int GrowthBonusDefense;
+    public int GrowthBonusSpeed;
+    public int ExperienceGained;
+    public bool LeveledUp;
+    public string RewardDropSummaryText = string.Empty;
     public bool Survived;
     public bool KnockedOut;
     public int CurrentHp;
@@ -64,6 +76,7 @@ public sealed class PrototypeRpgCombatContributionSeed
     public int DamageTaken;
     public int HealingDone;
     public int ActionCount;
+    public int KillCount;
 }
 
 public sealed class PrototypeRpgLootSeed
@@ -128,9 +141,11 @@ public sealed class PrototypeRpgProgressionPreviewSnapshot
     public string GearRewardCandidateSummaryText = string.Empty;
     public string EquipSwapChoiceSummaryText = string.Empty;
     public string GearCarryContinuitySummaryText = string.Empty;
+    public string PendingRewardSummaryText = string.Empty;
     public string[] RewardHintTags = Array.Empty<string>();
     public string[] GrowthHintTags = Array.Empty<string>();
     public PrototypeRpgMemberProgressPreview[] Members = Array.Empty<PrototypeRpgMemberProgressPreview>();
+    public PrototypeRpgRewardBundle[] PendingRewardBundles = Array.Empty<PrototypeRpgRewardBundle>();
 }
 
 public sealed class PrototypeRpgMemberProgressPreview
@@ -150,6 +165,16 @@ public sealed class PrototypeRpgMemberProgressPreview
     public string AppliedProgressionSummaryText = string.Empty;
     public string CurrentRunSummaryText = string.Empty;
     public string NextRunPreviewSummaryText = string.Empty;
+    public int Level = 1;
+    public int Experience;
+    public int NextLevelExperience = 18;
+    public int GrowthBonusMaxHp;
+    public int GrowthBonusAttack;
+    public int GrowthBonusDefense;
+    public int GrowthBonusSpeed;
+    public int ExperienceGained;
+    public bool LeveledUp;
+    public string RewardDropSummaryText = string.Empty;
     public bool Survived;
     public PrototypeRpgMemberContributionSnapshot Contribution = new PrototypeRpgMemberContributionSnapshot();
     public string[] SuggestedGrowthHintTags = Array.Empty<string>();

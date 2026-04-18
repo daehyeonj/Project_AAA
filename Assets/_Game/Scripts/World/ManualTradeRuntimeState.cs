@@ -17,6 +17,24 @@ public sealed class ManualTradeRuntimeState
         OnExpedition
     }
 
+    private sealed class PartyMemberProgressionData
+    {
+        public string MemberId;
+        public string DisplayName;
+        public string RoleTag;
+        public int Level;
+        public int Experience;
+
+        public PartyMemberProgressionData(string memberId, string displayName, string roleTag)
+        {
+            MemberId = string.IsNullOrWhiteSpace(memberId) ? string.Empty : memberId.Trim();
+            DisplayName = string.IsNullOrWhiteSpace(displayName) ? "Adventurer" : displayName.Trim();
+            RoleTag = string.IsNullOrWhiteSpace(roleTag) ? "adventurer" : roleTag.Trim().ToLowerInvariant();
+            Level = PrototypeRpgMemberProgressionRules.GetStartingLevel();
+            Experience = PrototypeRpgMemberProgressionRules.GetStartingExperience();
+        }
+    }
+
     private sealed class PartyRuntimeData
     {
         public string PartyId;
@@ -33,6 +51,9 @@ public sealed class ManualTradeRuntimeState
         public int DepartureDay;
         public int ProjectedReturnDay;
         public string LastResultSummary;
+        public PartyMemberProgressionData[] Members;
+        public readonly Dictionary<string, int> PendingRewardInventory;
+        public string PendingRewardSummaryText;
 
         public PartyRuntimeData(string partyId, string displayName, string homeCityId, string archetypeId, string promotionStateId)
         {
@@ -50,6 +71,9 @@ public sealed class ManualTradeRuntimeState
             DepartureDay = -1;
             ProjectedReturnDay = -1;
             LastResultSummary = "None";
+            Members = System.Array.Empty<PartyMemberProgressionData>();
+            PendingRewardInventory = new Dictionary<string, int>();
+            PendingRewardSummaryText = "None";
         }
     }
 
@@ -582,6 +606,7 @@ public sealed class ManualTradeRuntimeState
         string archetypeId = PrototypeRpgPartyCatalog.ResolveArchetypeIdForSeed(cityId, _nextPartySequence);
         string promotionStateId = PrototypeRpgPartyCatalog.GetInitialPromotionStateId();
         PartyRuntimeData party = new PartyRuntimeData(partyId, partyId, cityId, archetypeId, promotionStateId);
+        InitializePartyMembers(party);
         UpdatePartyDerivedStats(party);
         party.LastResultSummary = "Ready in " + city.DisplayName;
         _parties.Add(party);
@@ -1120,6 +1145,38 @@ public sealed class ManualTradeRuntimeState
     {
         PartyRuntimeData party = FindPartyById(partyId);
         return party != null ? party.PromotionStateId : string.Empty;
+    }
+
+    public int GetPartyPower(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null ? party.Power : 0;
+    }
+
+    public int GetPartyCarryCapacity(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null ? party.CarryCapacity : 0;
+    }
+
+    public string GetPartyPendingRewardSummary(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null && !string.IsNullOrEmpty(party.PendingRewardSummaryText)
+            ? party.PendingRewardSummaryText
+            : "None";
+    }
+
+    public int GetPartyMemberLevel(string partyId, string memberId)
+    {
+        PartyMemberProgressionData member = FindPartyMemberProgression(partyId, memberId);
+        return member != null ? member.Level : PrototypeRpgMemberProgressionRules.GetStartingLevel();
+    }
+
+    public int GetPartyMemberExperience(string partyId, string memberId)
+    {
+        PartyMemberProgressionData member = FindPartyMemberProgression(partyId, memberId);
+        return member != null ? member.Experience : PrototypeRpgMemberProgressionRules.GetStartingExperience();
     }
 
     public string GetReadyPartyLastResultSummaryForCity(string cityId)
@@ -2158,9 +2215,14 @@ public sealed class ManualTradeRuntimeState
         string lootSummary = success && !string.IsNullOrEmpty(rewardResourceId) && safeLootReturned > 0
             ? rewardResourceId + " x" + safeLootReturned
             : "None";
+        ApplyMemberProgressionResults(party, expeditionResult.MemberProgressionResults);
+        ApplyPendingRewardBundles(party, expeditionResult.PendingRewardBundles);
         bool partyPromoted = success && TryAdvancePartyPromotion(party);
         string promotionEcho = partyPromoted
             ? " | " + PrototypeRpgPartyCatalog.GetPromotionStateLabel(party.PromotionStateId)
+            : string.Empty;
+        string pendingRewardEcho = !string.IsNullOrEmpty(party.PendingRewardSummaryText) && party.PendingRewardSummaryText != "None"
+            ? " | Stash " + party.PendingRewardSummaryText
             : string.Empty;
 
         if (success)
@@ -2213,7 +2275,7 @@ public sealed class ManualTradeRuntimeState
         party.DaysRemaining = 0;
         party.DepartureDay = -1;
         party.ProjectedReturnDay = -1;
-        party.LastResultSummary = safeResultSummary + promotionEcho;
+        party.LastResultSummary = safeResultSummary + promotionEcho + pendingRewardEcho;
         _lastExpeditionResultByCityId[cityId] = safeResultSummary;
 
         if (!string.IsNullOrEmpty(dungeonId))
@@ -3047,8 +3109,193 @@ public sealed class ManualTradeRuntimeState
             return;
         }
 
-        party.Power = PrototypeRpgPartyCatalog.ResolveDerivedPower(party.ArchetypeId, party.PromotionStateId);
+        party.Power = PrototypeRpgPartyCatalog.ResolveDerivedPower(party.ArchetypeId, party.PromotionStateId) + CalculatePartyLevelPowerBonus(party);
         party.CarryCapacity = PrototypeRpgPartyCatalog.ResolveDerivedCarryCapacity(party.ArchetypeId, party.PromotionStateId);
+    }
+
+    private void InitializePartyMembers(PartyRuntimeData party)
+    {
+        if (party == null)
+        {
+            return;
+        }
+
+        PrototypeRpgPartyDefinition partyDefinition = PrototypeRpgPartyCatalog.CreateRuntimeParty(
+            party.PartyId,
+            party.ArchetypeId,
+            party.PromotionStateId,
+            party.DisplayName);
+        PrototypeRpgPartyMemberDefinition[] members = partyDefinition != null
+            ? partyDefinition.Members ?? System.Array.Empty<PrototypeRpgPartyMemberDefinition>()
+            : System.Array.Empty<PrototypeRpgPartyMemberDefinition>();
+        if (members.Length <= 0)
+        {
+            party.Members = System.Array.Empty<PartyMemberProgressionData>();
+            return;
+        }
+
+        PartyMemberProgressionData[] progressionMembers = new PartyMemberProgressionData[members.Length];
+        for (int i = 0; i < members.Length; i++)
+        {
+            PrototypeRpgPartyMemberDefinition member = members[i];
+            progressionMembers[i] = new PartyMemberProgressionData(
+                member != null ? member.MemberId : string.Empty,
+                member != null ? member.DisplayName : string.Empty,
+                member != null ? member.RoleTag : string.Empty);
+        }
+
+        party.Members = progressionMembers;
+    }
+
+    private int CalculatePartyLevelPowerBonus(PartyRuntimeData party)
+    {
+        if (party == null || party.Members == null || party.Members.Length <= 0)
+        {
+            return 0;
+        }
+
+        int levelSteps = 0;
+        for (int i = 0; i < party.Members.Length; i++)
+        {
+            PartyMemberProgressionData member = party.Members[i];
+            if (member == null)
+            {
+                continue;
+            }
+
+            levelSteps += Mathf.Max(0, member.Level - PrototypeRpgMemberProgressionRules.GetStartingLevel());
+        }
+
+        return levelSteps / 2;
+    }
+
+    private PartyMemberProgressionData FindPartyMemberProgression(string partyId, string memberId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        if (party == null || party.Members == null || party.Members.Length <= 0)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < party.Members.Length; i++)
+        {
+            PartyMemberProgressionData member = party.Members[i];
+            if (member != null && member.MemberId == memberId)
+            {
+                return member;
+            }
+        }
+
+        return null;
+    }
+
+    private void ApplyMemberProgressionResults(PartyRuntimeData party, PrototypeRpgMemberProgressionResult[] memberResults)
+    {
+        if (party == null || memberResults == null || memberResults.Length <= 0)
+        {
+            return;
+        }
+
+        if (party.Members == null || party.Members.Length <= 0)
+        {
+            InitializePartyMembers(party);
+        }
+
+        for (int i = 0; i < memberResults.Length; i++)
+        {
+            PrototypeRpgMemberProgressionResult result = memberResults[i];
+            if (result == null)
+            {
+                continue;
+            }
+
+            PartyMemberProgressionData member = FindPartyMemberProgression(party.PartyId, result.MemberId);
+            if (member == null)
+            {
+                continue;
+            }
+
+            member.Level = result.LevelAfter > 0 ? result.LevelAfter : member.Level;
+            member.Experience = result.ExperienceAfter > 0 ? result.ExperienceAfter : 0;
+        }
+
+        UpdatePartyDerivedStats(party);
+    }
+
+    private void ApplyPendingRewardBundles(PartyRuntimeData party, PrototypeRpgRewardBundle[] rewardBundles)
+    {
+        if (party == null || rewardBundles == null || rewardBundles.Length <= 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < rewardBundles.Length; i++)
+        {
+            PrototypeRpgRewardBundle bundle = rewardBundles[i];
+            if (bundle == null || string.IsNullOrWhiteSpace(bundle.RewardId) || bundle.Amount <= 0)
+            {
+                continue;
+            }
+
+            string rewardId = bundle.RewardId.Trim().ToLowerInvariant();
+            if (!party.PendingRewardInventory.ContainsKey(rewardId))
+            {
+                party.PendingRewardInventory.Add(rewardId, 0);
+            }
+
+            party.PendingRewardInventory[rewardId] += bundle.Amount;
+        }
+
+        party.PendingRewardSummaryText = BuildPendingRewardSummaryText(party.PendingRewardInventory);
+    }
+
+    private string BuildPendingRewardSummaryText(Dictionary<string, int> rewardInventory)
+    {
+        if (rewardInventory == null || rewardInventory.Count <= 0)
+        {
+            return "None";
+        }
+
+        List<PrototypeRpgRewardBundle> bundles = new List<PrototypeRpgRewardBundle>();
+        foreach (KeyValuePair<string, int> pair in rewardInventory)
+        {
+            if (string.IsNullOrWhiteSpace(pair.Key) || pair.Value <= 0)
+            {
+                continue;
+            }
+
+            bundles.Add(new PrototypeRpgRewardBundle
+            {
+                RewardId = pair.Key,
+                RewardLabel = ResolveRewardLabel(pair.Key),
+                Amount = pair.Value
+            });
+        }
+
+        return PrototypeRpgMemberProgressionRules.BuildRewardBundleSummaryText(bundles.ToArray());
+    }
+
+    private string ResolveRewardLabel(string rewardId)
+    {
+        switch (rewardId)
+        {
+            case "gear_fragment":
+                return "Gear Fragment";
+            case "pressure_token":
+                return "Pressure Token";
+            case "arcane_shard":
+                return "Arcane Shard";
+            case "recovery_token":
+                return "Recovery Token";
+            case "volatile_essence":
+                return "Volatile Essence";
+            case "cache_token":
+                return "Cache Token";
+            case "field_scrap":
+                return "Field Scrap";
+            default:
+                return string.IsNullOrWhiteSpace(rewardId) ? "None" : rewardId;
+        }
     }
 
     private bool TryAdvancePartyPromotion(PartyRuntimeData party)

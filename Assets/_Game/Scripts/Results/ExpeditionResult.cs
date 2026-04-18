@@ -1,3 +1,5 @@
+using System;
+
 public sealed class ExpeditionResult
 {
     public string SourceCityId = string.Empty;
@@ -66,9 +68,12 @@ public sealed class ExpeditionResult
     public string GearRewardCandidateSummaryText = "None";
     public string EquipSwapChoiceSummaryText = "None";
     public string GearCarryContinuitySummaryText = "None";
+    public string PendingRewardSummaryText = "None";
     public string WorldWritebackSummaryText = "None";
     public string LatestReturnAftermathSummaryText = "None";
     public string NextSuggestedActionText = "None";
     public string NextPrepFollowUpSummaryText = "None";
+    public PrototypeRpgRewardBundle[] PendingRewardBundles = Array.Empty<PrototypeRpgRewardBundle>();
+    public PrototypeRpgMemberProgressionResult[] MemberProgressionResults = Array.Empty<PrototypeRpgMemberProgressionResult>();
     public BattleResult BattleResult = new BattleResult();
 }

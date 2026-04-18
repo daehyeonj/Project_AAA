@@ -2205,9 +2205,9 @@ public sealed partial class PrototypePresentationShell
             }
 
             string detail = ChooseFirstOptionalDungeonText(
-                member.AppliedProgressionSummaryText,
                 member.NextRunPreviewSummaryText,
                 member.CurrentRunSummaryText,
+                member.AppliedProgressionSummaryText,
                 member.GearContributionSummaryText);
             if (!HasOptionalDungeonCopyValue(detail))
             {

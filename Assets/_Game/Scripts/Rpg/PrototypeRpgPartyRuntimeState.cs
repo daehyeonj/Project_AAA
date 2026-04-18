@@ -23,6 +23,13 @@ public sealed class PrototypeRpgPartyMemberRuntimeState
     public string AppliedProgressionSummaryText { get; }
     public string CurrentRunSummaryText { get; }
     public string NextRunPreviewSummaryText { get; }
+    public int Level { get; }
+    public int CurrentExperience { get; }
+    public int NextLevelExperience { get; }
+    public int GrowthBonusMaxHp { get; }
+    public int GrowthBonusAttack { get; }
+    public int GrowthBonusDefense { get; }
+    public int GrowthBonusSpeed { get; }
     public string LaneKey { get; private set; }
     public string LaneLabel { get; private set; }
     public string PositionRuleText { get; private set; }
@@ -90,7 +97,14 @@ public sealed class PrototypeRpgPartyMemberRuntimeState
             surface != null ? surface.GearContributionSummaryText : "No bonus",
             surface != null ? surface.AppliedProgressionSummaryText : string.Empty,
             surface != null ? surface.CurrentRunSummaryText : string.Empty,
-            surface != null ? surface.NextRunPreviewSummaryText : string.Empty)
+            surface != null ? surface.NextRunPreviewSummaryText : string.Empty,
+            surface != null ? surface.Level : 1,
+            surface != null ? surface.CurrentExperience : 0,
+            surface != null ? surface.NextLevelExperience : PrototypeRpgMemberProgressionRules.GetNextLevelExperience(1),
+            surface != null ? surface.GrowthBonusMaxHp : 0,
+            surface != null ? surface.GrowthBonusAttack : 0,
+            surface != null ? surface.GrowthBonusDefense : 0,
+            surface != null ? surface.GrowthBonusSpeed : 0)
     {
     }
 
@@ -115,7 +129,14 @@ public sealed class PrototypeRpgPartyMemberRuntimeState
         string gearContributionSummaryText,
         string appliedProgressionSummaryText,
         string currentRunSummaryText,
-        string nextRunPreviewSummaryText)
+        string nextRunPreviewSummaryText,
+        int level = 1,
+        int currentExperience = 0,
+        int nextLevelExperience = 18,
+        int growthBonusMaxHp = 0,
+        int growthBonusAttack = 0,
+        int growthBonusDefense = 0,
+        int growthBonusSpeed = 0)
     {
         MemberId = string.IsNullOrWhiteSpace(memberId) ? string.Empty : memberId.Trim();
         DisplayName = string.IsNullOrWhiteSpace(displayName) ? "Adventurer" : displayName.Trim();
@@ -138,6 +159,13 @@ public sealed class PrototypeRpgPartyMemberRuntimeState
         AppliedProgressionSummaryText = string.IsNullOrWhiteSpace(appliedProgressionSummaryText) ? "No applied progression." : appliedProgressionSummaryText.Trim();
         CurrentRunSummaryText = string.IsNullOrWhiteSpace(currentRunSummaryText) ? "No current-run summary." : currentRunSummaryText.Trim();
         NextRunPreviewSummaryText = string.IsNullOrWhiteSpace(nextRunPreviewSummaryText) ? "No next-run preview." : nextRunPreviewSummaryText.Trim();
+        Level = level > 0 ? level : 1;
+        CurrentExperience = currentExperience > 0 ? currentExperience : 0;
+        NextLevelExperience = nextLevelExperience > 0 ? nextLevelExperience : PrototypeRpgMemberProgressionRules.GetNextLevelExperience(Level);
+        GrowthBonusMaxHp = growthBonusMaxHp;
+        GrowthBonusAttack = growthBonusAttack;
+        GrowthBonusDefense = growthBonusDefense;
+        GrowthBonusSpeed = growthBonusSpeed;
         LaneKey = string.Empty;
         LaneLabel = string.Empty;
         PositionRuleText = string.Empty;

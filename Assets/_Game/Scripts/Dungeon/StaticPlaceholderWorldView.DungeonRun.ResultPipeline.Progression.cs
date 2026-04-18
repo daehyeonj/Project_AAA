@@ -19,10 +19,12 @@ public sealed partial class StaticPlaceholderWorldView
         copy.TotalTurnsTaken = Mathf.Max(0, source.TotalTurnsTaken);
         copy.ResultSummary = string.IsNullOrEmpty(source.ResultSummary) ? string.Empty : source.ResultSummary;
         copy.SurvivingMembersSummary = string.IsNullOrEmpty(source.SurvivingMembersSummary) ? string.Empty : source.SurvivingMembersSummary;
+        copy.PendingRewardSummaryText = string.IsNullOrEmpty(source.PendingRewardSummaryText) ? string.Empty : source.PendingRewardSummaryText;
         copy.PartyOutcome = CopyRpgPartyOutcomeSnapshot(source.PartyOutcome);
         copy.LootOutcome = CopyRpgLootOutcomeSnapshot(source.LootOutcome);
         copy.EliteOutcome = CopyRpgEliteOutcomeSnapshot(source.EliteOutcome);
         copy.EncounterOutcome = CopyRpgEncounterOutcomeSnapshot(source.EncounterOutcome);
+        copy.PendingRewardBundles = CopyRewardBundles(source.PendingRewardBundles);
         return copy;
     }
 
@@ -80,6 +82,13 @@ public sealed partial class StaticPlaceholderWorldView
         copy.AppliedProgressionSummaryText = string.IsNullOrEmpty(source.AppliedProgressionSummaryText) ? string.Empty : source.AppliedProgressionSummaryText;
         copy.CurrentRunSummaryText = string.IsNullOrEmpty(source.CurrentRunSummaryText) ? string.Empty : source.CurrentRunSummaryText;
         copy.NextRunPreviewSummaryText = string.IsNullOrEmpty(source.NextRunPreviewSummaryText) ? string.Empty : source.NextRunPreviewSummaryText;
+        copy.Level = Mathf.Max(1, source.Level);
+        copy.Experience = Mathf.Max(0, source.Experience);
+        copy.NextLevelExperience = Mathf.Max(1, source.NextLevelExperience);
+        copy.GrowthBonusMaxHp = source.GrowthBonusMaxHp;
+        copy.GrowthBonusAttack = source.GrowthBonusAttack;
+        copy.GrowthBonusDefense = source.GrowthBonusDefense;
+        copy.GrowthBonusSpeed = source.GrowthBonusSpeed;
         copy.CurrentHp = Mathf.Max(0, source.CurrentHp);
         copy.MaxHp = Mathf.Max(1, source.MaxHp);
         copy.Survived = source.Survived;
@@ -196,6 +205,13 @@ public sealed partial class StaticPlaceholderWorldView
                 memberSnapshot.AppliedProgressionSummaryText = runtimeState != null && !string.IsNullOrEmpty(runtimeState.AppliedProgressionSummaryText) ? runtimeState.AppliedProgressionSummaryText : string.Empty;
                 memberSnapshot.CurrentRunSummaryText = runtimeState != null && !string.IsNullOrEmpty(runtimeState.CurrentRunSummaryText) ? runtimeState.CurrentRunSummaryText : string.Empty;
                 memberSnapshot.NextRunPreviewSummaryText = runtimeState != null && !string.IsNullOrEmpty(runtimeState.NextRunPreviewSummaryText) ? runtimeState.NextRunPreviewSummaryText : string.Empty;
+                memberSnapshot.Level = runtimeState != null ? Mathf.Max(1, runtimeState.Level) : 1;
+                memberSnapshot.Experience = runtimeState != null ? Mathf.Max(0, runtimeState.CurrentExperience) : 0;
+                memberSnapshot.NextLevelExperience = runtimeState != null ? Mathf.Max(1, runtimeState.NextLevelExperience) : PrototypeRpgMemberProgressionRules.GetNextLevelExperience(1);
+                memberSnapshot.GrowthBonusMaxHp = runtimeState != null ? runtimeState.GrowthBonusMaxHp : 0;
+                memberSnapshot.GrowthBonusAttack = runtimeState != null ? runtimeState.GrowthBonusAttack : 0;
+                memberSnapshot.GrowthBonusDefense = runtimeState != null ? runtimeState.GrowthBonusDefense : 0;
+                memberSnapshot.GrowthBonusSpeed = runtimeState != null ? runtimeState.GrowthBonusSpeed : 0;
                 memberSnapshot.CurrentHp = Mathf.Max(0, member.CurrentHp);
                 memberSnapshot.MaxHp = Mathf.Max(1, member.MaxHp);
                 memberSnapshot.Survived = !member.IsDefeated && member.CurrentHp > 0;
@@ -317,6 +333,7 @@ public sealed partial class StaticPlaceholderWorldView
         copy.EliteClearBonusHint = string.IsNullOrEmpty(source.EliteClearBonusHint) ? string.Empty : source.EliteClearBonusHint;
         copy.RouteRiskHint = string.IsNullOrEmpty(source.RouteRiskHint) ? string.Empty : source.RouteRiskHint;
         copy.DungeonDangerHint = string.IsNullOrEmpty(source.DungeonDangerHint) ? string.Empty : source.DungeonDangerHint;
+        copy.PendingRewardSummaryText = string.IsNullOrEmpty(source.PendingRewardSummaryText) ? string.Empty : source.PendingRewardSummaryText;
         copy.Loot = CopyRpgLootSeed(source.Loot);
 
         if (source.Members == null || source.Members.Length == 0)
@@ -336,6 +353,7 @@ public sealed partial class StaticPlaceholderWorldView
 
         copy.RewardTags = source.RewardTags != null && source.RewardTags.Length > 0 ? (string[])source.RewardTags.Clone() : System.Array.Empty<string>();
         copy.GrowthTags = source.GrowthTags != null && source.GrowthTags.Length > 0 ? (string[])source.GrowthTags.Clone() : System.Array.Empty<string>();
+        copy.PendingRewardBundles = CopyRewardBundles(source.PendingRewardBundles);
         return copy;
     }
 
@@ -352,6 +370,27 @@ public sealed partial class StaticPlaceholderWorldView
         copy.RoleTag = string.IsNullOrEmpty(source.RoleTag) ? string.Empty : source.RoleTag;
         copy.RoleLabel = string.IsNullOrEmpty(source.RoleLabel) ? string.Empty : source.RoleLabel;
         copy.DefaultSkillId = string.IsNullOrEmpty(source.DefaultSkillId) ? string.Empty : source.DefaultSkillId;
+        copy.GrowthTrackId = string.IsNullOrEmpty(source.GrowthTrackId) ? string.Empty : source.GrowthTrackId;
+        copy.JobId = string.IsNullOrEmpty(source.JobId) ? string.Empty : source.JobId;
+        copy.EquipmentLoadoutId = string.IsNullOrEmpty(source.EquipmentLoadoutId) ? string.Empty : source.EquipmentLoadoutId;
+        copy.SkillLoadoutId = string.IsNullOrEmpty(source.SkillLoadoutId) ? string.Empty : source.SkillLoadoutId;
+        copy.ResolvedSkillName = string.IsNullOrEmpty(source.ResolvedSkillName) ? string.Empty : source.ResolvedSkillName;
+        copy.ResolvedSkillShortText = string.IsNullOrEmpty(source.ResolvedSkillShortText) ? string.Empty : source.ResolvedSkillShortText;
+        copy.EquipmentSummaryText = string.IsNullOrEmpty(source.EquipmentSummaryText) ? string.Empty : source.EquipmentSummaryText;
+        copy.GearContributionSummaryText = string.IsNullOrEmpty(source.GearContributionSummaryText) ? string.Empty : source.GearContributionSummaryText;
+        copy.AppliedProgressionSummaryText = string.IsNullOrEmpty(source.AppliedProgressionSummaryText) ? string.Empty : source.AppliedProgressionSummaryText;
+        copy.CurrentRunSummaryText = string.IsNullOrEmpty(source.CurrentRunSummaryText) ? string.Empty : source.CurrentRunSummaryText;
+        copy.NextRunPreviewSummaryText = string.IsNullOrEmpty(source.NextRunPreviewSummaryText) ? string.Empty : source.NextRunPreviewSummaryText;
+        copy.Level = Mathf.Max(1, source.Level);
+        copy.Experience = Mathf.Max(0, source.Experience);
+        copy.NextLevelExperience = Mathf.Max(1, source.NextLevelExperience);
+        copy.GrowthBonusMaxHp = source.GrowthBonusMaxHp;
+        copy.GrowthBonusAttack = source.GrowthBonusAttack;
+        copy.GrowthBonusDefense = source.GrowthBonusDefense;
+        copy.GrowthBonusSpeed = source.GrowthBonusSpeed;
+        copy.ExperienceGained = Mathf.Max(0, source.ExperienceGained);
+        copy.LeveledUp = source.LeveledUp;
+        copy.RewardDropSummaryText = string.IsNullOrEmpty(source.RewardDropSummaryText) ? string.Empty : source.RewardDropSummaryText;
         copy.Survived = source.Survived;
         copy.KnockedOut = source.KnockedOut;
         copy.CurrentHp = Mathf.Max(0, source.CurrentHp);
@@ -372,6 +411,7 @@ public sealed partial class StaticPlaceholderWorldView
         copy.DamageTaken = Mathf.Max(0, source.DamageTaken);
         copy.HealingDone = Mathf.Max(0, source.HealingDone);
         copy.ActionCount = Mathf.Max(0, source.ActionCount);
+        copy.KillCount = Mathf.Max(0, source.KillCount);
         return copy;
     }
 
@@ -542,6 +582,8 @@ public sealed partial class StaticPlaceholderWorldView
         snapshot.EliteClearBonusHint = eliteOutcome.EliteBonusRewardEarned ? "Elite bonus reward earned." : eliteOutcome.IsEliteDefeated ? "Elite clear completed." : "Elite clear not achieved.";
         snapshot.RouteRiskHint = string.IsNullOrEmpty(snapshot.RouteRiskLabel) ? "Route risk: none." : "Route risk: " + snapshot.RouteRiskLabel + ".";
         snapshot.DungeonDangerHint = string.IsNullOrEmpty(snapshot.DungeonDangerLabel) ? "Dungeon danger: none." : "Dungeon danger: " + snapshot.DungeonDangerLabel + ".";
+        snapshot.PendingRewardSummaryText = string.IsNullOrEmpty(safeRunResult.PendingRewardSummaryText) ? string.Empty : safeRunResult.PendingRewardSummaryText;
+        snapshot.PendingRewardBundles = CopyRewardBundles(safeRunResult.PendingRewardBundles);
         snapshot.Loot = BuildRpgProgressionLootSeed(safeRunResult);
         snapshot.RewardTags = BuildRpgProgressionRewardTags(safeRunResult);
         snapshot.GrowthTags = BuildRpgProgressionGrowthTags(safeRunResult);
@@ -562,6 +604,24 @@ public sealed partial class StaticPlaceholderWorldView
             memberSeed.RoleTag = string.IsNullOrEmpty(memberOutcome.RoleTag) ? string.Empty : memberOutcome.RoleTag;
             memberSeed.RoleLabel = string.IsNullOrEmpty(memberOutcome.RoleLabel) ? string.Empty : memberOutcome.RoleLabel;
             memberSeed.DefaultSkillId = string.IsNullOrEmpty(memberOutcome.DefaultSkillId) ? string.Empty : memberOutcome.DefaultSkillId;
+            memberSeed.GrowthTrackId = string.IsNullOrEmpty(memberOutcome.GrowthTrackId) ? string.Empty : memberOutcome.GrowthTrackId;
+            memberSeed.JobId = string.IsNullOrEmpty(memberOutcome.JobId) ? string.Empty : memberOutcome.JobId;
+            memberSeed.EquipmentLoadoutId = string.IsNullOrEmpty(memberOutcome.EquipmentLoadoutId) ? string.Empty : memberOutcome.EquipmentLoadoutId;
+            memberSeed.SkillLoadoutId = string.IsNullOrEmpty(memberOutcome.SkillLoadoutId) ? string.Empty : memberOutcome.SkillLoadoutId;
+            memberSeed.ResolvedSkillName = string.IsNullOrEmpty(memberOutcome.ResolvedSkillName) ? string.Empty : memberOutcome.ResolvedSkillName;
+            memberSeed.ResolvedSkillShortText = string.IsNullOrEmpty(memberOutcome.ResolvedSkillShortText) ? string.Empty : memberOutcome.ResolvedSkillShortText;
+            memberSeed.EquipmentSummaryText = string.IsNullOrEmpty(memberOutcome.EquipmentSummaryText) ? string.Empty : memberOutcome.EquipmentSummaryText;
+            memberSeed.GearContributionSummaryText = string.IsNullOrEmpty(memberOutcome.GearContributionSummaryText) ? string.Empty : memberOutcome.GearContributionSummaryText;
+            memberSeed.AppliedProgressionSummaryText = string.IsNullOrEmpty(memberOutcome.AppliedProgressionSummaryText) ? string.Empty : memberOutcome.AppliedProgressionSummaryText;
+            memberSeed.CurrentRunSummaryText = string.IsNullOrEmpty(memberOutcome.CurrentRunSummaryText) ? string.Empty : memberOutcome.CurrentRunSummaryText;
+            memberSeed.NextRunPreviewSummaryText = string.IsNullOrEmpty(memberOutcome.NextRunPreviewSummaryText) ? string.Empty : memberOutcome.NextRunPreviewSummaryText;
+            memberSeed.Level = Mathf.Max(1, memberOutcome.Level);
+            memberSeed.Experience = Mathf.Max(0, memberOutcome.Experience);
+            memberSeed.NextLevelExperience = Mathf.Max(1, memberOutcome.NextLevelExperience);
+            memberSeed.GrowthBonusMaxHp = memberOutcome.GrowthBonusMaxHp;
+            memberSeed.GrowthBonusAttack = memberOutcome.GrowthBonusAttack;
+            memberSeed.GrowthBonusDefense = memberOutcome.GrowthBonusDefense;
+            memberSeed.GrowthBonusSpeed = memberOutcome.GrowthBonusSpeed;
             memberSeed.Survived = memberOutcome.Survived;
             memberSeed.KnockedOut = memberOutcome.KnockedOut;
             memberSeed.CurrentHp = Mathf.Max(0, memberOutcome.CurrentHp);
@@ -571,7 +631,8 @@ public sealed partial class StaticPlaceholderWorldView
                 DamageDealt = GetRunMemberContributionValue(_runMemberDamageDealt, i),
                 DamageTaken = GetRunMemberContributionValue(_runMemberDamageTaken, i),
                 HealingDone = GetRunMemberContributionValue(_runMemberHealingDone, i),
-                ActionCount = GetRunMemberContributionValue(_runMemberActionCount, i)
+                ActionCount = GetRunMemberContributionValue(_runMemberActionCount, i),
+                KillCount = GetRunMemberContributionValue(_runMemberKillCount, i)
             };
             memberSeeds[i] = memberSeed;
         }
@@ -676,6 +737,8 @@ public sealed partial class StaticPlaceholderWorldView
         copy.RouteRiskLabel = string.IsNullOrEmpty(source.RouteRiskLabel) ? string.Empty : source.RouteRiskLabel;
         copy.EliteDefeated = source.EliteDefeated;
         copy.TotalLootGained = Mathf.Max(0, source.TotalLootGained);
+        copy.PendingRewardSummaryText = string.IsNullOrEmpty(source.PendingRewardSummaryText) ? string.Empty : source.PendingRewardSummaryText;
+        copy.PendingRewardBundles = CopyRewardBundles(source.PendingRewardBundles);
         copy.RewardHintTags = source.RewardHintTags != null && source.RewardHintTags.Length > 0 ? (string[])source.RewardHintTags.Clone() : System.Array.Empty<string>();
         copy.GrowthHintTags = source.GrowthHintTags != null && source.GrowthHintTags.Length > 0 ? (string[])source.GrowthHintTags.Clone() : System.Array.Empty<string>();
 
@@ -710,12 +773,56 @@ public sealed partial class StaticPlaceholderWorldView
         copy.DisplayName = string.IsNullOrEmpty(source.DisplayName) ? string.Empty : source.DisplayName;
         copy.RoleTag = string.IsNullOrEmpty(source.RoleTag) ? string.Empty : source.RoleTag;
         copy.RoleLabel = string.IsNullOrEmpty(source.RoleLabel) ? string.Empty : source.RoleLabel;
+        copy.GrowthTrackId = string.IsNullOrEmpty(source.GrowthTrackId) ? string.Empty : source.GrowthTrackId;
+        copy.JobId = string.IsNullOrEmpty(source.JobId) ? string.Empty : source.JobId;
+        copy.EquipmentLoadoutId = string.IsNullOrEmpty(source.EquipmentLoadoutId) ? string.Empty : source.EquipmentLoadoutId;
+        copy.SkillLoadoutId = string.IsNullOrEmpty(source.SkillLoadoutId) ? string.Empty : source.SkillLoadoutId;
+        copy.ResolvedSkillName = string.IsNullOrEmpty(source.ResolvedSkillName) ? string.Empty : source.ResolvedSkillName;
+        copy.ResolvedSkillShortText = string.IsNullOrEmpty(source.ResolvedSkillShortText) ? string.Empty : source.ResolvedSkillShortText;
+        copy.EquipmentSummaryText = string.IsNullOrEmpty(source.EquipmentSummaryText) ? string.Empty : source.EquipmentSummaryText;
+        copy.GearContributionSummaryText = string.IsNullOrEmpty(source.GearContributionSummaryText) ? string.Empty : source.GearContributionSummaryText;
+        copy.AppliedProgressionSummaryText = string.IsNullOrEmpty(source.AppliedProgressionSummaryText) ? string.Empty : source.AppliedProgressionSummaryText;
+        copy.CurrentRunSummaryText = string.IsNullOrEmpty(source.CurrentRunSummaryText) ? string.Empty : source.CurrentRunSummaryText;
+        copy.NextRunPreviewSummaryText = string.IsNullOrEmpty(source.NextRunPreviewSummaryText) ? string.Empty : source.NextRunPreviewSummaryText;
+        copy.Level = Mathf.Max(1, source.Level);
+        copy.Experience = Mathf.Max(0, source.Experience);
+        copy.NextLevelExperience = Mathf.Max(1, source.NextLevelExperience);
+        copy.GrowthBonusMaxHp = source.GrowthBonusMaxHp;
+        copy.GrowthBonusAttack = source.GrowthBonusAttack;
+        copy.GrowthBonusDefense = source.GrowthBonusDefense;
+        copy.GrowthBonusSpeed = source.GrowthBonusSpeed;
+        copy.ExperienceGained = Mathf.Max(0, source.ExperienceGained);
+        copy.LeveledUp = source.LeveledUp;
+        copy.RewardDropSummaryText = string.IsNullOrEmpty(source.RewardDropSummaryText) ? string.Empty : source.RewardDropSummaryText;
         copy.Survived = source.Survived;
         copy.Contribution = CopyRpgMemberContributionSnapshot(source.Contribution);
         copy.SuggestedGrowthHintTags = source.SuggestedGrowthHintTags != null && source.SuggestedGrowthHintTags.Length > 0 ? (string[])source.SuggestedGrowthHintTags.Clone() : System.Array.Empty<string>();
         copy.SuggestedRewardHintTags = source.SuggestedRewardHintTags != null && source.SuggestedRewardHintTags.Length > 0 ? (string[])source.SuggestedRewardHintTags.Clone() : System.Array.Empty<string>();
         copy.NotableOutcomeKey = string.IsNullOrEmpty(source.NotableOutcomeKey) ? string.Empty : source.NotableOutcomeKey;
         return copy;
+    }
+
+    private PrototypeRpgRewardBundle[] CopyRewardBundles(PrototypeRpgRewardBundle[] source)
+    {
+        PrototypeRpgRewardBundle[] safeSource = source ?? System.Array.Empty<PrototypeRpgRewardBundle>();
+        if (safeSource.Length <= 0)
+        {
+            return System.Array.Empty<PrototypeRpgRewardBundle>();
+        }
+
+        PrototypeRpgRewardBundle[] copies = new PrototypeRpgRewardBundle[safeSource.Length];
+        for (int i = 0; i < safeSource.Length; i++)
+        {
+            PrototypeRpgRewardBundle bundle = safeSource[i] ?? new PrototypeRpgRewardBundle();
+            copies[i] = new PrototypeRpgRewardBundle
+            {
+                RewardId = string.IsNullOrEmpty(bundle.RewardId) ? string.Empty : bundle.RewardId,
+                RewardLabel = string.IsNullOrEmpty(bundle.RewardLabel) ? string.Empty : bundle.RewardLabel,
+                Amount = Mathf.Max(0, bundle.Amount)
+            };
+        }
+
+        return copies;
     }
 
     private PrototypeRpgCombatContributionSnapshot BuildRpgCombatContributionSnapshot(PrototypeRpgRunResultSnapshot runResultSnapshot)

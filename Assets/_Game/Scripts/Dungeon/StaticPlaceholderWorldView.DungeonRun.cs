@@ -991,7 +991,18 @@ public sealed partial class StaticPlaceholderWorldView
         return BuildRpgOwnedBattleUiCommandSurfaceData(actor, actionContext);
     }
 
-    private PrototypeBattleUiCommandDetailData BuildBattleUiCommandDetailData(string key, string label, string description, string targetText, string costText, string effectText, bool isAvailable, bool isSelected)
+    private PrototypeBattleUiCommandDetailData BuildBattleUiCommandDetailData(
+        string key,
+        string label,
+        string description,
+        string targetText,
+        string costText,
+        string effectText,
+        bool isAvailable,
+        bool isSelected,
+        string previewText = "",
+        string formulaText = "",
+        string growthText = "")
     {
         PrototypeBattleUiCommandDetailData detail = new PrototypeBattleUiCommandDetailData();
         detail.Key = string.IsNullOrEmpty(key) ? string.Empty : key;
@@ -1000,6 +1011,9 @@ public sealed partial class StaticPlaceholderWorldView
         detail.TargetText = string.IsNullOrEmpty(targetText) ? string.Empty : targetText;
         detail.CostText = string.IsNullOrEmpty(costText) ? string.Empty : costText;
         detail.EffectText = string.IsNullOrEmpty(effectText) ? string.Empty : effectText;
+        detail.PreviewText = string.IsNullOrEmpty(previewText) ? string.Empty : previewText;
+        detail.FormulaText = string.IsNullOrEmpty(formulaText) ? string.Empty : formulaText;
+        detail.GrowthText = string.IsNullOrEmpty(growthText) ? string.Empty : growthText;
         detail.IsAvailable = isAvailable;
         detail.IsSelected = isSelected;
         return detail;
@@ -1028,6 +1042,17 @@ public sealed partial class StaticPlaceholderWorldView
                 : _queuedBattleAction == BattleActionType.Retreat
                     ? "retreat"
                     : string.Empty;
+    }
+
+    private string GetBattleUiFocusedActionKey()
+    {
+        string hoveredActionKey = GetBattleActionKey(_hoverBattleAction);
+        if (!string.IsNullOrEmpty(hoveredActionKey))
+        {
+            return hoveredActionKey;
+        }
+
+        return GetBattleUiSelectedActionKey();
     }
 
     private string GetBattleUiActionDisplayLabel(string actionKey, PrototypeBattleUiActorData actor)
@@ -4311,6 +4336,11 @@ public sealed partial class StaticPlaceholderWorldView
 
     private int GetResolvedSkillPower(DungeonPartyMemberRuntimeData member, PrototypeRpgSkillDefinition skillDefinition = null)
     {
+        if (member != null && member.SkillPower > 0)
+        {
+            return member.SkillPower;
+        }
+
         if (skillDefinition == null)
         {
             skillDefinition = ResolveMemberSkillDefinition(member);
@@ -4319,11 +4349,6 @@ public sealed partial class StaticPlaceholderWorldView
         if (skillDefinition != null && skillDefinition.PowerValue > 0)
         {
             return skillDefinition.PowerValue;
-        }
-
-        if (member != null && member.SkillPower > 0)
-        {
-            return member.SkillPower;
         }
 
         return member != null ? Mathf.Max(1, member.Attack + 1) : 1;
@@ -5971,7 +5996,10 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         skillType = ResolveSharedSkillType(sharedSkillDefinition);
-        skillPower = sharedSkillDefinition.PowerValue > 0 ? sharedSkillDefinition.PowerValue : Mathf.Max(1, baseStats.Attack + 1);
+        if (skillPower <= 0)
+        {
+            skillPower = sharedSkillDefinition.PowerValue > 0 ? sharedSkillDefinition.PowerValue : Mathf.Max(1, baseStats.Attack + 1);
+        }
         viewColor = ResolveSharedSkillViewColor(sharedSkillDefinition);
     }
 

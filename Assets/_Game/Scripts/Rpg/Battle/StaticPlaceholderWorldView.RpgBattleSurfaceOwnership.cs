@@ -77,6 +77,7 @@ public sealed partial class StaticPlaceholderWorldView
             hash = CombineBattleStamp(hash, _currentActorIndex);
             hash = CombineBattleStamp(hash, _pendingEnemyTargetIndex);
             hash = CombineBattleStamp(hash, _queuedBattleAction.GetHashCode());
+            hash = CombineBattleStamp(hash, _hoverBattleAction.GetHashCode());
             hash = CombineBattleStamp(hash, _currentDungeonName);
             hash = CombineBattleStamp(hash, _selectedRouteLabel);
             hash = CombineBattleStamp(hash, _currentRoomStepId);
@@ -635,13 +636,36 @@ public sealed partial class StaticPlaceholderWorldView
             return string.Empty;
         }
 
+        string summary = BuildRpgOwnedBattleResolvedStatsText(member);
+        string gearLabel = BuildRpgOwnedBattleGearLabel(member);
+        return string.IsNullOrEmpty(gearLabel) ? summary : summary + " | " + gearLabel;
+    }
+
+    private string BuildRpgOwnedBattleResolvedStatsText(DungeonPartyMemberRuntimeData member)
+    {
+        if (member == null)
+        {
+            return string.Empty;
+        }
+
         int level = member.RuntimeState != null ? Mathf.Max(1, member.RuntimeState.Level) : 1;
-        string summary = "Lv " + level +
+        return "Lv " + level +
             " | ATK " + Mathf.Max(1, member.Attack) +
             " DEF " + Mathf.Max(0, member.Defense) +
             " SPD " + Mathf.Max(0, member.Speed);
-        string gearLabel = BuildRpgOwnedBattleGearLabel(member);
-        return string.IsNullOrEmpty(gearLabel) ? summary : summary + " | " + gearLabel;
+    }
+
+    private string BuildRpgOwnedBattleStatSourceText(DungeonPartyMemberRuntimeData member)
+    {
+        if (member == null)
+        {
+            return string.Empty;
+        }
+
+        int gearBonus = GetRpgOwnedMemberEquipmentAttackBonus(member);
+        int growthBonus = member.RuntimeState != null ? Mathf.Max(0, member.RuntimeState.GrowthBonusAttack) : 0;
+        int baseValue = Mathf.Max(1, member.Attack - gearBonus - growthBonus);
+        return BuildRpgOwnedResolvedFormulaText("ATK", member.Attack, baseValue, growthBonus, gearBonus);
     }
 
     private string BuildRpgOwnedBattleGrowthTag(DungeonPartyMemberRuntimeData member)
@@ -791,7 +815,19 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         surface.SkillLabel = string.IsNullOrEmpty(safeActor.SkillLabel) ? "None" : safeActor.SkillLabel;
-        surface.SummaryText = string.IsNullOrEmpty(safeActor.SummaryText) ? string.Empty : safeActor.SummaryText;
+        if (!safeActor.IsEnemy)
+        {
+            DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
+            surface.ResolvedStatsText = BuildRpgOwnedBattleResolvedStatsText(member);
+            surface.StatSourceText = BuildRpgOwnedBattleStatSourceText(member);
+            surface.SummaryText = !string.IsNullOrEmpty(surface.ResolvedStatsText) ? surface.ResolvedStatsText : safeActor.SummaryText;
+            surface.ResourceText = surface.StatSourceText;
+        }
+        else
+        {
+            surface.SummaryText = string.IsNullOrEmpty(safeActor.SummaryText) ? string.Empty : safeActor.SummaryText;
+        }
+
         surface.StatusText = string.IsNullOrEmpty(safeActor.StatusText) ? "Idle" : safeActor.StatusText;
         surface.CurrentHp = Mathf.Max(0, safeActor.CurrentHp);
         surface.MaxHp = Mathf.Max(1, safeActor.MaxHp);
@@ -954,15 +990,19 @@ public sealed partial class StaticPlaceholderWorldView
         string selectedActionKey = actionContext != null && !string.IsNullOrEmpty(actionContext.SelectedActionKey)
             ? actionContext.SelectedActionKey
             : GetBattleUiSelectedActionKey();
+        string focusedActionKey = GetBattleUiFocusedActionKey();
         commandSurface.SelectedActionKey = selectedActionKey;
         commandSurface.SelectedActionLabel = actionContext != null && !string.IsNullOrEmpty(actionContext.SelectedActionLabel)
             ? actionContext.SelectedActionLabel
             : GetBattleUiActionDisplayLabel(selectedActionKey, actor);
+        commandSurface.FocusedActionKey = focusedActionKey;
+        commandSurface.FocusedActionLabel = GetBattleUiActionDisplayLabel(focusedActionKey, actor);
 
         DungeonPartyMemberRuntimeData currentMember = actor != null && !actor.IsEnemy ? GetCurrentActorMember() : null;
         PrototypeRpgSkillDefinition currentSkillDefinition = currentMember != null ? ResolveMemberSkillDefinition(currentMember) : null;
         DungeonMonsterRuntimeData previewMonster = GetBattleUiPrimaryPreviewMonster();
-        int basicAttackPower = currentMember != null ? Mathf.Max(1, currentMember.Attack) : 1;
+        RpgOwnedBattleActionPreviewData attackPreview = BuildRpgOwnedBattleActionPreview(BattleActionType.Attack, currentMember, previewMonster);
+        RpgOwnedBattleActionPreviewData skillPreview = BuildRpgOwnedBattleActionPreview(BattleActionType.Skill, currentMember, previewMonster, currentSkillDefinition);
         string skillLabel = actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedSkillLabel)
             ? actionContext.ResolvedSkillLabel
             : actor != null && !string.IsNullOrEmpty(actor.SkillLabel) && actor.SkillLabel != "None"
@@ -971,23 +1011,27 @@ public sealed partial class StaticPlaceholderWorldView
         string skillDescription = actor != null && !string.IsNullOrEmpty(actor.SkillShortText)
             ? actor.SkillShortText
             : "Uses the active actor's shared skill definition.";
-        if (actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedTargetKind))
+        string skillTargetKind = currentMember != null ? GetResolvedSkillTargetKind(currentMember, currentSkillDefinition) : string.Empty;
+        if (!string.IsNullOrEmpty(skillTargetKind))
         {
-            skillDescription = GetBattleUiTargetTypeLabel(actionContext.ResolvedTargetKind) + " | " + skillDescription;
+            skillDescription = GetBattleUiTargetTypeLabel(skillTargetKind) + " | " + skillDescription;
         }
 
-        if (actionContext != null && !string.IsNullOrEmpty(actionContext.ThreatSummaryText))
+        string skillThreatSummary = currentMember != null
+            ? BuildRpgOwnedBattleThreatSummary(string.Empty, "skill", currentMember, currentSkillDefinition, previewMonster)
+            : string.Empty;
+        if (!string.IsNullOrEmpty(skillThreatSummary))
         {
-            skillDescription += " | " + actionContext.ThreatSummaryText;
+            skillDescription += " | " + skillThreatSummary;
         }
 
-        string skillTargetText = actionContext != null && !string.IsNullOrEmpty(actionContext.ResolvedTargetKind)
-            ? GetBattleUiTargetTypeLabel(actionContext.ResolvedTargetKind)
+        string skillTargetText = !string.IsNullOrEmpty(skillTargetKind)
+            ? GetBattleUiTargetTypeLabel(skillTargetKind)
             : "Single enemy";
         string skillEffectText = BuildRpgOwnedBattleSkillEffectText(currentMember, currentSkillDefinition, actionContext, previewMonster);
 
         string attackTargetText = "Single enemy";
-        string attackEffectText = BuildRpgOwnedBattleAttackEffectText(currentMember, previewMonster, basicAttackPower);
+        string attackEffectText = BuildRpgOwnedBattleAttackEffectText(currentMember, previewMonster, currentMember != null ? Mathf.Max(1, currentMember.Attack) : 1);
 
         string moveDescription = "Choose one adjacent row and spend the turn.";
         string moveTargetText = "Self";
@@ -1015,12 +1059,34 @@ public sealed partial class StaticPlaceholderWorldView
         string endTurnEffectText = "Advance to the next unit in the queue.";
 
         List<PrototypeBattleUiCommandDetailData> details = new List<PrototypeBattleUiCommandDetailData>();
-        details.Add(BuildBattleUiCommandDetailData("attack", "Attack", "Basic attack with projected damage preview.", attackTargetText, "None", attackEffectText, IsBattleActionAvailable(BattleActionType.Attack), selectedActionKey == "attack"));
-        details.Add(BuildBattleUiCommandDetailData("skill", skillLabel, skillDescription, skillTargetText, "No cost", skillEffectText, IsBattleActionAvailable(BattleActionType.Skill), selectedActionKey == "skill"));
+        details.Add(BuildBattleUiCommandDetailData(
+            "attack",
+            "Attack",
+            "Basic attack with projected damage preview.",
+            attackTargetText,
+            "None",
+            attackEffectText,
+            IsBattleActionAvailable(BattleActionType.Attack),
+            selectedActionKey == "attack",
+            attackPreview.PreviewText,
+            attackPreview.FormulaText,
+            attackPreview.GrowthText));
+        details.Add(BuildBattleUiCommandDetailData(
+            "skill",
+            skillLabel,
+            skillDescription,
+            skillTargetText,
+            "No cost",
+            skillEffectText,
+            IsBattleActionAvailable(BattleActionType.Skill),
+            selectedActionKey == "skill",
+            skillPreview.PreviewText,
+            skillPreview.FormulaText,
+            skillPreview.GrowthText));
         details.Add(BuildBattleUiCommandDetailData("item", "Item", "Shows usable consumables once the inventory batch is wired.", "Self / ally", "Not implemented", "No consumables are wired in this batch.", false, false));
         details.Add(BuildBattleUiCommandDetailData("defend", "Defend", "Reserved for a later guard/reaction batch.", "Self", "Not available yet", "No defend rule is wired in this batch.", false, false));
         details.Add(BuildBattleUiCommandDetailData("move", "Move", moveDescription, moveTargetText, "Ends turn", moveEffectText, IsBattleActionAvailable(BattleActionType.Move), selectedActionKey == "move"));
-        AppendRpgOwnedBattleMoveOptionDetails(details, currentMember, selectedActionKey);
+        AppendRpgOwnedBattleMoveOptionDetails(details, currentMember, focusedActionKey);
         details.Add(BuildBattleUiCommandDetailData("end_turn", "End Turn", endTurnDescription, endTurnTargetText, "Ends turn", endTurnEffectText, IsBattleActionAvailable(BattleActionType.EndTurn), selectedActionKey == "end_turn"));
         details.Add(BuildBattleUiCommandDetailData("retreat", "Retreat", "Leave the run using the current resolution flow.", "Party", "Ends the current run", "Return to WorldSim with the current writeback path.", IsBattleActionAvailable(BattleActionType.Retreat), selectedActionKey == "retreat"));
         details.Add(BuildBattleUiCommandDetailData("retreat_confirm", "Confirm retreat", "Commit to the retreat action.", "Party", "Confirm exit", "Uses the existing retreat resolution.", IsBattleActionAvailable(BattleActionType.Retreat), false));
@@ -1028,8 +1094,8 @@ public sealed partial class StaticPlaceholderWorldView
         details.Add(BuildBattleUiCommandDetailData("cancel", "Cancel", "Leave confirmation without committing.", "Current dialog", "None", "Returns to party commands.", true, false));
         commandSurface.Details = details.ToArray();
         commandSurface.PrimaryButtons = BuildRpgOwnedBattlePrimaryButtons(selectedActionKey);
-        commandSurface.ContextualPanelTitle = BuildRpgOwnedBattleContextPanelTitle(selectedActionKey);
-        commandSurface.ContextualDetails = BuildRpgOwnedBattleContextualDetails(commandSurface.Details, selectedActionKey);
+        commandSurface.ContextualPanelTitle = BuildRpgOwnedBattleContextPanelTitle(focusedActionKey);
+        commandSurface.ContextualDetails = BuildRpgOwnedBattleContextualDetails(commandSurface.Details, focusedActionKey);
         commandSurface.ContextualPanelSummaryText = BuildRpgOwnedBattleContextPanelSummary(commandSurface.ContextualDetails);
         return commandSurface;
     }
@@ -1148,12 +1214,26 @@ public sealed partial class StaticPlaceholderWorldView
             parts.Add(detail.Description);
         }
 
+        if (!string.IsNullOrEmpty(detail.PreviewText))
+        {
+            parts.Add(detail.PreviewText);
+        }
+
         if (!string.IsNullOrEmpty(detail.TargetText))
         {
             parts.Add(detail.TargetText);
         }
 
-        if (!string.IsNullOrEmpty(detail.EffectText))
+        if (!string.IsNullOrEmpty(detail.FormulaText))
+        {
+            parts.Add(detail.FormulaText);
+        }
+
+        if (!string.IsNullOrEmpty(detail.GrowthText))
+        {
+            parts.Add(detail.GrowthText);
+        }
+        else if (!string.IsNullOrEmpty(detail.EffectText))
         {
             parts.Add(detail.EffectText);
         }
@@ -1217,7 +1297,7 @@ public sealed partial class StaticPlaceholderWorldView
         targetSelection.QueuedActionLabel = actionContext != null && !string.IsNullOrEmpty(actionContext.SelectedActionLabel)
             ? actionContext.SelectedActionLabel
             : GetBattleUiActionDisplayLabel(GetBattleUiSelectedActionKey(), actor);
-        targetSelection.HasFocusedTarget = targetContext != null && targetContext.HasTarget && targetContext.IsHovered;
+        targetSelection.HasFocusedTarget = targetContext != null && targetContext.HasTarget && (targetContext.IsHovered || targetContext.IsLocked);
         targetSelection.TargetLabel = targetContext != null && targetContext.HasTarget ? targetContext.TargetLabel : "Choose a target";
         targetSelection.TargetRoleLabel = targetContext != null && targetContext.HasTarget ? targetContext.TargetRoleLabel : string.Empty;
         targetSelection.TargetIntentLabel = targetContext != null && targetContext.HasTarget ? targetContext.TargetIntentLabel : string.Empty;
@@ -1257,6 +1337,18 @@ public sealed partial class StaticPlaceholderWorldView
                 ? BuildTargetRuleText(actionContext.ResolvedLaneRuleKey)
                 : string.Empty;
         targetSelection.ThreatSummaryText = actionContext != null ? actionContext.ThreatSummaryText : string.Empty;
+        if (targetContext != null && targetContext.HasTarget && actor != null && !actor.IsEnemy)
+        {
+            DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
+            DungeonMonsterRuntimeData targetMonster = GetMonsterById(targetContext.TargetMonsterId);
+            PrototypeRpgSkillDefinition skillDefinition = _queuedBattleAction == BattleActionType.Skill ? ResolveMemberSkillDefinition(member) : null;
+            RpgOwnedBattleActionPreviewData preview = BuildRpgOwnedBattleActionPreview(_queuedBattleAction, member, targetMonster, skillDefinition);
+            targetSelection.ExpectedEffectText = preview.PreviewText;
+            targetSelection.PostEffectText = preview.PostEffectText;
+            targetSelection.FormulaText = preview.FormulaText;
+            targetSelection.GrowthText = preview.GrowthText;
+        }
+
         targetSelection.CancelHint = GetBattleCancelHintText();
         return targetSelection;
     }

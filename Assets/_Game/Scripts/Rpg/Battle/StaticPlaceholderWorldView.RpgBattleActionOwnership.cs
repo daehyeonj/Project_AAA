@@ -1,7 +1,322 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public sealed partial class StaticPlaceholderWorldView
 {
+    private sealed class RpgOwnedBattleActionPreviewData
+    {
+        public string PreviewText = string.Empty;
+        public string PostEffectText = string.Empty;
+        public string FormulaText = string.Empty;
+        public string GrowthText = string.Empty;
+        public int ExpectedAmount;
+        public int ExpectedTargetHpAfter;
+        public bool WouldDefeatTarget;
+        public bool IsBlocked;
+    }
+
+    private string GetRpgOwnedActivePartyId()
+    {
+        return _activeDungeonParty != null && !string.IsNullOrEmpty(_activeDungeonParty.PartyId)
+            ? _activeDungeonParty.PartyId
+            : string.Empty;
+    }
+
+    private int GetRpgOwnedMemberEquipmentAttackBonus(DungeonPartyMemberRuntimeData member)
+    {
+        string partyId = GetRpgOwnedActivePartyId();
+        return _runtimeEconomyState != null && member != null && !string.IsNullOrEmpty(partyId)
+            ? _runtimeEconomyState.GetPartyMemberEquipmentAttackBonus(partyId, member.MemberId)
+            : 0;
+    }
+
+    private int GetRpgOwnedMemberEquipmentSkillPowerBonus(DungeonPartyMemberRuntimeData member)
+    {
+        string partyId = GetRpgOwnedActivePartyId();
+        return _runtimeEconomyState != null && member != null && !string.IsNullOrEmpty(partyId)
+            ? _runtimeEconomyState.GetPartyMemberEquipmentSkillPowerBonus(partyId, member.MemberId)
+            : 0;
+    }
+
+    private string BuildRpgOwnedResolvedFormulaText(
+        string statLabel,
+        int resolvedValue,
+        int baseValue,
+        int growthBonus,
+        int gearBonus,
+        int situationalBonus = 0,
+        string situationalLabel = "")
+    {
+        List<string> parts = new List<string>();
+        parts.Add("Base " + Mathf.Max(0, baseValue));
+        if (growthBonus > 0)
+        {
+            parts.Add("Growth " + growthBonus);
+        }
+
+        if (gearBonus > 0)
+        {
+            parts.Add("Gear " + gearBonus);
+        }
+
+        if (situationalBonus > 0)
+        {
+            string label = string.IsNullOrEmpty(situationalLabel) ? "Bonus" : situationalLabel;
+            parts.Add(label + " " + situationalBonus);
+        }
+
+        return statLabel + " " + Mathf.Max(0, resolvedValue) + " = " + string.Join(" + ", parts.ToArray());
+    }
+
+    private string BuildRpgOwnedGrowthContributionText(DungeonPartyMemberRuntimeData member, string statLabel, int growthBonus, int gearBonus)
+    {
+        if (member == null)
+        {
+            return string.Empty;
+        }
+
+        List<string> parts = new List<string>();
+        if (growthBonus > 0)
+        {
+            int level = member.RuntimeState != null ? Mathf.Max(1, member.RuntimeState.Level) : 1;
+            parts.Add("Lv" + level + " +" + growthBonus + " " + statLabel);
+        }
+
+        if (gearBonus > 0)
+        {
+            string gearName = PrototypeRpgEquipmentCatalog.ExtractDisplayName(member.EquipmentSummaryText);
+            if (string.IsNullOrEmpty(gearName))
+            {
+                gearName = "Gear";
+            }
+
+            parts.Add(gearName + " +" + gearBonus + " " + statLabel);
+        }
+
+        return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : string.Empty;
+    }
+
+    private void PopulateRpgOwnedTargetOutcomePreview(RpgOwnedBattleActionPreviewData preview, DungeonMonsterRuntimeData targetMonster, int expectedAmount)
+    {
+        if (preview == null || targetMonster == null)
+        {
+            return;
+        }
+
+        int currentHp = Mathf.Max(0, targetMonster.CurrentHp);
+        preview.ExpectedTargetHpAfter = Mathf.Max(0, currentHp - Mathf.Max(0, expectedAmount));
+        preview.WouldDefeatTarget = preview.ExpectedTargetHpAfter <= 0;
+        preview.PostEffectText = preview.WouldDefeatTarget
+            ? "Would defeat"
+            : "HP " + currentHp + " -> " + preview.ExpectedTargetHpAfter;
+    }
+
+    private int PeekRpgOwnedFinisherBonus(DungeonPartyMemberRuntimeData member, PrototypeRpgSkillDefinition skillDefinition, DungeonMonsterRuntimeData targetMonster)
+    {
+        if (member == null ||
+            skillDefinition == null ||
+            targetMonster == null ||
+            targetMonster.IsDefeated ||
+            targetMonster.CurrentHp <= 0)
+        {
+            return 0;
+        }
+
+        if (skillDefinition.SkillId == "skill_weak_point")
+        {
+            if (HasRpgOwnedBurstWindow(targetMonster) && targetMonster.RuntimeState != null)
+            {
+                return Mathf.Max(0, targetMonster.RuntimeState.BurstWindowBonusDamage);
+            }
+
+            if (targetMonster.CurrentHp <= member.Attack)
+            {
+                return 1;
+            }
+        }
+
+        return 0;
+    }
+
+    private RpgOwnedBattleActionPreviewData BuildRpgOwnedBattleActionPreview(
+        BattleActionType action,
+        DungeonPartyMemberRuntimeData member,
+        DungeonMonsterRuntimeData targetMonster,
+        PrototypeRpgSkillDefinition skillDefinition = null)
+    {
+        RpgOwnedBattleActionPreviewData preview = new RpgOwnedBattleActionPreviewData();
+        if (member == null)
+        {
+            return preview;
+        }
+
+        if (action == BattleActionType.Attack)
+        {
+            if (targetMonster != null)
+            {
+                PrototypeBattleLaneRuleResolution laneResolution = BuildPartyActionLaneResolution(member, targetMonster, action, null);
+                if (laneResolution.ReachabilityStateKey == "blocked")
+                {
+                    preview.IsBlocked = true;
+                    preview.PreviewText = "Blocked: target out of reach";
+                    preview.PostEffectText = laneResolution.ReachabilitySummaryText;
+                    return preview;
+                }
+            }
+
+            int gearBonus = GetRpgOwnedMemberEquipmentAttackBonus(member);
+            int growthBonus = member.RuntimeState != null ? Mathf.Max(0, member.RuntimeState.GrowthBonusAttack) : 0;
+            int baseValue = Mathf.Max(1, member.Attack - gearBonus - growthBonus);
+            int burstBonus = targetMonster != null ? GetRpgOwnedAttackBurstBonus(targetMonster) : 0;
+            int resolvedDamage = Mathf.Max(1, member.Attack + burstBonus);
+            preview.ExpectedAmount = resolvedDamage;
+            preview.PreviewText = targetMonster != null
+                ? "Expected: " + resolvedDamage + " dmg to " + targetMonster.DisplayName
+                : "Expected: " + resolvedDamage + " dmg";
+            preview.FormulaText = BuildRpgOwnedResolvedFormulaText(
+                "ATK",
+                resolvedDamage,
+                baseValue,
+                growthBonus,
+                gearBonus,
+                burstBonus,
+                burstBonus > 0 ? "Expose" : string.Empty);
+            preview.GrowthText = BuildRpgOwnedGrowthContributionText(member, "ATK", growthBonus, gearBonus);
+            PopulateRpgOwnedTargetOutcomePreview(preview, targetMonster, resolvedDamage);
+            return preview;
+        }
+
+        if (action != BattleActionType.Skill)
+        {
+            return preview;
+        }
+
+        skillDefinition = skillDefinition ?? ResolveMemberSkillDefinition(member);
+        string effectType = GetResolvedSkillEffectType(member, skillDefinition);
+        string targetKind = GetResolvedSkillTargetKind(member, skillDefinition);
+        int resolvedSkillPower = GetResolvedSkillPower(member, skillDefinition);
+        int gearBonusValue = GetRpgOwnedMemberEquipmentSkillPowerBonus(member);
+        int growthBonusValue = member.RuntimeState != null ? Mathf.Max(0, member.RuntimeState.GrowthBonusAttack) : 0;
+        int baseSkillValue = skillDefinition != null && skillDefinition.PowerValue > 0
+            ? skillDefinition.PowerValue
+            : Mathf.Max(1, resolvedSkillPower - gearBonusValue - growthBonusValue);
+        int situationalBonus = 0;
+        string situationalLabel = string.Empty;
+
+        if (targetKind == "single_enemy" && targetMonster != null)
+        {
+            PrototypeBattleLaneRuleResolution laneResolution = BuildPartyActionLaneResolution(member, targetMonster, action, skillDefinition);
+            if (laneResolution.ReachabilityStateKey == "blocked")
+            {
+                preview.IsBlocked = true;
+                preview.PreviewText = "Blocked: target out of reach";
+                preview.PostEffectText = laneResolution.ReachabilitySummaryText;
+                return preview;
+            }
+        }
+
+        if (effectType == "finisher_damage")
+        {
+            situationalBonus = PeekRpgOwnedFinisherBonus(member, skillDefinition, targetMonster);
+            situationalLabel = "Payoff";
+        }
+        else if (targetKind == "all_enemies" && effectType == "damage" && targetMonster != null)
+        {
+            situationalBonus = GetRpgOwnedArcaneBurstBonus(targetMonster);
+            situationalLabel = "Expose";
+        }
+
+        int resolvedAmount = Mathf.Max(1, resolvedSkillPower + situationalBonus);
+        preview.ExpectedAmount = resolvedAmount;
+        preview.FormulaText = BuildRpgOwnedResolvedFormulaText(
+            "Skill",
+            targetKind == "all_enemies" ? resolvedSkillPower : resolvedAmount,
+            baseSkillValue,
+            growthBonusValue,
+            gearBonusValue,
+            targetKind == "all_enemies" ? 0 : situationalBonus,
+            situationalLabel);
+        preview.GrowthText = BuildRpgOwnedGrowthContributionText(member, "Skill", growthBonusValue, gearBonusValue);
+
+        if (effectType == "heal")
+        {
+            preview.PreviewText = "Expected: party heal " + Mathf.Max(1, resolvedSkillPower) + " HP";
+            preview.PostEffectText = "Supports all living allies.";
+            return preview;
+        }
+
+        if (targetKind == "all_enemies")
+        {
+            preview.PreviewText = situationalBonus > 0
+                ? "Expected: " + resolvedSkillPower + " dmg to all enemies (+" + situationalBonus + " vs exposed)"
+                : "Expected: " + resolvedSkillPower + " dmg to all enemies";
+            if (targetMonster != null)
+            {
+                PopulateRpgOwnedTargetOutcomePreview(preview, targetMonster, resolvedAmount);
+            }
+            else
+            {
+                preview.PostEffectText = "Uses the same resolved skill power on every enemy.";
+            }
+            return preview;
+        }
+
+        preview.PreviewText = targetMonster != null
+            ? "Expected: " + resolvedAmount + " dmg to " + targetMonster.DisplayName
+            : "Expected: " + resolvedAmount + " dmg";
+        PopulateRpgOwnedTargetOutcomePreview(preview, targetMonster, resolvedAmount);
+        return preview;
+    }
+
+    private string BuildRpgOwnedResolvedDamageLogText(
+        DungeonPartyMemberRuntimeData member,
+        string actionName,
+        DungeonMonsterRuntimeData targetMonster,
+        int appliedDamage,
+        RpgOwnedBattleActionPreviewData preview)
+    {
+        string formulaSuffix = preview != null && !string.IsNullOrEmpty(preview.FormulaText)
+            ? " (" + preview.FormulaText + ")."
+            : ".";
+        string targetName = targetMonster != null ? targetMonster.DisplayName : "target";
+        if (string.Equals(actionName, "Attack", System.StringComparison.Ordinal))
+        {
+            return member.DisplayName + " attacked " + targetName + " for " + appliedDamage + " damage" + formulaSuffix;
+        }
+
+        return member.DisplayName + " used " + actionName + " on " + targetName + " for " + appliedDamage + " damage" + formulaSuffix;
+    }
+
+    private string BuildRpgOwnedAreaSkillDamageLogText(
+        DungeonPartyMemberRuntimeData member,
+        string actionName,
+        int totalDamage,
+        int exposedHitCount,
+        RpgOwnedBattleActionPreviewData preview)
+    {
+        string detailText = preview != null && !string.IsNullOrEmpty(preview.FormulaText)
+            ? preview.FormulaText
+            : "Skill resolved";
+        if (exposedHitCount > 0)
+        {
+            detailText += "; exposed +" + RpgOwnedBurstWindowMageSplashBonus + " on " + exposedHitCount + " target(s)";
+        }
+
+        return member.DisplayName + " used " + actionName + " for " + totalDamage + " total damage (" + detailText + ").";
+    }
+
+    private string BuildRpgOwnedPartyHealLogText(
+        DungeonPartyMemberRuntimeData member,
+        string actionName,
+        int totalRecovered,
+        RpgOwnedBattleActionPreviewData preview)
+    {
+        string detailText = preview != null && !string.IsNullOrEmpty(preview.FormulaText)
+            ? preview.FormulaText
+            : "Skill resolved";
+        return member.DisplayName + " used " + actionName + " and restored " + totalRecovered + " HP (" + detailText + ").";
+    }
+
     private bool TryResolveRpgOwnedBattleAction(BattleActionType action)
     {
         if (!IsRpgOwnedBattleActionAvailable(action))
@@ -99,6 +414,7 @@ public sealed partial class StaticPlaceholderWorldView
             int hitCount = 0;
             int totalDamage = 0;
             int exposedHitCount = 0;
+            RpgOwnedBattleActionPreviewData preview = BuildRpgOwnedBattleActionPreview(action, member, null, resolvedSkillDefinition);
             var targetMonsters = GetTargetableBattleMonsters();
             for (int i = 0; i < targetMonsters.Count; i++)
             {
@@ -116,7 +432,7 @@ public sealed partial class StaticPlaceholderWorldView
                 }
             }
 
-            AppendBattleLog(member.DisplayName + " used " + resolvedSkillName + " on all enemies.");
+            AppendBattleLog(BuildRpgOwnedAreaSkillDamageLogText(member, resolvedSkillName, totalDamage, exposedHitCount, preview));
             SetBattleFeedbackText(
                 exposedHitCount > 0
                     ? resolvedSkillName + " hit " + hitCount + " enemies and spiked " + exposedHitCount + " exposed target(s)."
@@ -137,6 +453,7 @@ public sealed partial class StaticPlaceholderWorldView
         else if (resolvedSkillTargetKind == "all_allies" && resolvedSkillEffectType == "heal")
         {
             int totalRecovered = 0;
+            RpgOwnedBattleActionPreviewData preview = BuildRpgOwnedBattleActionPreview(action, member, null, resolvedSkillDefinition);
             var livingAllyIndices = GetLivingAllies();
             for (int i = 0; i < livingAllyIndices.Count; i++)
             {
@@ -146,7 +463,7 @@ public sealed partial class StaticPlaceholderWorldView
             }
 
             int extendedWindows = TryExtendRpgOwnedBurstWindowsFromSupport(member, resolvedSkillDefinition);
-            AppendBattleLog(member.DisplayName + " used " + resolvedSkillName + " and restored " + totalRecovered + " HP.");
+            AppendBattleLog(BuildRpgOwnedPartyHealLogText(member, resolvedSkillName, totalRecovered, preview));
             SetBattleFeedbackText(
                 extendedWindows > 0
                     ? resolvedSkillName + " restored " + totalRecovered + " HP and stabilized " + extendedWindows + " window(s)."
@@ -215,39 +532,32 @@ public sealed partial class StaticPlaceholderWorldView
         RecordRpgOwnedBattleEvent(PrototypeBattleEventKeys.RangeRuleResolved, member.MemberId, targetMonster.MonsterId, 0, laneResolution.RangeText, actionKey: actionKey, skillId: resolvedSkillId, phaseKey: "target_select", actorName: member.DisplayName, targetName: targetMonster.DisplayName, shortText: laneResolution.RangeText);
         RecordRpgOwnedBattleEvent(PrototypeBattleEventKeys.LaneRuleResolved, member.MemberId, targetMonster.MonsterId, 0, laneResolution.ReachabilitySummaryText, actionKey: actionKey, skillId: resolvedSkillId, phaseKey: "target_select", actorName: member.DisplayName, targetName: targetMonster.DisplayName, shortText: laneResolution.TargetRuleText);
 
-        int damage;
+        RpgOwnedBattleActionPreviewData preview = BuildRpgOwnedBattleActionPreview(_queuedBattleAction, member, targetMonster, resolvedSkillDefinition);
+        int damage = preview != null ? Mathf.Max(1, preview.ExpectedAmount) : 1;
         string actionName;
-        int burstBonus = 0;
         string burstFeedbackText = string.Empty;
         if (_queuedBattleAction == BattleActionType.Skill)
         {
             string resolvedSkillEffectType = GetResolvedSkillEffectType(member, resolvedSkillDefinition);
-            int resolvedSkillPower = GetResolvedSkillPower(member, resolvedSkillDefinition);
             if (resolvedSkillEffectType == "finisher_damage")
             {
-                burstBonus = ConsumeRpgOwnedBurstWindowPayoff(member, resolvedSkillDefinition, targetMonster);
+                int burstBonus = ConsumeRpgOwnedBurstWindowPayoff(member, resolvedSkillDefinition, targetMonster);
                 if (burstBonus <= 0 && targetMonster.CurrentHp <= member.Attack)
                 {
                     burstBonus = 1;
                 }
 
-                damage = resolvedSkillPower + burstBonus;
                 if (burstBonus > 0)
                 {
                     burstFeedbackText = "Burst payoff +" + burstBonus + ".";
                 }
-            }
-            else
-            {
-                damage = resolvedSkillPower;
             }
 
             actionName = GetResolvedSkillDisplayName(member, resolvedSkillDefinition);
         }
         else
         {
-            burstBonus = GetRpgOwnedAttackBurstBonus(targetMonster);
-            damage = member.Attack + burstBonus;
+            int burstBonus = GetRpgOwnedAttackBurstBonus(targetMonster);
             if (burstBonus > 0)
             {
                 burstFeedbackText = "Exposed target +" + burstBonus + ".";
@@ -259,7 +569,7 @@ public sealed partial class StaticPlaceholderWorldView
         RecordRpgOwnedBattleEvent(PrototypeBattleEventKeys.TargetSelected, member.MemberId, targetMonster.MonsterId, GetBattleMonsterDisplayIndex(targetMonster.MonsterId), member.DisplayName + " targeted " + targetMonster.DisplayName + ".", actionKey: actionKey, skillId: resolvedSkillId, phaseKey: "target_select", actorName: member.DisplayName, targetName: targetMonster.DisplayName, shortText: "Target locked");
         int appliedDamage = ApplyRpgOwnedBattleDamageToMonster(member, targetMonster, damage, new Color(1f, 0.48f, 0.30f, 1f));
         bool openedBurstWindow = TryApplyRpgOwnedBurstWindowSetup(member, resolvedSkillDefinition, targetMonster);
-        AppendBattleLog(member.DisplayName + " used " + actionName + " on " + targetMonster.DisplayName + " for " + appliedDamage + " damage.");
+        AppendBattleLog(BuildRpgOwnedResolvedDamageLogText(member, actionName, targetMonster, appliedDamage, preview));
         if (openedBurstWindow)
         {
             burstFeedbackText = "Burst window opened.";

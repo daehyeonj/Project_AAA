@@ -1,5 +1,14 @@
 # Golden-Path Content Authoring
 
+## What Batch 75.2 Confirms
+
+- Batch 75.2 is a latest-git audit / close-out batch, not a new gameplay implementation batch.
+- The current `HEAD` already contains the intended Batch 75.1 reward-feedback loop:
+  - centered battle-end popover
+  - real enemy reward floating text
+  - inventory/equipment surface with the visible comparison panel removed
+- Treat Batch 75.2 as the proof checkpoint that keeps Batch 76 focused on combat stat feedback instead of reopening reward UX or inventory cleanup again.
+
 ## What Batch 75.1 Adds
 
 - Batch 75.1 does not add a new loot table, equipment framework, battle rule, or HUD rewrite.

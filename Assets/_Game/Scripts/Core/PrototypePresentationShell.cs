@@ -248,6 +248,7 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         }
 
         DrawWorldBottomBar(bnbRect);
+        DrawInventorySurfaceOverlay(new Rect(0f, 0f, Screen.width, Screen.height), blockingRects);
         _blockingRects = blockingRects.ToArray();
     }
 
@@ -774,17 +775,26 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         string aftermathText = HasMeaningfulValue(result.LatestReturnAftermathSummaryText)
             ? result.LatestReturnAftermathSummaryText
             : boardFeedbackText;
+        string growthText = HasMeaningfulValue(result.LatestGrowthHighlightText)
+            ? result.LatestGrowthHighlightText
+            : aftermathText;
         string followUpText = HasMeaningfulValue(result.NextPrepFollowUpSummaryText)
             ? result.NextPrepFollowUpSummaryText
             : HasMeaningfulValue(result.NextSuggestedActionText)
                 ? result.NextSuggestedActionText
                 : nextActionText;
+        string nextRunText = HasMeaningfulValue(result.NextRunGrowthPreviewText)
+            ? result.NextRunGrowthPreviewText
+            : followUpText;
         return "Last Result: " + V(result.ResultSummaryText) + "\n" +
             "Route / Followed: " + V(routeText) + " | " + V(followedText) + "\n" +
             "Loot / Survivors: " + V(result.ReturnedLootSummaryText) + " | " + V(result.SelectedPartySummaryText) + "\n" +
             "Elite / World: " + V(result.EliteOutcomeSummaryText) + " | " + V(result.WorldWritebackSummaryText) + "\n" +
+            "Latest Growth: " + V(growthText) + "\n" +
             "Aftermath: " + V(aftermathText) + "\n" +
+            "Next Run Edge: " + V(nextRunText) + "\n" +
             "Follow-Up: " + V(followUpText) + "\n" +
+            "Inspect: " + V(result.InspectEquipmentHintText) + "\n" +
             "Board Feedback: " + V(boardFeedbackText);
     }
 
@@ -800,10 +810,12 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
                     ? readback.NextSuggestedActionText
                     : "None";
         return "Return Spotlight: " + V(reveal != null ? reveal.HeadlineText : "None") + "\n" +
+            "Growth Highlight: " + V(readback != null ? readback.LatestGrowthHighlightText : "None") + "\n" +
             "Aftermath: " + V(readback != null ? readback.LatestReturnAftermathText : "None") + "\n" +
             "Corrective Follow-Up: " + V(readback != null ? readback.NextSuggestedActionText : "None") + "\n" +
             "Next Prep Hint: " + V(nextPrepHintText) + "\n\n" +
-            (reveal != null && reveal.CanOpenExpeditionPrep ? "[X] Review Return  [Esc] Dismiss" : "[Esc] Dismiss");
+            "Inspect: " + V(readback != null ? readback.InspectEquipmentHintText : "None") + "\n\n" +
+            (reveal != null && reveal.CanOpenExpeditionPrep ? "[X] Review Return  [I] Inspect Equipment  [Esc] Dismiss" : "[I] Inspect Equipment  [Esc] Dismiss");
     }
 
     private string BuildExpeditionPostRunRevealBodyText(ExpeditionPostRunRevealState reveal)
@@ -822,9 +834,13 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
             "City / Dungeon: " + V(reveal != null ? reveal.CityLabel : "None") + " -> " + V(reveal != null ? reveal.DungeonLabel : "None") + "\n" +
             "Route: " + V(routeText) + "\n" +
             "Loot / Survivors: " + V(lootText) + " | " + V(survivorsText) + "\n" +
+            "Growth Reveal: " + V(readback.GrowthRevealSummaryText) + "\n" +
+            "Build Change: " + V(readback.LatestGrowthHighlightText) + "\n" +
             "Aftermath: " + V(readback.LatestReturnAftermathText) + "\n" +
+            "Next Run Edge: " + V(readback.NextRunGrowthPreviewText) + "\n" +
             "Changed Best Move: " + V(readback.NextSuggestedActionText) + "\n" +
             "Next Prep Hint: " + V(followUpText) + "\n" +
+            "Inspect: " + V(readback.InspectEquipmentHintText) + "\n" +
             "World Writeback: " + V(worldWriteback.WritebackSummaryText);
     }
 

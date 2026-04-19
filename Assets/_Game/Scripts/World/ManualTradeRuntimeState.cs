@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -87,7 +88,9 @@ public sealed class ManualTradeRuntimeState
         public string LatestGearRewardSummaryText;
         public string LatestEquipSwapSummaryText;
         public string LatestGearContinuitySummaryText;
+        public string LatestManualEquipmentActionSummaryText;
         public int NextEquipmentItemSequence;
+        public int InventoryRevision;
 
         public PartyRuntimeData(string partyId, string displayName, string homeCityId, string archetypeId, string promotionStateId)
         {
@@ -113,7 +116,9 @@ public sealed class ManualTradeRuntimeState
             LatestGearRewardSummaryText = "None";
             LatestEquipSwapSummaryText = "None";
             LatestGearContinuitySummaryText = "Owned 0 | Equipped 0 | Stored 0";
+            LatestManualEquipmentActionSummaryText = "None";
             NextEquipmentItemSequence = 1;
+            InventoryRevision = 1;
         }
     }
 
@@ -922,17 +927,26 @@ public sealed class ManualTradeRuntimeState
 
     public string GetLastRunGearRewardSummaryForCity(string cityId)
     {
-        return "None";
+        ExpeditionResult result = GetLatestExpeditionResultForCity(cityId);
+        return result != null && !string.IsNullOrEmpty(result.GearRewardCandidateSummaryText)
+            ? result.GearRewardCandidateSummaryText
+            : "None";
     }
 
     public string GetLastRunEquipSwapSummaryForCity(string cityId)
     {
-        return "None";
+        ExpeditionResult result = GetLatestExpeditionResultForCity(cityId);
+        return result != null && !string.IsNullOrEmpty(result.EquipSwapChoiceSummaryText)
+            ? result.EquipSwapChoiceSummaryText
+            : "None";
     }
 
     public string GetLastRunGearContinuitySummaryForCity(string cityId)
     {
-        return "None";
+        ExpeditionResult result = GetLatestExpeditionResultForCity(cityId);
+        return result != null && !string.IsNullOrEmpty(result.GearCarryContinuitySummaryText)
+            ? result.GearCarryContinuitySummaryText
+            : "None";
     }
 
     public ExpeditionResult GetLatestExpeditionResultForCity(string cityId)
@@ -1213,6 +1227,257 @@ public sealed class ManualTradeRuntimeState
         return party != null && !string.IsNullOrEmpty(party.InventorySummaryText)
             ? party.InventorySummaryText
             : "Owned 0 | Equipped 0 | Stored 0";
+    }
+
+    public int GetPartyInventoryRevision(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null ? Mathf.Max(1, party.InventoryRevision) : 0;
+    }
+
+    public string GetPartyLatestManualEquipmentActionSummary(string partyId)
+    {
+        PartyRuntimeData party = FindPartyById(partyId);
+        return party != null && !string.IsNullOrEmpty(party.LatestManualEquipmentActionSummaryText)
+            ? party.LatestManualEquipmentActionSummaryText
+            : "None";
+    }
+
+    public PrototypeRpgInventorySurfaceData BuildPartyInventorySurface(
+        string partyId,
+        string selectedMemberId,
+        string selectedSlotKey,
+        string selectedItemInstanceId,
+        bool isReadOnly,
+        string feedbackText)
+    {
+        PrototypeRpgInventorySurfaceData surface = new PrototypeRpgInventorySurfaceData();
+        PartyRuntimeData party = FindPartyById(partyId);
+        if (party == null)
+        {
+            surface.FeedbackText = string.IsNullOrEmpty(feedbackText) ? "No party inventory is available." : feedbackText;
+            return surface;
+        }
+
+        if (party.Members == null || party.Members.Length <= 0)
+        {
+            InitializePartyMembers(party);
+        }
+
+        surface.IsOpen = true;
+        surface.IsReadOnly = isReadOnly;
+        surface.ContextLabel = isReadOnly ? "Battle Read-Only Inspection" : "Manual Equipment";
+        surface.PartyId = party.PartyId;
+        surface.PartyLabel = party.DisplayName;
+        surface.InventorySummaryText = GetPartyInventorySummary(party.PartyId);
+        surface.LatestRewardSummaryText = string.IsNullOrEmpty(party.LatestGearRewardSummaryText) ? "None" : party.LatestGearRewardSummaryText;
+        surface.LatestAutoEquipSummaryText = string.IsNullOrEmpty(party.LatestEquipSwapSummaryText) ? "None" : party.LatestEquipSwapSummaryText;
+        surface.LatestContinuitySummaryText = string.IsNullOrEmpty(party.LatestGearContinuitySummaryText) ? surface.InventorySummaryText : party.LatestGearContinuitySummaryText;
+        surface.LatestManualActionSummaryText = string.IsNullOrEmpty(party.LatestManualEquipmentActionSummaryText) ? "None" : party.LatestManualEquipmentActionSummaryText;
+        surface.FeedbackText = string.IsNullOrEmpty(feedbackText) ? surface.LatestManualActionSummaryText : feedbackText;
+
+        PartyMemberProgressionData selectedMember = ResolveInventorySelectedMember(party, selectedMemberId);
+        string resolvedSlotKey = ResolveInventorySelectedSlotKey(selectedSlotKey);
+        if (selectedMember == null)
+        {
+            surface.FeedbackText = string.IsNullOrEmpty(surface.FeedbackText) || surface.FeedbackText == "None"
+                ? "No party member is available."
+                : surface.FeedbackText;
+            return surface;
+        }
+
+        PrototypeRpgInventoryMemberSurfaceData[] memberSurface = BuildInventoryMemberSurfaceArray(party, selectedMember);
+        surface.Members = memberSurface;
+        surface.SelectedMemberId = selectedMember.MemberId;
+
+        PrototypeRpgPartyDefinition partyDefinition = PrototypeRpgPartyCatalog.CreateRuntimeParty(
+            party.PartyId,
+            party.ArchetypeId,
+            party.PromotionStateId,
+            party.DisplayName);
+        PrototypeRpgPartyMemberDefinition memberDefinition = FindPartyMemberDefinition(partyDefinition, selectedMember.MemberId);
+        ResolveMemberInventoryStatBreakdown(
+            party,
+            selectedMember,
+            memberDefinition,
+            out int baseMaxHp,
+            out int baseAttack,
+            out int baseDefense,
+            out int baseSpeed,
+            out int growthMaxHp,
+            out int growthAttack,
+            out int growthDefense,
+            out int growthSpeed,
+            out int gearMaxHp,
+            out int gearAttack,
+            out int gearDefense,
+            out int gearSpeed,
+            out int gearSkillPower,
+            out int resolvedMaxHp,
+            out int resolvedAttack,
+            out int resolvedDefense,
+            out int resolvedSpeed,
+            out int resolvedSkillPower);
+
+        surface.SelectedMemberHeaderText = selectedMember.DisplayName + "  Lv" + Mathf.Max(1, selectedMember.Level);
+        surface.SelectedMemberProgressText = "XP " + Mathf.Max(0, selectedMember.Experience) + "/" + PrototypeRpgMemberProgressionRules.GetNextLevelExperience(Mathf.Max(1, selectedMember.Level));
+        surface.SelectedItemHeaderText = "Select an item.";
+        surface.SelectedItemMetaText = "No item selected.";
+        surface.SelectedItemDetailText = "Select stored gear to inspect bonus, delta, and equip fit.";
+        surface.SelectedItemOwnerText = "Stored";
+        surface.FooterSummaryText = "Power " + Mathf.Max(1, party.Power) + " | Carry " + Mathf.Max(1, party.CarryCapacity) + " | " + surface.InventorySummaryText;
+
+        PrototypeRpgInventorySlotSurfaceData[] slotSurface = BuildInventorySlotSurfaceArray(party, selectedMember, resolvedSlotKey);
+        surface.Slots = slotSurface;
+        surface.SelectedSlotKey = resolvedSlotKey;
+
+        PrototypeRpgInventoryItemSurfaceData[] itemSurface = BuildInventoryItemSurfaceArray(party, selectedMember, resolvedSlotKey, selectedItemInstanceId);
+        surface.InventoryItems = itemSurface;
+        PartyInventoryItemData selectedInventoryItem = ResolveSelectedInventoryItem(party, itemSurface);
+        PrototypeRpgEquipmentDefinition currentDefinition = GetActualEquippedDefinition(party, selectedMember, resolvedSlotKey);
+        PrototypeRpgEquipmentDefinition candidateDefinition = ResolvePartyInventoryItemDefinition(selectedInventoryItem, selectedMember.RoleTag);
+        bool canEquip = CanManualEquipInventoryItem(party, selectedMember, resolvedSlotKey, selectedInventoryItem, candidateDefinition, out string equipReasonText);
+        bool canUnequip = HasActualEquippedItem(party, selectedMember, resolvedSlotKey) && !isReadOnly;
+        surface.CanEquipSelectedItem = canEquip;
+        surface.CanUnequipSelectedSlot = canUnequip;
+
+        surface.InputHintText = isReadOnly
+            ? "[I] Toggle | [Q/E] Member | [1-7] Slot | [Up/Down] Item | [Esc] Close"
+            : "[I] Toggle | [Q/E] Member | [1-7] Slot | [Up/Down] Item | [Enter] Equip | [U] Unequip | [Esc] Close";
+
+        string baseText = BuildResolvedStatText(baseMaxHp, baseAttack, baseDefense, baseSpeed, false);
+        string growthText = PrototypeRpgEquipmentCatalog.BuildStatContributionSummary(growthMaxHp, growthAttack, growthDefense, growthSpeed, 0);
+        string gearText = PrototypeRpgEquipmentCatalog.BuildStatContributionSummary(gearMaxHp, gearAttack, gearDefense, gearSpeed, gearSkillPower);
+        string resolvedText = BuildResolvedStatText(resolvedMaxHp, resolvedAttack, resolvedDefense, resolvedSpeed, true);
+        for (int i = 0; i < surface.Members.Length; i++)
+        {
+            if (!surface.Members[i].IsSelected)
+            {
+                continue;
+            }
+
+            surface.Members[i].BaseStatsText = "Base: " + baseText;
+            surface.Members[i].LevelBonusText = "Level: " + growthText;
+            surface.Members[i].GearBonusText = "Gear: " + gearText;
+            surface.Members[i].ResolvedStatsText = "Resolved: " + resolvedText;
+            surface.Members[i].SummaryText = surface.SelectedMemberHeaderText + " | " + resolvedText;
+            break;
+        }
+
+        PrototypeRpgInventoryComparisonSurfaceData comparison = BuildInventoryComparisonSurface(
+            party,
+            selectedMember,
+            resolvedSlotKey,
+            currentDefinition,
+            selectedInventoryItem,
+            candidateDefinition,
+            canEquip,
+            canUnequip,
+            equipReasonText,
+            isReadOnly);
+        surface.Comparison = comparison;
+        if (selectedInventoryItem != null && candidateDefinition != null)
+        {
+            surface.SelectedItemInstanceId = selectedInventoryItem.ItemInstanceId;
+            surface.SelectedItemHeaderText = candidateDefinition.DisplayName;
+            surface.SelectedItemMetaText = candidateDefinition.SlotLabel + " | " + candidateDefinition.TierLabel;
+            surface.SelectedItemDetailText = BuildInventorySelectedItemDetailText(party, selectedInventoryItem, candidateDefinition, comparison);
+            surface.SelectedItemOwnerText = BuildInventoryItemOwnerText(party, selectedInventoryItem);
+        }
+
+        return surface;
+    }
+
+    public bool TryManualEquipPartyInventoryItem(
+        string partyId,
+        string memberId,
+        string slotKey,
+        string itemInstanceId,
+        out string feedbackText)
+    {
+        feedbackText = "Equip unavailable.";
+        PartyRuntimeData party = FindPartyById(partyId);
+        PartyMemberProgressionData member = FindPartyMemberProgression(partyId, memberId);
+        PartyInventoryItemData item = FindPartyInventoryItem(party, itemInstanceId);
+        PrototypeRpgEquipmentDefinition definition = ResolvePartyInventoryItemDefinition(item, member != null ? member.RoleTag : string.Empty);
+        string normalizedSlotKey = NormalizeEquipmentSlotKey(slotKey);
+        if (party == null || member == null || item == null || definition == null)
+        {
+            feedbackText = "Equip target is missing.";
+            return false;
+        }
+
+        if (!CanManualEquipInventoryItem(party, member, normalizedSlotKey, item, definition, out string reasonText))
+        {
+            feedbackText = reasonText;
+            return false;
+        }
+
+        PrototypeRpgEquipmentDefinition currentDefinition = GetActualEquippedDefinition(party, member, normalizedSlotKey);
+        if (currentDefinition != null &&
+            member.EquippedItemInstanceIdBySlotKey.TryGetValue(normalizedSlotKey, out string currentItemInstanceId) &&
+            currentItemInstanceId == item.ItemInstanceId)
+        {
+            feedbackText = member.DisplayName + " already has " + definition.DisplayName + " equipped.";
+            return false;
+        }
+
+        if (member.EquippedItemInstanceIdBySlotKey.TryGetValue(normalizedSlotKey, out string previousItemInstanceId))
+        {
+            PartyInventoryItemData previousItem = FindPartyInventoryItem(party, previousItemInstanceId);
+            if (previousItem != null)
+            {
+                previousItem.EquippedMemberId = string.Empty;
+                previousItem.EquippedSlotKey = string.Empty;
+            }
+        }
+
+        member.EquippedItemInstanceIdBySlotKey[normalizedSlotKey] = item.ItemInstanceId;
+        item.EquippedMemberId = member.MemberId;
+        item.EquippedSlotKey = normalizedSlotKey;
+        party.LatestManualEquipmentActionSummaryText = BuildManualEquipResultText(party, member, currentDefinition, definition);
+        feedbackText = party.LatestManualEquipmentActionSummaryText;
+        RefreshPartyInventorySummary(party);
+        UpdatePartyDerivedStats(party);
+        return true;
+    }
+
+    public bool TryManualUnequipPartyMemberSlot(
+        string partyId,
+        string memberId,
+        string slotKey,
+        out string feedbackText)
+    {
+        feedbackText = "Unequip unavailable.";
+        PartyRuntimeData party = FindPartyById(partyId);
+        PartyMemberProgressionData member = FindPartyMemberProgression(partyId, memberId);
+        string normalizedSlotKey = NormalizeEquipmentSlotKey(slotKey);
+        if (party == null || member == null)
+        {
+            feedbackText = "Unequip target is missing.";
+            return false;
+        }
+
+        if (!member.EquippedItemInstanceIdBySlotKey.TryGetValue(normalizedSlotKey, out string itemInstanceId) || string.IsNullOrEmpty(itemInstanceId))
+        {
+            feedbackText = PrototypeRpgEquipmentSlotKeys.ToDisplayLabel(normalizedSlotKey) + " is already empty.";
+            return false;
+        }
+
+        PartyInventoryItemData item = FindPartyInventoryItem(party, itemInstanceId);
+        PrototypeRpgEquipmentDefinition currentDefinition = ResolvePartyInventoryItemDefinition(item, member.RoleTag);
+        if (item != null)
+        {
+            item.EquippedMemberId = string.Empty;
+            item.EquippedSlotKey = string.Empty;
+        }
+
+        member.EquippedItemInstanceIdBySlotKey.Remove(normalizedSlotKey);
+        party.LatestManualEquipmentActionSummaryText = BuildManualUnequipResultText(party, member, currentDefinition);
+        feedbackText = party.LatestManualEquipmentActionSummaryText;
+        RefreshPartyInventorySummary(party);
+        UpdatePartyDerivedStats(party);
+        return true;
     }
 
     public int GetPartyMemberLevel(string partyId, string memberId)
@@ -2374,6 +2639,7 @@ public sealed class ManualTradeRuntimeState
         ApplyPendingRewardBundles(party, expeditionResult.PendingRewardBundles);
         bool partyPromoted = success && TryAdvancePartyPromotion(party);
         ApplyEquipmentRewardDrops(party, expeditionResult);
+        ResultPipeline.RefreshGrowthRevealSummaries(expeditionResult);
         string promotionEcho = partyPromoted
             ? " | " + PrototypeRpgPartyCatalog.GetPromotionStateLabel(party.PromotionStateId)
             : string.Empty;
@@ -3416,6 +3682,7 @@ public sealed class ManualTradeRuntimeState
         }
 
         UpdatePartyDerivedStats(party);
+        RefreshPartyInventorySummary(party);
     }
 
     private void ApplyPendingRewardBundles(PartyRuntimeData party, PrototypeRpgRewardBundle[] rewardBundles)
@@ -4066,6 +4333,532 @@ public sealed class ManualTradeRuntimeState
         return upgradedSlots;
     }
 
+    private PartyMemberProgressionData ResolveInventorySelectedMember(PartyRuntimeData party, string selectedMemberId)
+    {
+        if (party == null || party.Members == null || party.Members.Length <= 0)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrEmpty(selectedMemberId))
+        {
+            PartyMemberProgressionData explicitMember = FindPartyMemberProgression(party.PartyId, selectedMemberId);
+            if (explicitMember != null)
+            {
+                return explicitMember;
+            }
+        }
+
+        return party.Members[0];
+    }
+
+    private string ResolveInventorySelectedSlotKey(string slotKey)
+    {
+        string normalizedSlotKey = NormalizeEquipmentSlotKey(slotKey);
+        return string.IsNullOrEmpty(normalizedSlotKey)
+            ? PrototypeRpgEquipmentSlotKeys.OrderedKeys[0]
+            : normalizedSlotKey;
+    }
+
+    private PrototypeRpgInventoryMemberSurfaceData[] BuildInventoryMemberSurfaceArray(PartyRuntimeData party, PartyMemberProgressionData selectedMember)
+    {
+        if (party == null || party.Members == null || party.Members.Length <= 0)
+        {
+            return System.Array.Empty<PrototypeRpgInventoryMemberSurfaceData>();
+        }
+
+        PrototypeRpgPartyDefinition partyDefinition = PrototypeRpgPartyCatalog.CreateRuntimeParty(
+            party.PartyId,
+            party.ArchetypeId,
+            party.PromotionStateId,
+            party.DisplayName);
+        PrototypeRpgInventoryMemberSurfaceData[] members = new PrototypeRpgInventoryMemberSurfaceData[party.Members.Length];
+        for (int i = 0; i < party.Members.Length; i++)
+        {
+            PartyMemberProgressionData member = party.Members[i];
+            PrototypeRpgPartyMemberDefinition memberDefinition = FindPartyMemberDefinition(partyDefinition, member != null ? member.MemberId : string.Empty);
+            ResolveMemberInventoryStatBreakdown(
+                party,
+                member,
+                memberDefinition,
+                out int baseMaxHp,
+                out int baseAttack,
+                out int baseDefense,
+                out int baseSpeed,
+                out int growthMaxHp,
+                out int growthAttack,
+                out int growthDefense,
+                out int growthSpeed,
+                out int gearMaxHp,
+                out int gearAttack,
+                out int gearDefense,
+                out int gearSpeed,
+                out int _,
+                out int resolvedMaxHp,
+                out int resolvedAttack,
+                out int resolvedDefense,
+                out int resolvedSpeed,
+                out int _);
+
+            PrototypeRpgInventoryMemberSurfaceData data = new PrototypeRpgInventoryMemberSurfaceData();
+            data.MemberId = member != null ? member.MemberId : string.Empty;
+            data.DisplayName = member != null && !string.IsNullOrEmpty(member.DisplayName) ? member.DisplayName : "Adventurer";
+            data.RoleLabel = memberDefinition != null && !string.IsNullOrEmpty(memberDefinition.RoleLabel)
+                ? memberDefinition.RoleLabel
+                : member != null && !string.IsNullOrEmpty(member.RoleTag)
+                    ? member.RoleTag
+                    : "Adventurer";
+            data.Level = member != null && member.Level > 0 ? member.Level : PrototypeRpgMemberProgressionRules.GetStartingLevel();
+            data.CurrentExperience = member != null ? Mathf.Max(0, member.Experience) : PrototypeRpgMemberProgressionRules.GetStartingExperience();
+            data.NextLevelExperience = PrototypeRpgMemberProgressionRules.GetNextLevelExperience(data.Level);
+            data.BaseStatsText = "Base: " + BuildResolvedStatText(baseMaxHp, baseAttack, baseDefense, baseSpeed, false);
+            data.LevelBonusText = "Level: " + PrototypeRpgEquipmentCatalog.BuildStatContributionSummary(growthMaxHp, growthAttack, growthDefense, growthSpeed, 0);
+            data.GearBonusText = "Gear: " + PrototypeRpgEquipmentCatalog.BuildStatContributionSummary(gearMaxHp, gearAttack, gearDefense, gearSpeed, 0);
+            data.ResolvedStatsText = "Resolved: " + BuildResolvedStatText(resolvedMaxHp, resolvedAttack, resolvedDefense, resolvedSpeed, true);
+            data.SummaryText = data.DisplayName + " Lv" + data.Level + " | " + BuildResolvedStatText(resolvedMaxHp, resolvedAttack, resolvedDefense, resolvedSpeed, true);
+            data.IsSelected = member != null && selectedMember != null && member.MemberId == selectedMember.MemberId;
+            members[i] = data;
+        }
+
+        return members;
+    }
+
+    private PrototypeRpgInventorySlotSurfaceData[] BuildInventorySlotSurfaceArray(PartyRuntimeData party, PartyMemberProgressionData member, string selectedSlotKey)
+    {
+        string[] orderedKeys = PrototypeRpgEquipmentSlotKeys.OrderedKeys;
+        PrototypeRpgInventorySlotSurfaceData[] slots = new PrototypeRpgInventorySlotSurfaceData[orderedKeys.Length];
+        for (int i = 0; i < orderedKeys.Length; i++)
+        {
+            string slotKey = orderedKeys[i];
+            PrototypeRpgEquipmentDefinition equippedDefinition = GetActualEquippedDefinition(party, member, slotKey);
+            PrototypeRpgInventorySlotSurfaceData data = new PrototypeRpgInventorySlotSurfaceData();
+            data.SlotKey = slotKey;
+            data.SlotLabel = PrototypeRpgEquipmentSlotKeys.ToDisplayLabel(slotKey);
+            data.HotkeyLabel = "[" + (i + 1) + "]";
+            data.HasEquippedItem = equippedDefinition != null;
+            data.EquippedItemName = equippedDefinition != null ? equippedDefinition.DisplayName : "Empty";
+            data.EquippedItemSummaryText = equippedDefinition != null
+                ? PrototypeRpgEquipmentCatalog.BuildCompactReadbackText(equippedDefinition)
+                : "Empty";
+            data.StatBonusText = equippedDefinition != null
+                ? PrototypeRpgEquipmentCatalog.BuildStatContributionSummary(equippedDefinition)
+                : "No bonus";
+            if (member != null &&
+                member.EquippedItemInstanceIdBySlotKey.TryGetValue(slotKey, out string equippedItemInstanceId) &&
+                !string.IsNullOrEmpty(equippedItemInstanceId))
+            {
+                data.EquippedItemInstanceId = equippedItemInstanceId;
+            }
+
+            data.IsSelected = slotKey == selectedSlotKey;
+            slots[i] = data;
+        }
+
+        return slots;
+    }
+
+    private PrototypeRpgInventoryItemSurfaceData[] BuildInventoryItemSurfaceArray(
+        PartyRuntimeData party,
+        PartyMemberProgressionData member,
+        string selectedSlotKey,
+        string selectedItemInstanceId)
+    {
+        if (party == null || party.InventoryItems == null || party.InventoryItems.Count <= 0)
+        {
+            return System.Array.Empty<PrototypeRpgInventoryItemSurfaceData>();
+        }
+
+        List<PrototypeRpgInventoryItemSurfaceData> items = new List<PrototypeRpgInventoryItemSurfaceData>(party.InventoryItems.Count);
+        string normalizedSlotKey = NormalizeEquipmentSlotKey(selectedSlotKey);
+        for (int i = 0; i < party.InventoryItems.Count; i++)
+        {
+            PartyInventoryItemData item = party.InventoryItems[i];
+            PrototypeRpgEquipmentDefinition definition = ResolvePartyInventoryItemDefinition(item, member != null ? member.RoleTag : string.Empty);
+            if (item == null || definition == null)
+            {
+                continue;
+            }
+
+            PrototypeRpgInventoryItemSurfaceData data = new PrototypeRpgInventoryItemSurfaceData();
+            data.ItemInstanceId = item.ItemInstanceId;
+            data.DisplayName = definition.DisplayName;
+            data.SlotKey = definition.SlotKey;
+            data.SlotLabel = definition.SlotLabel;
+            data.TierLabel = definition.TierLabel;
+            data.StatBonusText = PrototypeRpgEquipmentCatalog.BuildStatContributionSummary(definition);
+            data.SourceSummaryText = BuildInventoryDefinitionSourceText(definition);
+            data.EquippedBySummaryText = BuildInventoryItemOwnerText(party, item);
+            data.ScoreSummaryText = "Score " + definition.GetScore();
+            data.SummaryText = definition.DisplayName + " | " + definition.SlotLabel + " | " + data.StatBonusText;
+            data.IsCompatible = member != null &&
+                PrototypeRpgEquipmentCatalog.IsLegalForRole(definition, member.RoleTag) &&
+                NormalizeEquipmentSlotKey(definition.SlotKey) == normalizedSlotKey;
+            data.IsEquipped = !string.IsNullOrEmpty(item.EquippedMemberId);
+            data.IsSelected = item.ItemInstanceId == selectedItemInstanceId;
+            items.Add(data);
+        }
+
+        items.Sort((left, right) =>
+        {
+            int compatibilityCompare = CompareInventoryCompatibility(left, right);
+            if (compatibilityCompare != 0)
+            {
+                return compatibilityCompare;
+            }
+
+            int equippedCompare = CompareInventoryEquippedState(left, right);
+            if (equippedCompare != 0)
+            {
+                return equippedCompare;
+            }
+
+            return string.Compare(left.DisplayName, right.DisplayName, StringComparison.OrdinalIgnoreCase);
+        });
+
+        if (items.Count > 0 && string.IsNullOrEmpty(selectedItemInstanceId))
+        {
+            items[0].IsSelected = true;
+        }
+
+        bool hasSelected = false;
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (items[i].IsSelected)
+            {
+                hasSelected = true;
+                break;
+            }
+        }
+
+        if (!hasSelected && items.Count > 0)
+        {
+            items[0].IsSelected = true;
+        }
+
+        return items.ToArray();
+    }
+
+    private PrototypeRpgInventoryComparisonSurfaceData BuildInventoryComparisonSurface(
+        PartyRuntimeData party,
+        PartyMemberProgressionData member,
+        string slotKey,
+        PrototypeRpgEquipmentDefinition currentDefinition,
+        PartyInventoryItemData selectedInventoryItem,
+        PrototypeRpgEquipmentDefinition candidateDefinition,
+        bool canEquip,
+        bool canUnequip,
+        string equipReasonText,
+        bool isReadOnly)
+    {
+        PrototypeRpgInventoryComparisonSurfaceData comparison = new PrototypeRpgInventoryComparisonSurfaceData();
+        string currentLabel = currentDefinition != null
+            ? PrototypeRpgEquipmentCatalog.BuildCompactReadbackText(currentDefinition)
+            : "Empty";
+        comparison.CurrentText = "Current: " + currentLabel;
+
+        if (selectedInventoryItem == null || candidateDefinition == null)
+        {
+            comparison.CandidateText = "Candidate: None";
+            comparison.DeltaText = "No stat change";
+            comparison.ReasonText = "Select an item.";
+            comparison.ActionHintText = isReadOnly
+                ? "[I] Close | Read-only during battle"
+                : canUnequip
+                    ? "[U] Unequip | [Esc] Close"
+                    : "[Esc] Close";
+            return comparison;
+        }
+
+        comparison.CandidateText = "Candidate: " + PrototypeRpgEquipmentCatalog.BuildCompactReadbackText(candidateDefinition);
+        comparison.DeltaText = BuildInventoryDeltaText(party, member, currentDefinition, candidateDefinition);
+        comparison.ReasonText = canEquip ? "Equip ready." : equipReasonText;
+        comparison.ActionHintText = isReadOnly
+            ? "[I] Close | Read-only during battle"
+            : canEquip
+                ? "[Enter] Equip | [U] Unequip | [Esc] Close"
+                : canUnequip
+                    ? "[U] Unequip | [Esc] Close"
+                    : "[Esc] Close";
+        return comparison;
+    }
+
+    private PartyInventoryItemData ResolveSelectedInventoryItem(PartyRuntimeData party, PrototypeRpgInventoryItemSurfaceData[] items)
+    {
+        if (party == null || items == null || items.Length <= 0)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < items.Length; i++)
+        {
+            if (items[i] != null && items[i].IsSelected)
+            {
+                return FindPartyInventoryItem(party, items[i].ItemInstanceId);
+            }
+        }
+
+        return FindPartyInventoryItem(party, items[0].ItemInstanceId);
+    }
+
+    private PrototypeRpgPartyMemberDefinition FindPartyMemberDefinition(PrototypeRpgPartyDefinition partyDefinition, string memberId)
+    {
+        if (partyDefinition == null || partyDefinition.Members == null || string.IsNullOrEmpty(memberId))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < partyDefinition.Members.Length; i++)
+        {
+            PrototypeRpgPartyMemberDefinition member = partyDefinition.Members[i];
+            if (member != null && member.MemberId == memberId)
+            {
+                return member;
+            }
+        }
+
+        return null;
+    }
+
+    private void ResolveMemberInventoryStatBreakdown(
+        PartyRuntimeData party,
+        PartyMemberProgressionData member,
+        PrototypeRpgPartyMemberDefinition memberDefinition,
+        out int baseMaxHp,
+        out int baseAttack,
+        out int baseDefense,
+        out int baseSpeed,
+        out int growthMaxHp,
+        out int growthAttack,
+        out int growthDefense,
+        out int growthSpeed,
+        out int gearMaxHp,
+        out int gearAttack,
+        out int gearDefense,
+        out int gearSpeed,
+        out int gearSkillPower,
+        out int resolvedMaxHp,
+        out int resolvedAttack,
+        out int resolvedDefense,
+        out int resolvedSpeed,
+        out int resolvedSkillPower)
+    {
+        PrototypeRpgStatBlock baseStats = memberDefinition != null && memberDefinition.BaseStats != null
+            ? memberDefinition.BaseStats
+            : new PrototypeRpgStatBlock(1, 1, 0, 0);
+        PrototypeRpgLevelStatBonus growthBonus = PrototypeRpgMemberProgressionRules.ResolveLevelStatBonus(
+            member != null ? member.RoleTag : string.Empty,
+            party != null ? party.ArchetypeId : string.Empty,
+            member != null && member.Level > 0 ? member.Level : PrototypeRpgMemberProgressionRules.GetStartingLevel());
+        ResolveMemberEquipmentBonuses(
+            party,
+            member,
+            out gearMaxHp,
+            out gearAttack,
+            out gearDefense,
+            out gearSpeed,
+            out gearSkillPower);
+
+        baseMaxHp = Mathf.Max(1, baseStats.MaxHp);
+        baseAttack = Mathf.Max(1, baseStats.Attack);
+        baseDefense = Mathf.Max(0, baseStats.Defense);
+        baseSpeed = Mathf.Max(0, baseStats.Speed);
+        growthMaxHp = growthBonus.MaxHpBonus;
+        growthAttack = growthBonus.AttackBonus;
+        growthDefense = growthBonus.DefenseBonus;
+        growthSpeed = growthBonus.SpeedBonus;
+        resolvedMaxHp = Mathf.Max(1, baseMaxHp + growthMaxHp + gearMaxHp);
+        resolvedAttack = Mathf.Max(1, baseAttack + growthAttack + gearAttack);
+        resolvedDefense = Mathf.Max(0, baseDefense + growthDefense + gearDefense);
+        resolvedSpeed = Mathf.Max(0, baseSpeed + growthSpeed + gearSpeed);
+        int baseSkillPower = memberDefinition != null && !string.IsNullOrEmpty(memberDefinition.DefaultSkillId)
+            ? Mathf.Max(1, baseAttack + 1)
+            : Mathf.Max(1, baseAttack + 1);
+        resolvedSkillPower = Mathf.Max(1, baseSkillPower + growthAttack + gearSkillPower);
+    }
+
+    private string BuildResolvedStatText(int maxHp, int attack, int defense, int speed, bool useCompactLabels)
+    {
+        string hpLabel = useCompactLabels ? "HP" : "HP";
+        string attackLabel = useCompactLabels ? "ATK" : "ATK";
+        string defenseLabel = useCompactLabels ? "DEF" : "DEF";
+        string speedLabel = useCompactLabels ? "SPD" : "SPD";
+        return hpLabel + " " + maxHp + " " + attackLabel + " " + attack + " " + defenseLabel + " " + defense + " " + speedLabel + " " + speed;
+    }
+
+    private PrototypeRpgEquipmentDefinition GetActualEquippedDefinition(PartyRuntimeData party, PartyMemberProgressionData member, string slotKey)
+    {
+        if (party == null || member == null)
+        {
+            return null;
+        }
+
+        string normalizedSlotKey = NormalizeEquipmentSlotKey(slotKey);
+        if (!member.EquippedItemInstanceIdBySlotKey.TryGetValue(normalizedSlotKey, out string itemInstanceId) || string.IsNullOrEmpty(itemInstanceId))
+        {
+            return null;
+        }
+
+        PartyInventoryItemData item = FindPartyInventoryItem(party, itemInstanceId);
+        PrototypeRpgEquipmentDefinition definition = ResolvePartyInventoryItemDefinition(item, member.RoleTag);
+        return definition != null && NormalizeEquipmentSlotKey(definition.SlotKey) == normalizedSlotKey
+            ? definition
+            : null;
+    }
+
+    private bool HasActualEquippedItem(PartyRuntimeData party, PartyMemberProgressionData member, string slotKey)
+    {
+        return GetActualEquippedDefinition(party, member, slotKey) != null;
+    }
+
+    private bool CanManualEquipInventoryItem(
+        PartyRuntimeData party,
+        PartyMemberProgressionData member,
+        string slotKey,
+        PartyInventoryItemData item,
+        PrototypeRpgEquipmentDefinition definition,
+        out string reasonText)
+    {
+        reasonText = "Select an item.";
+        if (party == null || member == null || item == null || definition == null)
+        {
+            return false;
+        }
+
+        string normalizedSlotKey = NormalizeEquipmentSlotKey(slotKey);
+        if (NormalizeEquipmentSlotKey(definition.SlotKey) != normalizedSlotKey)
+        {
+            reasonText = "Slot mismatch. Select " + PrototypeRpgEquipmentSlotKeys.ToDisplayLabel(normalizedSlotKey) + ".";
+            return false;
+        }
+
+        if (!PrototypeRpgEquipmentCatalog.IsLegalForRole(definition, member.RoleTag))
+        {
+            reasonText = definition.DisplayName + " does not fit " + member.DisplayName + ".";
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(item.EquippedMemberId) && item.EquippedMemberId != member.MemberId)
+        {
+            PartyMemberProgressionData equippedMember = FindPartyMemberProgression(party.PartyId, item.EquippedMemberId);
+            string equippedBy = equippedMember != null ? equippedMember.DisplayName : item.EquippedMemberId;
+            reasonText = "Equipped by " + equippedBy + ". Swap support reserved.";
+            return false;
+        }
+
+        reasonText = "Equip ready.";
+        return true;
+    }
+
+    private string BuildInventoryDeltaText(
+        PartyRuntimeData party,
+        PartyMemberProgressionData member,
+        PrototypeRpgEquipmentDefinition currentDefinition,
+        PrototypeRpgEquipmentDefinition candidateDefinition)
+    {
+        string deltaText = BuildEquipmentStatDeltaText(party, member, currentDefinition, candidateDefinition);
+        return string.IsNullOrEmpty(deltaText) ? "No stat change" : deltaText;
+    }
+
+    private string BuildInventoryDefinitionSourceText(PrototypeRpgEquipmentDefinition definition)
+    {
+        if (definition == null)
+        {
+            return "Source: None";
+        }
+
+        return "Source: " + definition.TierLabel + " " + definition.SlotLabel + " gear";
+    }
+
+    private string BuildInventoryDefinitionDetailText(PrototypeRpgEquipmentDefinition definition)
+    {
+        if (definition == null)
+        {
+            return "No item selected.";
+        }
+
+        return "Bonus: " + PrototypeRpgEquipmentCatalog.BuildStatContributionSummary(definition) + " | " +
+               BuildInventoryDefinitionSourceText(definition) + " | Fit " + definition.GetScore();
+    }
+
+    private string BuildInventorySelectedItemDetailText(
+        PartyRuntimeData party,
+        PartyInventoryItemData item,
+        PrototypeRpgEquipmentDefinition definition,
+        PrototypeRpgInventoryComparisonSurfaceData comparison)
+    {
+        string deltaText = comparison != null && !string.IsNullOrEmpty(comparison.DeltaText)
+            ? comparison.DeltaText
+            : "No stat change";
+        string stateText = BuildInventoryItemOwnerText(party, item);
+        string actionText = comparison != null && !string.IsNullOrEmpty(comparison.ReasonText) && comparison.ReasonText != "Select an item."
+            ? comparison.ReasonText
+            : comparison != null && !string.IsNullOrEmpty(comparison.ActionHintText)
+                ? comparison.ActionHintText
+                : "No action available.";
+        return BuildInventoryDefinitionDetailText(definition) + " | Delta: " + deltaText + " | State: " + stateText + " | Action: " + actionText;
+    }
+
+    private string BuildInventoryItemOwnerText(PartyRuntimeData party, PartyInventoryItemData item)
+    {
+        if (party == null || item == null || string.IsNullOrEmpty(item.EquippedMemberId))
+        {
+            return "Stored in party inventory";
+        }
+
+        PartyMemberProgressionData equippedMember = FindPartyMemberProgression(party.PartyId, item.EquippedMemberId);
+        string equippedBy = equippedMember != null ? equippedMember.DisplayName : item.EquippedMemberId;
+        return "Equipped by " + equippedBy;
+    }
+
+    private string BuildManualEquipResultText(
+        PartyRuntimeData party,
+        PartyMemberProgressionData member,
+        PrototypeRpgEquipmentDefinition currentDefinition,
+        PrototypeRpgEquipmentDefinition nextDefinition)
+    {
+        if (member == null || nextDefinition == null)
+        {
+            return "Manual equip updated.";
+        }
+
+        string nextLabel = PrototypeRpgEquipmentCatalog.BuildCompactReadbackText(nextDefinition);
+        string statDeltaText = BuildEquipmentStatDeltaText(party, member, currentDefinition, nextDefinition);
+        return string.IsNullOrEmpty(statDeltaText)
+            ? "Manual equip: " + member.DisplayName + " equipped " + nextLabel
+            : "Manual equip: " + member.DisplayName + " equipped " + nextLabel + " | " + statDeltaText;
+    }
+
+    private string BuildManualUnequipResultText(
+        PartyRuntimeData party,
+        PartyMemberProgressionData member,
+        PrototypeRpgEquipmentDefinition currentDefinition)
+    {
+        if (member == null || currentDefinition == null)
+        {
+            return "Manual equip: slot cleared.";
+        }
+
+        string currentLabel = PrototypeRpgEquipmentCatalog.BuildCompactReadbackText(currentDefinition);
+        string statDeltaText = BuildEquipmentStatDeltaText(party, member, currentDefinition, null);
+        return string.IsNullOrEmpty(statDeltaText)
+            ? "Manual equip: " + member.DisplayName + " unequipped " + currentLabel
+            : "Manual equip: " + member.DisplayName + " unequipped " + currentLabel + " | " + statDeltaText;
+    }
+
+    private static int CompareInventoryCompatibility(PrototypeRpgInventoryItemSurfaceData left, PrototypeRpgInventoryItemSurfaceData right)
+    {
+        int leftRank = left != null && left.IsCompatible ? 0 : 1;
+        int rightRank = right != null && right.IsCompatible ? 0 : 1;
+        return leftRank.CompareTo(rightRank);
+    }
+
+    private static int CompareInventoryEquippedState(PrototypeRpgInventoryItemSurfaceData left, PrototypeRpgInventoryItemSurfaceData right)
+    {
+        int leftRank = left != null && left.IsEquipped ? 1 : 0;
+        int rightRank = right != null && right.IsEquipped ? 1 : 0;
+        return leftRank.CompareTo(rightRank);
+    }
+
     private string BuildInventorySummaryText(PartyRuntimeData party)
     {
         if (party == null || party.InventoryItems == null || party.InventoryItems.Count <= 0)
@@ -4124,6 +4917,7 @@ public sealed class ManualTradeRuntimeState
         }
 
         party.InventorySummaryText = BuildInventorySummaryText(party);
+        party.InventoryRevision = Mathf.Max(1, party.InventoryRevision + 1);
         if (string.IsNullOrEmpty(party.LatestGearContinuitySummaryText) || party.LatestGearContinuitySummaryText == "None")
         {
             party.LatestGearContinuitySummaryText = party.InventorySummaryText;

@@ -9,6 +9,7 @@ public sealed class BootstrapSceneStateBridge : MonoBehaviour
     public bool IsMainMenuActive => Read(entry => entry.IsMainMenuActive);
     public bool IsWorldSimActive => Read(entry => entry.IsWorldSimActive);
     public bool IsDungeonRunHudMode => Read(entry => entry.IsDungeonRunHudMode);
+    public bool IsInventorySurfaceOpen => Read(entry => entry.IsInventorySurfaceOpen);
     public bool AutoTickEnabled => Read(entry => entry.AutoTickEnabled);
     public bool AutoTickPaused => Read(entry => entry.AutoTickPaused);
     public bool IsExpeditionPrepBoardOpen => Read(entry => entry.IsExpeditionPrepBoardOpen);
@@ -124,6 +125,11 @@ public sealed class BootstrapSceneStateBridge : MonoBehaviour
         return Read(entry => entry.GetBattleUiSurfaceData(), new PrototypeBattleUiSurfaceData());
     }
 
+    public PrototypeRpgInventorySurfaceData GetInventorySurfaceData()
+    {
+        return Read(entry => entry.GetInventorySurfaceData(), new PrototypeRpgInventorySurfaceData());
+    }
+
     public PrototypeDungeonRunShellSurfaceData GetDungeonRunShellSurfaceData()
     {
         return Read(entry => entry.GetDungeonRunShellSurfaceData(), new PrototypeDungeonRunShellSurfaceData());
@@ -187,6 +193,46 @@ public sealed class BootstrapSceneStateBridge : MonoBehaviour
     public bool TryConfirmSelectedExpeditionLaunch()
     {
         return Dispatch(entry => entry.TryConfirmSelectedExpeditionLaunch());
+    }
+
+    public bool TryToggleInventorySurface()
+    {
+        return Dispatch(entry => entry.TryToggleInventorySurface());
+    }
+
+    public void CloseInventorySurface()
+    {
+        Dispatch(entry => entry.CloseInventorySurface());
+    }
+
+    public bool TryCycleInventoryMember(int direction)
+    {
+        return Dispatch(entry => entry.TryCycleInventoryMember(direction));
+    }
+
+    public bool TrySelectInventoryMember(string memberId)
+    {
+        return Dispatch(entry => entry.TrySelectInventoryMember(memberId));
+    }
+
+    public bool TrySelectInventorySlot(string slotKey)
+    {
+        return Dispatch(entry => entry.TrySelectInventorySlot(slotKey));
+    }
+
+    public bool TrySelectInventoryItem(string itemInstanceId)
+    {
+        return Dispatch(entry => entry.TrySelectInventoryItem(itemInstanceId));
+    }
+
+    public bool TryConfirmInventoryEquip()
+    {
+        return Dispatch(entry => entry.TryConfirmInventoryEquip());
+    }
+
+    public bool TryUnequipSelectedInventorySlot()
+    {
+        return Dispatch(entry => entry.TryUnequipSelectedInventorySlot());
     }
 
     public void ToggleWorldAutoTick()

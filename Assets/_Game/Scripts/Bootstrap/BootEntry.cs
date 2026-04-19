@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public sealed class BootEntry : MonoBehaviour
+public sealed partial class BootEntry : MonoBehaviour
 {
     private static readonly Color BootColor = new Color(0.08f, 0.09f, 0.12f, 1f);
     private static readonly Color MainMenuColor = new Color(0.14f, 0.17f, 0.2f, 1f);
@@ -1563,6 +1563,11 @@ public sealed class BootEntry : MonoBehaviour
             ToggleLanguage();
         }
 
+        if (TryHandleInventorySurfaceInput(keyboard, blockKeyboardShortcuts))
+        {
+            return true;
+        }
+
         if (TryHandleMainMenuInput(keyboard, blockKeyboardShortcuts))
         {
             return true;
@@ -1573,7 +1578,7 @@ public sealed class BootEntry : MonoBehaviour
             return true;
         }
 
-        if (!blockKeyboardShortcuts && CurrentState == GameStateId.WorldSim)
+        if (!blockKeyboardShortcuts && CurrentState == GameStateId.WorldSim && !IsInventorySurfaceOpen)
         {
             HandleWorldSimEconomyInput(keyboard);
         }
@@ -1674,7 +1679,9 @@ public sealed class BootEntry : MonoBehaviour
             return;
         }
 
-        _worldView.UpdateDungeonRun(ResolveDungeonKeyboardInput(keyboard), ResolveDungeonPointerInput(), Camera.main);
+        Keyboard resolvedKeyboard = IsInventorySurfaceOpen ? null : ResolveDungeonKeyboardInput(keyboard);
+        Mouse resolvedPointer = (IsInventorySurfaceOpen || IsBattleResultPopoverVisible) ? null : ResolveDungeonPointerInput();
+        _worldView.UpdateDungeonRun(resolvedKeyboard, resolvedPointer, Camera.main);
         TryExitDungeonRunToWorldSim();
     }
 

@@ -1485,6 +1485,7 @@ public sealed partial class StaticPlaceholderWorldView
 
         monster.RuntimeState?.ClearIntent();
         ShowBattlePopupForMonster(monster, "Defeated", new Color(1f, 0.82f, 0.24f, 1f), 1.18f);
+        ShowBattleRewardPopupForMonster(monster);
         AppendBattleLog(monster.DisplayName + " is defeated.");
         RecordBattleEvent(
             PrototypeBattleEventKeys.EnemyDefeated,
@@ -1495,6 +1496,32 @@ public sealed partial class StaticPlaceholderWorldView
             phaseKey: "resolution",
             targetName: monster.DisplayName,
             shortText: "Enemy defeated");
+    }
+
+    private void ShowBattleRewardPopupForMonster(DungeonMonsterRuntimeData monster)
+    {
+        string rewardPopupText = BuildBattleRewardPopupText(monster);
+        if (string.IsNullOrEmpty(rewardPopupText))
+        {
+            return;
+        }
+
+        ShowBattlePopupForMonster(monster, rewardPopupText, new Color(0.98f, 0.84f, 0.38f, 1f), 1.42f);
+    }
+
+    private string BuildBattleRewardPopupText(DungeonMonsterRuntimeData monster)
+    {
+        if (monster == null || monster.RewardAmount <= 0)
+        {
+            return string.Empty;
+        }
+
+        string resourceId = string.IsNullOrEmpty(monster.RewardResourceId)
+            ? DungeonRewardResourceId
+            : monster.RewardResourceId;
+        return resourceId == DungeonRewardResourceId
+            ? "Loot +" + monster.RewardAmount
+            : resourceId + " +" + monster.RewardAmount;
     }
 
     private void ResolvePartyMemberKnockOut(DungeonPartyMemberRuntimeData member, bool wasKnockedOut)
@@ -2200,6 +2227,10 @@ public sealed partial class StaticPlaceholderWorldView
 
         ConfigureDungeonCamera(worldCamera);
         UpdateBattleTransientState();
+        if (HandleBattleResultPopoverInput(keyboard))
+        {
+            return;
+        }
 
         if (_dungeonRunState == DungeonRunState.ResultPanel)
         {
@@ -2267,6 +2298,30 @@ public sealed partial class StaticPlaceholderWorldView
             }
         }
     }
+
+    private bool HandleBattleResultPopoverInput(Keyboard keyboard)
+    {
+        if (!IsBattleResultPopoverVisible)
+        {
+            return false;
+        }
+
+        ClearBattleHoverState();
+        _hoverPreEliteChoiceId = string.Empty;
+        if (keyboard != null &&
+            (keyboard.enterKey.wasPressedThisFrame ||
+             keyboard.numpadEnterKey.wasPressedThisFrame ||
+             keyboard.spaceKey.wasPressedThisFrame ||
+             keyboard.escapeKey.wasPressedThisFrame))
+        {
+            ClearBattleResultPopover();
+            RefreshSelectionPrompt();
+            RefreshDungeonPresentation();
+        }
+
+        return true;
+    }
+
     public bool ConsumeDungeonRunExitRequest()
     {
         if (!_pendingDungeonExit)
@@ -4600,23 +4655,8 @@ public sealed partial class StaticPlaceholderWorldView
 
     private int CalculateActiveEncounterLoot()
     {
-        int total = 0;
         DungeonEncounterRuntimeData encounter = GetActiveEncounter();
-        if (encounter == null || encounter.MonsterIds == null)
-        {
-            return 0;
-        }
-
-        for (int i = 0; i < encounter.MonsterIds.Length; i++)
-        {
-            DungeonMonsterRuntimeData monster = GetMonsterById(encounter.MonsterIds[i]);
-            if (monster != null)
-            {
-                total += monster.RewardAmount;
-            }
-        }
-
-        return total;
+        return CalculateEncounterLoot(encounter);
     }
 
     private bool IsEncounterTriggered(DungeonEncounterRuntimeData encounter)
@@ -4906,6 +4946,113 @@ public sealed partial class StaticPlaceholderWorldView
     private string BuildLootAmountText(int amount)
     {
         return DungeonRewardResourceId + " x" + Mathf.Max(0, amount);
+    }
+
+    private void OpenEncounterBattleResultPopover(DungeonEncounterRuntimeData encounter, int grantedLoot, bool eliteVictory)
+    {
+        string encounterName = encounter != null && !string.IsNullOrEmpty(encounter.DisplayName)
+            ? encounter.DisplayName
+            : GetCurrentEncounterNameText();
+        string summaryText = eliteVictory
+            ? "Final elite defeated. The exit route is now open."
+            : _exitUnlocked
+                ? "Encounter resolved. All encounters are cleared and the exit is unlocked."
+                : "Encounter resolved. Continue the expedition.";
+        SetBattleResultPopover(
+            PrototypeBattleOutcomeKeys.EncounterVictory,
+            eliteVictory ? "Elite Encounter Cleared" : "Encounter Cleared",
+            encounterName,
+            summaryText,
+            grantedLoot > 0 ? BuildLootAmountText(grantedLoot) : "None",
+            BuildEncounterBattleDropSummaryText(encounter),
+            "Growth and equipment rewards resolve when the full run ends.",
+            "[Enter]/[Space]/[Esc] Continue");
+    }
+
+    private void OpenRunBattleResultPopover(string outcomeKey, string safeResultSummary, int safeReturnedLoot)
+    {
+        PrototypeBattleResultSnapshot snapshot = BuildRpgOwnedCurrentBattleResultSnapshotView();
+        PrototypeDungeonRunResultContext resultContext = LatestDungeonRunResultContext;
+        string titleText = outcomeKey == PrototypeBattleOutcomeKeys.RunDefeat
+            ? "Battle Defeat"
+            : outcomeKey == PrototypeBattleOutcomeKeys.RunRetreat
+                ? "Retreat Confirmed"
+                : "Battle Result";
+        string encounterName = !string.IsNullOrEmpty(snapshot.EncounterName)
+            ? snapshot.EncounterName
+            : !string.IsNullOrEmpty(_currentDungeonName)
+                ? _currentDungeonName
+                : "Encounter";
+        SetBattleResultPopover(
+            outcomeKey,
+            titleText,
+            encounterName,
+            safeResultSummary,
+            safeReturnedLoot > 0 ? BuildLootAmountText(safeReturnedLoot) : "None",
+            BuildRunBattleResultDropSummaryText(resultContext),
+            BuildRunBattleResultGrowthSummaryText(resultContext),
+            "[Enter]/[Space]/[Esc] Review result");
+    }
+
+    private string BuildEncounterBattleDropSummaryText(DungeonEncounterRuntimeData encounter)
+    {
+        int encounterLoot = CalculateEncounterLoot(encounter);
+        return encounterLoot > 0 ? BuildLootAmountText(encounterLoot) : "None";
+    }
+
+    private string BuildRunBattleResultDropSummaryText(PrototypeDungeonRunResultContext resultContext)
+    {
+        if (resultContext != null && !string.IsNullOrEmpty(resultContext.GearRewardCandidateSummaryText) && resultContext.GearRewardCandidateSummaryText != "None")
+        {
+            return resultContext.GearRewardCandidateSummaryText;
+        }
+
+        if (_latestRpgRunResultSnapshot != null &&
+            !string.IsNullOrEmpty(_latestRpgRunResultSnapshot.PendingRewardSummaryText))
+        {
+            return _latestRpgRunResultSnapshot.PendingRewardSummaryText;
+        }
+
+        return "None";
+    }
+
+    private string BuildRunBattleResultGrowthSummaryText(PrototypeDungeonRunResultContext resultContext)
+    {
+        OutcomeReadback outcomeReadback = resultContext != null
+            ? resultContext.WorldOutcomeReadbackPreview ?? new OutcomeReadback()
+            : new OutcomeReadback();
+        if (!string.IsNullOrEmpty(outcomeReadback.LatestGrowthHighlightText) && outcomeReadback.LatestGrowthHighlightText != "None")
+        {
+            return outcomeReadback.LatestGrowthHighlightText;
+        }
+
+        if (_latestRpgRunResultSnapshot != null &&
+            !string.IsNullOrEmpty(_latestRpgRunResultSnapshot.PendingRewardSummaryText))
+        {
+            return "Pending reward stash " + _latestRpgRunResultSnapshot.PendingRewardSummaryText;
+        }
+
+        return "Growth reveal is available in the run result.";
+    }
+
+    private int CalculateEncounterLoot(DungeonEncounterRuntimeData encounter)
+    {
+        int total = 0;
+        if (encounter == null || encounter.MonsterIds == null)
+        {
+            return 0;
+        }
+
+        for (int i = 0; i < encounter.MonsterIds.Length; i++)
+        {
+            DungeonMonsterRuntimeData monster = GetMonsterById(encounter.MonsterIds[i]);
+            if (monster != null)
+            {
+                total += monster.RewardAmount;
+            }
+        }
+
+        return total;
     }
 
     private string BuildRawHpAmountText(int amount)
@@ -5524,6 +5671,7 @@ public sealed partial class StaticPlaceholderWorldView
             actorName: ActiveDungeonPartyText,
             targetName: encounter.DisplayName,
             shortText: eliteVictory ? "Elite victory" : "Encounter victory");
+        OpenEncounterBattleResultPopover(encounter, grantedLoot, eliteVictory);
 
         _activeEncounterId = string.Empty;
         _dungeonRunState = DungeonRunState.Explore;
@@ -6593,6 +6741,10 @@ public sealed partial class StaticPlaceholderWorldView
         SetBattleFeedbackText(resultState == RunResultState.Clear ? "Run clear." : resultState == RunResultState.Defeat ? "The party was defeated." : resultState == RunResultState.Retreat ? "The party retreated." : "Run complete.");
 
         EmitDungeonRunPostRunHandoff(outcomeKey, success, safeReturnedLoot);
+        if (resultState != RunResultState.Clear)
+        {
+            OpenRunBattleResultPopover(outcomeKey, safeResultSummary, safeReturnedLoot);
+        }
 
         AppendBattleLog("Returned " + BuildLootAmountText(safeReturnedLoot) + ".");
         if (_eliteBonusRewardGranted && _resultEliteBonusRewardAmount > 0)
@@ -6656,6 +6808,7 @@ public sealed partial class StaticPlaceholderWorldView
         _dungeonRunState = DungeonRunState.None;
         _battleState = BattleState.None;
         _runResultState = RunResultState.None;
+        ClearBattleResultPopover();
         _queuedBattleAction = BattleActionType.None;
         _hoverBattleAction = BattleActionType.None;
         _battleTurnIndex = 0;
@@ -6718,6 +6871,7 @@ public sealed partial class StaticPlaceholderWorldView
         _activeEncounters.Clear();
         ClearMonsterVisuals();
         ClearBattleInputLock();
+        ClearBattleResultPopover();
         ClearBattleFloatingPopups();
         for (int i = 0; i < _partyFeedbackUntilTimes.Length; i++)
         {

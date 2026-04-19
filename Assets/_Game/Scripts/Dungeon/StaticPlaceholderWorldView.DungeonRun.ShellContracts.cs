@@ -1961,6 +1961,14 @@ public sealed partial class StaticPlaceholderWorldView
                 AppliedProgressionSummaryText = string.IsNullOrEmpty(member.AppliedProgressionSummaryText) ? "None" : member.AppliedProgressionSummaryText,
                 CurrentRunSummaryText = string.IsNullOrEmpty(member.CurrentRunSummaryText) ? "None" : member.CurrentRunSummaryText,
                 NextRunPreviewSummaryText = string.IsNullOrEmpty(member.NextRunPreviewSummaryText) ? "None" : member.NextRunPreviewSummaryText,
+                Level = member.Level > 0 ? member.Level : 1,
+                CurrentExperience = Mathf.Max(0, member.CurrentExperience),
+                NextLevelExperience = member.NextLevelExperience > 0 ? member.NextLevelExperience : PrototypeRpgMemberProgressionRules.GetNextLevelExperience(member.Level > 0 ? member.Level : 1),
+                MaxHp = member.MaxHp > 0 ? member.MaxHp : 1,
+                Attack = member.Attack > 0 ? member.Attack : 1,
+                Defense = Mathf.Max(0, member.Defense),
+                Speed = Mathf.Max(0, member.Speed),
+                SkillPower = member.SkillPower > 0 ? member.SkillPower : 1,
                 SummaryText = string.IsNullOrEmpty(member.SummaryText) ? "None" : member.SummaryText
             };
         }

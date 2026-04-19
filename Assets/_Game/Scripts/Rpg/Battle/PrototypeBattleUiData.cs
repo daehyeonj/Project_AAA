@@ -55,6 +55,12 @@ public sealed class PrototypeBattleUiActorData
     public string SkillShortText = string.Empty;
     public int CurrentHp;
     public int MaxHp = 1;
+    public int Level = 1;
+    public int Attack = 1;
+    public int Defense;
+    public int Speed;
+    public string GearLabel = string.Empty;
+    public string SummaryText = string.Empty;
     public bool IsEnemy;
     public string StatusText = "Idle";
 }
@@ -71,6 +77,7 @@ public sealed class CurrentActorSurfaceData
     public string ResourceLabel = "Resource";
     public string ResourceText = string.Empty;
     public string SkillLabel = "None";
+    public string SummaryText = string.Empty;
     public string StatusText = "Idle";
     public int CurrentHp;
     public int MaxHp = 1;
@@ -153,9 +160,12 @@ public sealed class PrototypeBattleUiPartyMemberData
     public string SkillShortText = string.Empty;
     public int CurrentHp;
     public int MaxHp = 1;
+    public int Level = 1;
     public int Attack;
     public int Defense;
     public int Speed;
+    public string GearLabel = string.Empty;
+    public string SummaryText = string.Empty;
     public bool IsActive;
     public bool IsTargeted;
     public bool IsKnockedOut;
@@ -170,6 +180,7 @@ public sealed class PartyStatusSurfaceData
     public string RoleLabel = "None";
     public string LaneLabel = string.Empty;
     public string PositionRuleText = string.Empty;
+    public string SummaryText = string.Empty;
     public string StatusText = "Ready";
     public string DangerStateKey = "stable";
     public int CurrentHp;

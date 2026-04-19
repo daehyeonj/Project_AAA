@@ -726,6 +726,7 @@ public sealed class BootEntry : MonoBehaviour
         if (IsWorldSimActive && _worldView != null)
         {
             _worldView.RunEconomyDay();
+            InvalidateCachedCitySurfaceData();
         }
     }
 
@@ -734,6 +735,7 @@ public sealed class BootEntry : MonoBehaviour
         if (IsWorldSimActive && _worldView != null)
         {
             _worldView.ResetRuntimeEconomy();
+            InvalidateCachedCitySurfaceData();
         }
     }
 
@@ -742,6 +744,7 @@ public sealed class BootEntry : MonoBehaviour
         if (IsWorldSimActive && _worldView != null)
         {
             _worldView.ToggleAutoTickEnabled();
+            InvalidateCachedCitySurfaceData();
         }
     }
 
@@ -750,6 +753,7 @@ public sealed class BootEntry : MonoBehaviour
         if (IsWorldSimActive && _worldView != null)
         {
             _worldView.ToggleAutoTickPaused();
+            InvalidateCachedCitySurfaceData();
         }
     }
 
@@ -1141,6 +1145,7 @@ public sealed class BootEntry : MonoBehaviour
         }
 
         _worldView.SelectAtScreenPosition(mainCamera, screenPosition);
+        InvalidateCachedCitySurfaceData();
     }
 
     private string GetResourceIdsLabel()
@@ -1169,7 +1174,7 @@ public sealed class BootEntry : MonoBehaviour
             return new WorldObservationSurfaceData();
         }
 
-        if (_cachedWorldObservationSurfaceData == null || _cachedWorldObservationSurfaceFrame != Time.frameCount)
+        if (_cachedWorldObservationSurfaceData == null)
         {
             _cachedWorldObservationSurfaceData = _worldView.BuildWorldObservationSurfaceData();
             _worldView.ApplyWorldBoardEmphasis(_cachedWorldObservationSurfaceData);
@@ -1413,7 +1418,7 @@ public sealed class BootEntry : MonoBehaviour
             return new PrototypeCityHubUiSurfaceData();
         }
 
-        if (_cachedCityHubUiSurfaceData == null || _cachedCityHubUiSurfaceFrame != Time.frameCount)
+        if (_cachedCityHubUiSurfaceData == null)
         {
             CityInteraction cityInteraction = GetCityInteraction();
             WorldObservationSurfaceData observation = GetCurrentWorldObservationSurfaceData();
@@ -1478,8 +1483,11 @@ public sealed class BootEntry : MonoBehaviour
     private void InvalidateCachedCitySurfaceData()
     {
         _cachedWorldObservationSurfaceFrame = -1;
+        _cachedWorldObservationSurfaceData = null;
         _cachedCityHubUiSurfaceFrame = -1;
+        _cachedCityHubUiSurfaceData = null;
         _cachedCityInteractionPresentationSurfaceFrame = -1;
+        _cachedCityInteractionPresentationSurfaceData = null;
     }
 
     private static string GetIndexedLogText(string[] values, int index)
@@ -1499,8 +1507,7 @@ public sealed class BootEntry : MonoBehaviour
             return new CityInteractionPresentationSurfaceData();
         }
 
-        if (_cachedCityInteractionPresentationSurfaceData == null ||
-            _cachedCityInteractionPresentationSurfaceFrame != Time.frameCount)
+        if (_cachedCityInteractionPresentationSurfaceData == null)
         {
             CityInteraction cityInteraction = GetCityInteraction();
             _cachedCityInteractionPresentationSurfaceData = cityInteraction != null
@@ -1645,9 +1652,16 @@ public sealed class BootEntry : MonoBehaviour
 
     private void UpdateWorldSimState()
     {
+        int worldDayBeforeAutoTick = WorldDayCount;
+        int autoTickCountBeforeUpdate = AutoTickCount;
         if (_worldView != null)
         {
             _worldView.UpdateAutoTick(Time.deltaTime);
+        }
+
+        if (WorldDayCount != worldDayBeforeAutoTick || AutoTickCount != autoTickCountBeforeUpdate)
+        {
+            InvalidateCachedCitySurfaceData();
         }
 
         HandleSelectionInput();

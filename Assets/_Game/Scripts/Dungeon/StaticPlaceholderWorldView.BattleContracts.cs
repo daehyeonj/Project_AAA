@@ -9,6 +9,7 @@ public sealed partial class StaticPlaceholderWorldView
     private PrototypeBattleResolution _latestBattleResolution = new PrototypeBattleResolution();
     private PrototypeBattleViewModel _activeBattleViewModel = new PrototypeBattleViewModel();
     private PrototypeBattleCommand _pendingBattleCommand = new PrototypeBattleCommand();
+    private int _battleContractStateStamp = int.MinValue;
 
     public PrototypeBattleRequest GetBattleRequest()
     {
@@ -31,11 +32,7 @@ public sealed partial class StaticPlaceholderWorldView
     public PrototypeBattleViewModel GetBattleViewModel()
     {
         EnsureBattleContracts();
-        return PrototypeBattleCoordinator.BuildViewModel(
-            _activeBattleRequest,
-            _activeBattleRuntimeState,
-            _latestBattleResolution,
-            _activeBattleViewModel != null ? _activeBattleViewModel.HudSurface : new PrototypeBattleUiSurfaceData());
+        return CloneBattleViewModel(_activeBattleViewModel);
     }
 
     private void EnsureBattleContracts()
@@ -53,6 +50,14 @@ public sealed partial class StaticPlaceholderWorldView
                     : _currentBattleResultSnapshot.OutcomeKey,
                 _carriedLootAmount,
                 string.Empty);
+            return;
+        }
+
+        int stateStamp = ComputeBattleContractStateStamp();
+        if (_battleContractStateStamp == stateStamp &&
+            _activeBattleViewModel != null &&
+            HasMeaningfulBattleRequest(_activeBattleRequest))
+        {
             return;
         }
 
@@ -88,6 +93,7 @@ public sealed partial class StaticPlaceholderWorldView
         _latestBattleResolution = new PrototypeBattleResolution();
         _activeBattleViewModel = new PrototypeBattleViewModel();
         _pendingBattleCommand = new PrototypeBattleCommand();
+        _battleContractStateStamp = int.MinValue;
     }
 
     private void RefreshBattleContractView()
@@ -95,6 +101,133 @@ public sealed partial class StaticPlaceholderWorldView
         _activeBattleRuntimeState = PrototypeBattleStateFactory.CreateState(BuildBattleRuntimeStateSnapshot(_activeBattleRequest));
         PrototypeBattleUiSurfaceData surface = BuildBattleUiSurfaceDataFromContracts(_activeBattleRequest, _activeBattleRuntimeState, _latestBattleResolution);
         _activeBattleViewModel = PrototypeBattleCoordinator.BuildViewModel(_activeBattleRequest, _activeBattleRuntimeState, _latestBattleResolution, surface);
+        _battleContractStateStamp = ComputeBattleContractStateStamp();
+    }
+
+    private PrototypeBattleViewModel CloneBattleViewModel(PrototypeBattleViewModel source)
+    {
+        PrototypeBattleViewModel copy = new PrototypeBattleViewModel();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.EncounterTitle = string.IsNullOrEmpty(source.EncounterTitle) ? "None" : source.EncounterTitle;
+        copy.PhaseText = string.IsNullOrEmpty(source.PhaseText) ? "None" : source.PhaseText;
+        copy.TurnText = string.IsNullOrEmpty(source.TurnText) ? "Turn 0" : source.TurnText;
+        copy.CurrentActorText = string.IsNullOrEmpty(source.CurrentActorText) ? "None" : source.CurrentActorText;
+        copy.ResultText = string.IsNullOrEmpty(source.ResultText) ? "None" : source.ResultText;
+        copy.RecentLogLines = source.RecentLogLines ?? Array.Empty<string>();
+        copy.Request = PrototypeBattleStateFactory.CreateRequest(source.Request);
+        copy.State = PrototypeBattleStateFactory.CreateState(source.State);
+        copy.Resolution = PrototypeBattleStateFactory.CreateResolution(source.Resolution);
+        copy.HudSurface = source.HudSurface ?? new PrototypeBattleUiSurfaceData();
+        return copy;
+    }
+
+    private int ComputeBattleContractStateStamp()
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = CombineBattleStamp(hash, _dungeonRunState.GetHashCode());
+            hash = CombineBattleStamp(hash, _battleState.GetHashCode());
+            hash = CombineBattleStamp(hash, _runTurnCount);
+            hash = CombineBattleStamp(hash, _battleTurnIndex);
+            hash = CombineBattleStamp(hash, _currentActorIndex);
+            hash = CombineBattleStamp(hash, _pendingEnemyTargetIndex);
+            hash = CombineBattleStamp(hash, _queuedBattleAction.GetHashCode());
+            hash = CombineBattleStamp(hash, _runResultState.GetHashCode());
+            hash = CombineBattleStamp(hash, _currentDungeonId);
+            hash = CombineBattleStamp(hash, _currentDungeonName);
+            hash = CombineBattleStamp(hash, _selectedRouteId);
+            hash = CombineBattleStamp(hash, _selectedRouteLabel);
+            hash = CombineBattleStamp(hash, _currentRoomStepId);
+            hash = CombineBattleStamp(hash, _activeEncounterId);
+            hash = CombineBattleStamp(hash, _activeBattleMonsterId);
+            hash = CombineBattleStamp(hash, _hoverBattleMonsterId);
+            hash = CombineBattleStamp(hash, _battleFeedbackText);
+            hash = CombineBattleStamp(hash, _enemyIntentText);
+            hash = CombineBattleStamp(hash, _currentSelectionPrompt);
+            hash = CombineBattleStamp(hash, _partyActedThisRound.Length > 0 && _currentActorIndex >= 0 && _currentActorIndex < _partyActedThisRound.Length && _partyActedThisRound[_currentActorIndex]);
+            hash = CombineBattleStamp(hash, _pendingEnemyUsedSpecialAttack);
+            hash = CombineBattleStamp(hash, _eliteEncounterActive);
+            hash = CombineBattleStamp(hash, _eliteDefeated);
+            hash = CombineBattleStamp(hash, _exitUnlocked);
+            hash = CombineBattleStamp(hash, _eventResolved);
+            hash = CombineBattleStamp(hash, _preEliteDecisionResolved);
+            hash = CombineBattleStamp(hash, _carriedLootAmount);
+            hash = CombineBattleStamp(hash, _battleEventRecords.Count);
+
+            DungeonPartyMemberRuntimeData[] partyMembers = _activeDungeonParty != null ? _activeDungeonParty.Members : null;
+            int partyCount = partyMembers != null ? partyMembers.Length : 0;
+            hash = CombineBattleStamp(hash, partyCount);
+            for (int i = 0; i < partyCount; i++)
+            {
+                DungeonPartyMemberRuntimeData member = partyMembers[i];
+                hash = CombineBattleStamp(hash, member != null);
+                if (member == null)
+                {
+                    continue;
+                }
+
+                hash = CombineBattleStamp(hash, member.MemberId);
+                hash = CombineBattleStamp(hash, member.RoleTag);
+                hash = CombineBattleStamp(hash, member.SkillName);
+                hash = CombineBattleStamp(hash, GetPartyMemberLaneKey(member));
+                hash = CombineBattleStamp(hash, member.CurrentHp);
+                hash = CombineBattleStamp(hash, member.MaxHp);
+                hash = CombineBattleStamp(hash, member.IsDefeated);
+                hash = CombineBattleStamp(hash, i >= 0 && i < _partyActedThisRound.Length && _partyActedThisRound[i]);
+            }
+
+            hash = CombineBattleStamp(hash, _activeMonsters.Count);
+            for (int i = 0; i < _activeMonsters.Count; i++)
+            {
+                DungeonMonsterRuntimeData monster = _activeMonsters[i];
+                hash = CombineBattleStamp(hash, monster != null);
+                if (monster == null)
+                {
+                    continue;
+                }
+
+                hash = CombineBattleStamp(hash, monster.MonsterId);
+                hash = CombineBattleStamp(hash, monster.DisplayName);
+                hash = CombineBattleStamp(hash, monster.MonsterType);
+                hash = CombineBattleStamp(hash, monster.EncounterRole.GetHashCode());
+                hash = CombineBattleStamp(hash, GetMonsterLaneKey(monster));
+                hash = CombineBattleStamp(hash, monster.CurrentHp);
+                hash = CombineBattleStamp(hash, monster.MaxHp);
+                hash = CombineBattleStamp(hash, monster.IsDefeated);
+                hash = CombineBattleStamp(hash, monster.IsElite);
+            }
+
+            return hash;
+        }
+    }
+
+    private static int CombineBattleStamp(int hash, int value)
+    {
+        unchecked
+        {
+            return (hash * 31) + value;
+        }
+    }
+
+    private static int CombineBattleStamp(int hash, bool value)
+    {
+        unchecked
+        {
+            return (hash * 31) + (value ? 1 : 0);
+        }
+    }
+
+    private static int CombineBattleStamp(int hash, string value)
+    {
+        unchecked
+        {
+            return (hash * 31) + (string.IsNullOrEmpty(value) ? 0 : value.GetHashCode());
+        }
     }
 
     private PrototypeBattleRequest BuildBattleRequestSnapshot()

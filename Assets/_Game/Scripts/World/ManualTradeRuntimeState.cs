@@ -3571,6 +3571,7 @@ public sealed class ManualTradeRuntimeState
 
         List<string> rewardParts = new List<string>();
         List<string> equipParts = new List<string>();
+        int autoEquipCount = 0;
         HashSet<string> reservedMemberIds = new HashSet<string>();
         HashSet<string> reservedMemberSlotKeys = new HashSet<string>();
 
@@ -3613,6 +3614,11 @@ public sealed class ManualTradeRuntimeState
                 out string equipText))
             {
                 equipParts.Add(equipText);
+                autoEquipCount += 1;
+            }
+            else
+            {
+                equipParts.Add(BuildStoredEquipmentResultText(selection.Member, selection.CurrentDefinition, selection.RewardDefinition));
             }
         }
 
@@ -3621,7 +3627,7 @@ public sealed class ManualTradeRuntimeState
 
         party.LatestGearRewardSummaryText = JoinSummaryText(rewardParts, " | ", "None");
         party.LatestEquipSwapSummaryText = JoinSummaryText(equipParts, " | ", "None");
-        party.LatestGearContinuitySummaryText = BuildGearContinuitySummaryText(party, rewardParts.Count, equipParts.Count);
+        party.LatestGearContinuitySummaryText = BuildGearContinuitySummaryText(party, rewardParts.Count, autoEquipCount);
 
         expeditionResult.GearRewardCandidateSummaryText = party.LatestGearRewardSummaryText;
         expeditionResult.EquipSwapChoiceSummaryText = party.LatestEquipSwapSummaryText;
@@ -3789,11 +3795,172 @@ public sealed class ManualTradeRuntimeState
         member.EquippedItemInstanceIdBySlotKey[normalizedSlotKey] = inventoryItem.ItemInstanceId;
         inventoryItem.EquippedMemberId = member.MemberId;
         inventoryItem.EquippedSlotKey = normalizedSlotKey;
-        equipText = member.DisplayName +
-            " " + PrototypeRpgEquipmentSlotKeys.ToShortLabel(normalizedSlotKey) +
-            " " + BuildReplacementEquipmentLabel(safeCurrentDefinition, member, normalizedSlotKey) +
-            " -> " + rewardDefinition.DisplayName;
+        equipText = BuildAutoEquipResultText(party, member, safeCurrentDefinition, rewardDefinition);
         return true;
+    }
+
+    private string BuildAutoEquipResultText(
+        PartyRuntimeData party,
+        PartyMemberProgressionData member,
+        PrototypeRpgEquipmentDefinition currentDefinition,
+        PrototypeRpgEquipmentDefinition rewardDefinition)
+    {
+        if (member == null || rewardDefinition == null)
+        {
+            return "Auto-equip applied.";
+        }
+
+        string rewardLabel = PrototypeRpgEquipmentCatalog.BuildCompactReadbackText(rewardDefinition);
+        string statDeltaText = BuildEquipmentStatDeltaText(party, member, currentDefinition, rewardDefinition);
+        return string.IsNullOrEmpty(statDeltaText)
+            ? member.DisplayName + " equipped " + rewardLabel
+            : member.DisplayName + " equipped " + rewardLabel + " | " + statDeltaText;
+    }
+
+    private string BuildStoredEquipmentResultText(
+        PartyMemberProgressionData member,
+        PrototypeRpgEquipmentDefinition currentDefinition,
+        PrototypeRpgEquipmentDefinition rewardDefinition)
+    {
+        if (member == null || rewardDefinition == null)
+        {
+            return "Stored.";
+        }
+
+        string currentLabel =
+            currentDefinition != null && currentDefinition.TierRank > 1
+                ? PrototypeRpgEquipmentCatalog.BuildCompactReadbackText(currentDefinition)
+                : "current gear";
+        return member.DisplayName +
+            " kept " + currentLabel +
+            " | " + PrototypeRpgEquipmentCatalog.BuildCompactReadbackText(rewardDefinition) +
+            " stored.";
+    }
+
+    private string BuildEquipmentStatDeltaText(
+        PartyRuntimeData party,
+        PartyMemberProgressionData member,
+        PrototypeRpgEquipmentDefinition currentDefinition,
+        PrototypeRpgEquipmentDefinition rewardDefinition)
+    {
+        ResolveMemberResolvedStats(
+            party,
+            member,
+            out int currentMaxHp,
+            out int currentAttack,
+            out int currentDefense,
+            out int currentSpeed,
+            out int currentSkillPower);
+
+        int nextMaxHp = Mathf.Max(1, currentMaxHp - (currentDefinition != null ? currentDefinition.MaxHpBonus : 0) + (rewardDefinition != null ? rewardDefinition.MaxHpBonus : 0));
+        int nextAttack = Mathf.Max(1, currentAttack - (currentDefinition != null ? currentDefinition.AttackBonus : 0) + (rewardDefinition != null ? rewardDefinition.AttackBonus : 0));
+        int nextDefense = Mathf.Max(0, currentDefense - (currentDefinition != null ? currentDefinition.DefenseBonus : 0) + (rewardDefinition != null ? rewardDefinition.DefenseBonus : 0));
+        int nextSpeed = Mathf.Max(0, currentSpeed - (currentDefinition != null ? currentDefinition.SpeedBonus : 0) + (rewardDefinition != null ? rewardDefinition.SpeedBonus : 0));
+        int nextSkillPower = Mathf.Max(1, currentSkillPower - (currentDefinition != null ? currentDefinition.SkillPowerBonus : 0) + (rewardDefinition != null ? rewardDefinition.SkillPowerBonus : 0));
+
+        List<string> parts = new List<string>();
+        AddEquipmentStatDeltaPart(parts, "HP", currentMaxHp, nextMaxHp);
+        AddEquipmentStatDeltaPart(parts, "ATK", currentAttack, nextAttack);
+        AddEquipmentStatDeltaPart(parts, "DEF", currentDefense, nextDefense);
+        AddEquipmentStatDeltaPart(parts, "SPD", currentSpeed, nextSpeed);
+        AddEquipmentStatDeltaPart(parts, "POW", currentSkillPower, nextSkillPower);
+        return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : string.Empty;
+    }
+
+    private void ResolveMemberResolvedStats(
+        PartyRuntimeData party,
+        PartyMemberProgressionData member,
+        out int maxHp,
+        out int attack,
+        out int defense,
+        out int speed,
+        out int skillPower)
+    {
+        maxHp = 1;
+        attack = 1;
+        defense = 0;
+        speed = 0;
+        skillPower = 1;
+        if (party == null || member == null)
+        {
+            return;
+        }
+
+        PrototypeRpgPartyDefinition partyDefinition = PrototypeRpgPartyCatalog.CreateRuntimeParty(
+            party.PartyId,
+            party.ArchetypeId,
+            party.PromotionStateId,
+            party.DisplayName);
+        PrototypeRpgPartyMemberDefinition memberDefinition = ResolvePartyMemberDefinition(partyDefinition, member);
+        PrototypeRpgStatBlock baseStats = memberDefinition != null && memberDefinition.BaseStats != null
+            ? memberDefinition.BaseStats
+            : new PrototypeRpgStatBlock(1, 1, 0, 0);
+        PrototypeRpgLevelStatBonus growthBonus = PrototypeRpgMemberProgressionRules.ResolveLevelStatBonus(
+            member.RoleTag,
+            party.ArchetypeId,
+            member.Level);
+        PrototypeRpgSkillDefinition skillDefinition = PrototypeRpgSkillCatalog.ResolveDefinition(
+                memberDefinition != null ? memberDefinition.DefaultSkillId : string.Empty,
+                member.RoleTag)
+            ?? PrototypeRpgSkillCatalog.GetFallbackDefinitionForRoleTag(member.RoleTag);
+
+        ResolveMemberEquipmentBonuses(
+            party,
+            member,
+            out int maxHpBonus,
+            out int attackBonus,
+            out int defenseBonus,
+            out int speedBonus,
+            out int skillPowerBonus);
+
+        maxHp = Mathf.Max(1, baseStats.MaxHp + growthBonus.MaxHpBonus + maxHpBonus);
+        attack = Mathf.Max(1, baseStats.Attack + growthBonus.AttackBonus + attackBonus);
+        defense = Mathf.Max(0, baseStats.Defense + growthBonus.DefenseBonus + defenseBonus);
+        speed = Mathf.Max(0, baseStats.Speed + growthBonus.SpeedBonus + speedBonus);
+
+        int baseSkillPower = skillDefinition != null && skillDefinition.PowerValue > 0
+            ? skillDefinition.PowerValue
+            : Mathf.Max(1, baseStats.Attack + 1);
+        skillPower = Mathf.Max(1, baseSkillPower + growthBonus.AttackBonus + skillPowerBonus);
+    }
+
+    private PrototypeRpgPartyMemberDefinition ResolvePartyMemberDefinition(
+        PrototypeRpgPartyDefinition partyDefinition,
+        PartyMemberProgressionData member)
+    {
+        PrototypeRpgPartyMemberDefinition[] members = partyDefinition != null
+            ? partyDefinition.Members ?? System.Array.Empty<PrototypeRpgPartyMemberDefinition>()
+            : System.Array.Empty<PrototypeRpgPartyMemberDefinition>();
+        for (int i = 0; i < members.Length; i++)
+        {
+            PrototypeRpgPartyMemberDefinition definition = members[i];
+            if (definition == null)
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(member.MemberId) && definition.MemberId == member.MemberId)
+            {
+                return definition;
+            }
+
+            if (!string.IsNullOrEmpty(member.DisplayName) && definition.DisplayName == member.DisplayName)
+            {
+                return definition;
+            }
+        }
+
+        return members.Length > 0 ? members[0] : null;
+    }
+
+    private void AddEquipmentStatDeltaPart(List<string> parts, string label, int beforeValue, int afterValue)
+    {
+        if (parts == null || beforeValue == afterValue)
+        {
+            return;
+        }
+
+        parts.Add(label + " " + beforeValue + " -> " + afterValue);
     }
 
     private PrototypeRpgEquipmentDefinition GetFeaturedEquipmentDefinition(PartyRuntimeData party, PartyMemberProgressionData member)
@@ -4035,7 +4202,7 @@ public sealed class ManualTradeRuntimeState
             return "None";
         }
 
-        return member.DisplayName + " " + PrototypeRpgEquipmentCatalog.BuildEquipmentSummaryText(definition);
+        return member.DisplayName + " found " + PrototypeRpgEquipmentCatalog.BuildCompactReadbackText(definition);
     }
 
     private string BuildReplacementEquipmentLabel(PrototypeRpgEquipmentDefinition currentDefinition, PartyMemberProgressionData member, string slotKey)

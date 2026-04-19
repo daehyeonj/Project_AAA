@@ -814,6 +814,16 @@ public sealed partial class StaticPlaceholderWorldView
         manifest.AppliedProgressionSummaryText = string.IsNullOrEmpty(member.AppliedProgressionSummaryText) ? "None" : member.AppliedProgressionSummaryText;
         manifest.CurrentRunSummaryText = string.IsNullOrEmpty(member.CurrentRunSummaryText) ? "None" : member.CurrentRunSummaryText;
         manifest.NextRunPreviewSummaryText = string.IsNullOrEmpty(member.NextRunPreviewSummaryText) ? "None" : member.NextRunPreviewSummaryText;
+        manifest.Level = member.Level > 0 ? member.Level : 1;
+        manifest.CurrentExperience = Mathf.Max(0, member.CurrentExperience);
+        manifest.NextLevelExperience = member.NextLevelExperience > 0
+            ? member.NextLevelExperience
+            : PrototypeRpgMemberProgressionRules.GetNextLevelExperience(manifest.Level);
+        manifest.MaxHp = Mathf.Max(1, member.MaxHp);
+        manifest.Attack = Mathf.Max(1, member.Attack);
+        manifest.Defense = Mathf.Max(0, member.Defense);
+        manifest.Speed = Mathf.Max(0, member.Speed);
+        manifest.SkillPower = Mathf.Max(1, member.SkillPower);
         manifest.SummaryText = BuildExpeditionPartyMemberSummaryLine(manifest);
         return manifest;
     }
@@ -834,16 +844,7 @@ public sealed partial class StaticPlaceholderWorldView
                 continue;
             }
 
-            string roleLabel = IsMeaningfulSnapshotText(member.RoleLabel) ? member.RoleLabel : "Adventurer";
-            string displayName = IsMeaningfulSnapshotText(member.DisplayName) ? member.DisplayName : roleLabel;
-            string battleRoleText = ExtractRuntimeSummaryClauseText(member.CurrentRunSummaryText, "Battle Role");
-            string nextDispatchText = ExtractRuntimeSummaryClauseText(member.NextRunPreviewSummaryText, "Next Dispatch");
-            string fallbackText = IsMeaningfulSnapshotText(member.ResolvedSkillName) ? member.ResolvedSkillName : "Skill";
-            string part = displayName +
-                " [" + roleLabel + "] | " +
-                ChooseRuntimePartySummaryText(battleRoleText, fallbackText) +
-                " | " +
-                ChooseRuntimePartySummaryText(nextDispatchText, member.EquipmentSummaryText);
+            string part = BuildExpeditionPartyMemberSummaryLine(BuildExpeditionPartyMemberManifest(member));
             summary = string.IsNullOrEmpty(summary) ? part : summary + "\n" + part;
         }
 
@@ -907,16 +908,39 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         string displayName = IsMeaningfulSnapshotText(manifest.DisplayName) ? manifest.DisplayName : "Adventurer";
-        string roleLabel = IsMeaningfulSnapshotText(manifest.RoleLabel) ? manifest.RoleLabel : "Adventurer";
-        string battleRoleText = ExtractRuntimeSummaryClauseText(manifest.CurrentRunSummaryText, "Battle Role");
-        string nextDispatchText = ExtractRuntimeSummaryClauseText(manifest.NextRunPreviewSummaryText, "Next Dispatch");
-        return displayName +
-            " [" + roleLabel + "] | " +
-            ChooseRuntimePartySummaryText(
-                battleRoleText,
-                ChooseRuntimePartySummaryText(manifest.ResolvedSkillName, manifest.EquipmentSummaryText)) +
-            " | " +
-            ChooseRuntimePartySummaryText(nextDispatchText, manifest.EquipmentSummaryText);
+        return displayName + " " +
+            BuildExpeditionPartyMemberLevelText(manifest) + " | " +
+            BuildExpeditionPartyMemberStatText(manifest) + " | " +
+            BuildExpeditionPartyMemberGearReadback(manifest);
+    }
+
+    private string BuildExpeditionPartyMemberLevelText(ExpeditionPartyMemberManifest manifest)
+    {
+        return PrototypeRpgMemberProgressionRules.BuildLevelProgressText(
+            manifest != null ? manifest.Level : 1,
+            manifest != null ? manifest.CurrentExperience : 0,
+            manifest != null ? manifest.NextLevelExperience : PrototypeRpgMemberProgressionRules.GetNextLevelExperience(1));
+    }
+
+    private string BuildExpeditionPartyMemberStatText(ExpeditionPartyMemberManifest manifest)
+    {
+        if (manifest == null)
+        {
+            return "HP 1 ATK 1 DEF 0 SPD 0";
+        }
+
+        return "HP " + Mathf.Max(1, manifest.MaxHp) +
+            " ATK " + Mathf.Max(1, manifest.Attack) +
+            " DEF " + Mathf.Max(0, manifest.Defense) +
+            " SPD " + Mathf.Max(0, manifest.Speed);
+    }
+
+    private string BuildExpeditionPartyMemberGearReadback(ExpeditionPartyMemberManifest manifest)
+    {
+        string gearText = PrototypeRpgEquipmentCatalog.BuildCompactReadbackText(
+            manifest != null ? manifest.EquipmentSummaryText : "No gear",
+            manifest != null ? manifest.GearContributionSummaryText : "No bonus");
+        return "Gear: " + gearText;
     }
 
     private string BuildPartyLoadoutSummaryText(PrototypeRpgPartyRuntimeResolveSurface partySurface)

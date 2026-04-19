@@ -1545,8 +1545,8 @@ public sealed partial class StaticPlaceholderWorldView
             ? DungeonRewardResourceId
             : monster.RewardResourceId;
         return resourceId == DungeonRewardResourceId
-            ? "Loot +" + monster.RewardAmount
-            : resourceId + " +" + monster.RewardAmount;
+            ? "Run Spoils +" + monster.RewardAmount
+            : "Pending " + resourceId + " +" + monster.RewardAmount;
     }
 
     private void ResolvePartyMemberKnockOut(DungeonPartyMemberRuntimeData member, bool wasKnockedOut)
@@ -2333,6 +2333,20 @@ public sealed partial class StaticPlaceholderWorldView
 
         ClearBattleHoverState();
         _hoverPreEliteChoiceId = string.Empty;
+        if (keyboard != null &&
+            keyboard.iKey.wasPressedThisFrame &&
+            CanInspectInventoryFromBattleResultPopover())
+        {
+            if (TryOpenInventorySurface())
+            {
+                ClearBattleResultPopover();
+                RefreshSelectionPrompt();
+                RefreshDungeonPresentation();
+            }
+
+            return true;
+        }
+
         if (keyboard != null &&
             (keyboard.enterKey.wasPressedThisFrame ||
              keyboard.numpadEnterKey.wasPressedThisFrame ||
@@ -4975,23 +4989,27 @@ public sealed partial class StaticPlaceholderWorldView
 
     private void OpenEncounterBattleResultPopover(DungeonEncounterRuntimeData encounter, int grantedLoot, bool eliteVictory)
     {
+        PrototypeBattleResultSnapshot snapshot = BuildRpgOwnedCurrentBattleResultSnapshotView();
         string encounterName = encounter != null && !string.IsNullOrEmpty(encounter.DisplayName)
             ? encounter.DisplayName
             : GetCurrentEncounterNameText();
-        string summaryText = eliteVictory
-            ? "Final elite defeated. The exit route is now open."
-            : _exitUnlocked
-                ? "Encounter resolved. All encounters are cleared and the exit is unlocked."
-                : "Encounter resolved. Continue the expedition.";
         SetBattleResultPopover(
-            PrototypeBattleOutcomeKeys.EncounterVictory,
-            eliteVictory ? "Elite Encounter Cleared" : "Encounter Cleared",
-            encounterName,
-            summaryText,
-            grantedLoot > 0 ? BuildLootAmountText(grantedLoot) : "None",
-            BuildEncounterBattleDropSummaryText(encounter),
-            "Growth and equipment rewards resolve when the full run ends.",
-            "[Enter]/[Space]/[Esc] Continue");
+            new PrototypeDungeonBattleResultPopoverData
+            {
+                OutcomeKey = PrototypeBattleOutcomeKeys.EncounterVictory,
+                TitleText = eliteVictory ? "Elite Encounter Cleared" : "Encounter Cleared",
+                EncounterNameText = encounterName,
+                SubtitleText = BuildEncounterBattleResultSubtitleText(encounterName),
+                SummaryText = BuildEncounterBattleResultSummaryText(encounterName, eliteVictory),
+                LootSummaryText = BuildEncounterBattleRewardSummaryText(grantedLoot, eliteVictory),
+                DropSummaryText = BuildEncounterBattleDropSummaryText(encounter, eliteVictory),
+                PartySummaryText = BuildBattleResultPartySummaryText(BuildTotalPartyHpSummary(), GetPartyConditionText()),
+                CombatSummaryText = BuildBattleResultCombatSummaryText(snapshot),
+                ContributionSummaryText = BuildBattleResultContributionSummaryText(snapshot),
+                GrowthSummaryText = BuildEncounterBattleGrowthSummaryText(),
+                NextStepText = BuildEncounterBattleNextStepText(eliteVictory),
+                ContinueHintText = BuildBattleResultContinueHintText("Continue")
+            });
     }
 
     private void OpenRunBattleResultPopover(string outcomeKey, string safeResultSummary, int safeReturnedLoot)
@@ -5009,20 +5027,99 @@ public sealed partial class StaticPlaceholderWorldView
                 ? _currentDungeonName
                 : "Encounter";
         SetBattleResultPopover(
-            outcomeKey,
-            titleText,
-            encounterName,
-            safeResultSummary,
-            safeReturnedLoot > 0 ? BuildLootAmountText(safeReturnedLoot) : "None",
-            BuildRunBattleResultDropSummaryText(resultContext),
-            BuildRunBattleResultGrowthSummaryText(resultContext),
-            "[Enter]/[Space]/[Esc] Review result");
+            new PrototypeDungeonBattleResultPopoverData
+            {
+                OutcomeKey = outcomeKey,
+                TitleText = titleText,
+                EncounterNameText = encounterName,
+                SubtitleText = BuildRunBattleResultSubtitleText(),
+                SummaryText = string.IsNullOrEmpty(safeResultSummary) ? "Battle result captured." : safeResultSummary,
+                LootSummaryText = safeReturnedLoot > 0 ? BuildLootAmountText(safeReturnedLoot) + " returned." : "No loot returned.",
+                DropSummaryText = BuildRunBattleResultDropSummaryText(resultContext),
+                PartySummaryText = BuildBattleResultPartySummaryText(
+                    resultContext != null ? resultContext.PartyHpSummaryText : string.Empty,
+                    resultContext != null ? resultContext.PartyConditionText : string.Empty),
+                CombatSummaryText = BuildBattleResultCombatSummaryText(snapshot),
+                ContributionSummaryText = BuildRunBattleResultContributionSummaryText(snapshot, resultContext),
+                GrowthSummaryText = BuildRunBattleResultGrowthSummaryText(resultContext),
+                NextStepText = BuildRunBattleResultNextStepText(),
+                ContinueHintText = BuildBattleResultContinueHintText("Review result")
+            });
     }
 
-    private string BuildEncounterBattleDropSummaryText(DungeonEncounterRuntimeData encounter)
+    private string BuildEncounterBattleResultSubtitleText(string encounterName)
     {
-        int encounterLoot = CalculateEncounterLoot(encounter);
-        return encounterLoot > 0 ? BuildLootAmountText(encounterLoot) : "None";
+        string currentRoomLabel = string.IsNullOrEmpty(CurrentRoomText) ? string.Empty : CurrentRoomText;
+        string currentRoomType = string.IsNullOrEmpty(CurrentRoomTypeText) ? string.Empty : CurrentRoomTypeText;
+        if (!string.IsNullOrEmpty(currentRoomLabel) &&
+            !string.Equals(currentRoomLabel, encounterName, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return !string.IsNullOrEmpty(currentRoomType)
+                ? currentRoomLabel + " | " + currentRoomType
+                : currentRoomLabel;
+        }
+
+        return BuildRunBattleResultSubtitleText();
+    }
+
+    private string BuildRunBattleResultSubtitleText()
+    {
+        string dungeonLabel = string.IsNullOrEmpty(_currentDungeonName) ? CurrentDungeonRunText : _currentDungeonName;
+        string routeLabel = string.IsNullOrEmpty(_selectedRouteLabel) ? CurrentRouteText : _selectedRouteLabel;
+        if (!HasBattleResultPopoverValue(dungeonLabel))
+        {
+            dungeonLabel = "Dungeon";
+        }
+
+        if (HasBattleResultPopoverValue(routeLabel))
+        {
+            return dungeonLabel + " | " + routeLabel;
+        }
+
+        return dungeonLabel;
+    }
+
+    private string BuildEncounterBattleResultSummaryText(string encounterName, bool eliteVictory)
+    {
+        int totalEncounters = Mathf.Max(1, TotalEncounterCount);
+        int clearedCount = Mathf.Clamp(_clearedEncounterCount, 0, totalEncounters);
+        if (eliteVictory)
+        {
+            return "Final elite defeated. Exit route unlocked.";
+        }
+
+        if (_exitUnlocked)
+        {
+            return encounterName + " cleared. Encounters " + clearedCount + "/" + totalEncounters + " | Exit unlocked.";
+        }
+
+        return encounterName + " cleared. Encounters " + clearedCount + "/" + totalEncounters + ".";
+    }
+
+    private string BuildEncounterBattleRewardSummaryText(int grantedLoot, bool eliteVictory)
+    {
+        if (grantedLoot <= 0)
+        {
+            return eliteVictory ? "Elite clear secured. No extra run spoils awarded." : "No immediate run spoils secured.";
+        }
+
+        return "Run spoils " + BuildLootAmountText(grantedLoot) + " secured | pending extraction.";
+    }
+
+    private string BuildEncounterBattleDropSummaryText(DungeonEncounterRuntimeData encounter, bool eliteVictory)
+    {
+        if (eliteVictory && HasBattleResultPopoverValue(_eliteRewardLabel))
+        {
+            string text = "Elite reward reserved: " + _eliteRewardLabel;
+            if (_eliteBonusRewardGrantedAmount > 0)
+            {
+                text += " | Bonus " + BuildLootAmountText(_eliteBonusRewardGrantedAmount);
+            }
+
+            return text + " | finalizes at run result.";
+        }
+
+        return "No gear drop surfaced this encounter.";
     }
 
     private string BuildRunBattleResultDropSummaryText(PrototypeDungeonRunResultContext resultContext)
@@ -5038,7 +5135,67 @@ public sealed partial class StaticPlaceholderWorldView
             return _latestRpgRunResultSnapshot.PendingRewardSummaryText;
         }
 
-        return "None";
+        return "No gear reward surfaced.";
+    }
+
+    private string BuildBattleResultPartySummaryText(string hpSummaryText, string conditionText)
+    {
+        string safeHpSummaryText = HasBattleResultPopoverValue(hpSummaryText) ? hpSummaryText : BuildTotalPartyHpSummary();
+        string safeConditionText = HasBattleResultPopoverValue(conditionText) ? conditionText : GetPartyConditionText();
+        return "HP " + safeHpSummaryText + " | " + safeConditionText + ".";
+    }
+
+    private string BuildBattleResultCombatSummaryText(PrototypeBattleResultSnapshot snapshot)
+    {
+        PrototypeBattleResultSnapshot safeSnapshot = snapshot ?? new PrototypeBattleResultSnapshot();
+        List<string> parts = new List<string>
+        {
+            "Turns " + Mathf.Max(0, safeSnapshot.TurnsTaken),
+            "Dmg " + Mathf.Max(0, safeSnapshot.TotalDamageDealt) + " dealt",
+            Mathf.Max(0, safeSnapshot.TotalDamageTaken) + " taken"
+        };
+        if (safeSnapshot.TotalHealingDone > 0)
+        {
+            parts.Add("Heal " + safeSnapshot.TotalHealingDone);
+        }
+
+        return string.Join(" | ", parts.ToArray()) + ".";
+    }
+
+    private string BuildBattleResultContributionSummaryText(PrototypeBattleResultSnapshot snapshot)
+    {
+        string highlightText = BuildRecentPartyBattleHighlightText();
+        if (HasBattleResultPopoverValue(highlightText))
+        {
+            return highlightText;
+        }
+
+        string snapshotHighlight = snapshot != null ? snapshot.NotableEventsSummary : string.Empty;
+        if (HasBattleResultPopoverValue(snapshotHighlight) &&
+            !string.Equals(snapshotHighlight, "No notable events.", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return snapshotHighlight;
+        }
+
+        return "No standout contribution recorded.";
+    }
+
+    private string BuildRunBattleResultContributionSummaryText(
+        PrototypeBattleResultSnapshot snapshot,
+        PrototypeDungeonRunResultContext resultContext)
+    {
+        if (resultContext != null &&
+            HasBattleResultPopoverValue(resultContext.NotableBattleEventsSummaryText))
+        {
+            return resultContext.NotableBattleEventsSummaryText;
+        }
+
+        return BuildBattleResultContributionSummaryText(snapshot);
+    }
+
+    private string BuildEncounterBattleGrowthSummaryText()
+    {
+        return "Growth pending: XP and equipment resolve at run result.";
     }
 
     private string BuildRunBattleResultGrowthSummaryText(PrototypeDungeonRunResultContext resultContext)
@@ -5058,6 +5215,128 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         return "Growth reveal is available in the run result.";
+    }
+
+    private string BuildEncounterBattleNextStepText(bool eliteVictory)
+    {
+        string nextGoalText = GetNextMajorGoalText();
+        if (HasBattleResultPopoverValue(nextGoalText))
+        {
+            return "Next: " + nextGoalText + ".";
+        }
+
+        return eliteVictory || _exitUnlocked
+            ? "Next: Head to extraction."
+            : "Next: Continue exploring.";
+    }
+
+    private string BuildRunBattleResultNextStepText()
+    {
+        return "Next: Continue to the run result review.";
+    }
+
+    private string BuildRecentPartyBattleHighlightText()
+    {
+        if (_battleEventRecords == null || _battleEventRecords.Count <= 0)
+        {
+            return string.Empty;
+        }
+
+        List<string> highlights = new List<string>(2);
+        HashSet<string> seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        for (int i = _battleEventRecords.Count - 1; i >= 0 && highlights.Count < 2; i--)
+        {
+            string highlight = FormatPartyBattleHighlight(_battleEventRecords[i]);
+            if (!HasBattleResultPopoverValue(highlight) || !seen.Add(highlight))
+            {
+                continue;
+            }
+
+            highlights.Insert(0, highlight);
+        }
+
+        return highlights.Count > 0 ? string.Join(" | ", highlights.ToArray()) : string.Empty;
+    }
+
+    private string FormatPartyBattleHighlight(PrototypeBattleEventRecord record)
+    {
+        if (record == null || string.IsNullOrEmpty(record.ActorId) || GetPartyMemberById(record.ActorId) == null)
+        {
+            return string.Empty;
+        }
+
+        switch (record.EventKey)
+        {
+            case PrototypeBattleEventKeys.AttackResolved:
+            case PrototypeBattleEventKeys.SkillResolved:
+                if (record.Amount > 0 &&
+                    HasBattleResultPopoverValue(record.ActorName) &&
+                    HasBattleResultPopoverValue(record.TargetName))
+                {
+                    return record.ActorName + " hit " + record.TargetName + " for " + record.Amount;
+                }
+
+                if (HasBattleResultPopoverValue(record.ActorName) && HasBattleResultPopoverValue(record.ShortText))
+                {
+                    return record.ActorName + " used " + record.ShortText;
+                }
+
+                break;
+            case PrototypeBattleEventKeys.HealApplied:
+                if (record.Amount > 0 && HasBattleResultPopoverValue(record.ActorName))
+                {
+                    return record.ActorName + " restored " + record.Amount + " HP";
+                }
+
+                break;
+            case PrototypeBattleEventKeys.MoveResolved:
+                if (HasBattleResultPopoverValue(record.ActorName) && HasBattleResultPopoverValue(record.TargetName))
+                {
+                    return record.ActorName + " shifted to " + record.TargetName;
+                }
+
+                break;
+            case PrototypeBattleEventKeys.EnemyDefeated:
+                if (HasBattleResultPopoverValue(record.ActorName) && HasBattleResultPopoverValue(record.TargetName))
+                {
+                    return record.ActorName + " finished " + record.TargetName;
+                }
+
+                break;
+            case PrototypeBattleEventKeys.BurstWindowOpened:
+            case PrototypeBattleEventKeys.BurstWindowConsumed:
+                if (HasBattleResultPopoverValue(record.ActorName) && HasBattleResultPopoverValue(record.TargetName))
+                {
+                    return record.ActorName + " pressured " + record.TargetName;
+                }
+
+                break;
+        }
+
+        return string.Empty;
+    }
+
+    private string BuildBattleResultContinueHintText(string continueVerb)
+    {
+        string safeContinueVerb = string.IsNullOrEmpty(continueVerb) ? "Continue" : continueVerb;
+        string hintText = "[Enter]/[Space]/[Esc] " + safeContinueVerb;
+        if (CanInspectInventoryFromBattleResultPopover())
+        {
+            hintText += " | [I] Inspect Equipment";
+        }
+
+        return hintText;
+    }
+
+    private bool CanInspectInventoryFromBattleResultPopover()
+    {
+        return !string.IsNullOrEmpty(ResolveCurrentInventoryPartyId());
+    }
+
+    private bool HasBattleResultPopoverValue(string text)
+    {
+        return !string.IsNullOrEmpty(text) &&
+               !string.Equals(text, "None", System.StringComparison.OrdinalIgnoreCase);
     }
 
     private int CalculateEncounterLoot(DungeonEncounterRuntimeData encounter)

@@ -226,10 +226,15 @@ public sealed class PrototypeDungeonBattleResultPopoverData
     public string OutcomeKey = string.Empty;
     public string TitleText = "Battle Result";
     public string EncounterNameText = "None";
+    public string SubtitleText = "None";
     public string SummaryText = "None";
     public string LootSummaryText = "None";
     public string DropSummaryText = "None";
+    public string PartySummaryText = "None";
+    public string CombatSummaryText = "None";
+    public string ContributionSummaryText = "None";
     public string GrowthSummaryText = "None";
+    public string NextStepText = "None";
     public string ContinueHintText = "[Enter] Continue";
 }
 
@@ -390,32 +395,31 @@ public sealed partial class StaticPlaceholderWorldView
         return surface;
     }
 
-    private void SetBattleResultPopover(
-        string outcomeKey,
-        string titleText,
-        string encounterNameText,
-        string summaryText,
-        string lootSummaryText,
-        string dropSummaryText,
-        string growthSummaryText,
-        string continueHintText)
+    private void SetBattleResultPopover(PrototypeDungeonBattleResultPopoverData popover)
     {
         if (_isInventorySurfaceOpen)
         {
             CloseInventorySurface();
         }
 
+        PrototypeDungeonBattleResultPopoverData safePopover = popover ?? new PrototypeDungeonBattleResultPopoverData();
+
         _battleResultPopoverData = new PrototypeDungeonBattleResultPopoverData
         {
             IsVisible = true,
-            OutcomeKey = string.IsNullOrEmpty(outcomeKey) ? string.Empty : outcomeKey,
-            TitleText = string.IsNullOrEmpty(titleText) ? "Battle Result" : titleText,
-            EncounterNameText = string.IsNullOrEmpty(encounterNameText) ? "None" : encounterNameText,
-            SummaryText = string.IsNullOrEmpty(summaryText) ? "None" : summaryText,
-            LootSummaryText = string.IsNullOrEmpty(lootSummaryText) ? "None" : lootSummaryText,
-            DropSummaryText = string.IsNullOrEmpty(dropSummaryText) ? "None" : dropSummaryText,
-            GrowthSummaryText = string.IsNullOrEmpty(growthSummaryText) ? "None" : growthSummaryText,
-            ContinueHintText = string.IsNullOrEmpty(continueHintText) ? "[Enter] Continue" : continueHintText
+            OutcomeKey = string.IsNullOrEmpty(safePopover.OutcomeKey) ? string.Empty : safePopover.OutcomeKey,
+            TitleText = string.IsNullOrEmpty(safePopover.TitleText) ? "Battle Result" : safePopover.TitleText,
+            EncounterNameText = string.IsNullOrEmpty(safePopover.EncounterNameText) ? "None" : safePopover.EncounterNameText,
+            SubtitleText = string.IsNullOrEmpty(safePopover.SubtitleText) ? "None" : safePopover.SubtitleText,
+            SummaryText = string.IsNullOrEmpty(safePopover.SummaryText) ? "None" : safePopover.SummaryText,
+            LootSummaryText = string.IsNullOrEmpty(safePopover.LootSummaryText) ? "None" : safePopover.LootSummaryText,
+            DropSummaryText = string.IsNullOrEmpty(safePopover.DropSummaryText) ? "None" : safePopover.DropSummaryText,
+            PartySummaryText = string.IsNullOrEmpty(safePopover.PartySummaryText) ? "None" : safePopover.PartySummaryText,
+            CombatSummaryText = string.IsNullOrEmpty(safePopover.CombatSummaryText) ? "None" : safePopover.CombatSummaryText,
+            ContributionSummaryText = string.IsNullOrEmpty(safePopover.ContributionSummaryText) ? "None" : safePopover.ContributionSummaryText,
+            GrowthSummaryText = string.IsNullOrEmpty(safePopover.GrowthSummaryText) ? "None" : safePopover.GrowthSummaryText,
+            NextStepText = string.IsNullOrEmpty(safePopover.NextStepText) ? "None" : safePopover.NextStepText,
+            ContinueHintText = string.IsNullOrEmpty(safePopover.ContinueHintText) ? "[Enter] Continue" : safePopover.ContinueHintText
         };
     }
 
@@ -2332,10 +2336,15 @@ public sealed partial class StaticPlaceholderWorldView
         copy.OutcomeKey = string.IsNullOrEmpty(source.OutcomeKey) ? string.Empty : source.OutcomeKey;
         copy.TitleText = string.IsNullOrEmpty(source.TitleText) ? "Battle Result" : source.TitleText;
         copy.EncounterNameText = string.IsNullOrEmpty(source.EncounterNameText) ? "None" : source.EncounterNameText;
+        copy.SubtitleText = string.IsNullOrEmpty(source.SubtitleText) ? "None" : source.SubtitleText;
         copy.SummaryText = string.IsNullOrEmpty(source.SummaryText) ? "None" : source.SummaryText;
         copy.LootSummaryText = string.IsNullOrEmpty(source.LootSummaryText) ? "None" : source.LootSummaryText;
         copy.DropSummaryText = string.IsNullOrEmpty(source.DropSummaryText) ? "None" : source.DropSummaryText;
+        copy.PartySummaryText = string.IsNullOrEmpty(source.PartySummaryText) ? "None" : source.PartySummaryText;
+        copy.CombatSummaryText = string.IsNullOrEmpty(source.CombatSummaryText) ? "None" : source.CombatSummaryText;
+        copy.ContributionSummaryText = string.IsNullOrEmpty(source.ContributionSummaryText) ? "None" : source.ContributionSummaryText;
         copy.GrowthSummaryText = string.IsNullOrEmpty(source.GrowthSummaryText) ? "None" : source.GrowthSummaryText;
+        copy.NextStepText = string.IsNullOrEmpty(source.NextStepText) ? "None" : source.NextStepText;
         copy.ContinueHintText = string.IsNullOrEmpty(source.ContinueHintText) ? "[Enter] Continue" : source.ContinueHintText;
         return copy;
     }

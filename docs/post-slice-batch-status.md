@@ -45,6 +45,70 @@
 - Manual runtime proof: `DEFERRED`
 - Smoke: `DEFERRED` because this close-out used compile + code audit, but no fresh manual battle playthrough was executed in this turn
 
+## Batch 75.4 Close-Out
+
+- Selected branch: `A`
+- Batch 75.4 closes three blocking UX/runtime seams without changing the accepted dungeon/battle rail:
+  - world-map no-op clicks no longer invalidate the city/world readback cache
+  - the battle result popover now behaves as a real modal instead of allowing background dungeon progression
+  - mid-run reward language now matches the actual storage truth by surfacing `Run Spoils` / `pending extraction` wording instead of fake acquisition claims
+- The world-map fix stays narrow:
+  - `SelectAtScreenPosition(...)` and `SetSelected(...)` now report whether selection state actually changed
+  - `BootEntry.HandleSelectionInput()` only invalidates cached city/world surfaces when selection changed
+  - repeated empty clicks after the selection is already cleared now stay on the no-op path
+- The reward-truth fix stays honest:
+  - immediate battle popups now say `Run Spoils` / `Pending ...`
+  - encounter result popovers say `pending extraction` for run spoils and `finalizes at run result` for elite reward reservation
+  - the inventory surface reuses current run truth to show pending run spoils during dungeon play without promoting them to permanent inventory early
+- The popover modal fix now blocks the old click-through path:
+  - non-battle dungeon shells return early while the popover is visible
+  - the popover overlay consumes mouse events in OnGUI
+  - only the documented close inputs, plus the already-approved `[I]` inspect handoff, remain active while the popover is open
+- UI shape changed?: `No layout rollback; current accepted rail preserved with modal behavior tightened and reward wording clarified`
+
+## Batch 75.4 Validation Snapshot
+
+- Compile: `PASS`
+- World-map click/perf audit: `PASS`
+- No-op cache invalidation guard: `PASS`
+- Popover modal click-through guard: `PASS (code-path + OnGUI guard)`
+- Pending spoils wording / visibility parity: `PASS`
+- Manual runtime performance proof: `DEFERRED`
+- Manual popover click-through proof: `DEFERRED`
+- Smoke: `DEFERRED`
+
+## Batch 75.3 Close-Out
+
+- Selected branch: `B + C hybrid`
+- Batch 75.3 upgrades the centered encounter-result popover into a real readback moment without reopening battle math, drop systems, or HUD layout direction.
+- The implementation stays on the current accepted rail:
+  - encounter / defeat / retreat popovers still come from one cached shell snapshot
+  - new text fields are additive and built once at result production time, not during per-frame GUI work
+  - missing encounter-time growth / gear truth is shown honestly as pending instead of faked
+- The upgraded popover now carries:
+  - concrete header + subtitle context
+  - result / rewards / drop readback
+  - party HP and combat consequence summary
+  - contribution / battle highlight text from current-battle event truth when available
+  - growth carryover status and next-step guidance
+  - optional `[I]` inspect-equipment handoff directly from the popover when inventory access is available
+- UI shape changed?: `No layout rollback; centered popover preserved with richer content and a small subtitle/body sizing adjustment`
+
+## Batch 75.3 Validation Snapshot
+
+- Compile: `PASS`
+- Active rail audit:
+  - popover producer / cache seam audited before edits: `PASS`
+  - current battle / party / next-goal truth reused without new gameplay ownership: `PASS`
+  - encounter-time XP / gear finalization stays pending where truth is unavailable: `PASS`
+- Targeted code proof:
+  - popover body now consumes cached result / reward / party / combat / next-step fields: `PASS`
+  - `[I]` inspect handoff is handled inside the popover input gate, so the old global inventory toggle block is not bypassed accidentally: `PASS`
+  - centered modal sizing widened only enough to fit the richer compact readback at 1920x1080 intent: `PASS (code-path audit)`
+- Manual UX proof: `DEFERRED`
+- Performance proof: `DEFERRED (compile + code-path audit only; no fresh runtime FPS capture in this turn)`
+- Smoke: `DEFERRED`
+
 ## Batch 75.2 Close-Out
 
 - Selected branch: `A`

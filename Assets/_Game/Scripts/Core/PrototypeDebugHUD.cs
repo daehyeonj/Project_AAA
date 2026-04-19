@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -24,6 +25,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     private const float ActionButtonHeight = 36f;
     private const float ActionButtonGap = 8f;
     private const string SearchFieldControlName = "PrototypeDebugHUD.SearchField";
+    private const KeyCode DebugHudToggleKey = KeyCode.F1;
 
     private enum HudFilter
     {
@@ -48,15 +50,116 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     {
         public string Key { get; private set; }
         public string Title { get; private set; }
-        public string Body { get; private set; }
         public HudFilter Group { get; private set; }
+        private readonly Func<string> _bodyBuilder;
+        private string _body;
+        private bool _hasBuiltBody;
 
         public HudPanel(string key, string title, string body, HudFilter group)
+            : this(key, title, () => body, group)
+        {
+        }
+
+        public HudPanel(string key, string title, Func<string> bodyBuilder, HudFilter group)
         {
             Key = string.IsNullOrEmpty(key) ? "panel" : key;
             Title = string.IsNullOrEmpty(title) ? "Panel" : title;
-            Body = string.IsNullOrEmpty(body) ? "None" : body;
+            _bodyBuilder = bodyBuilder;
             Group = group;
+        }
+
+        public string Body
+        {
+            get
+            {
+                if (_hasBuiltBody)
+                {
+                    return _body;
+                }
+
+                string builtBody = _bodyBuilder != null ? _bodyBuilder.Invoke() : null;
+                _body = string.IsNullOrEmpty(builtBody) ? "None" : builtBody;
+                _hasBuiltBody = true;
+                return _body;
+            }
+        }
+    }
+
+    private struct HudStyleVariantKey : IEquatable<HudStyleVariantKey>
+    {
+        public readonly int BaseStyleId;
+        public readonly int FontSize;
+        public readonly bool WordWrap;
+
+        public HudStyleVariantKey(int baseStyleId, int fontSize, bool wordWrap)
+        {
+            BaseStyleId = baseStyleId;
+            FontSize = fontSize;
+            WordWrap = wordWrap;
+        }
+
+        public bool Equals(HudStyleVariantKey other)
+        {
+            return BaseStyleId == other.BaseStyleId &&
+                   FontSize == other.FontSize &&
+                   WordWrap == other.WordWrap;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is HudStyleVariantKey other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = BaseStyleId;
+                hash = (hash * 397) ^ FontSize;
+                hash = (hash * 397) ^ (WordWrap ? 1 : 0);
+                return hash;
+            }
+        }
+    }
+
+    private struct HudMeasureKey : IEquatable<HudMeasureKey>
+    {
+        public readonly int BaseStyleId;
+        public readonly int FontSize;
+        public readonly int WidthBucket;
+        public readonly string Text;
+
+        public HudMeasureKey(int baseStyleId, int fontSize, int widthBucket, string text)
+        {
+            BaseStyleId = baseStyleId;
+            FontSize = fontSize;
+            WidthBucket = widthBucket;
+            Text = text ?? string.Empty;
+        }
+
+        public bool Equals(HudMeasureKey other)
+        {
+            return BaseStyleId == other.BaseStyleId &&
+                   FontSize == other.FontSize &&
+                   WidthBucket == other.WidthBucket &&
+                   string.Equals(Text, other.Text, StringComparison.Ordinal);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is HudMeasureKey other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = BaseStyleId;
+                hash = (hash * 397) ^ FontSize;
+                hash = (hash * 397) ^ WidthBucket;
+                hash = (hash * 397) ^ (Text != null ? Text.GetHashCode() : 0);
+                return hash;
+            }
         }
     }
 
@@ -75,6 +178,8 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     private HudFilter _activeFilter = HudFilter.All;
     private string _searchText = string.Empty;
     private Dictionary<string, bool> _expandedByKey;
+    [SerializeField] private bool _startDebugHudVisible;
+    private bool _debugHudVisible;
     private BattleHudFlyoutMode _battleFlyoutMode = BattleHudFlyoutMode.None;
     private string _pendingConfirmActionKey = string.Empty;
     private string _selectedBattleCommandKey = string.Empty;
@@ -82,12 +187,24 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     private string _battleHudHoverDetailKey = string.Empty;
     private bool _isSearchFieldFocused;
     private PrototypeBattleUiSurfaceData _battleUiSurface = new PrototypeBattleUiSurfaceData();
+    private readonly Dictionary<HudStyleVariantKey, GUIStyle> _hudStyleVariants = new Dictionary<HudStyleVariantKey, GUIStyle>();
+    private readonly Dictionary<HudMeasureKey, float> _hudMeasureHeights = new Dictionary<HudMeasureKey, float>();
+    private readonly GUIContent _sharedHudContent = new GUIContent();
+    private readonly PrototypeBattleUiCommandDetailData[] _battleMoveOptionBuffer = new PrototypeBattleUiCommandDetailData[3];
+    private int _battleMoveOptionCount;
+    private int _battleUiSurfaceFrame = -1;
+    private EventType _battleUiSurfaceEventType = EventType.Ignore;
+    private int _dockPanelsFrame = -1;
+    private List<HudPanel> _dockPanels;
+    private string _lastBattleActionHoverKey = string.Empty;
+    private bool _battleHudFastBackground;
     public bool IsSearchFieldFocused => _isSearchFieldFocused;
     public bool ShouldBlockDungeonInput => IsBattleInputModalOpen();
 
     private void Awake()
     {
         CacheBootEntry();
+        _debugHudVisible = _startDebugHudVisible;
         EnsureExpandedState();
     }
 
@@ -97,30 +214,59 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         if (_bootEntry == null)
         {
             _isSearchFieldFocused = false;
+            ResetDockPanelCache();
+            ResetBattleUiSurfaceCache();
+            return;
+        }
+
+        Event current = Event.current;
+        EventType currentEventType = current != null ? current.type : EventType.Repaint;
+        HandleDebugHudToggle(current);
+
+        bool battleHudMode = _bootEntry.IsDungeonBattleViewActive && !_bootEntry.IsDungeonResultPanelVisible;
+        bool playerFacingDebugHudMode = battleHudMode ||
+                                        _bootEntry.IsLegacyDungeonRouteChoiceVisible ||
+                                        _bootEntry.IsDungeonRunEventDecisionVisible ||
+                                        _bootEntry.IsDungeonRunPreEliteDecisionVisible ||
+                                        _bootEntry.IsDungeonResultPanelVisible;
+        if (!_debugHudVisible && !playerFacingDebugHudMode)
+        {
+            _isSearchFieldFocused = false;
+            ResetDockPanelCache();
+            ResetBattleHudState();
+            ResetBattleUiSurfaceCache();
             return;
         }
 
         EnsureExpandedState();
-        EnsureStyles();
-        SyncBattleHudState();
-        RefreshBattleUiSurface();
-
-        bool battleHudMode = _bootEntry.IsDungeonBattleViewActive && !_bootEntry.IsDungeonResultPanelVisible;
-        if (_bootEntry.IsDungeonRunHudMode && !battleHudMode)
+        if (battleHudMode)
         {
             _isSearchFieldFocused = false;
-            _battleFlyoutMode = BattleHudFlyoutMode.None;
-            _pendingConfirmActionKey = string.Empty;
-            _selectedBattleCommandKey = string.Empty;
-            _selectedBattleCommandOwnerKey = string.Empty;
-            _battleHudHoverDetailKey = string.Empty;
+            EnsureStyles();
+            if (!IsBattleHudUsefulEvent(currentEventType))
+            {
+                return;
+            }
+
+            RefreshBattleUiSurface(currentEventType);
+            SyncBattleHudState();
+            DrawBattleHudShell(new Rect(0f, 0f, Screen.width, Screen.height));
             return;
         }
 
-        List<HudPanel> panels = BuildPanels();
-        bool dungeonHudMode = _bootEntry.IsDungeonRunHudMode;
+        if (_bootEntry.IsDungeonRunHudMode)
+        {
+            _isSearchFieldFocused = false;
+            ResetDockPanelCache();
+            ResetBattleHudState();
+            ResetBattleUiSurfaceCache();
+            return;
+        }
+
+        EnsureStyles();
         bool overlayMode = battleHudMode || _bootEntry.IsLegacyDungeonRouteChoiceVisible || _bootEntry.IsDungeonRunEventDecisionVisible || _bootEntry.IsDungeonRunPreEliteDecisionVisible || _bootEntry.IsDungeonResultPanelVisible;
         bool frontendDockMode = _bootEntry.IsMainMenuActive || _bootEntry.IsWorldSimActive;
+        List<HudPanel> panels = overlayMode ? null : GetDockPanels();
 
         float panelWidth = overlayMode
             ? Mathf.Clamp(Screen.width * 0.18f, 276f, 308f)
@@ -131,11 +277,9 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         float panelHeight = overlayMode
             ? Mathf.Clamp(Screen.height * 0.18f, 148f, 188f)
-            : dungeonHudMode
-                ? Mathf.Clamp(Screen.height * 0.34f, 248f, 380f)
-                : frontendDockMode
-                    ? Mathf.Clamp(Screen.height * 0.44f, 300f, 420f)
-                    : Mathf.Max(220f, Screen.height - (Margin * 2f));
+            : frontendDockMode
+                ? Mathf.Clamp(Screen.height * 0.44f, 300f, 420f)
+                : Mathf.Max(220f, Screen.height - (Margin * 2f));
         Rect dockRect = new Rect(Screen.width - panelWidth - Margin, Margin, panelWidth, panelHeight);
         if (!overlayMode)
         {
@@ -146,7 +290,6 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         {
             DrawDungeonBattleBottomBar(dockRect);
         }
-
     }
 
     private void DrawDockPanel(Rect rect, List<HudPanel> panels)
@@ -330,6 +473,9 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private void DrawBattleHudShell(Rect rect)
     {
+        bool previousFastBackground = _battleHudFastBackground;
+        _battleHudFastBackground = true;
+
         float screenLeft = Margin;
         float screenWidth = Screen.width - (Margin * 2f);
         float topHeight = Mathf.Clamp(Screen.height * 0.085f, 80f, 92f);
@@ -372,6 +518,8 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         {
             DrawTargetSelectionOverlay(topRect, statusRowRect);
         }
+
+        _battleHudFastBackground = previousFastBackground;
     }
 
     private void DrawCurrentUnitPanel(Rect rect)
@@ -530,10 +678,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                     ? new Color(0.22f, 0.12f, 0.12f, 0.98f)
                     : new Color(0.10f, 0.15f, 0.22f, 0.98f);
         DrawOverlaySectionBackground(rect, backgroundColor);
-        Color previousColor = GUI.color;
-        GUI.color = accentColor;
-        GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width, 3f), Texture2D.whiteTexture);
-        GUI.color = Color.white;
+        DrawSolidHudRect(new Rect(rect.x, rect.y, rect.width, 3f), accentColor);
 
         string statusLabel = slotData != null && HasMeaningfulText(slotData.StatusLabel)
             ? GetCompactHudText(slotData.StatusLabel.ToUpperInvariant(), 12, false)
@@ -551,7 +696,6 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         Rect nameRect = new Rect(rect.x + 8f, statusRect.yMax + 6f, rect.width - 16f, rect.height - 24f);
         DrawFittedLabel(statusRect, statusLabel, _bodyStyle, 8, 7, false);
         DrawFittedLabel(nameRect, displayName, _sectionTitleStyle, 10, 8, true);
-        GUI.color = previousColor;
     }
 
     private void DrawPartyStatusPanel(Rect rect)
@@ -602,11 +746,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                     ? new Color(0.17f, 0.14f, 0.10f, 0.98f)
                     : new Color(0.09f, 0.12f, 0.18f, 0.98f);
         DrawOverlaySectionBackground(rect, backgroundColor);
-
-        Color previousColor = GUI.color;
-        GUI.color = accentColor;
-        GUI.DrawTexture(new Rect(rect.x, rect.y, 5f, rect.height), Texture2D.whiteTexture);
-        GUI.color = Color.white;
+        DrawSolidHudRect(new Rect(rect.x, rect.y, 5f, rect.height), accentColor);
 
         Rect avatarRect = new Rect(rect.x + 10f, rect.y + 10f, 28f, 28f);
         DrawOverlaySectionBackground(avatarRect, new Color(accentColor.r, accentColor.g, accentColor.b, 0.28f));
@@ -618,7 +758,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         Rect roleRect = new Rect(nameRect.x, nameRect.yMax + 3f, nameRect.width, 16f);
         Rect hpRect = new Rect(rect.x + 10f, rect.yMax - 24f, rect.width - 20f, 16f);
         Rect contributionRect = new Rect(nameRect.x, roleRect.yMax + 2f, rect.width - (nameRect.x - rect.x) - 10f, Mathf.Max(12f, hpRect.y - roleRect.yMax - 4f));
-        string contributionText = _bootEntry != null ? _bootEntry.GetPartyMemberContributionLabel(slotIndex - 1) : "D 0  H 0  A 0  K 0";
+        string contributionText = BuildBattlePartyMemberReadbackText(memberData, slotIndex - 1);
 
         DrawOverlaySectionBackground(statusRect, new Color(0.11f, 0.14f, 0.19f, 0.96f));
         DrawFittedLabel(nameRect, GetCompactHudText(memberName, 20, false), _sectionTitleStyle, 12, 10, false);
@@ -629,7 +769,16 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         float hpCurrent = memberData != null ? memberData.CurrentHp : 0f;
         float hpMax = memberData != null ? Mathf.Max(1f, memberData.MaxHp) : 1f;
         DrawStatusBar(hpRect, hpCurrent, hpMax, new Color(0.26f, 0.68f, 0.36f, 0.98f), "HP " + Mathf.RoundToInt(hpCurrent) + " / " + Mathf.RoundToInt(hpMax));
-        GUI.color = previousColor;
+    }
+
+    private string BuildBattlePartyMemberReadbackText(PrototypeBattleUiPartyMemberData memberData, int memberIndex)
+    {
+        if (memberData != null && HasMeaningfulText(memberData.SummaryText))
+        {
+            return memberData.SummaryText;
+        }
+
+        return _bootEntry != null ? _bootEntry.GetPartyMemberContributionLabel(memberIndex) : "D 0  H 0  A 0  K 0";
     }
 
     private void DrawEnemyInfoPanel(Rect rect)
@@ -665,10 +814,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         Color accentColor = GetBattleRoleAccentColor(roleLabel, true);
 
         DrawOverlaySectionBackground(rect, new Color(0.10f, 0.12f, 0.17f, 0.98f));
-        Color previousColor = GUI.color;
-        GUI.color = accentColor;
-        GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width, 4f), Texture2D.whiteTexture);
-        GUI.color = Color.white;
+        DrawSolidHudRect(new Rect(rect.x, rect.y, rect.width, 4f), accentColor);
 
         Rect nameRect = new Rect(rect.x + 10f, rect.y + 10f, rect.width - 106f, 20f);
         Rect eliteRect = new Rect(rect.xMax - 88f, rect.y + 10f, 78f, 22f);
@@ -694,7 +840,6 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         DrawStatusBar(hpRect, enemyData != null ? enemyData.CurrentHp : 0f, enemyData != null ? Mathf.Max(1f, enemyData.MaxHp) : 1f, new Color(0.72f, 0.28f, 0.26f, 0.98f), "HP " + (enemyData != null ? enemyData.CurrentHp + " / " + enemyData.MaxHp : "?"));
         DrawFittedLabel(intentRect, "Intent: " + GetCompactHudText(intentLabel, 44, false), _bodyStyle, 10, 9, false);
         DrawFittedLabel(traitRect, GetCompactHudText(traitLabel, 58, false), _bodyStyle, 10, 8, false);
-        GUI.color = previousColor;
     }
 
     private void DrawEnemyRosterStrip(Rect rect)
@@ -748,11 +893,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                     ? new Color(0.17f, 0.18f, 0.11f, 0.98f)
                     : new Color(0.09f, 0.11f, 0.15f, 0.98f);
         DrawOverlaySectionBackground(rect, rowColor);
-
-        Color previousColor = GUI.color;
-        GUI.color = accentColor;
-        GUI.DrawTexture(new Rect(rect.x, rect.y, 4f, rect.height), Texture2D.whiteTexture);
-        GUI.color = Color.white;
+        DrawSolidHudRect(new Rect(rect.x, rect.y, 4f, rect.height), accentColor);
 
         Rect indexRect = new Rect(rect.x + 8f, rect.y + 8f, 20f, 20f);
         Rect nameRect = new Rect(indexRect.xMax + 8f, rect.y + 6f, rect.width * 0.48f, 16f);
@@ -771,7 +912,6 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         DrawFittedLabel(nameRect, GetCompactHudText(displayName, 22, false), _bodyStyle, 10, 9, false);
         DrawFittedLabel(stateRect, GetCompactHudText(stateText, 18, false), _bodyStyle, 10, 8, false);
         DrawStatusBar(hpRect, enemyData != null ? enemyData.CurrentHp : 0f, enemyData != null ? Mathf.Max(1f, enemyData.MaxHp) : 1f, new Color(0.72f, 0.28f, 0.26f, 0.98f), "HP " + (enemyData != null ? enemyData.CurrentHp + " / " + enemyData.MaxHp : "?"));
-        GUI.color = previousColor;
     }
 
     private void DrawCommandFlyoutPanel(Rect rect)
@@ -785,7 +925,8 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         DrawOverlaySectionBackground(rect, new Color(0.07f, 0.10f, 0.15f, 0.98f));
         PrototypeBattleUiCommandDetailData[] moveOptions = focusKey == "move"
             ? GetBattleUiMoveOptionDetails()
-            : System.Array.Empty<PrototypeBattleUiCommandDetailData>();
+            : Array.Empty<PrototypeBattleUiCommandDetailData>();
+        int moveOptionCount = focusKey == "move" ? GetBattleUiMoveOptionCount() : 0;
         PrototypeBattleUiCommandDetailData detail = focusKey == "move"
             ? ResolveBattleFlyoutMoveDetail(GetBattleUiCommandDetailByKey(focusKey), moveOptions)
             : GetBattleUiCommandDetailByKey(focusKey);
@@ -798,14 +939,14 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         float buttonHeight = 44f;
         bool available = detail != null && detail.IsAvailable;
-        bool showMoveOptions = focusKey == "move" && moveOptions.Length > 0;
+        bool showMoveOptions = focusKey == "move" && moveOptionCount > 0;
         bool showPrimaryAction = focusKey != "item" && !showMoveOptions;
         float contentY = contentRect.y;
         if (showMoveOptions)
         {
             Event current = Event.current;
             Vector2 mousePosition = current != null ? current.mousePosition : Vector2.zero;
-            for (int index = 0; index < moveOptions.Length; index++)
+            for (int index = 0; index < moveOptionCount; index++)
             {
                 PrototypeBattleUiCommandDetailData option = moveOptions[index];
                 if (option == null)
@@ -818,7 +959,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 if (hovered)
                 {
                     _battleHudHoverDetailKey = option.Key;
-                    _bootEntry.SetBattleActionHover(option.Key);
+                    SetBattleActionHoverIfChanged(option.Key);
                 }
 
                 if (DrawBottomCommandButton(optionRect, option.Label, option.IsAvailable, hovered, false))
@@ -857,7 +998,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         Rect descriptionRect = new Rect(contentRect.x, contentY, contentRect.width, descriptionHeight);
         DrawOverlaySectionBackground(descriptionRect, new Color(0.11f, 0.15f, 0.21f, 0.88f));
-        GUI.Label(new Rect(descriptionRect.x + 8f, descriptionRect.y + 6f, descriptionRect.width - 16f, descriptionRect.height - 12f), descriptionText, CreateHudMeasureStyle(_bodyStyle, 10, true));
+        DrawHudLabel(new Rect(descriptionRect.x + 8f, descriptionRect.y + 6f, descriptionRect.width - 16f, descriptionRect.height - 12f), descriptionText, CreateHudMeasureStyle(_bodyStyle, 10, true));
 
         Rect targetRect = new Rect(contentRect.x, descriptionRect.yMax + gap, metaWidth, metaRowHeight);
         Rect costRect = new Rect(targetRect.xMax + metaGap, targetRect.y, contentRect.width - metaWidth - metaGap, metaRowHeight);
@@ -869,7 +1010,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         {
             Rect noteRect = new Rect(contentRect.x, effectRect.yMax + gap, contentRect.width, noteHeight);
             DrawOverlaySectionBackground(noteRect, new Color(0.22f, 0.18f, 0.10f, 0.88f));
-            GUI.Label(new Rect(noteRect.x + 8f, noteRect.y + 4f, noteRect.width - 16f, noteRect.height - 8f), "Unavailable in this batch.", _bodyStyle);
+            DrawHudLabel(new Rect(noteRect.x + 8f, noteRect.y + 4f, noteRect.width - 16f, noteRect.height - 8f), "Unavailable in this batch.", _bodyStyle);
         }
     }
 
@@ -915,7 +1056,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 if (commandKey == "attack" || commandKey == "skill" || commandKey == "move" || commandKey == "end_turn")
                 {
                     hoveredActionKey = commandKey;
-                    _bootEntry.SetBattleActionHover(commandKey);
+                    SetBattleActionHoverIfChanged(commandKey);
                 }
             }
 
@@ -927,7 +1068,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         if (string.IsNullOrEmpty(hoveredActionKey))
         {
-            _bootEntry.SetBattleActionHover(string.Empty);
+            SetBattleActionHoverIfChanged(string.Empty);
         }
     }
 
@@ -1015,7 +1156,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         Rect titleRect = new Rect(rect.x + 8f, rect.y + 5f, rect.width - 16f, 12f);
         Rect valueRect = new Rect(rect.x + 8f, titleRect.yMax + 4f, rect.width - 16f, rect.height - 21f);
         DrawFittedLabel(titleRect, title, _sectionTitleStyle, 9, 8, false);
-        GUI.Label(valueRect, HasMeaningfulText(value) ? value : "None", CreateHudMeasureStyle(_bodyStyle, 9, true));
+        DrawHudLabel(valueRect, HasMeaningfulText(value) ? value : "None", CreateHudMeasureStyle(_bodyStyle, 9, true));
     }
 
     private float GetPreferredBattleCommandSelectionHeight()
@@ -1031,12 +1172,13 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         string focusKey = GetBattleCommandFocusKey();
         PrototypeBattleUiCommandDetailData[] moveOptions = focusKey == "move"
             ? GetBattleUiMoveOptionDetails()
-            : System.Array.Empty<PrototypeBattleUiCommandDetailData>();
+            : Array.Empty<PrototypeBattleUiCommandDetailData>();
+        int moveOptionCount = focusKey == "move" ? GetBattleUiMoveOptionCount() : 0;
         PrototypeBattleUiCommandDetailData detail = focusKey == "move"
             ? ResolveBattleFlyoutMoveDetail(GetBattleUiCommandDetailByKey(focusKey), moveOptions)
             : GetBattleUiCommandDetailByKey(focusKey);
         bool available = detail != null && detail.IsAvailable;
-        bool showMoveOptions = focusKey == "move" && moveOptions.Length > 0;
+        bool showMoveOptions = focusKey == "move" && moveOptionCount > 0;
         bool showPrimaryAction = focusKey != "item" && !showMoveOptions;
         float contentWidth = Mathf.Max(160f, panelWidth - (SectionInnerPadding * 2f));
         string descriptionText = detail != null && HasMeaningfulText(detail.Description)
@@ -1044,7 +1186,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             : "Choose a command to inspect its target, cost, and effect.";
         float baseHeight = 8f + 18f + 3f + 16f + 8f + 12f;
         float actionHeight = showMoveOptions
-            ? (moveOptions.Length * 52f) + (Mathf.Max(0, moveOptions.Length - 1) * 8f)
+            ? (moveOptionCount * 52f) + (Mathf.Max(0, moveOptionCount - 1) * 8f)
             : showPrimaryAction
                 ? 52f
                 : 0f;
@@ -1124,7 +1266,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         if (string.IsNullOrEmpty(hoveredActionKey))
         {
-            _bootEntry.SetBattleActionHover(string.Empty);
+            SetBattleActionHoverIfChanged(string.Empty);
         }
     }
 
@@ -1161,7 +1303,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         if (string.IsNullOrEmpty(hoveredActionKey))
         {
-            _bootEntry.SetBattleActionHover(string.Empty);
+            SetBattleActionHoverIfChanged(string.Empty);
         }
     }
 
@@ -1193,7 +1335,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             _battleFlyoutMode = BattleHudFlyoutMode.ActorCommandMenu;
         }
 
-        _bootEntry.SetBattleActionHover(string.Empty);
+        SetBattleActionHoverIfChanged(string.Empty);
     }
 
     private void DrawPartyCommandMenu(Rect rect)
@@ -1229,7 +1371,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         if (string.IsNullOrEmpty(hoveredActionKey))
         {
-            _bootEntry.SetBattleActionHover(string.Empty);
+            SetBattleActionHoverIfChanged(string.Empty);
         }
     }
 
@@ -1272,7 +1414,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         if (string.IsNullOrEmpty(hoveredActionKey))
         {
-            _bootEntry.SetBattleActionHover(string.Empty);
+            SetBattleActionHoverIfChanged(string.Empty);
         }
     }
 
@@ -1337,12 +1479,8 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             : "No new feedback.";
 
         DrawFittedLabel(promptRect, prompt, _bodyStyle, 10, 9, false);
-        Color previousColor = GUI.color;
-        GUI.color = new Color(0.56f, 0.68f, 0.82f, 0.16f);
-        GUI.DrawTexture(dividerRect, Texture2D.whiteTexture);
-        GUI.color = Color.white;
+        DrawSolidHudRect(dividerRect, new Color(0.56f, 0.68f, 0.82f, 0.16f));
         DrawFittedLabel(feedbackRect, "Last: " + feedback, _bodyStyle, 10, 9, false);
-        GUI.color = previousColor;
     }
 
     private void DrawTargetSelectionOverlay(Rect hudRect, Rect mainRect)
@@ -1390,7 +1528,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         {
             hoveredActionKey = actionKey;
             _battleHudHoverDetailKey = actionKey;
-            _bootEntry.SetBattleActionHover(actionKey);
+            SetBattleActionHoverIfChanged(actionKey);
         }
 
         return DrawInteractiveButton(rect, label, available, hovered, selected);
@@ -1522,31 +1660,23 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private string BuildPartyCardStatusText(string memberLabel, bool active, bool targeted, bool knockedOut)
     {
-        List<string> states = new List<string>();
-        if (knockedOut)
-        {
-            states.Add("KO");
-        }
-        else if (active)
-        {
-            states.Add("Acting");
-        }
-        else
-        {
-            states.Add("Ready");
-        }
+        string stateText = knockedOut
+            ? "KO"
+            : active
+                ? "Acting"
+                : "Ready";
 
         if (targeted)
         {
-            states.Add("Targeted");
+            stateText += " | Targeted";
         }
 
         if (ContainsIgnoreCase(memberLabel, "guard"))
         {
-            states.Add("Guard");
+            stateText += " | Guard";
         }
 
-        return string.Join(" | ", states.ToArray());
+        return stateText;
     }
 
     private string BuildBottomCommandBarBody()
@@ -1574,30 +1704,42 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     private string GetBattleHudHeaderSummary()
     {
         PrototypeBattleUiSurfaceData surface = GetBattleUiSurfaceData();
-        List<string> tokens = new List<string>();
+        string summary = string.Empty;
         if (surface != null && HasMeaningfulText(surface.CurrentDungeonName) && surface.CurrentDungeonName != "None")
         {
-            tokens.Add(surface.CurrentDungeonName);
+            summary = surface.CurrentDungeonName;
         }
 
         if (surface != null && HasMeaningfulText(surface.CurrentRouteLabel) && surface.CurrentRouteLabel != "None")
         {
-            tokens.Add(surface.CurrentRouteLabel);
+            summary = AppendBattleSummaryToken(summary, surface.CurrentRouteLabel);
         }
 
         if (surface != null && HasMeaningfulText(surface.TotalPartyHp) && surface.TotalPartyHp != "None")
         {
-            tokens.Add("Party " + surface.TotalPartyHp);
+            summary = AppendBattleSummaryToken(summary, "Party " + surface.TotalPartyHp);
         }
 
         if (surface != null && HasMeaningfulText(surface.EliteStatusText) && surface.EliteStatusText != "None")
         {
-            tokens.Add(surface.EliteStatusText);
+            summary = AppendBattleSummaryToken(summary, surface.EliteStatusText);
         }
 
-        return tokens.Count > 0
-            ? GetCompactHudText(string.Join("   ", tokens.ToArray()), 132, false)
+        return HasMeaningfulText(summary)
+            ? GetCompactHudText(summary, 132, false)
             : "Battle in progress";
+    }
+
+    private string AppendBattleSummaryToken(string summary, string nextToken)
+    {
+        if (!HasMeaningfulText(nextToken))
+        {
+            return summary;
+        }
+
+        return HasMeaningfulText(summary)
+            ? summary + "   " + nextToken
+            : nextToken;
     }
 
     private string GetBattleDungeonNameLabel()
@@ -1672,41 +1814,57 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private void DrawFittedLabel(Rect rect, string text, GUIStyle baseStyle, int maxFontSize, int minFontSize, bool wordWrap)
     {
-        string safeText = string.IsNullOrEmpty(text) ? string.Empty : text;
-        GUIStyle fittedStyle = new GUIStyle(baseStyle);
-        fittedStyle.fontSize = Mathf.Max(minFontSize, maxFontSize);
-        fittedStyle.wordWrap = wordWrap;
-        fittedStyle.clipping = TextClipping.Clip;
-        fittedStyle.padding = new RectOffset(0, 0, 0, 0);
-        fittedStyle.margin = new RectOffset(0, 0, 0, 0);
-
-        GUIContent content = new GUIContent(safeText);
-        float measuredHeight = wordWrap ? fittedStyle.CalcHeight(content, rect.width) : fittedStyle.CalcSize(content).y;
-        while (fittedStyle.fontSize > minFontSize && measuredHeight > rect.height)
+        if (!ShouldDrawCurrentEventVisuals())
         {
-            fittedStyle.fontSize--;
-            measuredHeight = wordWrap ? fittedStyle.CalcHeight(content, rect.width) : fittedStyle.CalcSize(content).y;
+            return;
         }
 
-        GUI.Label(rect, safeText, fittedStyle);
+        string safeText = string.IsNullOrEmpty(text) ? string.Empty : text;
+        int resolvedFontSize = Mathf.Max(minFontSize, maxFontSize);
+        if (wordWrap && minFontSize < maxFontSize)
+        {
+            float measuredHeight = MeasureWrappedHudTextHeight(safeText, baseStyle, resolvedFontSize, rect.width);
+            if (measuredHeight > rect.height)
+            {
+                resolvedFontSize = minFontSize;
+            }
+        }
+        else if (!wordWrap && minFontSize < maxFontSize)
+        {
+            GUIStyle maxStyle = GetHudStyleVariant(baseStyle, resolvedFontSize, false);
+            if (maxStyle.lineHeight > rect.height + 0.5f)
+            {
+                resolvedFontSize = minFontSize;
+            }
+        }
+
+        DrawHudLabel(rect, safeText, GetHudStyleVariant(baseStyle, resolvedFontSize, wordWrap));
     }
 
     private GUIStyle CreateHudMeasureStyle(GUIStyle baseStyle, int fontSize, bool wordWrap)
     {
-        GUIStyle style = new GUIStyle(baseStyle);
-        style.fontSize = fontSize;
-        style.wordWrap = wordWrap;
-        style.clipping = TextClipping.Clip;
-        style.padding = new RectOffset(0, 0, 0, 0);
-        style.margin = new RectOffset(0, 0, 0, 0);
-        return style;
+        return GetHudStyleVariant(baseStyle, fontSize, wordWrap);
     }
 
     private float MeasureWrappedHudTextHeight(string text, GUIStyle baseStyle, int fontSize, float width)
     {
-        GUIContent content = new GUIContent(string.IsNullOrEmpty(text) ? string.Empty : text);
+        string safeText = string.IsNullOrEmpty(text) ? string.Empty : text;
+        int widthBucket = Mathf.RoundToInt(Mathf.Max(1f, width) * 10f);
+        HudMeasureKey cacheKey = new HudMeasureKey(GetHudBaseStyleId(baseStyle), fontSize, widthBucket, safeText);
+        if (_hudMeasureHeights.TryGetValue(cacheKey, out float cachedHeight))
+        {
+            return cachedHeight;
+        }
+
         GUIStyle style = CreateHudMeasureStyle(baseStyle, fontSize, true);
-        return style.CalcHeight(content, Mathf.Max(1f, width));
+        float measuredHeight = style.CalcHeight(GetReusableHudContent(safeText), Mathf.Max(1f, width));
+        if (_hudMeasureHeights.Count >= 512)
+        {
+            _hudMeasureHeights.Clear();
+        }
+
+        _hudMeasureHeights[cacheKey] = measuredHeight;
+        return measuredHeight;
     }
 
     private void DrawBattleInfoPill(Rect rect, string title, string value, Color backgroundColor)
@@ -1842,14 +2000,28 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private void RefreshBattleUiSurface()
     {
+        RefreshBattleUiSurface(EventType.Repaint);
+    }
+
+    private void RefreshBattleUiSurface(EventType currentEventType)
+    {
         if (_bootEntry == null)
         {
-            _battleUiSurface = new PrototypeBattleUiSurfaceData();
+            ResetBattleUiSurfaceCache();
+            return;
+        }
+
+        int currentFrame = Time.frameCount;
+        if (_battleUiSurfaceFrame == currentFrame && _battleUiSurfaceEventType == currentEventType)
+        {
             return;
         }
 
         PrototypeBattleUiSurfaceData surface = _bootEntry.GetBattleUiSurfaceData();
         _battleUiSurface = surface ?? new PrototypeBattleUiSurfaceData();
+        _battleUiSurfaceFrame = currentFrame;
+        _battleUiSurfaceEventType = currentEventType;
+        RebuildBattleMoveOptionCache();
     }
 
     private PrototypeBattleUiSurfaceData GetBattleUiSurfaceData()
@@ -1904,23 +2076,12 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private PrototypeBattleUiCommandDetailData[] GetBattleUiMoveOptionDetails()
     {
-        PrototypeBattleUiCommandSurfaceData commandSurface = GetBattleUiSurfaceData().CommandSurface;
-        if (commandSurface == null || commandSurface.Details == null || commandSurface.Details.Length == 0)
-        {
-            return System.Array.Empty<PrototypeBattleUiCommandDetailData>();
-        }
+        return _battleMoveOptionBuffer;
+    }
 
-        System.Collections.Generic.List<PrototypeBattleUiCommandDetailData> moveOptions = new System.Collections.Generic.List<PrototypeBattleUiCommandDetailData>();
-        for (int i = 0; i < commandSurface.Details.Length; i++)
-        {
-            PrototypeBattleUiCommandDetailData detail = commandSurface.Details[i];
-            if (detail != null && IsBattleMoveOptionKey(detail.Key))
-            {
-                moveOptions.Add(detail);
-            }
-        }
-
-        return moveOptions.Count > 0 ? moveOptions.ToArray() : System.Array.Empty<PrototypeBattleUiCommandDetailData>();
+    private int GetBattleUiMoveOptionCount()
+    {
+        return _battleMoveOptionCount;
     }
 
     private PrototypeBattleUiCommandDetailData ResolveBattleFlyoutMoveDetail(PrototypeBattleUiCommandDetailData fallbackDetail, PrototypeBattleUiCommandDetailData[] moveOptions)
@@ -1934,7 +2095,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             }
         }
 
-        return moveOptions != null && moveOptions.Length > 0
+        return moveOptions != null && _battleMoveOptionCount > 0
             ? moveOptions[0] ?? fallbackDetail
             : fallbackDetail;
     }
@@ -2063,22 +2224,22 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private void DrawStatusBar(Rect rect, float current, float max, Color fillColor, string label)
     {
-        Color previousColor = GUI.color;
-        GUI.color = new Color(0.06f, 0.08f, 0.11f, 0.92f);
-        GUI.Box(rect, GUIContent.none, _panelStyle);
+        if (!ShouldDrawCurrentEventVisuals())
+        {
+            return;
+        }
+
+        DrawSolidHudRect(rect, new Color(0.06f, 0.08f, 0.11f, 0.92f));
 
         float fillRatio = Mathf.Clamp01(current / max);
         if (fillRatio > 0f)
         {
             Rect fillRect = new Rect(rect.x + 1f, rect.y + 1f, (rect.width - 2f) * fillRatio, rect.height - 2f);
-            GUI.color = fillColor;
-            GUI.DrawTexture(fillRect, Texture2D.whiteTexture);
+            DrawSolidHudRect(fillRect, fillColor);
         }
 
-        GUI.color = Color.white;
         int maxLength = rect.width < 120f ? 14 : 22;
-        GUI.Label(new Rect(rect.x + 6f, rect.y, rect.width - 12f, rect.height), GetCompactHudText(label, maxLength, false), _sectionTitleStyle);
-        GUI.color = previousColor;
+        DrawHudLabel(new Rect(rect.x + 6f, rect.y, rect.width - 12f, rect.height), GetCompactHudText(label, maxLength, false), _sectionTitleStyle);
     }
     private string GetNextBattleTimelineText()
     {
@@ -2205,6 +2366,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         _selectedBattleCommandKey = string.Empty;
         _selectedBattleCommandOwnerKey = string.Empty;
         _battleHudHoverDetailKey = string.Empty;
+        SetBattleActionHoverIfChanged(string.Empty);
     }
 
     private bool IsBattleInputModalOpen()
@@ -2494,18 +2656,26 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private bool DrawInteractiveButton(Rect rect, string label, bool available, bool hovered, bool selected)
     {
-        Color previousColor = GUI.color;
-        GUI.color = !available
-            ? new Color(0.10f, 0.10f, 0.12f, 0.72f)
-            : selected
-                ? new Color(0.22f, 0.37f, 0.52f, 0.96f)
-                : hovered
-                    ? new Color(0.18f, 0.28f, 0.40f, 0.96f)
-                    : new Color(0.10f, 0.14f, 0.20f, 0.94f);
-        GUI.Box(rect, GUIContent.none, _panelStyle);
-        GUI.color = available ? Color.white : new Color(0.6f, 0.64f, 0.68f, 1f);
-        GUI.Label(rect, label, _actionButtonStyle);
-        GUI.color = previousColor;
+        if (ShouldDrawCurrentEventVisuals())
+        {
+            Color buttonColor = !available
+                ? new Color(0.10f, 0.10f, 0.12f, 0.72f)
+                : selected
+                    ? new Color(0.22f, 0.37f, 0.52f, 0.96f)
+                    : hovered
+                        ? new Color(0.18f, 0.28f, 0.40f, 0.96f)
+                        : new Color(0.10f, 0.14f, 0.20f, 0.94f);
+            DrawSolidHudRect(rect, buttonColor);
+            if (!_battleHudFastBackground)
+            {
+                DrawSolidHudRect(new Rect(rect.x, rect.y, rect.width, 1f), new Color(0.64f, 0.78f, 0.92f, 0.16f));
+            }
+
+            Color previousColor = GUI.color;
+            GUI.color = available ? Color.white : new Color(0.6f, 0.64f, 0.68f, 1f);
+            DrawHudLabel(rect, label, _actionButtonStyle);
+            GUI.color = previousColor;
+        }
 
         Event current = Event.current;
         if (available && current != null && current.type == EventType.MouseDown && current.button == 0 && rect.Contains(current.mousePosition))
@@ -2534,12 +2704,12 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         string safeBody = string.IsNullOrEmpty(body) ? "None" : body;
         bool showVerticalScrollbar = false;
         float contentWidth = Mathf.Max(32f, viewportRect.width - 4f);
-        float contentHeight = Mathf.Max(viewportRect.height, _bodyStyle.CalcHeight(new GUIContent(safeBody), contentWidth));
+        float contentHeight = Mathf.Max(viewportRect.height, MeasureWrappedHudTextHeight(safeBody, _bodyStyle, _bodyStyle.fontSize, contentWidth));
         if (contentHeight > viewportRect.height)
         {
             showVerticalScrollbar = true;
             contentWidth = Mathf.Max(32f, viewportRect.width - 18f);
-            contentHeight = Mathf.Max(viewportRect.height, _bodyStyle.CalcHeight(new GUIContent(safeBody), contentWidth));
+            contentHeight = Mathf.Max(viewportRect.height, MeasureWrappedHudTextHeight(safeBody, _bodyStyle, _bodyStyle.fontSize, contentWidth));
         }
 
         Vector2 scrollPosition = GetOverlayScrollPosition(scrollKey);
@@ -2549,7 +2719,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             new Rect(0f, 0f, contentWidth, contentHeight),
             false,
             showVerticalScrollbar);
-        GUI.Label(new Rect(0f, 0f, contentWidth, contentHeight), safeBody, _bodyStyle);
+        DrawHudLabel(new Rect(0f, 0f, contentWidth, contentHeight), safeBody, _bodyStyle);
         GUI.EndScrollView();
 
         if (!string.IsNullOrEmpty(scrollKey))
@@ -2584,22 +2754,27 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private void DrawOverlaySectionBackground(Rect rect, Color backgroundColor)
     {
+        if (!ShouldDrawCurrentEventVisuals())
+        {
+            return;
+        }
+
+        if (_battleHudFastBackground)
+        {
+            DrawSolidHudRect(rect, backgroundColor);
+            return;
+        }
+
         float innerWidth = Mathf.Max(0f, rect.width - 2f);
         float innerHeight = Mathf.Max(0f, rect.height - 2f);
         Rect innerRect = new Rect(rect.x + 1f, rect.y + 1f, innerWidth, innerHeight);
-        Color previousColor = GUI.color;
-        GUI.color = new Color(0.01f, 0.02f, 0.03f, Mathf.Clamp01(backgroundColor.a));
-        GUI.DrawTexture(rect, Texture2D.whiteTexture);
+        DrawSolidHudRect(rect, new Color(0.01f, 0.02f, 0.03f, Mathf.Clamp01(backgroundColor.a)));
         if (innerWidth > 0f && innerHeight > 0f)
         {
-            GUI.color = backgroundColor;
-            GUI.DrawTexture(innerRect, Texture2D.whiteTexture);
-            GUI.color = new Color(0.56f, 0.68f, 0.82f, 0.10f);
-            GUI.DrawTexture(new Rect(innerRect.x, innerRect.y, innerRect.width, 2f), Texture2D.whiteTexture);
-            GUI.color = new Color(0f, 0f, 0f, 0.34f);
-            GUI.DrawTexture(new Rect(innerRect.x, innerRect.yMax - 1f, innerRect.width, 1f), Texture2D.whiteTexture);
+            DrawSolidHudRect(innerRect, backgroundColor);
+            DrawSolidHudRect(new Rect(innerRect.x, innerRect.y, innerRect.width, 2f), new Color(0.56f, 0.68f, 0.82f, 0.10f));
+            DrawSolidHudRect(new Rect(innerRect.x, innerRect.yMax - 1f, innerRect.width, 1f), new Color(0f, 0f, 0f, 0.34f));
         }
-        GUI.color = previousColor;
     }
 
     private void DrawTitleBar(Rect rect)
@@ -2741,7 +2916,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         for (int i = 0; i < panels.Count; i++)
         {
             bool expanded = IsExpanded(panels[i].Key);
-            float bodyHeight = expanded ? Mathf.Max(28f, _bodyStyle.CalcHeight(new GUIContent(panels[i].Body), bodyWidth)) : 0f;
+            float bodyHeight = expanded ? Mathf.Max(28f, MeasureWrappedHudTextHeight(panels[i].Body, _bodyStyle, _bodyStyle.fontSize, bodyWidth)) : 0f;
             height += 28f + (expanded ? bodyHeight + 16f : 0f) + PanelGap;
         }
 
@@ -2755,7 +2930,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         {
             HudPanel panel = panels[i];
             bool expanded = IsExpanded(panel.Key);
-            float bodyHeight = expanded ? Mathf.Max(28f, _bodyStyle.CalcHeight(new GUIContent(panel.Body), rect.width - 20f)) : 0f;
+            float bodyHeight = expanded ? Mathf.Max(28f, MeasureWrappedHudTextHeight(panel.Body, _bodyStyle, _bodyStyle.fontSize, rect.width - 20f)) : 0f;
             float panelHeight = 28f + (expanded ? bodyHeight + 16f : 0f);
             Rect panelRect = new Rect(rect.x, y, rect.width, panelHeight);
 
@@ -2787,6 +2962,19 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             y += panelHeight + PanelGap;
         }
     }
+
+    private List<HudPanel> GetDockPanels()
+    {
+        if (_dockPanels != null && _dockPanelsFrame == Time.frameCount)
+        {
+            return _dockPanels;
+        }
+
+        _dockPanels = BuildPanels();
+        _dockPanelsFrame = Time.frameCount;
+        return _dockPanels;
+    }
+
     private List<HudPanel> BuildPanels()
     {
         PrototypeDungeonRunShellSurfaceData dungeonShellSurface = new PrototypeDungeonRunShellSurfaceData();
@@ -2796,6 +2984,11 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         if (_bootEntry != null && _bootEntry.IsDungeonRunHudMode)
         {
+            if (_expandedByKey != null)
+            {
+                _expandedByKey["dungeon_run"] = true;
+            }
+
             dungeonShellSurface = _bootEntry.GetDungeonRunShellSurfaceData();
             expeditionStartContext = dungeonShellSurface.ExpeditionStartContext ?? new ExpeditionStartContext();
             dungeonPanelContext = dungeonShellSurface.PanelContext ?? new PrototypeDungeonPanelContext();
@@ -2813,14 +3006,14 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         return new List<HudPanel>
         {
-            new HudPanel("sim_status", T("PanelSimulationStatus"), BuildPanelBody(
+            new HudPanel("sim_status", T("PanelSimulationStatus"), () => BuildPanelBody(
                 Line("Prototype", _bootEntry.PrototypeNameLabel),
                 Line("Step", _bootEntry.DebugStepLabel),
                 Line("Language", _bootEntry.CurrentLanguageLabel),
                 Line("CurrentState", V(_bootEntry.CurrentStateLabel)),
                 Line("LastTransition", V(_bootEntry.LastTransitionLabel)),
                 Line("Visible", BuildVisibleSummary())), HudFilter.Simulation),
-            new HudPanel("world_snapshot", T("PanelWorldSnapshot"), BuildPanelBody(
+            new HudPanel("world_snapshot", T("PanelWorldSnapshot"), () => BuildPanelBody(
                 Line("WorldEntities", _bootEntry.WorldEntityCount),
                 Line("WorldRoutes", _bootEntry.WorldRouteCount),
                 Line("ResourceCount", _bootEntry.ResourceCount),
@@ -2834,14 +3027,14 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("CameraPosition", GetCameraPositionText()),
                 Line("Zoom", GetZoomText()),
                 Line("Controls", _bootEntry.ControlsLabel)), HudFilter.Simulation),
-            new HudPanel("trade_flow", T("PanelTradeFlow"), BuildPanelBody(
+            new HudPanel("trade_flow", T("PanelTradeFlow"), () => BuildPanelBody(
                 Line("TradeOpportunities", _bootEntry.TradeOpportunityCount),
                 Line("ActiveTradeOpportunities", _bootEntry.ActiveTradeOpportunityCount),
                 Line("UnmetCityNeeds", _bootEntry.UnmetCityNeedsCount),
                 Line("TradeLink1", V(_bootEntry.TradeLink1Label)),
                 Line("TradeLink2", V(_bootEntry.TradeLink2Label)),
                 Line("DungeonOutputHint", V(_bootEntry.DungeonOutputHintLabel))), HudFilter.Economy),
-            new HudPanel("economy_control", T("PanelEconomyControl"), BuildPanelBody(
+            new HudPanel("economy_control", T("PanelEconomyControl"), () => BuildPanelBody(
                 Line("EconomyControls", _bootEntry.EconomyControlsLabel),
                 Line("WorldDay", _bootEntry.WorldDayCount),
                 Line("AutoTickEnabled", BoolText(_bootEntry.AutoTickEnabled)),
@@ -2849,7 +3042,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("TickInterval", _bootEntry.TickIntervalSeconds.ToString("0.00")),
                 Line("AutoTickCount", _bootEntry.AutoTickCount),
                 Line("TradeStepCount", _bootEntry.TradeStepCount)), HudFilter.Economy),
-            new HudPanel("expedition_loop", T("PanelExpeditionLoop"), BuildPanelBody(
+            new HudPanel("expedition_loop", T("PanelExpeditionLoop"), () => BuildPanelBody(
                 Line("ExpeditionControls", _bootEntry.ExpeditionControlsLabel),
                 Line("TotalParties", _bootEntry.TotalParties),
                 Line("IdleParties", _bootEntry.IdleParties),
@@ -2862,7 +3055,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("RecentExpeditionLog2", V(_bootEntry.RecentExpeditionLog2Label)),
                 Line("RecentExpeditionLog3", V(_bootEntry.RecentExpeditionLog3Label))), HudFilter.Economy),
             BuildDungeonRunSummaryPanel(dungeonShellSurface, expeditionStartContext, dungeonPanelContext),
-            new HudPanel("dungeon_battle", T("PanelDungeonBattle"), BuildPanelBody(
+            new HudPanel("dungeon_battle", T("PanelDungeonBattle"), () => BuildPanelBody(
                 "Battle View: " + V(_bootEntry.BattleViewStateLabel),
                 "Encounter: " + V(_bootEntry.EncounterNameLabel),
                 Line("EncounterRoomType", V(_bootEntry.EncounterRoomTypeLabel)),
@@ -2884,7 +3077,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 "Feedback: " + V(_bootEntry.BattleFeedbackLabel),
                 Line("CurrentSelectionPrompt", V(_bootEntry.CurrentSelectionPromptLabel))), HudFilter.Logs),
             BuildDungeonResultSummaryPanel(dungeonRunResultContext),
-            new HudPanel("economy_pressure", T("PanelEconomyPressure"), BuildPanelBody(
+            new HudPanel("economy_pressure", T("PanelEconomyPressure"), () => BuildPanelBody(
                 Line("ProducedTotal", _bootEntry.ProducedTotal),
                 Line("ClaimedDungeonOutputs", _bootEntry.ClaimedDungeonOutputsTotal),
                 Line("TradedTotal", _bootEntry.TradedTotal),
@@ -2907,7 +3100,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("CitiesWithSurplus", V(_bootEntry.CitiesWithSurplusLabel)),
                 Line("CitiesWithProcessing", V(_bootEntry.CitiesWithProcessingLabel)),
                 Line("CitiesWithCriticalUnmet", V(_bootEntry.CitiesWithCriticalUnmetLabel))), HudFilter.Economy),
-            new HudPanel("selected_entity", T("PanelSelectedEntity"), BuildPanelBody(
+            new HudPanel("selected_entity", T("PanelSelectedEntity"), () => BuildPanelBody(
                 Line("Selected", V(_bootEntry.SelectedDisplayName)),
                 Line("SelectedType", V(_bootEntry.SelectedTypeLabel)),
                 Line("SelectedPosition", V(_bootEntry.SelectedPositionLabel)),
@@ -2916,7 +3109,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("SelectedStat", V(_bootEntry.SelectedStatLabel)),
                 Line("SelectedResources", V(_bootEntry.SelectedResourcesLabel)),
                 Line("SelectedResourceRoles", V(_bootEntry.SelectedResourceRolesLabel))), HudFilter.Selected),
-            new HudPanel("selected_economy", T("PanelSelectedEconomy"), BuildPanelBody(
+            new HudPanel("selected_economy", T("PanelSelectedEconomy"), () => BuildPanelBody(
                 Line("SelectedSupply", V(_bootEntry.SelectedSupplyLabel)),
                 Line("SelectedNeeds", V(_bootEntry.SelectedNeedsLabel)),
                 Line("SelectedHighPriorityNeeds", V(_bootEntry.SelectedHighPriorityNeedsLabel)),
@@ -2965,7 +3158,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("SelectedIdentity", V(_bootEntry.SelectedIdentityLabel)),
                 Line("ReserveStockRule", V(_bootEntry.SelectedReserveStockRuleLabel)),
                 Line("ProcessingPreference", V(_bootEntry.SelectedProcessingPreferenceLabel))), HudFilter.Selected),
-            new HudPanel("selected_day_metrics", T("PanelSelectedDayMetrics"), BuildPanelBody(
+            new HudPanel("selected_day_metrics", T("PanelSelectedDayMetrics"), () => BuildPanelBody(
                 Line("LastDayProduced", V(_bootEntry.SelectedLastDayProducedLabel)),
                 Line("LastDayDungeonImports", V(_bootEntry.SelectedLastDayDungeonImportsLabel)),
                 Line("LastDayImported", V(_bootEntry.SelectedLastDayImportedLabel)),
@@ -2989,11 +3182,11 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 Line("LastDayProcessingBlocked", V(_bootEntry.SelectedLastDayProcessingBlockedLabel)),
                 Line("LastDayProcessingReserved", V(_bootEntry.SelectedLastDayProcessingReservedLabel)),
                 Line("LastDayClaimedOut", V(_bootEntry.SelectedLastDayClaimedOutLabel))), HudFilter.Selected),
-            new HudPanel("selected_trade_signals", T("PanelSelectedTradeSignals"), BuildPanelBody(
+            new HudPanel("selected_trade_signals", T("PanelSelectedTradeSignals"), () => BuildPanelBody(
                 Line("SelectedIncomingTrade", V(_bootEntry.SelectedIncomingTradeLabel)),
                 Line("SelectedOutgoingTrade", V(_bootEntry.SelectedOutgoingTradeLabel)),
                 Line("SelectedUnmetNeeds", V(_bootEntry.SelectedUnmetNeedsLabel))), HudFilter.Selected),
-            new HudPanel("recent_logs", T("PanelRecentDayLogs"), BuildPanelBody(
+            new HudPanel("recent_logs", T("PanelRecentDayLogs"), () => BuildPanelBody(
                 Line("RecentDayLog1", V(_bootEntry.RecentDayLog1Label)),
                 Line("RecentDayLog2", V(_bootEntry.RecentDayLog2Label)),
                 Line("RecentDayLog3", V(_bootEntry.RecentDayLog3Label))), HudFilter.Logs)
@@ -3005,7 +3198,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         PrototypeDungeonRunShellSurfaceData safeShellSurface = shellSurface ?? new PrototypeDungeonRunShellSurfaceData();
         ExpeditionStartContext safeExpeditionStartContext = expeditionStartContext ?? new ExpeditionStartContext();
         PrototypeDungeonPanelContext safeDungeonPanelContext = dungeonPanelContext ?? new PrototypeDungeonPanelContext();
-        return new HudPanel("dungeon_run", T("PanelDungeonRun"), BuildPanelBody(
+        return new HudPanel("dungeon_run", T("PanelDungeonRun"), () => BuildPanelBody(
             Line("Step", _bootEntry.DebugStepLabel),
             Line("WorldSimControls", _bootEntry.DungeonRunWorldControlsLabel),
             Line("DungeonExploreControls", _bootEntry.DungeonRunExploreControlsLabel),
@@ -3058,7 +3251,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     private HudPanel BuildDungeonResultSummaryPanel(PrototypeDungeonRunResultContext resultContext)
     {
         PrototypeDungeonRunResultContext safeResultContext = resultContext ?? new PrototypeDungeonRunResultContext();
-        return new HudPanel("dungeon_result", T("PanelDungeonResult"), BuildPanelBody(
+        return new HudPanel("dungeon_result", T("PanelDungeonResult"), () => BuildPanelBody(
             Line("Result", V(safeResultContext.ResultStateText)),
             Line("CityDispatchedFrom", V(safeResultContext.CityDispatchedFromText)),
             Line("DungeonChosen", V(safeResultContext.DungeonLabel)),
@@ -3209,9 +3402,9 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             { "selected_economy", false },
             { "selected_day_metrics", false },
             { "selected_trade_signals", false },
-            { "dungeon_run", true },
-            { "dungeon_battle", true },
-            { "dungeon_result", true },
+            { "dungeon_run", false },
+            { "dungeon_battle", false },
+            { "dungeon_result", false },
             { "recent_logs", false }
         };
     }
@@ -3320,6 +3513,171 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         _actionButtonStyle.clipping = TextClipping.Clip;
         _actionButtonStyle.padding = new RectOffset(8, 8, 1, 1);
     }
+
+    private GUIContent GetReusableHudContent(string text)
+    {
+        _sharedHudContent.text = text ?? string.Empty;
+        _sharedHudContent.tooltip = string.Empty;
+        _sharedHudContent.image = null;
+        return _sharedHudContent;
+    }
+
+    private int GetHudBaseStyleId(GUIStyle baseStyle)
+    {
+        if (ReferenceEquals(baseStyle, _bodyStyle))
+        {
+            return 1;
+        }
+
+        if (ReferenceEquals(baseStyle, _titleStyle))
+        {
+            return 2;
+        }
+
+        if (ReferenceEquals(baseStyle, _sectionTitleStyle))
+        {
+            return 3;
+        }
+
+        if (ReferenceEquals(baseStyle, _actionButtonStyle))
+        {
+            return 4;
+        }
+
+        return 0;
+    }
+
+    private GUIStyle GetHudStyleVariant(GUIStyle baseStyle, int fontSize, bool wordWrap)
+    {
+        GUIStyle sourceStyle = baseStyle ?? GUIStyle.none;
+        HudStyleVariantKey cacheKey = new HudStyleVariantKey(GetHudBaseStyleId(sourceStyle), fontSize, wordWrap);
+        if (_hudStyleVariants.TryGetValue(cacheKey, out GUIStyle cachedStyle))
+        {
+            return cachedStyle;
+        }
+
+        GUIStyle style = new GUIStyle(sourceStyle);
+        style.fontSize = fontSize;
+        style.wordWrap = wordWrap;
+        style.clipping = TextClipping.Clip;
+        style.padding = new RectOffset(0, 0, 0, 0);
+        style.margin = new RectOffset(0, 0, 0, 0);
+        _hudStyleVariants[cacheKey] = style;
+        return style;
+    }
+
+    private void DrawHudLabel(Rect rect, string text, GUIStyle style)
+    {
+        if (!ShouldDrawCurrentEventVisuals())
+        {
+            return;
+        }
+
+        GUI.Label(rect, GetReusableHudContent(text), style);
+    }
+
+    private void DrawSolidHudRect(Rect rect, Color color)
+    {
+        if (!ShouldDrawCurrentEventVisuals() || rect.width <= 0f || rect.height <= 0f)
+        {
+            return;
+        }
+
+        Color previousColor = GUI.color;
+        GUI.color = color;
+        GUI.DrawTexture(rect, Texture2D.whiteTexture);
+        GUI.color = previousColor;
+    }
+
+    private static bool ShouldDrawCurrentEventVisuals()
+    {
+        Event current = Event.current;
+        return current == null || current.type == EventType.Repaint;
+    }
+
+    private static bool IsBattleHudUsefulEvent(EventType eventType)
+    {
+        return eventType == EventType.Repaint ||
+               eventType == EventType.MouseDown ||
+               eventType == EventType.MouseUp ||
+               eventType == EventType.MouseMove ||
+               eventType == EventType.MouseDrag ||
+               eventType == EventType.ScrollWheel ||
+               eventType == EventType.KeyDown ||
+               eventType == EventType.KeyUp;
+    }
+
+    private void HandleDebugHudToggle(Event current)
+    {
+        if (current == null || current.type != EventType.KeyDown || current.keyCode != DebugHudToggleKey)
+        {
+            return;
+        }
+
+        _debugHudVisible = !_debugHudVisible;
+        ResetDockPanelCache();
+        _isSearchFieldFocused = false;
+        GUI.FocusControl(string.Empty);
+        current.Use();
+    }
+
+    private void ResetDockPanelCache()
+    {
+        _dockPanelsFrame = -1;
+        _dockPanels = null;
+    }
+
+    private void SetBattleActionHoverIfChanged(string actionKey)
+    {
+        if (_bootEntry == null)
+        {
+            _lastBattleActionHoverKey = string.Empty;
+            return;
+        }
+
+        string nextKey = HasMeaningfulText(actionKey) ? actionKey : string.Empty;
+        if (string.Equals(_lastBattleActionHoverKey, nextKey, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _bootEntry.SetBattleActionHover(nextKey);
+        _lastBattleActionHoverKey = nextKey;
+    }
+
+    private void ResetBattleUiSurfaceCache()
+    {
+        ResetDockPanelCache();
+        _battleUiSurface = new PrototypeBattleUiSurfaceData();
+        _battleMoveOptionCount = 0;
+        Array.Clear(_battleMoveOptionBuffer, 0, _battleMoveOptionBuffer.Length);
+        _battleUiSurfaceFrame = -1;
+        _battleUiSurfaceEventType = EventType.Ignore;
+    }
+
+    private void RebuildBattleMoveOptionCache()
+    {
+        _battleMoveOptionCount = 0;
+        Array.Clear(_battleMoveOptionBuffer, 0, _battleMoveOptionBuffer.Length);
+
+        PrototypeBattleUiCommandSurfaceData commandSurface = GetBattleUiSurfaceData().CommandSurface;
+        if (commandSurface == null || commandSurface.Details == null || commandSurface.Details.Length == 0)
+        {
+            return;
+        }
+
+        for (int index = 0; index < commandSurface.Details.Length && _battleMoveOptionCount < _battleMoveOptionBuffer.Length; index++)
+        {
+            PrototypeBattleUiCommandDetailData detail = commandSurface.Details[index];
+            if (detail == null || !IsBattleMoveOptionKey(detail.Key))
+            {
+                continue;
+            }
+
+            _battleMoveOptionBuffer[_battleMoveOptionCount++] = detail;
+        }
+    }
+
     private void CacheBootEntry()
     {
         if (_bootEntry == null)

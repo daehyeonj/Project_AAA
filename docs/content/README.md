@@ -21,6 +21,8 @@
   - slot-aware loadout summary
   - carried inventory summary
   - gear reward / equip swap / carry continuity result lines
+  - explicit `stat before -> after` readback on auto-equip
+  - resolved `Lv / HP / ATK / DEF / SPD` member summaries in prep and battle
 - Treat this batch as the first tangible loot-to-build-change seam on the current mainline rail, not as a final inventory UI or a generalized item-framework rewrite.
 
 ## What Batch 72 Adds

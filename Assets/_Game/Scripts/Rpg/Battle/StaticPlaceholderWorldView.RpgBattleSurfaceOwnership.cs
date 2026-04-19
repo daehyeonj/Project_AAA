@@ -1,12 +1,23 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 public sealed partial class StaticPlaceholderWorldView
 {
+    private PrototypeBattleUiSurfaceData _cachedRpgOwnedBattleUiSurface = new PrototypeBattleUiSurfaceData();
+    private int _cachedRpgOwnedBattleUiSurfaceStamp = int.MinValue;
+
     private PrototypeBattleUiSurfaceData BuildRpgOwnedBattleUiSurfaceData()
     {
+        int surfaceStamp = ComputeRpgOwnedBattleUiSurfaceStamp();
+        if (_cachedRpgOwnedBattleUiSurface != null && _cachedRpgOwnedBattleUiSurfaceStamp == surfaceStamp)
+        {
+            return _cachedRpgOwnedBattleUiSurface;
+        }
+
+        EnsureBattleContracts();
         PrototypeBattleUiSurfaceData surface = new PrototypeBattleUiSurfaceData();
-        PrototypeBattleRequest request = GetBattleRequest();
+        PrototypeBattleRequest request = PrototypeBattleStateFactory.CreateRequest(_activeBattleRequest);
         surface.IsBattleActive = _dungeonRunState == DungeonRunState.Battle;
         surface.IsTargetSelectionActive = _battleState == BattleState.PartyTargetSelect;
         surface.BattleStateKey = GetBattleStateKey();
@@ -49,7 +60,86 @@ public sealed partial class StaticPlaceholderWorldView
         surface.RuntimeState = CreateRpgOwnedBattleRuntimeStateView(surface.CurrentActor, surface.ActionContext, surface.TargetContext, surface.Timeline, surface.EnemyIntent);
         surface.RecentEvents = BuildRpgOwnedRecentBattleEventRecords();
         surface.ResultSnapshot = BuildRpgOwnedCurrentBattleResultSnapshotView();
+        _cachedRpgOwnedBattleUiSurface = surface;
+        _cachedRpgOwnedBattleUiSurfaceStamp = surfaceStamp;
         return surface;
+    }
+
+    private int ComputeRpgOwnedBattleUiSurfaceStamp()
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = CombineBattleStamp(hash, _dungeonRunState.GetHashCode());
+            hash = CombineBattleStamp(hash, _battleState.GetHashCode());
+            hash = CombineBattleStamp(hash, _runTurnCount);
+            hash = CombineBattleStamp(hash, _battleTurnIndex);
+            hash = CombineBattleStamp(hash, _currentActorIndex);
+            hash = CombineBattleStamp(hash, _pendingEnemyTargetIndex);
+            hash = CombineBattleStamp(hash, _queuedBattleAction.GetHashCode());
+            hash = CombineBattleStamp(hash, _currentDungeonName);
+            hash = CombineBattleStamp(hash, _selectedRouteLabel);
+            hash = CombineBattleStamp(hash, _currentRoomStepId);
+            hash = CombineBattleStamp(hash, _activeEncounterId);
+            hash = CombineBattleStamp(hash, _activeBattleMonsterId);
+            hash = CombineBattleStamp(hash, _hoverBattleMonsterId);
+            hash = CombineBattleStamp(hash, _battleFeedbackText);
+            hash = CombineBattleStamp(hash, _enemyIntentText);
+            hash = CombineBattleStamp(hash, _currentSelectionPrompt);
+            hash = CombineBattleStamp(hash, _eliteEncounterActive);
+            hash = CombineBattleStamp(hash, _eliteDefeated);
+            hash = CombineBattleStamp(hash, _exitUnlocked);
+            hash = CombineBattleStamp(hash, _eventResolved);
+            hash = CombineBattleStamp(hash, _preEliteDecisionResolved);
+            hash = CombineBattleStamp(hash, _carriedLootAmount);
+            hash = CombineBattleStamp(hash, _battleEventRecords.Count);
+
+            DungeonPartyMemberRuntimeData[] partyMembers = _activeDungeonParty != null ? _activeDungeonParty.Members : null;
+            int partyCount = partyMembers != null ? partyMembers.Length : 0;
+            hash = CombineBattleStamp(hash, partyCount);
+            for (int i = 0; i < partyCount; i++)
+            {
+                DungeonPartyMemberRuntimeData member = partyMembers[i];
+                hash = CombineBattleStamp(hash, member != null);
+                if (member == null)
+                {
+                    continue;
+                }
+
+                hash = CombineBattleStamp(hash, member.MemberId);
+                hash = CombineBattleStamp(hash, member.DisplayName);
+                hash = CombineBattleStamp(hash, member.RoleTag);
+                hash = CombineBattleStamp(hash, member.SkillName);
+                hash = CombineBattleStamp(hash, GetPartyMemberLaneKey(member));
+                hash = CombineBattleStamp(hash, member.CurrentHp);
+                hash = CombineBattleStamp(hash, member.MaxHp);
+                hash = CombineBattleStamp(hash, member.IsDefeated);
+                hash = CombineBattleStamp(hash, i >= 0 && i < _partyActedThisRound.Length && _partyActedThisRound[i]);
+            }
+
+            hash = CombineBattleStamp(hash, _activeMonsters.Count);
+            for (int i = 0; i < _activeMonsters.Count; i++)
+            {
+                DungeonMonsterRuntimeData monster = _activeMonsters[i];
+                hash = CombineBattleStamp(hash, monster != null);
+                if (monster == null)
+                {
+                    continue;
+                }
+
+                hash = CombineBattleStamp(hash, monster.MonsterId);
+                hash = CombineBattleStamp(hash, monster.DisplayName);
+                hash = CombineBattleStamp(hash, monster.MonsterType);
+                hash = CombineBattleStamp(hash, monster.EncounterRole.GetHashCode());
+                hash = CombineBattleStamp(hash, GetMonsterLaneKey(monster));
+                hash = CombineBattleStamp(hash, monster.CurrentHp);
+                hash = CombineBattleStamp(hash, monster.MaxHp);
+                hash = CombineBattleStamp(hash, monster.IsDefeated);
+                hash = CombineBattleStamp(hash, monster.IsElite);
+            }
+
+            return hash;
+        }
     }
 
     private PrototypeBattleContextData BuildRpgOwnedBattleContextView()
@@ -245,14 +335,19 @@ public sealed partial class StaticPlaceholderWorldView
         actor.SkillShortText = string.IsNullOrEmpty(member.SkillShortText) ? string.Empty : member.SkillShortText;
         actor.CurrentHp = Mathf.Max(0, member.CurrentHp);
         actor.MaxHp = Mathf.Max(1, member.MaxHp);
+        actor.Level = member.RuntimeState != null ? Mathf.Max(1, member.RuntimeState.Level) : 1;
+        actor.Attack = Mathf.Max(1, member.Attack);
+        actor.Defense = Mathf.Max(0, member.Defense);
+        actor.Speed = Mathf.Max(0, member.Speed);
+        actor.GearLabel = BuildRpgOwnedBattleGearLabel(member);
+        actor.SummaryText = BuildRpgOwnedBattleMemberSummaryText(member);
         actor.IsEnemy = false;
         string statusText = _battleState == BattleState.PartyTargetSelect
             ? "Selecting target"
             : _battleState == BattleState.PartyActionSelect
                 ? "Awaiting command"
                 : "Ready";
-        string growthTag = BuildRpgOwnedBattleGrowthTag(member);
-        actor.StatusText = string.IsNullOrEmpty(growthTag) ? statusText : statusText + " | " + growthTag;
+        actor.StatusText = statusText;
         return actor;
     }
 
@@ -485,9 +580,12 @@ public sealed partial class StaticPlaceholderWorldView
         data.SkillShortText = string.IsNullOrEmpty(member.SkillShortText) ? string.Empty : member.SkillShortText;
         data.CurrentHp = Mathf.Max(0, member.CurrentHp);
         data.MaxHp = Mathf.Max(1, member.MaxHp);
+        data.Level = member.RuntimeState != null ? Mathf.Max(1, member.RuntimeState.Level) : 1;
         data.Attack = member.Attack;
         data.Defense = member.Defense;
         data.Speed = member.Speed;
+        data.GearLabel = BuildRpgOwnedBattleGearLabel(member);
+        data.SummaryText = BuildRpgOwnedBattleMemberSummaryText(member);
         data.IsActive = isActive;
         data.IsTargeted = isTargeted;
         data.IsKnockedOut = member.IsDefeated || member.CurrentHp <= 0;
@@ -513,13 +611,37 @@ public sealed partial class StaticPlaceholderWorldView
                 : data.IsTargeted
                     ? "Targeted"
                     : "Ready";
-        string growthTag = BuildRpgOwnedBattleGrowthTag(member);
-        if (!string.IsNullOrEmpty(growthTag))
-        {
-            data.StatusText += " | " + growthTag;
-        }
 
         return data;
+    }
+
+    private string BuildRpgOwnedBattleGearLabel(DungeonPartyMemberRuntimeData member)
+    {
+        if (member == null)
+        {
+            return string.Empty;
+        }
+
+        string gearText = PrototypeRpgEquipmentCatalog.BuildCompactReadbackText(
+            member.EquipmentSummaryText,
+            member.RuntimeState != null ? member.RuntimeState.GearContributionSummaryText : string.Empty);
+        return string.Equals(gearText, "No gear", StringComparison.OrdinalIgnoreCase) ? string.Empty : gearText;
+    }
+
+    private string BuildRpgOwnedBattleMemberSummaryText(DungeonPartyMemberRuntimeData member)
+    {
+        if (member == null)
+        {
+            return string.Empty;
+        }
+
+        int level = member.RuntimeState != null ? Mathf.Max(1, member.RuntimeState.Level) : 1;
+        string summary = "Lv " + level +
+            " | ATK " + Mathf.Max(1, member.Attack) +
+            " DEF " + Mathf.Max(0, member.Defense) +
+            " SPD " + Mathf.Max(0, member.Speed);
+        string gearLabel = BuildRpgOwnedBattleGearLabel(member);
+        return string.IsNullOrEmpty(gearLabel) ? summary : summary + " | " + gearLabel;
     }
 
     private string BuildRpgOwnedBattleGrowthTag(DungeonPartyMemberRuntimeData member)
@@ -669,6 +791,7 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         surface.SkillLabel = string.IsNullOrEmpty(safeActor.SkillLabel) ? "None" : safeActor.SkillLabel;
+        surface.SummaryText = string.IsNullOrEmpty(safeActor.SummaryText) ? string.Empty : safeActor.SummaryText;
         surface.StatusText = string.IsNullOrEmpty(safeActor.StatusText) ? "Idle" : safeActor.StatusText;
         surface.CurrentHp = Mathf.Max(0, safeActor.CurrentHp);
         surface.MaxHp = Mathf.Max(1, safeActor.MaxHp);
@@ -702,6 +825,7 @@ public sealed partial class StaticPlaceholderWorldView
         surface.RoleLabel = string.IsNullOrEmpty(safeMember.RoleLabel) ? "None" : safeMember.RoleLabel;
         surface.LaneLabel = string.IsNullOrEmpty(safeMember.LaneLabel) ? string.Empty : safeMember.LaneLabel;
         surface.PositionRuleText = string.IsNullOrEmpty(safeMember.PositionRuleText) ? string.Empty : safeMember.PositionRuleText;
+        surface.SummaryText = string.IsNullOrEmpty(safeMember.SummaryText) ? string.Empty : safeMember.SummaryText;
         surface.StatusText = string.IsNullOrEmpty(safeMember.StatusText) ? "Ready" : safeMember.StatusText;
         surface.CurrentHp = Mathf.Max(0, safeMember.CurrentHp);
         surface.MaxHp = Mathf.Max(1, safeMember.MaxHp);

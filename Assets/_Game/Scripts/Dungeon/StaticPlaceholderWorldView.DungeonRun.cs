@@ -555,6 +555,7 @@ public sealed partial class StaticPlaceholderWorldView
     private readonly Color[] _partyFeedbackColors = new Color[4];
     private readonly float[] _monsterFeedbackUntilTimes = new float[2];
     private readonly Color[] _monsterFeedbackColors = new Color[2];
+    private int _battlePresentationStateStamp = int.MinValue;
     private TestDungeonPartyData _activeDungeonParty;
     private DungeonChestRuntimeData _activeChest;
     private DungeonMonsterRuntimeData _activeBattleMonster;
@@ -6869,15 +6870,25 @@ public sealed partial class StaticPlaceholderWorldView
     private void RefreshBattleViewPresentation()
     {
         bool battleActive = _dungeonRunState == DungeonRunState.Battle;
-        if (_battleViewRoot != null)
+        if (_battleViewRoot != null && _battleViewRoot.activeSelf != battleActive)
         {
             _battleViewRoot.SetActive(battleActive);
         }
 
         if (!battleActive)
         {
+            _battlePresentationStateStamp = int.MinValue;
             return;
         }
+
+        bool hasActiveFeedback = HasActiveBattlePresentationFeedback();
+        int presentationStamp = hasActiveFeedback ? int.MinValue : ComputeBattlePresentationStateStamp();
+        if (!hasActiveFeedback && _battlePresentationStateStamp == presentationStamp)
+        {
+            return;
+        }
+
+        _battlePresentationStateStamp = presentationStamp;
 
         bool eliteActive = _eliteEncounterActive || (_activeBattleMonster != null && _activeBattleMonster.IsElite);
         Color backdropColor = eliteActive ? new Color(0.10f, 0.06f, 0.08f, 0.96f) : new Color(0.10f, 0.13f, 0.18f, 0.94f);
@@ -6996,6 +7007,83 @@ public sealed partial class StaticPlaceholderWorldView
                 viewRenderer.transform.localScale = new Vector3(scale, scale, 1f);
                 viewRenderer.color = GetBattleMonsterViewColor(monster, i);
             }
+        }
+    }
+
+    private bool HasActiveBattlePresentationFeedback()
+    {
+        float now = Time.unscaledTime;
+        for (int i = 0; i < _partyFeedbackUntilTimes.Length; i++)
+        {
+            if (_partyFeedbackUntilTimes[i] > now)
+            {
+                return true;
+            }
+        }
+
+        for (int i = 0; i < _monsterFeedbackUntilTimes.Length; i++)
+        {
+            if (_monsterFeedbackUntilTimes[i] > now)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int ComputeBattlePresentationStateStamp()
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = CombineBattleStamp(hash, _dungeonRunState.GetHashCode());
+            hash = CombineBattleStamp(hash, _battleState.GetHashCode());
+            hash = CombineBattleStamp(hash, _currentActorIndex);
+            hash = CombineBattleStamp(hash, _activeBattleMonsterId);
+            hash = CombineBattleStamp(hash, _hoverBattleMonsterId);
+            hash = CombineBattleStamp(hash, _pendingEnemyTargetIndex);
+            hash = CombineBattleStamp(hash, _queuedBattleAction.GetHashCode());
+            hash = CombineBattleStamp(hash, _eliteEncounterActive);
+
+            DungeonPartyMemberRuntimeData[] members = _activeDungeonParty != null ? _activeDungeonParty.Members : null;
+            int memberCount = members != null ? members.Length : 0;
+            hash = CombineBattleStamp(hash, memberCount);
+            for (int i = 0; i < memberCount; i++)
+            {
+                DungeonPartyMemberRuntimeData member = members[i];
+                hash = CombineBattleStamp(hash, member != null);
+                if (member == null)
+                {
+                    continue;
+                }
+
+                hash = CombineBattleStamp(hash, member.MemberId);
+                hash = CombineBattleStamp(hash, GetPartyMemberLaneKey(member));
+                hash = CombineBattleStamp(hash, member.CurrentHp);
+                hash = CombineBattleStamp(hash, member.MaxHp);
+                hash = CombineBattleStamp(hash, member.IsDefeated);
+            }
+
+            hash = CombineBattleStamp(hash, _activeMonsters.Count);
+            for (int i = 0; i < _activeMonsters.Count; i++)
+            {
+                DungeonMonsterRuntimeData monster = _activeMonsters[i];
+                hash = CombineBattleStamp(hash, monster != null);
+                if (monster == null)
+                {
+                    continue;
+                }
+
+                hash = CombineBattleStamp(hash, monster.MonsterId);
+                hash = CombineBattleStamp(hash, GetMonsterLaneKey(monster));
+                hash = CombineBattleStamp(hash, monster.CurrentHp);
+                hash = CombineBattleStamp(hash, monster.MaxHp);
+                hash = CombineBattleStamp(hash, monster.IsDefeated);
+                hash = CombineBattleStamp(hash, monster.IsElite);
+            }
+
+            return hash;
         }
     }
 

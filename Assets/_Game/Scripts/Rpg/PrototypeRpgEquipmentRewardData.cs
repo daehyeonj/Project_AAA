@@ -336,6 +336,49 @@ public static class PrototypeRpgEquipmentCatalog
         return string.IsNullOrEmpty(summary) ? "No bonus" : summary;
     }
 
+    public static bool HasMeaningfulStatContributionSummary(string statContributionSummary)
+    {
+        return !string.IsNullOrWhiteSpace(statContributionSummary) &&
+               !string.Equals(statContributionSummary.Trim(), "No bonus", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string ExtractDisplayName(string equipmentSummaryText)
+    {
+        if (string.IsNullOrWhiteSpace(equipmentSummaryText))
+        {
+            return "No gear";
+        }
+
+        string trimmed = equipmentSummaryText.Trim();
+        if (string.Equals(trimmed, "No gear", StringComparison.OrdinalIgnoreCase))
+        {
+            return "No gear";
+        }
+
+        int markerIndex = trimmed.IndexOf(" (", StringComparison.Ordinal);
+        return markerIndex > 0 ? trimmed.Substring(0, markerIndex).Trim() : trimmed;
+    }
+
+    public static string BuildCompactReadbackText(string equipmentSummaryText, string gearContributionSummaryText)
+    {
+        string displayName = ExtractDisplayName(equipmentSummaryText);
+        if (string.Equals(displayName, "No gear", StringComparison.OrdinalIgnoreCase))
+        {
+            return displayName;
+        }
+
+        return HasMeaningfulStatContributionSummary(gearContributionSummaryText)
+            ? displayName + " (" + gearContributionSummaryText.Trim() + ")"
+            : displayName;
+    }
+
+    public static string BuildCompactReadbackText(PrototypeRpgEquipmentDefinition definition)
+    {
+        return definition == null
+            ? "No gear"
+            : BuildCompactReadbackText(BuildEquipmentSummaryText(definition), BuildStatContributionSummary(definition));
+    }
+
     public static int ResolveRewardTierRank(bool eliteDefeated, string routeId, int openedChestCount)
     {
         if (eliteDefeated || Normalize(routeId) == "risky" || openedChestCount > 0)

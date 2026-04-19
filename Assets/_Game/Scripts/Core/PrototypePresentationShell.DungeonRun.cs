@@ -543,6 +543,11 @@ public sealed partial class PrototypePresentationShell
 
     private void DrawDungeonBattleTopStrip(Rect rect, PrototypeBattleUiSurfaceData surface)
     {
+        if (!IsImmediateVisualEvent())
+        {
+            return;
+        }
+
         DrawRect(rect, new Color(0.05f, 0.07f, 0.11f, 0.88f));
         DrawRect(new Rect(rect.x, rect.yMax - 2f, rect.width, 2f), new Color(0.20f, 0.26f, 0.34f, 0.34f));
         float rightWidth = Mathf.Clamp(rect.width * 0.18f, 260f, 340f);
@@ -551,40 +556,36 @@ public sealed partial class PrototypePresentationShell
         Rect rightRect = new Rect(rect.xMax - rightWidth - 12f, rect.y + 8f, rightWidth, rect.height - 16f);
         Rect timelineRect = new Rect(leftRect.xMax + 14f, rect.y + 12f, rightRect.x - leftRect.xMax - 28f, rect.height - 24f);
 
-        GUIStyle encounterStyle = new GUIStyle(_bodyStyle);
-        encounterStyle.fontSize = 30;
-        encounterStyle.fontStyle = FontStyle.Bold;
-        encounterStyle.wordWrap = false;
-        encounterStyle.clipping = TextClipping.Clip;
-        GUI.Label(new Rect(leftRect.x, leftRect.y - 1f, leftRect.width, 32f), CompactShellText(SafeShellText(surface.EncounterName), 24), encounterStyle);
+        GUI.Label(new Rect(leftRect.x, leftRect.y - 1f, leftRect.width, 32f), CompactShellText(SafeShellText(surface.EncounterName), 24), _battleHeadline30Style);
 
-        List<string> metaChips = new List<string>();
+        string[] metaChips = new string[4];
+        int metaChipCount = 0;
         if (HasMeaningfulValue(surface.CurrentDungeonName))
         {
-            metaChips.Add(CompactShellText(surface.CurrentDungeonName, 18));
+            metaChips[metaChipCount++] = CompactShellText(surface.CurrentDungeonName, 18);
         }
 
-        if (HasMeaningfulValue(surface.CurrentRouteLabel))
+        if (metaChipCount < metaChips.Length && HasMeaningfulValue(surface.CurrentRouteLabel))
         {
-            metaChips.Add(CompactShellText(surface.CurrentRouteLabel, 18));
+            metaChips[metaChipCount++] = CompactShellText(surface.CurrentRouteLabel, 18);
         }
 
-        if (HasMeaningfulValue(surface.EncounterRoomType))
+        if (metaChipCount < metaChips.Length && HasMeaningfulValue(surface.EncounterRoomType))
         {
-            metaChips.Add(CompactShellText(surface.EncounterRoomType, 16));
+            metaChips[metaChipCount++] = CompactShellText(surface.EncounterRoomType, 16);
         }
 
-        if (HasMeaningfulValue(surface.EliteStatusText) && surface.EliteStatusText != "Pending")
+        if (metaChipCount < metaChips.Length && HasMeaningfulValue(surface.EliteStatusText) && surface.EliteStatusText != "Pending")
         {
-            metaChips.Add("Elite " + CompactShellText(surface.EliteStatusText, 12));
+            metaChips[metaChipCount++] = "Elite " + CompactShellText(surface.EliteStatusText, 12);
         }
 
         float metaX = leftRect.x;
         float metaY = leftRect.y + 40f;
-        for (int i = 0; i < metaChips.Count && i < 4; i++)
+        for (int i = 0; i < metaChipCount; i++)
         {
             string chipText = metaChips[i];
-            float chipWidth = Mathf.Clamp(_badgeStyle.CalcSize(new GUIContent(chipText)).x + 34f, 96f, 196f);
+            float chipWidth = GetCachedBadgeWidth(chipText, 34f, 96f, 196f);
             DrawPill(new Rect(metaX, metaY, chipWidth, 24f), chipText, new Color(0.18f, 0.24f, 0.32f, 0.96f), Color.white);
             metaX += chipWidth + 6f;
         }
@@ -600,7 +601,7 @@ public sealed partial class PrototypePresentationShell
             string chipText = CompactShellText(
                 CompactShellText(slot.Label, 10) + (HasMeaningfulValue(slot.LaneLabel) ? " " + BuildDungeonBattleLaneTag(slot.LaneLabel) : string.Empty),
                 14);
-            float chipWidth = Mathf.Clamp(_badgeStyle.CalcSize(new GUIContent(chipText)).x + 32f, 104f, 156f);
+            float chipWidth = GetCachedBadgeWidth(chipText, 32f, 104f, 156f);
             if (chipX + chipWidth > timelineRect.xMax)
             {
                 break;
@@ -630,51 +631,63 @@ public sealed partial class PrototypePresentationShell
             surface != null && surface.CommandSurface != null ? surface.CommandSurface.SelectedActionLabel : string.Empty,
             surface != null && surface.ActionContext != null ? surface.ActionContext.SelectedActionLabel : string.Empty,
             "Await command");
-        GUIStyle rightPrimaryStyle = new GUIStyle(_bodyStyle);
-        rightPrimaryStyle.fontSize = 22;
-        rightPrimaryStyle.fontStyle = FontStyle.Bold;
-        rightPrimaryStyle.wordWrap = false;
-        rightPrimaryStyle.clipping = TextClipping.Clip;
-        GUIStyle rightMetaStyle = new GUIStyle(_captionStyle);
-        rightMetaStyle.fontSize = 18;
-        rightMetaStyle.wordWrap = false;
-        rightMetaStyle.clipping = TextClipping.Clip;
         DrawPill(new Rect(rightRect.x, rightRect.y + 2f, Mathf.Min(rightRect.width, 180f), 24f), "TURN", new Color(0.22f, 0.30f, 0.24f, 0.96f), Color.white);
-        GUI.Label(new Rect(rightRect.x, rightRect.y + 30f, rightRect.width, 24f), CompactShellText(actorText, 18), rightPrimaryStyle);
-        GUI.Label(new Rect(rightRect.x, rightRect.y + 54f, rightRect.width, 18f), CompactShellText(phaseText + " | " + actionText, 28), rightMetaStyle);
+        GUI.Label(new Rect(rightRect.x, rightRect.y + 30f, rightRect.width, 24f), CompactShellText(actorText, 18), _battleTitle22Style);
+        GUI.Label(new Rect(rightRect.x, rightRect.y + 54f, rightRect.width, 18f), CompactShellText(phaseText + " | " + actionText, 28), _battleCaption18Style);
     }
 
     private void DrawDungeonBattleStage(Rect rect, PrototypeBattleUiSurfaceData surface, out string hoveredTargetId)
     {
         hoveredTargetId = string.Empty;
-        DrawRect(rect, new Color(0.03f, 0.04f, 0.07f, 0.54f));
         Rect innerRect = new Rect(rect.x + 18f, rect.y + 12f, rect.width - 36f, rect.height - 24f);
         Rect allyAuraRect = new Rect(innerRect.x + (innerRect.width * 0.10f), innerRect.y + (innerRect.height * 0.18f), innerRect.width * 0.22f, innerRect.height * 0.50f);
         Rect enemyAuraRect = new Rect(innerRect.xMax - (innerRect.width * 0.32f), innerRect.y + (innerRect.height * 0.18f), innerRect.width * 0.22f, innerRect.height * 0.50f);
         Rect clashRect = new Rect(innerRect.center.x - (innerRect.width * 0.12f), innerRect.y + (innerRect.height * 0.12f), innerRect.width * 0.24f, innerRect.height * 0.42f);
         Rect floorRect = new Rect(innerRect.x + 90f, innerRect.yMax - 86f, innerRect.width - 180f, 24f);
-        DrawRect(allyAuraRect, new Color(0.22f, 0.34f, 0.42f, 0.10f));
-        DrawRect(enemyAuraRect, new Color(0.42f, 0.24f, 0.20f, 0.10f));
-        DrawRect(clashRect, new Color(0.40f, 0.34f, 0.16f, 0.06f));
-        DrawRect(floorRect, new Color(0.18f, 0.18f, 0.20f, 0.20f));
-        DrawRotatedRect(new Rect(innerRect.center.x - (innerRect.width * 0.20f), innerRect.yMax - 118f, innerRect.width * 0.40f, 10f), -2.2f, new Color(0.72f, 0.62f, 0.34f, 0.08f));
+        bool drawVisuals = IsImmediateVisualEvent();
+        if (drawVisuals)
+        {
+            DrawRect(rect, new Color(0.03f, 0.04f, 0.07f, 0.54f));
+            DrawRect(allyAuraRect, new Color(0.22f, 0.34f, 0.42f, 0.10f));
+            DrawRect(enemyAuraRect, new Color(0.42f, 0.24f, 0.20f, 0.10f));
+            DrawRect(clashRect, new Color(0.40f, 0.34f, 0.16f, 0.06f));
+            DrawRect(floorRect, new Color(0.18f, 0.18f, 0.20f, 0.20f));
+            DrawRotatedRect(new Rect(innerRect.center.x - (innerRect.width * 0.20f), innerRect.yMax - 118f, innerRect.width * 0.40f, 10f), -2.2f, new Color(0.72f, 0.62f, 0.34f, 0.08f));
+        }
 
         float formationWidth = innerRect.width * 0.42f;
         Rect partyRect = new Rect(innerRect.x + 20f, innerRect.y + 8f, formationWidth, innerRect.height - 36f);
         Rect enemyRect = new Rect(innerRect.xMax - formationWidth - 20f, innerRect.y + 8f, formationWidth, innerRect.height - 36f);
 
-        DrawDungeonBattleRowGuides(partyRect, true);
-        DrawDungeonBattleRowGuides(enemyRect, false);
+        if (drawVisuals)
+        {
+            DrawDungeonBattleRowGuides(partyRect, true);
+            DrawDungeonBattleRowGuides(enemyRect, false);
+        }
+
         DrawDungeonBattlePartyFormation(partyRect, surface != null ? surface.PartyMembers : null);
         DrawDungeonBattleEnemyFormation(enemyRect, surface, out hoveredTargetId);
     }
 
     private void DrawDungeonBattlePartyFormation(Rect rect, PrototypeBattleUiPartyMemberData[] members)
     {
+        if (!IsImmediateVisualEvent())
+        {
+            return;
+        }
+
         PrototypeBattleUiPartyMemberData[] safeMembers = members ?? System.Array.Empty<PrototypeBattleUiPartyMemberData>();
         int[] laneCounts = new int[3];
-        List<PrototypeBattleUiPartyMemberData> sortedMembers = new List<PrototypeBattleUiPartyMemberData>(safeMembers);
-        sortedMembers.Sort((left, right) =>
+        _battlePartySortBuffer.Clear();
+        for (int i = 0; i < safeMembers.Length; i++)
+        {
+            if (safeMembers[i] != null)
+            {
+                _battlePartySortBuffer.Add(safeMembers[i]);
+            }
+        }
+
+        _battlePartySortBuffer.Sort((left, right) =>
         {
             int laneCompare = ResolveDungeonBattleLaneIndex(left != null ? left.LaneKey : string.Empty, left != null ? left.LaneLabel : string.Empty)
                 .CompareTo(ResolveDungeonBattleLaneIndex(right != null ? right.LaneKey : string.Empty, right != null ? right.LaneLabel : string.Empty));
@@ -686,9 +699,9 @@ public sealed partial class PrototypePresentationShell
             return (left != null ? left.SlotIndex : 0).CompareTo(right != null ? right.SlotIndex : 0);
         });
 
-        for (int i = 0; i < sortedMembers.Count; i++)
+        for (int i = 0; i < _battlePartySortBuffer.Count; i++)
         {
-            PrototypeBattleUiPartyMemberData member = sortedMembers[i];
+            PrototypeBattleUiPartyMemberData member = _battlePartySortBuffer[i];
             if (member == null)
             {
                 continue;
@@ -720,8 +733,16 @@ public sealed partial class PrototypePresentationShell
         hoveredTargetId = string.Empty;
         PrototypeBattleUiEnemyData[] enemies = surface != null && surface.EnemyRoster != null ? surface.EnemyRoster : System.Array.Empty<PrototypeBattleUiEnemyData>();
         int[] laneCounts = new int[3];
-        List<PrototypeBattleUiEnemyData> sortedEnemies = new List<PrototypeBattleUiEnemyData>(enemies);
-        sortedEnemies.Sort((left, right) =>
+        _battleEnemySortBuffer.Clear();
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            if (enemies[i] != null)
+            {
+                _battleEnemySortBuffer.Add(enemies[i]);
+            }
+        }
+
+        _battleEnemySortBuffer.Sort((left, right) =>
         {
             int laneCompare = ResolveDungeonBattleLaneIndex(left != null ? left.LaneKey : string.Empty, left != null ? left.LaneLabel : string.Empty)
                 .CompareTo(ResolveDungeonBattleLaneIndex(right != null ? right.LaneKey : string.Empty, right != null ? right.LaneLabel : string.Empty));
@@ -733,9 +754,9 @@ public sealed partial class PrototypePresentationShell
             return string.Compare(left != null ? left.MonsterId : string.Empty, right != null ? right.MonsterId : string.Empty, System.StringComparison.Ordinal);
         });
 
-        for (int i = 0; i < sortedEnemies.Count; i++)
+        for (int i = 0; i < _battleEnemySortBuffer.Count; i++)
         {
-            PrototypeBattleUiEnemyData enemy = sortedEnemies[i];
+            PrototypeBattleUiEnemyData enemy = _battleEnemySortBuffer[i];
             if (enemy == null)
             {
                 continue;
@@ -789,35 +810,32 @@ public sealed partial class PrototypePresentationShell
 
     private void DrawDungeonBattleCurrentActorPanel(Rect rect, CurrentActorSurfaceData actorSurface)
     {
+        if (!IsImmediateVisualEvent())
+        {
+            return;
+        }
+
         CurrentActorSurfaceData actor = actorSurface ?? new CurrentActorSurfaceData();
         DrawPanel(rect, new Color(0.10f, 0.14f, 0.20f, 0.90f), new Color(0.06f, 0.08f, 0.12f, 0.84f));
         DrawPill(new Rect(rect.x + 14f, rect.y + 12f, 76f, 24f), "TURN", new Color(0.22f, 0.30f, 0.24f, 0.96f), Color.white);
 
         Rect portraitRect = new Rect(rect.x + 14f, rect.y + 44f, 82f, 82f);
         DrawPanel(portraitRect, new Color(0.24f, 0.34f, 0.44f, 0.94f), new Color(0.10f, 0.14f, 0.20f, 0.90f));
-        GUIStyle glyphStyle = new GUIStyle(_heroSubtitleStyle);
-        glyphStyle.fontSize = 38;
-        glyphStyle.alignment = TextAnchor.MiddleCenter;
-        GUI.Label(new Rect(portraitRect.x, portraitRect.y + 10f, portraitRect.width, 54f), CompactShellText(actor.PortraitGlyph, 2), glyphStyle);
+        GUI.Label(new Rect(portraitRect.x, portraitRect.y + 10f, portraitRect.width, 54f), CompactShellText(actor.PortraitGlyph, 2), GetBattleGlyphStyle(38));
 
         Rect textRect = new Rect(portraitRect.xMax + 16f, rect.y + 44f, rect.width - 126f, 90f);
-        GUIStyle actorNameStyle = new GUIStyle(_bodyStyle);
-        actorNameStyle.fontSize = 30;
-        actorNameStyle.fontStyle = FontStyle.Bold;
-        actorNameStyle.wordWrap = false;
-        actorNameStyle.clipping = TextClipping.Clip;
-        GUIStyle actorMetaStyle = new GUIStyle(_captionStyle);
-        actorMetaStyle.fontSize = 18;
-        actorMetaStyle.wordWrap = false;
-        actorMetaStyle.clipping = TextClipping.Clip;
-        GUI.Label(new Rect(textRect.x, textRect.y, textRect.width, 34f), CompactShellText(SafeShellText(actor.DisplayName), 16), actorNameStyle);
-        GUI.Label(new Rect(textRect.x, textRect.y + 34f, textRect.width, 20f), CompactShellText(BuildDungeonBattleJoinedTagLine(SafeShellText(actor.RoleLabel), BuildDungeonBattleLaneTag(actor.LaneLabel)), 20), actorMetaStyle);
-        GUI.Label(new Rect(textRect.x, textRect.y + 58f, textRect.width, 20f), CompactShellText(SafeShellText(actor.StatusText), 18), actorMetaStyle);
+        GUI.Label(new Rect(textRect.x, textRect.y, textRect.width, 34f), CompactShellText(SafeShellText(actor.DisplayName), 16), _battleHeadline30Style);
+        GUI.Label(new Rect(textRect.x, textRect.y + 34f, textRect.width, 20f), CompactShellText(BuildDungeonBattleJoinedTagLine(SafeShellText(actor.RoleLabel), BuildDungeonBattleLaneTag(actor.LaneLabel)), 20), _battleCaption18Style);
+        string actorSummaryText = ChooseFirstMeaningfulDungeonText(
+            BuildDungeonBattleJoinedTagLine(SafeShellText(actor.StatusText), SafeShellText(actor.SummaryText)),
+            actor.SummaryText,
+            actor.StatusText);
+        GUI.Label(new Rect(textRect.x, textRect.y + 58f, textRect.width, 20f), CompactShellText(SafeShellText(actorSummaryText), 26), _battleCaption18Style);
 
         string resourceLine = HasMeaningfulValue(actor.ResourceText)
             ? CompactShellText(actor.ResourceLabel + " " + SafeShellText(actor.ResourceText), 24)
             : CompactShellText(ChooseFirstMeaningfulDungeonText(actor.SkillLabel, actor.ResourceLabel), 24);
-        GUI.Label(new Rect(rect.x + 14f, rect.yMax - 56f, rect.width - 28f, 20f), resourceLine, actorMetaStyle);
+        GUI.Label(new Rect(rect.x + 14f, rect.yMax - 56f, rect.width - 28f, 20f), resourceLine, _battleCaption18Style);
         Rect hpRect = new Rect(rect.x + 14f, rect.yMax - 30f, rect.width - 28f, 18f);
         DrawDungeonBattleMeterBar(hpRect, actor.MaxHp > 0 ? (float)actor.CurrentHp / actor.MaxHp : 0f, new Color(0.42f, 0.68f, 0.38f, 1f), "HP " + actor.CurrentHp + "/" + actor.MaxHp);
     }
@@ -833,11 +851,7 @@ public sealed partial class PrototypePresentationShell
             ? commandSurface.ContextualDetails
             : System.Array.Empty<PrototypeBattleUiCommandDetailData>();
 
-        GUIStyle sectionTitleStyle = new GUIStyle(_panelTitleStyle);
-        sectionTitleStyle.fontSize = 22;
-        sectionTitleStyle.wordWrap = false;
-        sectionTitleStyle.clipping = TextClipping.Clip;
-        GUI.Label(new Rect(rect.x, rect.y + 4f, rect.width, 26f), "COMMANDS", sectionTitleStyle);
+        GUI.Label(new Rect(rect.x, rect.y + 4f, rect.width, 26f), "COMMANDS", _battleSectionTitle22Style);
         float buttonWidth = (rect.width - (DungeonShellGap * 3f)) * 0.25f;
         float buttonY = rect.y + 38f;
         for (int i = 0; i < buttons.Length && i < 4; i++)
@@ -869,7 +883,7 @@ public sealed partial class PrototypePresentationShell
                 continue;
             }
 
-            float width = Mathf.Clamp(_badgeStyle.CalcSize(new GUIContent(detail.Label)).x + 56f, 108f, 156f);
+            float width = GetCachedBadgeWidth(detail.Label, 56f, 108f, 156f);
             bool enabled = detail.IsAvailable && CanTriggerDungeonBattleAction(detail.Key, detail.IsAvailable);
             if (DrawActionButton(new Rect(utilityX, utilityY, width, 30f), detail.Label, new Color(0.20f, 0.30f, 0.40f, 1f), enabled, _badgeStyle))
             {
@@ -886,19 +900,20 @@ public sealed partial class PrototypePresentationShell
 
         if (surface != null && surface.TargetSelection != null && surface.TargetSelection.IsActive)
         {
-            GUIStyle targetPromptStyle = new GUIStyle(_captionStyle);
-            targetPromptStyle.fontSize = 18;
-            targetPromptStyle.wordWrap = false;
-            targetPromptStyle.clipping = TextClipping.Clip;
             GUI.Label(
                 new Rect(rect.x + 160f, rect.yMax - 28f, rect.width - 160f, 18f),
                 CompactShellText("Select target | " + SafeShellText(surface.TargetSelection.CancelHint), 48),
-                targetPromptStyle);
+                _battleCaption18Style);
         }
     }
 
     private void DrawDungeonBattlePartyStrip(Rect rect, PartyStatusSurfaceData[] partySurfaces)
     {
+        if (!IsImmediateVisualEvent())
+        {
+            return;
+        }
+
         PartyStatusSurfaceData[] safeSurfaces = partySurfaces ?? System.Array.Empty<PartyStatusSurfaceData>();
         int visibleCount = Mathf.Min(4, safeSurfaces.Length);
         if (visibleCount <= 0)
@@ -906,11 +921,7 @@ public sealed partial class PrototypePresentationShell
             return;
         }
 
-        GUIStyle sectionTitleStyle = new GUIStyle(_panelTitleStyle);
-        sectionTitleStyle.fontSize = 22;
-        sectionTitleStyle.wordWrap = false;
-        sectionTitleStyle.clipping = TextClipping.Clip;
-        GUI.Label(new Rect(rect.x, rect.y + 4f, rect.width, 26f), "PARTY", sectionTitleStyle);
+        GUI.Label(new Rect(rect.x, rect.y + 4f, rect.width, 26f), "PARTY", _battleSectionTitle22Style);
         float cellGap = 8f;
         float cardWidth = (rect.width - cellGap) * 0.5f;
         float cardHeight = (rect.height - 40f - cellGap) * 0.5f;
@@ -934,27 +945,19 @@ public sealed partial class PrototypePresentationShell
         PrototypeBattleUiCommandButtonData safeButton = button ?? new PrototypeBattleUiCommandButtonData();
         hovered = rect.Contains(Event.current.mousePosition);
         bool clickable = safeButton.IsAvailable && CanTriggerDungeonBattleAction(safeButton.Key, safeButton.IsAvailable);
-        GUIStyle titleStyle = new GUIStyle(_bodyStyle);
-        titleStyle.fontSize = 26;
-        titleStyle.fontStyle = FontStyle.Bold;
-        titleStyle.wordWrap = false;
-        titleStyle.clipping = TextClipping.Clip;
-        GUIStyle metaStyle = new GUIStyle(_captionStyle);
-        metaStyle.fontSize = 18;
-        metaStyle.wordWrap = false;
-        metaStyle.clipping = TextClipping.Clip;
-        metaStyle.alignment = TextAnchor.UpperLeft;
-        GUIStyle hotkeyStyle = new GUIStyle(metaStyle);
-        hotkeyStyle.alignment = TextAnchor.UpperRight;
         Color accent = safeButton.IsSelected
             ? new Color(0.72f, 0.56f, 0.24f, 1f)
             : safeButton.IsAvailable
                 ? new Color(0.24f, 0.38f, 0.50f, 1f)
                 : new Color(0.20f, 0.20f, 0.24f, 1f);
         DrawPanel(rect, hovered && safeButton.IsAvailable ? accent : new Color(0.12f, 0.16f, 0.22f, 0.98f), new Color(0.08f, 0.10f, 0.14f, 0.94f));
-        GUI.Label(new Rect(rect.x + 16f, rect.y + 18f, rect.width - 32f, 30f), SafeShellText(safeButton.Label), titleStyle);
-        GUI.Label(new Rect(rect.x + 16f, rect.y + 54f, rect.width - 92f, 20f), CompactShellText(SafeShellText(safeButton.FooterText), 20), metaStyle);
-        GUI.Label(new Rect(rect.x + 16f, rect.yMax - 28f, rect.width - 32f, 18f), SafeShellText(safeButton.HotkeyText), hotkeyStyle);
+        if (IsImmediateVisualEvent())
+        {
+            GUI.Label(new Rect(rect.x + 16f, rect.y + 18f, rect.width - 32f, 30f), SafeShellText(safeButton.Label), _battleTitle26Style);
+            GUI.Label(new Rect(rect.x + 16f, rect.y + 54f, rect.width - 92f, 20f), CompactShellText(SafeShellText(safeButton.FooterText), 20), _battleCaption18Style);
+            GUI.Label(new Rect(rect.x + 16f, rect.yMax - 28f, rect.width - 32f, 18f), SafeShellText(safeButton.HotkeyText), _battleCaption18RightStyle);
+        }
+
         return clickable && GUI.Button(rect, GUIContent.none, GUIStyle.none);
     }
 
@@ -962,30 +965,21 @@ public sealed partial class PrototypePresentationShell
     {
         PartyStatusSurfaceData safeMember = member ?? new PartyStatusSurfaceData();
         hovered = rect.Contains(Event.current.mousePosition);
+        if (!IsImmediateVisualEvent())
+        {
+            return;
+        }
+
         Color frameColor = safeMember.IsActive ? accentColor : new Color(0.10f, 0.14f, 0.20f, 0.74f);
         DrawPanel(rect, frameColor, new Color(0.06f, 0.08f, 0.12f, 0.74f));
         DrawRect(new Rect(rect.x + 6f, rect.y + 6f, 3f, rect.height - 12f), accentColor);
         Rect portraitRect = new Rect(rect.x + 12f, rect.y + 10f, 38f, 38f);
         DrawPanel(portraitRect, new Color(0.16f, 0.22f, 0.30f, 0.94f), new Color(0.10f, 0.14f, 0.20f, 0.90f));
-        GUIStyle nameStyle = new GUIStyle(_bodyStyle);
-        nameStyle.fontSize = 22;
-        nameStyle.fontStyle = FontStyle.Bold;
-        nameStyle.wordWrap = false;
-        nameStyle.clipping = TextClipping.Clip;
-        GUIStyle compactCaptionStyle = new GUIStyle(_captionStyle);
-        compactCaptionStyle.fontSize = 18;
-        compactCaptionStyle.wordWrap = false;
-        compactCaptionStyle.clipping = TextClipping.Clip;
-        GUIStyle portraitStyle = new GUIStyle(_captionStyle);
-        portraitStyle.alignment = TextAnchor.MiddleCenter;
-        portraitStyle.wordWrap = false;
-        portraitStyle.fontSize = 18;
-        portraitStyle.clipping = TextClipping.Clip;
-        GUI.Label(new Rect(portraitRect.x, portraitRect.y + 6f, portraitRect.width, portraitRect.height - 12f), CompactShellText(SafeShellText(safeMember.DisplayName), 1).ToUpperInvariant(), portraitStyle);
+        GUI.Label(new Rect(portraitRect.x, portraitRect.y + 6f, portraitRect.width, portraitRect.height - 12f), CompactShellText(SafeShellText(safeMember.DisplayName), 1).ToUpperInvariant(), _battleCaption18CenterStyle);
         float contentX = portraitRect.xMax + 8f;
         float contentWidth = rect.xMax - contentX - 8f;
-        GUI.Label(new Rect(contentX, rect.y + 10f, contentWidth, 22f), CompactShellText(safeMember.DisplayName, 10), nameStyle);
-        GUI.Label(new Rect(contentX, rect.y + 34f, contentWidth, 18f), CompactShellText(BuildDungeonBattleJoinedTagLine(BuildDungeonBattleLaneTag(safeMember.LaneLabel), BuildDungeonBattlePartyStatusFooter(safeMember)), 16), compactCaptionStyle);
+        GUI.Label(new Rect(contentX, rect.y + 10f, contentWidth, 22f), CompactShellText(safeMember.DisplayName, 10), _battleTitle22Style);
+        GUI.Label(new Rect(contentX, rect.y + 34f, contentWidth, 18f), CompactShellText(BuildDungeonBattleJoinedTagLine(BuildDungeonBattleLaneTag(safeMember.LaneLabel), BuildDungeonBattlePartyStatusFooter(safeMember)), 16), _battleCaption18Style);
         DrawDungeonBattleMeterBar(
             new Rect(contentX, rect.yMax - 18f, contentWidth, 12f),
             safeMember.MaxHp > 0 ? (float)safeMember.CurrentHp / safeMember.MaxHp : 0f,
@@ -996,6 +990,11 @@ public sealed partial class PrototypePresentationShell
     private void DrawDungeonBattleFocusOverlay(Rect stageRect, Rect bottomRect, PrototypeBattleUiSurfaceData surface)
     {
         if (!ShouldShowDungeonBattleFocusOverlay(surface))
+        {
+            return;
+        }
+
+        if (!IsImmediateVisualEvent())
         {
             return;
         }
@@ -1011,28 +1010,16 @@ public sealed partial class PrototypePresentationShell
         if (targetFocus)
         {
             PrototypeBattleUiTargetSelectionData target = surface.TargetSelection ?? new PrototypeBattleUiTargetSelectionData();
-            GUIStyle overlayTitleStyle = new GUIStyle(_panelTitleStyle);
-            overlayTitleStyle.fontSize = 22;
-            overlayTitleStyle.wordWrap = false;
-            overlayTitleStyle.clipping = TextClipping.Clip;
-            GUIStyle overlayBodyStyle = new GUIStyle(_bodyStyle);
-            overlayBodyStyle.fontSize = 18;
-            overlayBodyStyle.wordWrap = false;
-            overlayBodyStyle.clipping = TextClipping.Clip;
-            GUIStyle overlayCaptionStyle = new GUIStyle(_captionStyle);
-            overlayCaptionStyle.fontSize = 18;
-            overlayCaptionStyle.wordWrap = false;
-            overlayCaptionStyle.clipping = TextClipping.Clip;
-            GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 12f, overlayRect.width - 32f, 28f), CompactShellText(SafeShellText(target.TargetLabel), 18), overlayTitleStyle);
-            GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 42f, overlayRect.width - 32f, 22f), CompactShellText(ChooseFirstMeaningfulDungeonText(target.TargetIntentLabel, target.TargetStateText, "Target pending"), 32), overlayCaptionStyle);
+            GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 12f, overlayRect.width - 32f, 28f), CompactShellText(SafeShellText(target.TargetLabel), 18), _battleSectionTitle22Style);
+            GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 42f, overlayRect.width - 32f, 22f), CompactShellText(ChooseFirstMeaningfulDungeonText(target.TargetIntentLabel, target.TargetStateText, "Target pending"), 32), _battleCaption18Style);
             DrawDungeonBattleMeterBar(
                 new Rect(overlayRect.x + 16f, overlayRect.y + 72f, overlayRect.width - 32f, 18f),
                 target.TargetMaxHp > 0 ? (float)target.TargetCurrentHp / target.TargetMaxHp : 0f,
                 new Color(0.72f, 0.34f, 0.26f, 1f),
                 "HP " + target.TargetCurrentHp + "/" + target.TargetMaxHp);
-            GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 98f, overlayRect.width - 32f, 20f), CompactShellText("Rule " + ChooseFirstMeaningfulDungeonText(target.TargetRuleText, target.ReachabilitySummaryText, "Select target"), 34), overlayBodyStyle);
-            GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 124f, overlayRect.width - 32f, 18f), CompactShellText(ChooseFirstMeaningfulDungeonText(target.ThreatSummaryText, target.SkillHintText, target.TargetTraitText), 34), overlayCaptionStyle);
-            GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.yMax - 24f, overlayRect.width - 32f, 18f), CompactShellText(SafeShellText(target.CancelHint), 24), overlayCaptionStyle);
+            GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 98f, overlayRect.width - 32f, 20f), CompactShellText("Rule " + ChooseFirstMeaningfulDungeonText(target.TargetRuleText, target.ReachabilitySummaryText, "Select target"), 34), _battleBody18Style);
+            GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 124f, overlayRect.width - 32f, 18f), CompactShellText(ChooseFirstMeaningfulDungeonText(target.ThreatSummaryText, target.SkillHintText, target.TargetTraitText), 34), _battleCaption18Style);
+            GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.yMax - 24f, overlayRect.width - 32f, 18f), CompactShellText(SafeShellText(target.CancelHint), 24), _battleCaption18Style);
             return;
         }
 
@@ -1042,22 +1029,10 @@ public sealed partial class PrototypePresentationShell
             return;
         }
 
-        GUIStyle commandOverlayTitleStyle = new GUIStyle(_panelTitleStyle);
-        commandOverlayTitleStyle.fontSize = 22;
-        commandOverlayTitleStyle.wordWrap = false;
-        commandOverlayTitleStyle.clipping = TextClipping.Clip;
-        GUIStyle commandOverlayBodyStyle = new GUIStyle(_bodyStyle);
-        commandOverlayBodyStyle.fontSize = 18;
-        commandOverlayBodyStyle.wordWrap = false;
-        commandOverlayBodyStyle.clipping = TextClipping.Clip;
-        GUIStyle commandOverlayCaptionStyle = new GUIStyle(_captionStyle);
-        commandOverlayCaptionStyle.fontSize = 18;
-        commandOverlayCaptionStyle.wordWrap = false;
-        commandOverlayCaptionStyle.clipping = TextClipping.Clip;
-        GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 12f, overlayRect.width - 32f, 28f), CompactShellText(SafeShellText(detail.Label), 16), commandOverlayTitleStyle);
-        GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 42f, overlayRect.width - 32f, 20f), CompactShellText(ChooseFirstMeaningfulDungeonText(detail.Description, detail.EffectText, "Ready"), 34), commandOverlayCaptionStyle);
-        GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 76f, overlayRect.width - 32f, 20f), CompactShellText("Target " + ChooseFirstMeaningfulDungeonText(detail.TargetText, "Self"), 34), commandOverlayBodyStyle);
-        GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 102f, overlayRect.width - 32f, 20f), CompactShellText(ChooseFirstMeaningfulDungeonText(FormatDungeonBattleFocusLine("Effect", detail.EffectText), FormatDungeonBattleFocusLine("Cost", detail.CostText), string.Empty), 34), commandOverlayBodyStyle);
+        GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 12f, overlayRect.width - 32f, 28f), CompactShellText(SafeShellText(detail.Label), 16), _battleSectionTitle22Style);
+        GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 42f, overlayRect.width - 32f, 20f), CompactShellText(ChooseFirstMeaningfulDungeonText(detail.Description, detail.EffectText, "Ready"), 34), _battleCaption18Style);
+        GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 76f, overlayRect.width - 32f, 20f), CompactShellText("Target " + ChooseFirstMeaningfulDungeonText(detail.TargetText, "Self"), 34), _battleBody18Style);
+        GUI.Label(new Rect(overlayRect.x + 16f, overlayRect.y + 102f, overlayRect.width - 32f, 20f), CompactShellText(ChooseFirstMeaningfulDungeonText(FormatDungeonBattleFocusLine("Effect", detail.EffectText), FormatDungeonBattleFocusLine("Cost", detail.CostText), string.Empty), 34), _battleBody18Style);
     }
 
     private bool ShouldShowDungeonBattleFocusOverlay(PrototypeBattleUiSurfaceData surface)
@@ -1195,6 +1170,11 @@ public sealed partial class PrototypePresentationShell
     {
         PrototypeBattleUiPartyMemberData safeMember = member ?? new PrototypeBattleUiPartyMemberData();
         hovered = rect.Contains(Event.current.mousePosition);
+        if (!IsImmediateVisualEvent())
+        {
+            return;
+        }
+
         bool emphasized = hovered || safeMember.IsActive || safeMember.IsTargeted || safeMember.IsKnockedOut;
         Rect bodyRect = new Rect(rect.x + 18f, rect.y + 12f, rect.width - 56f, rect.height - 78f);
         Rect shadowRect = new Rect(bodyRect.x + 10f, bodyRect.yMax - 8f, bodyRect.width + 16f, 12f);
@@ -1205,36 +1185,24 @@ public sealed partial class PrototypePresentationShell
         DrawRect(shadowRect, new Color(0f, 0f, 0f, 0.28f));
         DrawPanel(bodyRect, new Color(accentColor.r * 0.72f, accentColor.g * 0.72f, accentColor.b * 0.72f, 0.94f), new Color(0.14f, 0.20f, 0.26f, 0.92f));
         DrawRect(new Rect(bodyRect.xMax - 9f, bodyRect.y + 12f, 9f, bodyRect.height - 24f), new Color(accentColor.r, accentColor.g, accentColor.b, 0.78f));
-        GUIStyle glyphStyle = new GUIStyle(_heroSubtitleStyle);
-        glyphStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(bodyRect.height * 0.46f), 34, 56);
-        glyphStyle.alignment = TextAnchor.MiddleCenter;
-        GUI.Label(new Rect(bodyRect.x, bodyRect.y + 8f, bodyRect.width, bodyRect.height - 16f), BuildDungeonBattleGlyph(safeMember.DisplayName), glyphStyle);
+        GUI.Label(new Rect(bodyRect.x, bodyRect.y + 8f, bodyRect.width, bodyRect.height - 16f), BuildDungeonBattleGlyph(safeMember.DisplayName), GetBattleGlyphStyle(bodyRect.height));
         Rect plateRect = new Rect(rect.x + 10f, rect.yMax - 58f, rect.width - 20f, 50f);
         DrawPanel(plateRect, new Color(0.14f, 0.18f, 0.24f, 0.94f), new Color(0.06f, 0.08f, 0.12f, 0.94f));
 
-        GUIStyle titleStyle = new GUIStyle(_bodyStyle);
-        titleStyle.fontSize = 22;
-        titleStyle.fontStyle = FontStyle.Bold;
-        titleStyle.wordWrap = false;
-        titleStyle.clipping = TextClipping.Clip;
-        GUIStyle metaStyle = new GUIStyle(_captionStyle);
-        metaStyle.fontSize = 18;
-        metaStyle.wordWrap = false;
-        metaStyle.clipping = TextClipping.Clip;
         float contentX = plateRect.x + 12f;
         float contentWidth = plateRect.width - 24f;
-        GUI.Label(new Rect(contentX, plateRect.y + 6f, contentWidth - 52f, 24f), CompactShellText(safeMember.DisplayName, 12), titleStyle);
+        GUI.Label(new Rect(contentX, plateRect.y + 6f, contentWidth - 52f, 24f), CompactShellText(safeMember.DisplayName, 12), _battleTitle22Style);
         string laneTag = BuildDungeonBattleLaneTag(safeMember.LaneLabel);
         string stateTag = BuildDungeonBattlePartyStateTag(safeMember);
         if (HasMeaningfulValue(laneTag))
         {
-            float laneWidth = Mathf.Clamp(_badgeStyle.CalcSize(new GUIContent(laneTag)).x + 18f, 42f, 62f);
+            float laneWidth = GetCachedBadgeWidth(laneTag, 18f, 42f, 62f);
             DrawPill(new Rect(rect.x + 10f, rect.y + 10f, laneWidth, 22f), laneTag, new Color(0.18f, 0.26f, 0.34f, 0.96f), Color.white);
         }
 
         if (HasMeaningfulValue(stateTag))
         {
-            float stateWidth = Mathf.Clamp(_badgeStyle.CalcSize(new GUIContent(stateTag)).x + 18f, 44f, 72f);
+            float stateWidth = GetCachedBadgeWidth(stateTag, 18f, 44f, 72f);
             DrawPill(new Rect(rect.xMax - stateWidth - 10f, rect.y + 10f, stateWidth, 22f), stateTag, new Color(accentColor.r, accentColor.g, accentColor.b, 0.96f), Color.white);
         }
 
@@ -1249,63 +1217,61 @@ public sealed partial class PrototypePresentationShell
     {
         PrototypeBattleUiEnemyData safeEnemy = enemy ?? new PrototypeBattleUiEnemyData();
         hovered = rect.Contains(Event.current.mousePosition);
+        bool drawVisuals = IsImmediateVisualEvent();
         Color accentColor = safeEnemy.IsActing
             ? new Color(0.78f, 0.58f, 0.24f, 1f)
             : safeEnemy.IsElite
                 ? new Color(0.80f, 0.44f, 0.28f, 1f)
                 : new Color(0.54f, 0.30f, 0.28f, 1f);
-        Rect bodyRect = new Rect(rect.x + 20f, rect.y + 12f, rect.width - 56f, rect.height - 78f);
-        Rect shadowRect = new Rect(bodyRect.x - 8f, bodyRect.yMax - 8f, bodyRect.width + 18f, 12f);
-        if (safeEnemy.IsSelected || safeEnemy.IsActing || (hovered && canTarget))
+        if (drawVisuals)
         {
-            DrawRect(new Rect(bodyRect.x - 10f, bodyRect.y - 10f, bodyRect.width + 20f, bodyRect.height + 20f), new Color(accentColor.r, accentColor.g, accentColor.b, 0.14f));
-        }
-        DrawRect(shadowRect, new Color(0f, 0f, 0f, 0.28f));
-        DrawPanel(bodyRect, new Color(accentColor.r * 0.72f, accentColor.g * 0.60f, accentColor.b * 0.60f, 0.94f), new Color(0.18f, 0.12f, 0.12f, 0.92f));
-        DrawRect(new Rect(bodyRect.x, bodyRect.y + 12f, 9f, bodyRect.height - 24f), new Color(accentColor.r, accentColor.g, accentColor.b, 0.78f));
-        GUIStyle glyphStyle = new GUIStyle(_heroSubtitleStyle);
-        glyphStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(bodyRect.height * 0.46f), 34, 56);
-        glyphStyle.alignment = TextAnchor.MiddleCenter;
-        GUI.Label(new Rect(bodyRect.x, bodyRect.y + 8f, bodyRect.width, bodyRect.height - 16f), BuildDungeonBattleGlyph(safeEnemy.DisplayName), glyphStyle);
-        Rect plateRect = new Rect(rect.x + 10f, rect.yMax - 58f, rect.width - 20f, 50f);
-        DrawPanel(plateRect, new Color(0.18f, 0.14f, 0.16f, 0.94f), new Color(0.08f, 0.06f, 0.10f, 0.94f));
-        if (safeEnemy.IsSelected || (hovered && canTarget))
-        {
-            DrawDungeonBattleReticle(bodyRect, accentColor);
+            Rect bodyRect = new Rect(rect.x + 20f, rect.y + 12f, rect.width - 56f, rect.height - 78f);
+            Rect shadowRect = new Rect(bodyRect.x - 8f, bodyRect.yMax - 8f, bodyRect.width + 18f, 12f);
+            if (safeEnemy.IsSelected || safeEnemy.IsActing || (hovered && canTarget))
+            {
+                DrawRect(new Rect(bodyRect.x - 10f, bodyRect.y - 10f, bodyRect.width + 20f, bodyRect.height + 20f), new Color(accentColor.r, accentColor.g, accentColor.b, 0.14f));
+            }
+            DrawRect(shadowRect, new Color(0f, 0f, 0f, 0.28f));
+            DrawPanel(bodyRect, new Color(accentColor.r * 0.72f, accentColor.g * 0.60f, accentColor.b * 0.60f, 0.94f), new Color(0.18f, 0.12f, 0.12f, 0.92f));
+            DrawRect(new Rect(bodyRect.x, bodyRect.y + 12f, 9f, bodyRect.height - 24f), new Color(accentColor.r, accentColor.g, accentColor.b, 0.78f));
+            GUI.Label(new Rect(bodyRect.x, bodyRect.y + 8f, bodyRect.width, bodyRect.height - 16f), BuildDungeonBattleGlyph(safeEnemy.DisplayName), GetBattleGlyphStyle(bodyRect.height));
+            Rect plateRect = new Rect(rect.x + 10f, rect.yMax - 58f, rect.width - 20f, 50f);
+            DrawPanel(plateRect, new Color(0.18f, 0.14f, 0.16f, 0.94f), new Color(0.08f, 0.06f, 0.10f, 0.94f));
+            if (safeEnemy.IsSelected || (hovered && canTarget))
+            {
+                DrawDungeonBattleReticle(bodyRect, accentColor);
+            }
+
+            float contentX = plateRect.x + 12f;
+            float contentWidth = plateRect.width - 24f;
+            GUI.Label(new Rect(contentX, plateRect.y + 6f, contentWidth - 58f, 24f), CompactShellText(safeEnemy.DisplayName, 12), _battleTitle22Style);
+            string intentTag = BuildDungeonBattleIntentTag(safeEnemy.IntentLabel);
+            float intentWidth = GetCachedBadgeWidth(intentTag, 18f, 44f, 74f);
+            DrawPill(new Rect(rect.xMax - intentWidth - 10f, rect.y + 10f, intentWidth, 22f), intentTag, new Color(accentColor.r, accentColor.g, accentColor.b, 0.96f), Color.white);
+            string laneTag = BuildDungeonBattleLaneTag(safeEnemy.LaneLabel);
+            if (HasMeaningfulValue(laneTag))
+            {
+                float laneWidth = GetCachedBadgeWidth(laneTag, 18f, 42f, 62f);
+                DrawPill(new Rect(rect.x + 10f, rect.y + 10f, laneWidth, 22f), laneTag, new Color(0.18f, 0.24f, 0.30f, 0.96f), Color.white);
+            }
+
+            DrawDungeonBattleMeterBar(
+                new Rect(contentX, plateRect.yMax - 18f, contentWidth, 14f),
+                safeEnemy.MaxHp > 0 ? (float)safeEnemy.CurrentHp / safeEnemy.MaxHp : 0f,
+                accentColor,
+                string.Empty);
         }
 
-        GUIStyle titleStyle = new GUIStyle(_bodyStyle);
-        titleStyle.fontSize = 22;
-        titleStyle.fontStyle = FontStyle.Bold;
-        titleStyle.wordWrap = false;
-        titleStyle.clipping = TextClipping.Clip;
-        GUIStyle metaStyle = new GUIStyle(_captionStyle);
-        metaStyle.fontSize = 18;
-        metaStyle.wordWrap = false;
-        metaStyle.clipping = TextClipping.Clip;
-        float contentX = plateRect.x + 12f;
-        float contentWidth = plateRect.width - 24f;
-        GUI.Label(new Rect(contentX, plateRect.y + 6f, contentWidth - 58f, 24f), CompactShellText(safeEnemy.DisplayName, 12), titleStyle);
-        string intentTag = BuildDungeonBattleIntentTag(safeEnemy.IntentLabel);
-        float intentWidth = Mathf.Clamp(_badgeStyle.CalcSize(new GUIContent(intentTag)).x + 18f, 44f, 74f);
-        DrawPill(new Rect(rect.xMax - intentWidth - 10f, rect.y + 10f, intentWidth, 22f), intentTag, new Color(accentColor.r, accentColor.g, accentColor.b, 0.96f), Color.white);
-        string laneTag = BuildDungeonBattleLaneTag(safeEnemy.LaneLabel);
-        if (HasMeaningfulValue(laneTag))
-        {
-            float laneWidth = Mathf.Clamp(_badgeStyle.CalcSize(new GUIContent(laneTag)).x + 18f, 42f, 62f);
-            DrawPill(new Rect(rect.x + 10f, rect.y + 10f, laneWidth, 22f), laneTag, new Color(0.18f, 0.24f, 0.30f, 0.96f), Color.white);
-        }
-
-        DrawDungeonBattleMeterBar(
-            new Rect(contentX, plateRect.yMax - 18f, contentWidth, 14f),
-            safeEnemy.MaxHp > 0 ? (float)safeEnemy.CurrentHp / safeEnemy.MaxHp : 0f,
-            accentColor,
-            string.Empty);
         return canTarget && !safeEnemy.IsDefeated && GUI.Button(rect, GUIContent.none, GUIStyle.none);
     }
 
     private void DrawDungeonBattleMeterBar(Rect rect, float fillRatio, Color fillColor, string label)
     {
+        if (!IsImmediateVisualEvent())
+        {
+            return;
+        }
+        
         float ratio = Mathf.Clamp01(fillRatio);
         DrawRect(rect, new Color(0.04f, 0.06f, 0.09f, 0.96f));
         float innerWidth = Mathf.Max(0f, (rect.width - 2f) * ratio);
@@ -1319,12 +1285,7 @@ public sealed partial class PrototypePresentationShell
             return;
         }
 
-        GUIStyle meterLabelStyle = new GUIStyle(_captionStyle);
-        meterLabelStyle.alignment = TextAnchor.MiddleCenter;
-        meterLabelStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(rect.height * 1.1f), 18, 20);
-        meterLabelStyle.wordWrap = false;
-        meterLabelStyle.clipping = TextClipping.Clip;
-        GUI.Label(new Rect(rect.x + 4f, rect.y - 1f, rect.width - 8f, rect.height + 2f), label, meterLabelStyle);
+        GUI.Label(new Rect(rect.x + 4f, rect.y - 1f, rect.width - 8f, rect.height + 2f), label, GetBattleMeterLabelStyle(rect.height));
     }
 
     private void DrawDungeonBattleReticle(Rect rect, Color color)
@@ -1379,6 +1340,7 @@ public sealed partial class PrototypePresentationShell
             return "Stable";
         }
 
+        string summaryText = ChooseFirstMeaningfulDungeonText(member.SummaryText, string.Empty);
         if (member.IsKnockedOut || member.CurrentHp <= 0)
         {
             return "Down";
@@ -1386,15 +1348,15 @@ public sealed partial class PrototypePresentationShell
 
         if (member.IsActive)
         {
-            return "Acting";
+            return HasMeaningfulValue(summaryText) ? "Acting | " + summaryText : "Acting";
         }
 
         if (member.IsTargeted)
         {
-            return "Threat";
+            return HasMeaningfulValue(summaryText) ? "Threat | " + summaryText : "Threat";
         }
 
-        return ChooseFirstMeaningfulDungeonText(member.StatusText, "Stable");
+        return ChooseFirstMeaningfulDungeonText(summaryText, member.StatusText, "Stable");
     }
 
     private string BuildDungeonBattleEnemyFooter(PrototypeBattleUiEnemyData enemy, bool canTarget)
@@ -2007,6 +1969,7 @@ public sealed partial class PrototypePresentationShell
                 BuildDungeonLabeledLine("Choice Result", resultContext != null ? resultContext.ChoiceOutcomeSummaryText : "None"),
                 BuildDungeonLabeledLine("Gear Reward", resultContext != null ? resultContext.GearRewardCandidateSummaryText : "None"),
                 BuildDungeonLabeledLine("Equip Swap", resultContext != null ? resultContext.EquipSwapChoiceSummaryText : "None"),
+                BuildDungeonLabeledLine("Build Change", BuildDungeonBuildChangeSummary(resultContext)),
                 BuildDungeonLabeledLine("Gear Continuity", resultContext != null ? resultContext.GearCarryContinuitySummaryText : "None"),
                 BuildDungeonLabeledLine("Progression", BuildDungeonProgressionSummary(resultContext))));
     }
@@ -2221,6 +2184,54 @@ public sealed partial class PrototypePresentationShell
         return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : string.Empty;
     }
 
+    private string BuildDungeonBuildChangeSummary(PrototypeDungeonRunResultContext resultContext)
+    {
+        if (resultContext == null)
+        {
+            return string.Empty;
+        }
+
+        List<string> parts = new List<string>();
+        if (HasOptionalDungeonCopyValue(resultContext.EquipSwapChoiceSummaryText))
+        {
+            parts.Add(SafeShellText(resultContext.EquipSwapChoiceSummaryText));
+        }
+        else if (HasOptionalDungeonCopyValue(resultContext.GearRewardCandidateSummaryText))
+        {
+            parts.Add(SafeShellText(resultContext.GearRewardCandidateSummaryText));
+        }
+
+        PrototypeRpgPartyMemberOutcomeSnapshot[] members =
+            resultContext.CanonicalRunResult != null &&
+            resultContext.CanonicalRunResult.PartyOutcome != null &&
+            resultContext.CanonicalRunResult.PartyOutcome.Members != null
+                ? resultContext.CanonicalRunResult.PartyOutcome.Members
+                : System.Array.Empty<PrototypeRpgPartyMemberOutcomeSnapshot>();
+        for (int i = 0; i < members.Length; i++)
+        {
+            PrototypeRpgPartyMemberOutcomeSnapshot member = members[i];
+            if (member == null)
+            {
+                continue;
+            }
+
+            string previewText = ChooseFirstOptionalDungeonText(
+                member.NextRunPreviewSummaryText,
+                member.CurrentRunSummaryText,
+                member.AppliedProgressionSummaryText);
+            if (!HasOptionalDungeonCopyValue(previewText))
+            {
+                continue;
+            }
+
+            string displayName = HasMeaningfulValue(member.DisplayName) ? SafeShellText(member.DisplayName) : "Party";
+            parts.Add("Next " + displayName + ": " + CompactShellText(previewText, 52));
+            break;
+        }
+
+        return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : string.Empty;
+    }
+
     private string BuildDungeonStateTransitionLine(string label, string beforeText, string afterText)
     {
         bool hasBefore = HasMeaningfulValue(beforeText);
@@ -2364,8 +2375,7 @@ public sealed partial class PrototypePresentationShell
                     continue;
                 }
 
-                Vector2 chipSize = _badgeStyle.CalcSize(new GUIContent(chips[i]));
-                float chipWidth = Mathf.Clamp(chipSize.x + 20f, 96f, 188f);
+                float chipWidth = GetCachedBadgeWidth(chips[i], 20f, 96f, 188f);
                 Rect chipRect = new Rect(rightX - chipWidth, rect.y + 16f, chipWidth, 28f);
                 DrawPill(chipRect, chips[i], new Color(0.18f, 0.28f, 0.38f, 0.96f), new Color(0.94f, 0.96f, 0.98f, 1f));
                 rightX = chipRect.x - 8f;
@@ -2399,8 +2409,8 @@ public sealed partial class PrototypePresentationShell
 
         if (HasMeaningfulValue(tagText))
         {
-            Vector2 tagSize = _badgeStyle.CalcSize(new GUIContent(tagText));
-            Rect tagRect = new Rect(rect.xMax - tagSize.x - 28f, rect.y + 10f, tagSize.x + 18f, 22f);
+            float tagWidth = GetCachedBadgeWidth(tagText, 18f, 42f, 184f);
+            Rect tagRect = new Rect(rect.xMax - tagWidth - 10f, rect.y + 10f, tagWidth, 22f);
             DrawPill(tagRect, tagText, new Color(accentColor.r, accentColor.g, accentColor.b, 0.90f), Color.white);
         }
 
@@ -2446,6 +2456,17 @@ public sealed partial class PrototypePresentationShell
             return "None";
         }
 
+        string cacheKey = "lines|" + lines.Length;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            cacheKey += "\u001f" + SafeShellText(lines[i]);
+        }
+
+        if (_dungeonLinesCache.TryGetValue(cacheKey, out string cachedLines))
+        {
+            return cachedLines;
+        }
+
         List<string> filtered = new List<string>();
         for (int i = 0; i < lines.Length; i++)
         {
@@ -2455,7 +2476,8 @@ public sealed partial class PrototypePresentationShell
             }
         }
 
-        return filtered.Count > 0 ? string.Join("\n", filtered.ToArray()) : "None";
+        string result = filtered.Count > 0 ? string.Join("\n", filtered.ToArray()) : "None";
+        return CacheShellValue(_dungeonLinesCache, cacheKey, result, 256);
     }
 
     private string BuildDisplayBlock(string value, int maxLines, int maxCharsPerLine)
@@ -2465,7 +2487,14 @@ public sealed partial class PrototypePresentationShell
             return "None";
         }
 
-        string[] rawLines = SafeShellText(value).Split('\n');
+        string safeValue = SafeShellText(value);
+        string cacheKey = maxLines + "|" + maxCharsPerLine + "|" + safeValue;
+        if (_displayBlockCache.TryGetValue(cacheKey, out string cachedDisplayBlock))
+        {
+            return cachedDisplayBlock;
+        }
+
+        string[] rawLines = safeValue.Split('\n');
         List<string> compactedLines = new List<string>();
         for (int i = 0; i < rawLines.Length; i++)
         {
@@ -2480,6 +2509,7 @@ public sealed partial class PrototypePresentationShell
             return "None";
         }
 
+        string result;
         if (compactedLines.Count > maxLines)
         {
             List<string> limitedLines = new List<string>();
@@ -2489,26 +2519,40 @@ public sealed partial class PrototypePresentationShell
             }
 
             limitedLines[maxLines - 1] = CompactShellText(limitedLines[maxLines - 1], Mathf.Max(12, maxCharsPerLine - 4)) + " ...";
-            return string.Join("\n", limitedLines.ToArray());
+            result = string.Join("\n", limitedLines.ToArray());
+        }
+        else
+        {
+            result = string.Join("\n", compactedLines.ToArray());
         }
 
-        return string.Join("\n", compactedLines.ToArray());
+        return CacheShellValue(_displayBlockCache, cacheKey, result, 256);
     }
 
     private string CompactShellText(string value, int maxLength)
     {
+        string cacheKey = maxLength + "|" + SafeShellText(value);
+        if (_compactShellTextCache.TryGetValue(cacheKey, out string cachedText))
+        {
+            return cachedText;
+        }
+
         string text = SafeShellText(value).Replace("\r", string.Empty).Replace("\n", " ").Trim();
+        string result;
         if (text.Length <= maxLength)
         {
-            return text;
+            result = text;
         }
-
-        if (maxLength <= 3)
+        else if (maxLength <= 3)
         {
-            return text.Substring(0, Mathf.Max(1, maxLength));
+            result = text.Substring(0, Mathf.Max(1, maxLength));
+        }
+        else
+        {
+            result = text.Substring(0, maxLength - 3).TrimEnd() + "...";
         }
 
-        return text.Substring(0, maxLength - 3).TrimEnd() + "...";
+        return CacheShellValue(_compactShellTextCache, cacheKey, result, 512);
     }
 
     private string SafeShellText(string value)
@@ -2568,6 +2612,17 @@ public sealed partial class PrototypePresentationShell
             return "No recent events.";
         }
 
+        string cacheKey = "logs|" + logs.Length;
+        for (int i = 0; i < logs.Length; i++)
+        {
+            cacheKey += "\u001f" + SafeShellText(logs[i]);
+        }
+
+        if (_recentBattleLogsCache.TryGetValue(cacheKey, out string cachedLogs))
+        {
+            return cachedLogs;
+        }
+
         List<string> lines = new List<string>();
         for (int i = 0; i < logs.Length; i++)
         {
@@ -2589,7 +2644,8 @@ public sealed partial class PrototypePresentationShell
             recentLines.Add(lines[i]);
         }
 
-        return string.Join("\n", recentLines.ToArray());
+        string result = string.Join("\n", recentLines.ToArray());
+        return CacheShellValue(_recentBattleLogsCache, cacheKey, result, 128);
     }
 }
 

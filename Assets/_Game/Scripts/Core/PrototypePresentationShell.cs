@@ -21,9 +21,28 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
     private GUIStyle _metricValueStyle;
     private GUIStyle _buttonStyle;
     private GUIStyle _badgeStyle;
+    private GUIStyle _battleHeadline30Style;
+    private GUIStyle _battleTitle26Style;
+    private GUIStyle _battleTitle22Style;
+    private GUIStyle _battleBody18Style;
+    private GUIStyle _battleCaption18Style;
+    private GUIStyle _battleCaption18RightStyle;
+    private GUIStyle _battleCaption18CenterStyle;
+    private GUIStyle _battleSectionTitle22Style;
+    private GUIStyle _battleDynamicGlyphStyle;
+    private GUIStyle _battleMeterLabelStyle;
+    private GUIStyle _pillTextStyle;
     private readonly PrototypeCityHubPresentationState _cityHubPresentationState = new PrototypeCityHubPresentationState();
     private Rect[] _blockingRects = EmptyBlockingRects;
     private readonly System.Collections.Generic.Dictionary<string, Vector2> _shellScrollByKey = new System.Collections.Generic.Dictionary<string, Vector2>();
+    private readonly GUIContent _badgeMeasureContent = new GUIContent();
+    private readonly System.Collections.Generic.Dictionary<string, float> _badgeWidthCache = new System.Collections.Generic.Dictionary<string, float>();
+    private readonly System.Collections.Generic.Dictionary<string, string> _compactShellTextCache = new System.Collections.Generic.Dictionary<string, string>();
+    private readonly System.Collections.Generic.Dictionary<string, string> _displayBlockCache = new System.Collections.Generic.Dictionary<string, string>();
+    private readonly System.Collections.Generic.Dictionary<string, string> _dungeonLinesCache = new System.Collections.Generic.Dictionary<string, string>();
+    private readonly System.Collections.Generic.Dictionary<string, string> _recentBattleLogsCache = new System.Collections.Generic.Dictionary<string, string>();
+    private readonly List<PrototypeBattleUiPartyMemberData> _battlePartySortBuffer = new List<PrototypeBattleUiPartyMemberData>(8);
+    private readonly List<PrototypeBattleUiEnemyData> _battleEnemySortBuffer = new List<PrototypeBattleUiEnemyData>(8);
 
     public bool IsPointerOverBlockingUi(Vector2 screenPosition)
     {
@@ -1165,8 +1184,7 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
 
     private float GetCompactTabWidth(string label, float minWidth, float maxWidth)
     {
-        Vector2 size = _badgeStyle.CalcSize(new GUIContent(label));
-        return Mathf.Clamp(size.x + 42f, minWidth, maxWidth);
+        return GetCachedBadgeWidth(label, 42f, minWidth, maxWidth);
     }
     private void DrawMetricPill(Rect rect, string label, string value, Color fillColor)
     {
@@ -1246,19 +1264,7 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
     private void DrawPill(Rect rect, string text, Color fillColor, Color textColor)
     {
         DrawPanel(rect, fillColor, new Color(fillColor.r * 0.6f, fillColor.g * 0.6f, fillColor.b * 0.6f, 0.18f));
-        GUIStyle pillTextStyle = new GUIStyle(_badgeStyle);
-        pillTextStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(rect.height * 0.62f), 16, 20);
-        pillTextStyle.normal.background = null;
-        pillTextStyle.hover.background = null;
-        pillTextStyle.active.background = null;
-        pillTextStyle.focused.background = null;
-        pillTextStyle.alignment = TextAnchor.MiddleLeft;
-        pillTextStyle.wordWrap = false;
-        pillTextStyle.clipping = TextClipping.Clip;
-        pillTextStyle.normal.textColor = textColor;
-        pillTextStyle.hover.textColor = textColor;
-        pillTextStyle.active.textColor = textColor;
-        pillTextStyle.focused.textColor = textColor;
+        GUIStyle pillTextStyle = GetPillTextStyle(rect.height, textColor);
         GUI.Label(new Rect(rect.x + 12f, rect.y + 4f, rect.width - 24f, rect.height - 8f), text, pillTextStyle);
     }
 
@@ -1282,6 +1288,11 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
 
     private void DrawRotatedRect(Rect rect, float angle, Color color)
     {
+        if (Event.current == null || Event.current.type != EventType.Repaint)
+        {
+            return;
+        }
+
         Matrix4x4 previousMatrix = GUI.matrix;
         Vector2 pivot = rect.center;
         GUIUtility.RotateAroundPivot(angle, pivot);
@@ -1291,6 +1302,11 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
 
     private void DrawRect(Rect rect, Color color)
     {
+        if (Event.current == null || Event.current.type != EventType.Repaint)
+        {
+            return;
+        }
+
         Color previousColor = GUI.color;
         GUI.color = color;
         GUI.DrawTexture(rect, Texture2D.whiteTexture);
@@ -1475,6 +1491,107 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         _badgeStyle = new GUIStyle(_buttonStyle);
         _badgeStyle.fontSize = 11;
         _badgeStyle.padding = new RectOffset(6, 6, 4, 4);
+
+        _battleHeadline30Style = CreateBattleTextStyle(_bodyStyle, 30, FontStyle.Bold, TextAnchor.UpperLeft);
+        _battleTitle26Style = CreateBattleTextStyle(_bodyStyle, 26, FontStyle.Bold, TextAnchor.UpperLeft);
+        _battleTitle22Style = CreateBattleTextStyle(_bodyStyle, 22, FontStyle.Bold, TextAnchor.UpperLeft);
+        _battleBody18Style = CreateBattleTextStyle(_bodyStyle, 18, FontStyle.Normal, TextAnchor.UpperLeft);
+        _battleCaption18Style = CreateBattleTextStyle(_captionStyle, 18, FontStyle.Normal, TextAnchor.UpperLeft);
+        _battleCaption18RightStyle = CreateBattleTextStyle(_captionStyle, 18, FontStyle.Normal, TextAnchor.UpperRight);
+        _battleCaption18CenterStyle = CreateBattleTextStyle(_captionStyle, 18, FontStyle.Normal, TextAnchor.MiddleCenter);
+        _battleSectionTitle22Style = CreateBattleTextStyle(_panelTitleStyle, 22, FontStyle.Bold, TextAnchor.UpperLeft);
+        _battleDynamicGlyphStyle = CreateBattleTextStyle(_heroSubtitleStyle, 38, FontStyle.Bold, TextAnchor.MiddleCenter);
+        _battleMeterLabelStyle = CreateBattleTextStyle(_captionStyle, 18, FontStyle.Normal, TextAnchor.MiddleCenter);
+        _pillTextStyle = CreateBattleTextStyle(_badgeStyle, 18, FontStyle.Bold, TextAnchor.MiddleLeft);
+        _pillTextStyle.normal.background = null;
+        _pillTextStyle.hover.background = null;
+        _pillTextStyle.active.background = null;
+        _pillTextStyle.focused.background = null;
+    }
+
+    private GUIStyle CreateBattleTextStyle(GUIStyle sourceStyle, int fontSize, FontStyle fontStyle, TextAnchor alignment)
+    {
+        GUIStyle style = new GUIStyle(sourceStyle);
+        style.fontSize = fontSize;
+        style.fontStyle = fontStyle;
+        style.alignment = alignment;
+        style.wordWrap = false;
+        style.clipping = TextClipping.Clip;
+        return style;
+    }
+
+    private GUIStyle GetPillTextStyle(float height, Color textColor)
+    {
+        _pillTextStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(height * 0.62f), 16, 20);
+        _pillTextStyle.normal.textColor = textColor;
+        _pillTextStyle.hover.textColor = textColor;
+        _pillTextStyle.active.textColor = textColor;
+        _pillTextStyle.focused.textColor = textColor;
+        return _pillTextStyle;
+    }
+
+    private GUIStyle GetBattleGlyphStyle(float height)
+    {
+        _battleDynamicGlyphStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(height * 0.46f), 34, 56);
+        return _battleDynamicGlyphStyle;
+    }
+
+    private GUIStyle GetBattleGlyphStyle(int fontSize)
+    {
+        _battleDynamicGlyphStyle.fontSize = fontSize;
+        return _battleDynamicGlyphStyle;
+    }
+
+    private GUIStyle GetBattleMeterLabelStyle(float height)
+    {
+        _battleMeterLabelStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(height * 1.1f), 18, 20);
+        return _battleMeterLabelStyle;
+    }
+
+    private float GetCachedBadgeWidth(string label, float extraPadding, float minWidth, float maxWidth)
+    {
+        string safeLabel = SafeShellText(label);
+        string key = safeLabel
+            + "|"
+            + Mathf.RoundToInt(extraPadding)
+            + "|"
+            + Mathf.RoundToInt(minWidth)
+            + "|"
+            + Mathf.RoundToInt(maxWidth);
+        if (_badgeWidthCache.TryGetValue(key, out float cachedWidth))
+        {
+            return cachedWidth;
+        }
+
+        _badgeMeasureContent.text = safeLabel;
+        float width = Mathf.Clamp(_badgeStyle.CalcSize(_badgeMeasureContent).x + extraPadding, minWidth, maxWidth);
+        return CacheShellValue(_badgeWidthCache, key, width, 512);
+    }
+
+    private static TValue CacheShellValue<TValue>(System.Collections.Generic.Dictionary<string, TValue> cache, string key, TValue value, int maxEntries)
+    {
+        if (cache.Count >= maxEntries)
+        {
+            cache.Clear();
+        }
+
+        cache[key] = value;
+        return value;
+    }
+
+    private bool IsImmediateVisualEvent()
+    {
+        return Event.current == null || Event.current.type == EventType.Repaint;
+    }
+
+    private void DrawRepaintLabel(Rect rect, string text, GUIStyle style)
+    {
+        if (!IsImmediateVisualEvent())
+        {
+            return;
+        }
+
+        GUI.Label(rect, text, style);
     }
 }
 

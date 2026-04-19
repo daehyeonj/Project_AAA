@@ -42,9 +42,10 @@
   - stronger drops auto-equip onto the correct member + slot
   - replaced gear stays in the party inventory if it is no longer equipped
 - Readback proof stays on the accepted UI rail:
+  - auto-equip now spells out visible stat deltas such as `ATK 5 -> 6`
   - prep / party loadout summary now echoes slot-aware equipment state + carried inventory
-  - result reward lines now explain gear reward, equip swap, and carry continuity from the same runtime truth
-  - next-run battle stats now inherit level growth plus equipped gear bonuses
+  - result reward lines now explain gear reward, equip swap, build change, and carry continuity from the same runtime truth
+  - next-run prep / battle readback now shows resolved `Lv / HP / ATK / DEF / SPD` plus compact gear evidence
 - UI shape changed?: `No`
 
 ## Batch 73 Validation Snapshot

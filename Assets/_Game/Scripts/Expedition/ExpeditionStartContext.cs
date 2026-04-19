@@ -17,6 +17,14 @@ public sealed class ExpeditionPartyMemberManifest
     public string AppliedProgressionSummaryText = "None";
     public string CurrentRunSummaryText = "None";
     public string NextRunPreviewSummaryText = "None";
+    public int Level = 1;
+    public int CurrentExperience;
+    public int NextLevelExperience = 18;
+    public int MaxHp = 1;
+    public int Attack = 1;
+    public int Defense;
+    public int Speed;
+    public int SkillPower = 1;
     public string SummaryText = "None";
 }
 

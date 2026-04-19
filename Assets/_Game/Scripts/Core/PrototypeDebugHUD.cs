@@ -542,13 +542,15 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         DrawFittedLabel(subtitleRect, GetCompactHudText(GetNextBattleTimelineText(), 60, false), _bodyStyle, 10, 9, false);
 
         PrototypeBattleUiPartyMemberData memberData = GetCurrentBattlePartyMember();
-        if (memberData == null)
+        CurrentActorSurfaceData actorSurface = GetBattleUiSurfaceData().CurrentActorSurface;
+        bool hasActorSurface = actorSurface != null && HasMeaningfulText(actorSurface.DisplayName);
+        if (memberData == null && !hasActorSurface)
         {
             DrawFittedLabel(contentRect, "Awaiting playable turn.", _bodyStyle, 10, 9, false);
             return;
         }
 
-        DrawPartyMemberStatusCard(contentRect, memberData, ResolveBattlePartyMemberSlot(memberData));
+        DrawCurrentBattleActorCard(contentRect, memberData, actorSurface, ResolveBattlePartyMemberSlot(memberData));
     }
 
     private void DrawTargetStatusPanel(Rect rect)
@@ -790,6 +792,72 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         return _bootEntry != null ? _bootEntry.GetPartyMemberContributionLabel(memberIndex) : "D 0  H 0  A 0  K 0";
     }
 
+    private void DrawCurrentBattleActorCard(Rect rect, PrototypeBattleUiPartyMemberData memberData, CurrentActorSurfaceData actorSurface, int slotIndex)
+    {
+        string memberName = actorSurface != null && HasMeaningfulText(actorSurface.DisplayName)
+            ? actorSurface.DisplayName
+            : memberData != null && HasMeaningfulText(memberData.DisplayName)
+                ? memberData.DisplayName
+                : "Member " + slotIndex;
+        string role = actorSurface != null && HasMeaningfulText(actorSurface.RoleLabel)
+            ? actorSurface.RoleLabel
+            : memberData != null && HasMeaningfulText(memberData.RoleLabel)
+                ? memberData.RoleLabel
+                : "Adventurer";
+        bool active = memberData != null && memberData.IsActive;
+        bool targeted = memberData != null && memberData.IsTargeted;
+        bool knockedOut = memberData != null && memberData.IsKnockedOut;
+        string statusText = actorSurface != null && HasMeaningfulText(actorSurface.StatusText)
+            ? actorSurface.StatusText
+            : memberData != null && HasMeaningfulText(memberData.StatusText)
+                ? memberData.StatusText
+                : BuildPartyCardStatusText(memberName, active, targeted, knockedOut);
+        string summaryText = actorSurface != null && HasMeaningfulText(actorSurface.ResolvedStatsText)
+            ? actorSurface.ResolvedStatsText
+            : memberData != null && HasMeaningfulText(memberData.SummaryText)
+                ? memberData.SummaryText
+                : BuildBattlePartyMemberReadbackText(memberData, slotIndex - 1);
+        string sourceText = actorSurface != null && HasMeaningfulText(actorSurface.StatSourceText)
+            ? actorSurface.StatSourceText
+            : actorSurface != null && HasMeaningfulText(actorSurface.ResourceText)
+                ? actorSurface.ResourceText
+                : BuildBattlePartyMemberReadbackText(memberData, slotIndex - 1);
+
+        Color accentColor = GetBattleRoleAccentColor(role, false);
+        Color backgroundColor = knockedOut
+            ? new Color(0.18f, 0.08f, 0.08f, 0.98f)
+            : active
+                ? new Color(0.12f, 0.20f, 0.29f, 0.98f)
+                : targeted
+                    ? new Color(0.17f, 0.14f, 0.10f, 0.98f)
+                    : new Color(0.09f, 0.12f, 0.18f, 0.98f);
+        DrawOverlaySectionBackground(rect, backgroundColor);
+        DrawSolidHudRect(new Rect(rect.x, rect.y, 5f, rect.height), accentColor);
+
+        Rect avatarRect = new Rect(rect.x + 10f, rect.y + 10f, 28f, 28f);
+        DrawOverlaySectionBackground(avatarRect, new Color(accentColor.r, accentColor.g, accentColor.b, 0.28f));
+        string avatarText = !string.IsNullOrEmpty(memberName) ? memberName.Substring(0, 1).ToUpperInvariant() : slotIndex.ToString();
+        DrawFittedLabel(new Rect(avatarRect.x + 3f, avatarRect.y + 4f, avatarRect.width - 6f, avatarRect.height - 8f), avatarText, _sectionTitleStyle, 11, 9, false);
+
+        Rect statusRect = new Rect(rect.xMax - 96f, rect.y + 10f, 86f, 20f);
+        Rect nameRect = new Rect(avatarRect.xMax + 10f, rect.y + 10f, statusRect.x - avatarRect.xMax - 18f, 18f);
+        Rect roleRect = new Rect(nameRect.x, nameRect.yMax + 3f, nameRect.width, 16f);
+        Rect hpRect = new Rect(rect.x + 10f, rect.yMax - 24f, rect.width - 20f, 16f);
+        Rect summaryRect = new Rect(nameRect.x, roleRect.yMax + 3f, rect.width - (nameRect.x - rect.x) - 10f, 16f);
+        Rect sourceRect = new Rect(nameRect.x, summaryRect.yMax + 2f, rect.width - (nameRect.x - rect.x) - 10f, Mathf.Max(12f, hpRect.y - summaryRect.yMax - 4f));
+
+        DrawOverlaySectionBackground(statusRect, new Color(0.11f, 0.14f, 0.19f, 0.96f));
+        DrawFittedLabel(nameRect, GetCompactHudText(memberName, 20, false), _sectionTitleStyle, 12, 10, false);
+        DrawFittedLabel(roleRect, GetCompactHudText(role, 18, false), _bodyStyle, 10, 9, false);
+        DrawFittedLabel(summaryRect, GetCompactHudText(summaryText, 44, false), _bodyStyle, 9, 8, false);
+        DrawFittedLabel(sourceRect, GetCompactHudText(sourceText, 58, false), _bodyStyle, 8, 7, true);
+        DrawFittedLabel(new Rect(statusRect.x + 6f, statusRect.y + 3f, statusRect.width - 12f, statusRect.height - 6f), GetCompactHudText(statusText, 16, false), _bodyStyle, 10, 8, false);
+
+        float hpCurrent = memberData != null ? memberData.CurrentHp : actorSurface != null ? actorSurface.CurrentHp : 0f;
+        float hpMax = memberData != null ? Mathf.Max(1f, memberData.MaxHp) : actorSurface != null ? Mathf.Max(1f, actorSurface.MaxHp) : 1f;
+        DrawStatusBar(hpRect, hpCurrent, hpMax, new Color(0.26f, 0.68f, 0.36f, 0.98f), "HP " + Mathf.RoundToInt(hpCurrent) + " / " + Mathf.RoundToInt(hpMax));
+    }
+
     private void DrawEnemyInfoPanel(Rect rect)
     {
         Color panelColor = IsTargetSelectionActive()
@@ -814,12 +882,16 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     private void DrawSelectedEnemyCard(Rect rect)
     {
         PrototypeBattleUiEnemyData enemyData = GetBattleUiSurfaceData().SelectedEnemy;
+        PrototypeBattleUiTargetSelectionData targetSelection = GetBattleUiSurfaceData().TargetSelection;
         string enemyName = enemyData != null && HasMeaningfulText(enemyData.DisplayName) ? enemyData.DisplayName : "No target selected";
         string typeLabel = enemyData != null && HasMeaningfulText(enemyData.TypeLabel) ? enemyData.TypeLabel : "Monster";
         string roleLabel = enemyData != null && HasMeaningfulText(enemyData.RoleLabel) ? enemyData.RoleLabel : "Frontline";
         string stateLabel = enemyData != null && HasMeaningfulText(enemyData.StateLabel) ? enemyData.StateLabel : "Unknown";
         string intentLabel = enemyData != null && HasMeaningfulText(enemyData.IntentLabel) ? enemyData.IntentLabel : "Unknown";
         string traitLabel = enemyData != null && HasMeaningfulText(enemyData.TraitText) ? enemyData.TraitText : "Traits pending";
+        bool showTargetPreview = targetSelection != null &&
+            targetSelection.IsActive &&
+            HasMeaningfulText(targetSelection.ExpectedEffectText);
         Color accentColor = GetBattleRoleAccentColor(roleLabel, true);
 
         DrawOverlaySectionBackground(rect, new Color(0.10f, 0.12f, 0.17f, 0.98f));
@@ -847,8 +919,24 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         DrawCompactInfoCard(roleRect, "Role", roleLabel, new Color(0.11f, 0.14f, 0.19f, 0.98f));
         DrawCompactInfoCard(stateRect, "State", stateLabel, new Color(0.11f, 0.14f, 0.19f, 0.98f));
         DrawStatusBar(hpRect, enemyData != null ? enemyData.CurrentHp : 0f, enemyData != null ? Mathf.Max(1f, enemyData.MaxHp) : 1f, new Color(0.72f, 0.28f, 0.26f, 0.98f), "HP " + (enemyData != null ? enemyData.CurrentHp + " / " + enemyData.MaxHp : "?"));
-        DrawFittedLabel(intentRect, "Intent: " + GetCompactHudText(intentLabel, 44, false), _bodyStyle, 10, 9, false);
-        DrawFittedLabel(traitRect, GetCompactHudText(traitLabel, 58, false), _bodyStyle, 10, 8, false);
+        DrawFittedLabel(
+            intentRect,
+            showTargetPreview
+                ? GetCompactHudText(targetSelection.ExpectedEffectText, 58, false)
+                : "Intent: " + GetCompactHudText(intentLabel, 44, false),
+            _bodyStyle,
+            10,
+            9,
+            false);
+        DrawFittedLabel(
+            traitRect,
+            showTargetPreview
+                ? GetCompactHudText(GetPreferredText(targetSelection.PostEffectText, targetSelection.FormulaText), 58, false)
+                : GetCompactHudText(traitLabel, 58, false),
+            _bodyStyle,
+            10,
+            8,
+            false);
     }
 
     private void DrawEnemyRosterStrip(Rect rect)
@@ -997,27 +1085,56 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             : "Choose a command to inspect its target, cost, and effect.";
         float gap = 8f;
         float descriptionHeight = GetBattleFlyoutDescriptionHeight(descriptionText, contentRect.width);
+        bool hasPreviewText = detail != null && HasMeaningfulText(detail.PreviewText);
+        bool hasFormulaText = detail != null && HasMeaningfulText(detail.FormulaText);
+        bool hasGrowthText = detail != null && HasMeaningfulText(detail.GrowthText);
+        float previewHeight = hasPreviewText ? GetDynamicInfoCardHeight(detail.PreviewText, contentRect.width) : 0f;
         float metaGap = 6f;
         float metaWidth = (contentRect.width - metaGap) * 0.5f;
         float targetHeight = GetDynamicInfoCardHeight(detail != null ? detail.TargetText : string.Empty, metaWidth);
         float costHeight = GetDynamicInfoCardHeight(detail != null ? detail.CostText : string.Empty, metaWidth);
         float metaRowHeight = Mathf.Max(targetHeight, costHeight);
         float effectHeight = GetDynamicInfoCardHeight(detail != null ? detail.EffectText : string.Empty, contentRect.width);
+        float formulaHeight = hasFormulaText ? GetDynamicInfoCardHeight(detail.FormulaText, contentRect.width) : 0f;
+        float growthHeight = hasGrowthText ? GetDynamicInfoCardHeight(detail.GrowthText, contentRect.width) : 0f;
         float noteHeight = !available ? 24f : 0f;
 
         Rect descriptionRect = new Rect(contentRect.x, contentY, contentRect.width, descriptionHeight);
         DrawOverlaySectionBackground(descriptionRect, new Color(0.11f, 0.15f, 0.21f, 0.88f));
         DrawHudLabel(new Rect(descriptionRect.x + 8f, descriptionRect.y + 6f, descriptionRect.width - 16f, descriptionRect.height - 12f), descriptionText, CreateHudMeasureStyle(_bodyStyle, 10, true));
 
-        Rect targetRect = new Rect(contentRect.x, descriptionRect.yMax + gap, metaWidth, metaRowHeight);
+        float cardY = descriptionRect.yMax + gap;
+        if (hasPreviewText)
+        {
+            Rect previewRect = new Rect(contentRect.x, cardY, contentRect.width, previewHeight);
+            DrawDynamicInfoCard(previewRect, "Preview", detail.PreviewText, new Color(0.13f, 0.17f, 0.23f, 0.92f));
+            cardY = previewRect.yMax + gap;
+        }
+
+        Rect targetRect = new Rect(contentRect.x, cardY, metaWidth, metaRowHeight);
         Rect costRect = new Rect(targetRect.xMax + metaGap, targetRect.y, contentRect.width - metaWidth - metaGap, metaRowHeight);
         Rect effectRect = new Rect(contentRect.x, targetRect.yMax + gap, contentRect.width, effectHeight);
         DrawDynamicInfoCard(targetRect, "Target", detail != null ? detail.TargetText : string.Empty, new Color(0.11f, 0.15f, 0.21f, 0.88f));
         DrawDynamicInfoCard(costRect, "Cost", detail != null ? detail.CostText : string.Empty, new Color(0.11f, 0.15f, 0.21f, 0.88f));
         DrawDynamicInfoCard(effectRect, "Effect", detail != null ? detail.EffectText : string.Empty, new Color(0.11f, 0.15f, 0.21f, 0.88f));
+        float nextY = effectRect.yMax;
+        if (hasFormulaText)
+        {
+            Rect formulaRect = new Rect(contentRect.x, nextY + gap, contentRect.width, formulaHeight);
+            DrawDynamicInfoCard(formulaRect, "Formula", detail.FormulaText, new Color(0.11f, 0.15f, 0.21f, 0.88f));
+            nextY = formulaRect.yMax;
+        }
+
+        if (hasGrowthText)
+        {
+            Rect growthRect = new Rect(contentRect.x, nextY + gap, contentRect.width, growthHeight);
+            DrawDynamicInfoCard(growthRect, "Growth", detail.GrowthText, new Color(0.11f, 0.15f, 0.21f, 0.88f));
+            nextY = growthRect.yMax;
+        }
+
         if (!available)
         {
-            Rect noteRect = new Rect(contentRect.x, effectRect.yMax + gap, contentRect.width, noteHeight);
+            Rect noteRect = new Rect(contentRect.x, nextY + gap, contentRect.width, noteHeight);
             DrawOverlaySectionBackground(noteRect, new Color(0.22f, 0.18f, 0.10f, 0.88f));
             DrawHudLabel(new Rect(noteRect.x + 8f, noteRect.y + 4f, noteRect.width - 16f, noteRect.height - 8f), "Unavailable in this batch.", _bodyStyle);
         }
@@ -1201,14 +1318,42 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 : 0f;
         float gap = 8f;
         float descriptionHeight = GetBattleFlyoutDescriptionHeight(descriptionText, contentWidth);
+        bool hasPreviewText = detail != null && HasMeaningfulText(detail.PreviewText);
+        bool hasFormulaText = detail != null && HasMeaningfulText(detail.FormulaText);
+        bool hasGrowthText = detail != null && HasMeaningfulText(detail.GrowthText);
+        float previewHeight = hasPreviewText ? GetDynamicInfoCardHeight(detail.PreviewText, contentWidth) : 0f;
         float metaGap = 6f;
         float metaWidth = (contentWidth - metaGap) * 0.5f;
         float targetHeight = GetDynamicInfoCardHeight(detail != null ? detail.TargetText : string.Empty, metaWidth);
         float costHeight = GetDynamicInfoCardHeight(detail != null ? detail.CostText : string.Empty, metaWidth);
         float metaRowHeight = Mathf.Max(targetHeight, costHeight);
         float effectHeight = GetDynamicInfoCardHeight(detail != null ? detail.EffectText : string.Empty, contentWidth);
-        float noteHeight = !available ? 24f + gap : 0f;
-        return baseHeight + actionHeight + descriptionHeight + gap + metaRowHeight + gap + effectHeight + noteHeight;
+        float formulaHeight = hasFormulaText ? GetDynamicInfoCardHeight(detail.FormulaText, contentWidth) : 0f;
+        float growthHeight = hasGrowthText ? GetDynamicInfoCardHeight(detail.GrowthText, contentWidth) : 0f;
+        float totalHeight = baseHeight + actionHeight + descriptionHeight;
+        if (hasPreviewText)
+        {
+            totalHeight += gap + previewHeight;
+        }
+
+        totalHeight += gap + metaRowHeight;
+        totalHeight += gap + effectHeight;
+        if (hasFormulaText)
+        {
+            totalHeight += gap + formulaHeight;
+        }
+
+        if (hasGrowthText)
+        {
+            totalHeight += gap + growthHeight;
+        }
+
+        if (!available)
+        {
+            totalHeight += gap + 24f;
+        }
+
+        return totalHeight;
     }
 
     private float GetBattleFlyoutDescriptionHeight(string text, float width)
@@ -1496,18 +1641,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     {
         PrototypeBattleUiTargetSelectionData targetSelection = GetBattleUiSurfaceData().TargetSelection;
         float overlayWidth = Mathf.Min(520f, Screen.width * 0.44f);
-        float overlayHeight = targetSelection != null && targetSelection.HasFocusedTarget ? 64f : 52f;
-        float overlayX = (Screen.width - overlayWidth) * 0.5f;
-        float overlayY = Mathf.Max(hudRect.yMax + 14f, mainRect.y - overlayHeight - 12f);
-        Rect overlayRect = new Rect(overlayX, overlayY, overlayWidth, overlayHeight);
-        DrawOverlaySectionBackground(overlayRect, new Color(0.18f, 0.13f, 0.08f, 0.94f));
-
-        Rect titleRect = new Rect(overlayRect.x + 12f, overlayRect.y + 6f, overlayRect.width - 24f, 14f);
-        Rect line1Rect = new Rect(overlayRect.x + 12f, titleRect.yMax + 4f, overlayRect.width - 24f, 16f);
-        Rect line2Rect = new Rect(overlayRect.x + 12f, line1Rect.yMax + 3f, overlayRect.width - 24f, 16f);
-        string title = targetSelection != null && HasMeaningfulText(targetSelection.Title)
-            ? targetSelection.Title
-            : "Select target";
+        List<string> detailLines = new List<string>();
         string actionText = targetSelection != null && HasMeaningfulText(targetSelection.QueuedActionLabel)
             ? targetSelection.QueuedActionLabel
             : "Action";
@@ -1517,8 +1651,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         string cancelText = targetSelection != null && HasMeaningfulText(targetSelection.CancelHint)
             ? GetCompactHudText(targetSelection.CancelHint, 36, false)
             : GetBattleCancelHintText();
-        DrawFittedLabel(titleRect, title, _sectionTitleStyle, 10, 9, false);
-        DrawFittedLabel(line1Rect, GetCompactHudText(actionText + "  |  " + targetText + "  |  " + cancelText, 104, false), _bodyStyle, 10, 9, false);
+        detailLines.Add(GetCompactHudText(actionText + "  |  " + targetText + "  |  " + cancelText, 104, false));
         if (targetSelection != null && targetSelection.HasFocusedTarget)
         {
             string detail = "HP " + targetSelection.TargetCurrentHp + " / " + targetSelection.TargetMaxHp;
@@ -1526,7 +1659,44 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             {
                 detail += "  |  " + GetCompactHudText(targetSelection.TargetIntentLabel, 38, false);
             }
-            DrawFittedLabel(line2Rect, detail, _bodyStyle, 10, 9, false);
+
+            detailLines.Add(detail);
+        }
+
+        if (targetSelection != null && HasMeaningfulText(targetSelection.ExpectedEffectText))
+        {
+            detailLines.Add(GetCompactHudText(targetSelection.ExpectedEffectText, 88, false));
+        }
+
+        if (targetSelection != null && HasMeaningfulText(targetSelection.PostEffectText))
+        {
+            detailLines.Add(GetCompactHudText(targetSelection.PostEffectText, 88, false));
+        }
+
+        if (targetSelection != null && HasMeaningfulText(targetSelection.FormulaText))
+        {
+            detailLines.Add(GetCompactHudText(targetSelection.FormulaText, 88, false));
+        }
+        else if (targetSelection != null && HasMeaningfulText(targetSelection.GrowthText))
+        {
+            detailLines.Add(GetCompactHudText(targetSelection.GrowthText, 88, false));
+        }
+
+        float overlayHeight = 32f + (detailLines.Count * 18f) + 8f;
+        float overlayX = (Screen.width - overlayWidth) * 0.5f;
+        float overlayY = Mathf.Max(hudRect.yMax + 14f, mainRect.y - overlayHeight - 12f);
+        Rect overlayRect = new Rect(overlayX, overlayY, overlayWidth, overlayHeight);
+        DrawOverlaySectionBackground(overlayRect, new Color(0.18f, 0.13f, 0.08f, 0.94f));
+
+        Rect titleRect = new Rect(overlayRect.x + 12f, overlayRect.y + 6f, overlayRect.width - 24f, 14f);
+        string title = targetSelection != null && HasMeaningfulText(targetSelection.Title)
+            ? targetSelection.Title
+            : "Select target";
+        DrawFittedLabel(titleRect, title, _sectionTitleStyle, 10, 9, false);
+        for (int index = 0; index < detailLines.Count; index++)
+        {
+            Rect lineRect = new Rect(overlayRect.x + 12f, titleRect.yMax + 4f + (index * 18f), overlayRect.width - 24f, 16f);
+            DrawFittedLabel(lineRect, detailLines[index], _bodyStyle, 10, 8, false);
         }
     }
 
@@ -1607,6 +1777,21 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             lines.Add("Effect: " + detail.EffectText);
         }
 
+        if (detail != null && HasMeaningfulText(detail.PreviewText))
+        {
+            lines.Add("Preview: " + detail.PreviewText);
+        }
+
+        if (detail != null && HasMeaningfulText(detail.FormulaText))
+        {
+            lines.Add("Formula: " + detail.FormulaText);
+        }
+
+        if (detail != null && HasMeaningfulText(detail.GrowthText))
+        {
+            lines.Add("Growth: " + detail.GrowthText);
+        }
+
         if (detail != null && !detail.IsAvailable)
         {
             lines.Add("Availability: Not available in this batch.");
@@ -1636,6 +1821,11 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         if (_bootEntry.IsBattleActionHovered("move"))
         {
             return "move";
+        }
+
+        if (_bootEntry.IsBattleActionHovered("end_turn"))
+        {
+            return "end_turn";
         }
 
         if (_bootEntry.IsBattleActionHovered("retreat"))
@@ -2307,6 +2497,16 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             return "skill";
         }
 
+        if (_bootEntry.IsBattleActionSelected("move"))
+        {
+            return "move";
+        }
+
+        if (_bootEntry.IsBattleActionSelected("end_turn"))
+        {
+            return "end_turn";
+        }
+
         if (_bootEntry.IsBattleActionSelected("retreat"))
         {
             return "retreat";
@@ -2412,6 +2612,19 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private string GetBattleCommandFocusKey()
     {
+        if (HasMeaningfulText(_battleHudHoverDetailKey) && IsPrimaryBattleCommandKey(_battleHudHoverDetailKey))
+        {
+            return _battleHudHoverDetailKey;
+        }
+
+        PrototypeBattleUiCommandSurfaceData commandSurface = GetBattleUiSurfaceData().CommandSurface;
+        if (commandSurface != null &&
+            HasMeaningfulText(commandSurface.FocusedActionKey) &&
+            IsPrimaryBattleCommandKey(commandSurface.FocusedActionKey))
+        {
+            return commandSurface.FocusedActionKey;
+        }
+
         string selectedActionKey = GetSelectedBattleActionKey();
         if (HasMeaningfulText(selectedActionKey) && IsPrimaryBattleCommandKey(selectedActionKey))
         {

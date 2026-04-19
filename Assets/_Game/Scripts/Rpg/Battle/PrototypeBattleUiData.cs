@@ -78,6 +78,8 @@ public sealed class CurrentActorSurfaceData
     public string ResourceText = string.Empty;
     public string SkillLabel = "None";
     public string SummaryText = string.Empty;
+    public string ResolvedStatsText = string.Empty;
+    public string StatSourceText = string.Empty;
     public string StatusText = "Idle";
     public int CurrentHp;
     public int MaxHp = 1;
@@ -234,6 +236,8 @@ public sealed class PrototypeBattleUiCommandSurfaceData
 {
     public string SelectedActionKey = string.Empty;
     public string SelectedActionLabel = string.Empty;
+    public string FocusedActionKey = string.Empty;
+    public string FocusedActionLabel = string.Empty;
     public PrototypeBattleUiCommandButtonData[] PrimaryButtons = Array.Empty<PrototypeBattleUiCommandButtonData>();
     public string ContextualPanelTitle = "Command Context";
     public string ContextualPanelSummaryText = "Select a command.";
@@ -260,6 +264,9 @@ public sealed class PrototypeBattleUiCommandDetailData
     public string TargetText = string.Empty;
     public string CostText = string.Empty;
     public string EffectText = string.Empty;
+    public string PreviewText = string.Empty;
+    public string FormulaText = string.Empty;
+    public string GrowthText = string.Empty;
     public bool IsAvailable = true;
     public bool IsSelected;
 }
@@ -289,5 +296,9 @@ public sealed class PrototypeBattleUiTargetSelectionData
     public string ReachabilitySummaryText = string.Empty;
     public string ThreatSummaryText = string.Empty;
     public string TargetRuleText = string.Empty;
+    public string ExpectedEffectText = string.Empty;
+    public string PostEffectText = string.Empty;
+    public string FormulaText = string.Empty;
+    public string GrowthText = string.Empty;
     public string CancelHint = "Esc: Cancel";
 }

@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 75.1`
+- Latest closed batch: `Batch 76`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,7 +18,58 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-b -> dungeon-beta`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: a fresh manual runtime proof pass for the new battle-end popover / reward feedback seam on the current rail, plus the still-open battle-scene-only frame drop
+- Next honest bottleneck: manual runtime proof for the new battle stat-feedback rail, plus the still-open battle-scene-only FPS issue as a separate performance track
+
+## Batch 76 Close-Out
+
+- Selected branch: `A`
+- Batch 76 keeps the accepted battle HUD rail and exposes combat growth through the current runtime truth instead of adding a new combat system.
+- Current battle HUD now surfaces:
+  - current actor resolved stat line
+  - compact stat-source line for the active unit
+  - attack / skill preview text in the command flyout
+  - formula / growth contribution readback in the same flyout
+  - target preview outcome during target selection, including HP after-hit or would-defeat messaging
+- Actual combat logs now reuse the same resolved preview source so the visible battle message and the real applied result stay on the same stat rail.
+- One narrow runtime seam fix was required:
+  - shared-skill resolution now prefers the resolved runtime member skill power before falling back to static skill-definition power, so growth/equipment no longer disappear on the skill path
+- UI shape changed?: `Preserved current accepted HUD shape; only stat-feedback/readback content was added`
+
+## Batch 76 Validation Snapshot
+
+- Compile: `PASS`
+- Static audit: `PASS`
+- Attack preview parity: `PASS`
+- Skill preview parity: `PASS`
+- Growth/equipment surfacing: `PASS`
+- Manual runtime proof: `DEFERRED`
+- Smoke: `DEFERRED` because this close-out used compile + code audit, but no fresh manual battle playthrough was executed in this turn
+
+## Batch 75.2 Close-Out
+
+- Selected branch: `A`
+- Latest git audit confirms that the current `HEAD` already contains the intended Batch 75.1 reward-feedback work:
+  - centered battle-end popover state and shell rendering
+  - enemy defeat reward floating text on real reward truth
+  - inventory/equipment surface without the old visible comparison panel
+- No gameplay/system edits were required in 75.2.
+- The latest git evidence used for close-out was:
+  - `git show --stat --oneline HEAD`
+  - `git grep`/code audit for `IsBattleResultPopover`, `Encounter Cleared`, inventory surface ownership, and comparison-panel removal
+  - existing docs close-out for Batch 75.1
+- Dedicated `docs/runtime/batch75-1*` handoff note is not present, but the mainline proof now lives in the canonical status/content docs instead.
+- UI shape changed?: `No additional runtime UI change in 75.2; audit/docs close-out only`
+
+## Batch 75.2 Validation Snapshot
+
+- Latest commit audited: `07b43e1 Add expedition prep and battle handoff flow`
+- Git state: `root repo clean for tracked files used by 75.1/75.2 audit; only nested worktree pointers remain modified`
+- Compile: `REUSED PASS from latest 75.1 compile proof; no new gameplay code change in 75.2`
+- Manual UX proof: `REUSED from current accepted rail evidence; no fresh manual pass in 75.2`
+- Performance proof:
+  - reward-feedback loop shows no new audit evidence of a 75.1-specific regression
+  - the previously known battle-scene-only FPS issue still exists and remains separate from this close-out
+- Smoke: `NOT RERUN`
 
 ## Batch 75.1 Close-Out
 

@@ -2,15 +2,15 @@
 
 ## Current Mainline Snapshot
 
-- Snapshot date: `2026-04-18`
+- Snapshot date: `2026-04-19`
 - Sync intent: `preserve the current local runtime state on GitHub main so repository readers can inspect the live working baseline`
 - Active runtime baseline to preserve: `grid dungeon explore shell` + `current battleScene HUD`
-- UI safety rule: `reject prompts that would change or roll back the currently accepted runtime UI without explicit approval`
+- UI safety rule: `reject rollback prompts against the currently accepted runtime UI; additive or preserving UI work is allowed`
 - Runtime decision note: see `docs/runtime/mainline-snapshot-2026-04-17.md`
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 73`
+- Latest closed batch: `Batch 75.1`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,7 +18,110 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-b -> dungeon-beta`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: equip-choice interaction and longer-run inventory pressure on the current UI rail, not route-surface expansion or UI churn
+- Next honest bottleneck: a fresh manual runtime proof pass for the new battle-end popover / reward feedback seam on the current rail, plus the still-open battle-scene-only frame drop
+
+## Batch 75.1 Close-Out
+
+- Selected branch: `B + C hybrid`
+- Batch 75.1 is a UX feedback fix on top of the accepted rail, not a new battle, inventory, or reward system batch.
+- It closes three narrow visibility gaps without changing reward math:
+  - enemy defeat now reuses the existing battle floating popup rail to show real reward truth such as `Loot +3`
+  - each encounter victory now opens a centered battle-result popover built once from cached encounter/run summary fields
+  - the visible inventory/equipment surface no longer carries the large `Comparison` panel
+- The implementation stays honest to existing ownership:
+  - kill popups read the actual monster `RewardAmount` / `RewardResourceId`
+  - encounter / defeat / retreat summaries read one cached popover snapshot instead of rebuilding per frame
+  - inventory still consumes the same runtime-owned comparison/action truth, but compresses it into selected-item detail text instead of a separate panel
+- Final-elite handling stays non-duplicative:
+  - elite encounter victory still shows the encounter popover
+  - run clear continues to the existing run result later
+  - run defeat / retreat now surface the compact battle-end popover before the run result shell
+- UI shape changed?: `Yes, centered battle-result popover plus comparison-panel deletion on the current inventory surface`
+
+## Batch 75.1 Validation Snapshot
+
+- Compile: `PASS`
+- Targeted audit:
+  - enemy defeat popup uses actual reward truth and does not double-roll loot: `PASS`
+  - encounter victory creates a single modal popover state and clears it on explicit close input: `PASS`
+  - run defeat / retreat now pause on the compact popover before the existing result shell: `PASS`
+  - inventory still keeps equip / unequip flow while the separate comparison panel is removed: `PASS`
+- Manual verification: `DEFERRED`
+- Performance proof: `DEFERRED (no fresh scene-by-scene FPS capture was taken in this turn)`
+- Smoke: `DEFERRED`
+
+## Batch 75 Close-Out
+
+- Selected branch: `C`
+- Batch 75 does not add a new RPG mechanic, inventory framework, or battle formula.
+- It closes the missing reveal seam between already-landed progression/equipment truth and the player-facing result/return surfaces.
+- The mainline rail now caches one growth/reward readback set per resolved run:
+  - member XP gain and level change
+  - compact stat delta callouts
+  - item drop and equip/store outcome
+  - next-run meaning text
+  - `[I]` inspect-equipment hint
+- The reveal is intentionally owner-driven:
+  - `ResultPipeline` now builds cached growth reveal summaries once per result refresh
+  - `ManualTradeRuntimeState` refreshes those summaries again after auto-equip/store resolution, so return readback does not lose the item/build-change moment
+  - dungeon result, post-run return reveal, and prep return-consume text now read from the same cached fields
+- The missing return seam that made this an honest Branch C was:
+  - city/world return helpers for gear reward / equip swap / continuity were still returning `None`
+  - result/readback did not yet have dedicated growth-reveal fields, so the player had to infer change from scattered text
+- UI shape changed?: `Yes, readback-only strengthening on existing result/return/prep surfaces`
+
+## Batch 75 Validation Snapshot
+
+- Compile: `PASS`
+- Targeted audit:
+  - Batch 72 progression storage and post-run writeback still exist: `PASS`
+  - Batch 72.1 battle-return continuity payload remains intact while growth reveal fields are additive: `PASS`
+  - Batch 72.2 / 72.3 performance guardrail is respected by cached result summaries instead of per-frame recompute: `PASS`
+  - Batch 73 gear reward / auto-equip / stat-delta rail still owns the item/build-change truth: `PASS`
+  - Batch 74 / 74.1 inventory surface remains the inspect target instead of being rebuilt inside the result screen: `PASS`
+- Manual verification: `DEFERRED`
+- Performance proof: `DEFERRED (no fresh scene-by-scene FPS capture was taken in this turn)`
+- Smoke: `DEFERRED`
+
+## Batch 74 Close-Out
+
+- Selected branch: `A`
+- Batch 74 turns the hidden Batch 73 inventory truth into a real player-facing character equipment surface without replacing the accepted mainline HUD rail.
+- The new surface stays on canonical runtime ownership:
+  - `ManualTradeRuntimeState` remains the truth owner for party-carried gear, equipped slot state, and comparison inputs
+  - `StaticPlaceholderWorldView` now exposes a cached inventory surface adapter instead of minting a second equipment store
+  - `BootEntry` and `BootstrapSceneStateBridge` only forward input + display access
+- Player-facing surface added:
+  - `[I]` open / close inventory
+  - `[Esc]` close
+  - `[Q/E]` cycle party member
+  - `[1-7]` select equipment slot
+  - `[Up/Down]` move through compatible inventory items
+  - `[Enter]` equip selected item
+  - `[U]` or `[Backspace]` unequip selected slot
+- Availability by stage:
+  - `WorldSim`: full equipment management
+  - `ExpeditionPrep`: full equipment management
+  - `DungeonRun explore / route / event / result`: full equipment management
+  - `BattleScene`: read-only inspection only
+- The surface is intentionally additive, not a layout rollback:
+  - member column
+  - seven-slot equipment grid
+  - comparison / action panel
+  - party inventory list
+  - cached detail/readback blocks
+- UI shape changed?: `Yes, additive overlay only`
+
+## Batch 74 Validation Snapshot
+
+- Compile: `PASS`
+- Targeted audit:
+  - inventory/equipment surface reuses canonical world/runtime truth instead of duplicating it: `PASS`
+  - manual equip / unequip now flows through world and dungeon shell input without changing battle legality ownership: `PASS`
+  - battle context correctly gates the surface to read-only inspection: `PASS`
+  - presentation rebuild is cached off party inventory revision plus UI selection state: `PASS`
+- Manual verification: `DEFERRED`
+- Smoke: `PARTIAL (Batch10 smoke passed WorldSim -> CityHub -> ExpeditionPrep -> DungeonRun -> BattleScene -> DungeonRun continuity checkpoints, then the existing runner timed out later at ResolveCoreLoop)`
 
 ## Batch 73 Close-Out
 

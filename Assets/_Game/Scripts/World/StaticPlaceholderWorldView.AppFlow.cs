@@ -370,6 +370,10 @@ public sealed partial class StaticPlaceholderWorldView
         copy.GearRewardSummaryText = safeSource.GearRewardSummaryText;
         copy.EquipSwapSummaryText = safeSource.EquipSwapSummaryText;
         copy.GearContinuitySummaryText = safeSource.GearContinuitySummaryText;
+        copy.GrowthRevealSummaryText = safeSource.GrowthRevealSummaryText;
+        copy.LatestGrowthHighlightText = safeSource.LatestGrowthHighlightText;
+        copy.NextRunGrowthPreviewText = safeSource.NextRunGrowthPreviewText;
+        copy.InspectEquipmentHintText = safeSource.InspectEquipmentHintText;
         copy.RecentExpeditionLog1Text = safeSource.RecentExpeditionLog1Text;
         copy.RecentExpeditionLog2Text = safeSource.RecentExpeditionLog2Text;
         copy.RecentExpeditionLog3Text = safeSource.RecentExpeditionLog3Text;

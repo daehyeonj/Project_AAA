@@ -46,6 +46,10 @@ public sealed class OutcomeReadback
     public string GearRewardSummaryText = "None";
     public string EquipSwapSummaryText = "None";
     public string GearContinuitySummaryText = "None";
+    public string GrowthRevealSummaryText = "None";
+    public string LatestGrowthHighlightText = "None";
+    public string NextRunGrowthPreviewText = "None";
+    public string InspectEquipmentHintText = "None";
     public string RecentExpeditionLog1Text = "None";
     public string RecentExpeditionLog2Text = "None";
     public string RecentExpeditionLog3Text = "None";

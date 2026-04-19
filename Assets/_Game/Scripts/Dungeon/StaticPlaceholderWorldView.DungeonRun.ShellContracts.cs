@@ -220,6 +220,19 @@ public sealed class PrototypeDungeonRunResultContext
     public string WorldWritebackDungeonSummaryText = "None";
 }
 
+public sealed class PrototypeDungeonBattleResultPopoverData
+{
+    public bool IsVisible;
+    public string OutcomeKey = string.Empty;
+    public string TitleText = "Battle Result";
+    public string EncounterNameText = "None";
+    public string SummaryText = "None";
+    public string LootSummaryText = "None";
+    public string DropSummaryText = "None";
+    public string GrowthSummaryText = "None";
+    public string ContinueHintText = "[Enter] Continue";
+}
+
 public sealed class PrototypeDungeonRunShellSurfaceData
 {
     public string ModeKey = "none";
@@ -229,6 +242,7 @@ public sealed class PrototypeDungeonRunShellSurfaceData
     public bool IsEventChoiceVisible;
     public bool IsPreEliteChoiceVisible;
     public bool IsResultPanelVisible;
+    public bool IsBattleResultPopoverVisible;
     public string RunStateLabel = "None";
     public string CurrentCityLabel = "None";
     public string CurrentDungeonLabel = "None";
@@ -275,12 +289,14 @@ public sealed class PrototypeDungeonRunShellSurfaceData
     public ExpeditionStartContext ExpeditionStartContext = new ExpeditionStartContext();
     public PrototypeDungeonPanelContext PanelContext = new PrototypeDungeonPanelContext();
     public PrototypeDungeonRunResultContext ResultContext = new PrototypeDungeonRunResultContext();
+    public PrototypeDungeonBattleResultPopoverData BattleResultPopover = new PrototypeDungeonBattleResultPopoverData();
 }
 
 public sealed partial class StaticPlaceholderWorldView
 {
     private ExpeditionStartContext _latestExpeditionStartContext = new ExpeditionStartContext();
     private PrototypeDungeonRunResultContext _latestDungeonRunResultContext = new PrototypeDungeonRunResultContext();
+    private PrototypeDungeonBattleResultPopoverData _battleResultPopoverData = new PrototypeDungeonBattleResultPopoverData();
     private PrototypeDungeonEncounterRequest _latestDungeonEncounterRequest = new PrototypeDungeonEncounterRequest();
     private PrototypeDungeonChoiceOutcome _latestDungeonChoiceOutcome = new PrototypeDungeonChoiceOutcome();
     private PrototypeDungeonEventResolution _latestDungeonEventResolution = new PrototypeDungeonEventResolution();
@@ -294,6 +310,7 @@ public sealed partial class StaticPlaceholderWorldView
     public PrototypeDungeonEventResolution LatestDungeonEventResolution => CopyDungeonEventResolution(_latestDungeonEventResolution);
     public PrototypeDungeonExtractionResult LatestDungeonExtractionResult => CopyDungeonExtractionResult(_latestDungeonExtractionResult);
     public PrototypeDungeonRunShellSurfaceData CurrentDungeonRunShellSurfaceData => BuildDungeonRunShellSurfaceData();
+    public bool IsBattleResultPopoverVisible => _battleResultPopoverData != null && _battleResultPopoverData.IsVisible;
     public PrototypeDungeonRunResultContext LatestDungeonRunResultContext
     {
         get
@@ -323,6 +340,7 @@ public sealed partial class StaticPlaceholderWorldView
         surface.IsEventChoiceVisible = IsDungeonEventChoiceVisible;
         surface.IsPreEliteChoiceVisible = IsDungeonPreEliteChoiceVisible;
         surface.IsResultPanelVisible = IsDungeonResultPanelVisible;
+        surface.IsBattleResultPopoverVisible = IsBattleResultPopoverVisible;
         surface.ModeKey = ResolveDungeonShellSurfaceModeKey(surface);
         surface.ModeLabel = ResolveDungeonShellSurfaceModeLabel(surface);
         surface.RunStateLabel = string.IsNullOrEmpty(DungeonRunStateText) ? "None" : DungeonRunStateText;
@@ -368,7 +386,42 @@ public sealed partial class StaticPlaceholderWorldView
         surface.RecentBattleLog1Text = string.IsNullOrEmpty(RecentBattleLog1Text) ? "None" : RecentBattleLog1Text;
         surface.RecentBattleLog2Text = string.IsNullOrEmpty(RecentBattleLog2Text) ? "None" : RecentBattleLog2Text;
         surface.RecentBattleLog3Text = string.IsNullOrEmpty(RecentBattleLog3Text) ? "None" : RecentBattleLog3Text;
+        surface.BattleResultPopover = CopyBattleResultPopoverData(_battleResultPopoverData);
         return surface;
+    }
+
+    private void SetBattleResultPopover(
+        string outcomeKey,
+        string titleText,
+        string encounterNameText,
+        string summaryText,
+        string lootSummaryText,
+        string dropSummaryText,
+        string growthSummaryText,
+        string continueHintText)
+    {
+        if (_isInventorySurfaceOpen)
+        {
+            CloseInventorySurface();
+        }
+
+        _battleResultPopoverData = new PrototypeDungeonBattleResultPopoverData
+        {
+            IsVisible = true,
+            OutcomeKey = string.IsNullOrEmpty(outcomeKey) ? string.Empty : outcomeKey,
+            TitleText = string.IsNullOrEmpty(titleText) ? "Battle Result" : titleText,
+            EncounterNameText = string.IsNullOrEmpty(encounterNameText) ? "None" : encounterNameText,
+            SummaryText = string.IsNullOrEmpty(summaryText) ? "None" : summaryText,
+            LootSummaryText = string.IsNullOrEmpty(lootSummaryText) ? "None" : lootSummaryText,
+            DropSummaryText = string.IsNullOrEmpty(dropSummaryText) ? "None" : dropSummaryText,
+            GrowthSummaryText = string.IsNullOrEmpty(growthSummaryText) ? "None" : growthSummaryText,
+            ContinueHintText = string.IsNullOrEmpty(continueHintText) ? "[Enter] Continue" : continueHintText
+        };
+    }
+
+    private void ClearBattleResultPopover()
+    {
+        _battleResultPopoverData = new PrototypeDungeonBattleResultPopoverData();
     }
 
     private string ResolveDungeonShellSurfaceModeKey(PrototypeDungeonRunShellSurfaceData surface)
@@ -2267,6 +2320,26 @@ public sealed partial class StaticPlaceholderWorldView
         return copy;
     }
 
+    private PrototypeDungeonBattleResultPopoverData CopyBattleResultPopoverData(PrototypeDungeonBattleResultPopoverData source)
+    {
+        PrototypeDungeonBattleResultPopoverData copy = new PrototypeDungeonBattleResultPopoverData();
+        if (source == null)
+        {
+            return copy;
+        }
+
+        copy.IsVisible = source.IsVisible;
+        copy.OutcomeKey = string.IsNullOrEmpty(source.OutcomeKey) ? string.Empty : source.OutcomeKey;
+        copy.TitleText = string.IsNullOrEmpty(source.TitleText) ? "Battle Result" : source.TitleText;
+        copy.EncounterNameText = string.IsNullOrEmpty(source.EncounterNameText) ? "None" : source.EncounterNameText;
+        copy.SummaryText = string.IsNullOrEmpty(source.SummaryText) ? "None" : source.SummaryText;
+        copy.LootSummaryText = string.IsNullOrEmpty(source.LootSummaryText) ? "None" : source.LootSummaryText;
+        copy.DropSummaryText = string.IsNullOrEmpty(source.DropSummaryText) ? "None" : source.DropSummaryText;
+        copy.GrowthSummaryText = string.IsNullOrEmpty(source.GrowthSummaryText) ? "None" : source.GrowthSummaryText;
+        copy.ContinueHintText = string.IsNullOrEmpty(source.ContinueHintText) ? "[Enter] Continue" : source.ContinueHintText;
+        return copy;
+    }
+
     private CityWriteback CopyCityWriteback(CityWriteback source)
     {
         CityWriteback copy = new CityWriteback();
@@ -2349,6 +2422,10 @@ public sealed partial class StaticPlaceholderWorldView
         copy.GearRewardSummaryText = string.IsNullOrEmpty(source.GearRewardSummaryText) ? "None" : source.GearRewardSummaryText;
         copy.EquipSwapSummaryText = string.IsNullOrEmpty(source.EquipSwapSummaryText) ? "None" : source.EquipSwapSummaryText;
         copy.GearContinuitySummaryText = string.IsNullOrEmpty(source.GearContinuitySummaryText) ? "None" : source.GearContinuitySummaryText;
+        copy.GrowthRevealSummaryText = string.IsNullOrEmpty(source.GrowthRevealSummaryText) ? "None" : source.GrowthRevealSummaryText;
+        copy.LatestGrowthHighlightText = string.IsNullOrEmpty(source.LatestGrowthHighlightText) ? "None" : source.LatestGrowthHighlightText;
+        copy.NextRunGrowthPreviewText = string.IsNullOrEmpty(source.NextRunGrowthPreviewText) ? "None" : source.NextRunGrowthPreviewText;
+        copy.InspectEquipmentHintText = string.IsNullOrEmpty(source.InspectEquipmentHintText) ? "None" : source.InspectEquipmentHintText;
         copy.RecentExpeditionLog1Text = string.IsNullOrEmpty(source.RecentExpeditionLog1Text) ? "None" : source.RecentExpeditionLog1Text;
         copy.RecentExpeditionLog2Text = string.IsNullOrEmpty(source.RecentExpeditionLog2Text) ? "None" : source.RecentExpeditionLog2Text;
         copy.RecentExpeditionLog3Text = string.IsNullOrEmpty(source.RecentExpeditionLog3Text) ? "None" : source.RecentExpeditionLog3Text;

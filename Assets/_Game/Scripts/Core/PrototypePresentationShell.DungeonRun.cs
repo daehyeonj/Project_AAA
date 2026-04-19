@@ -12,42 +12,164 @@ public sealed partial class PrototypePresentationShell
     {
         PrototypeDungeonRunShellSurfaceData shellSurface = _bootEntry.GetDungeonRunShellSurfaceData();
         Rect screenRect = new Rect(0f, 0f, Screen.width, Screen.height);
-        _blockingRects = new[] { screenRect };
+        List<Rect> blockingRects = new List<Rect>();
+        bool showBattleResultPopover =
+            shellSurface != null &&
+            shellSurface.IsBattleResultPopoverVisible &&
+            shellSurface.BattleResultPopover != null &&
+            shellSurface.BattleResultPopover.IsVisible;
 
         if (shellSurface.IsResultPanelVisible)
         {
             DrawDungeonShellBackdrop(screenRect);
+            if (showBattleResultPopover)
+            {
+                DrawBattleResultPopoverOverlay(screenRect, shellSurface, blockingRects);
+                _blockingRects = blockingRects.Count > 0 ? blockingRects.ToArray() : EmptyBlockingRects;
+                return;
+            }
+
             DrawDungeonResultShell(screenRect, shellSurface);
+            blockingRects.Add(screenRect);
+            DrawInventorySurfaceOverlay(screenRect, blockingRects);
+            _blockingRects = blockingRects.Count > 0 ? blockingRects.ToArray() : EmptyBlockingRects;
             return;
         }
 
         if (shellSurface.IsBattleViewActive)
         {
-            _blockingRects = EmptyBlockingRects;
+            if (showBattleResultPopover)
+            {
+                DrawBattleResultPopoverOverlay(screenRect, shellSurface, blockingRects);
+            }
+            else
+            {
+                DrawInventorySurfaceOverlay(screenRect, blockingRects);
+            }
+
+            _blockingRects = blockingRects.Count > 0 ? blockingRects.ToArray() : EmptyBlockingRects;
             return;
         }
 
         DrawDungeonShellBackdrop(screenRect);
+        blockingRects.Add(screenRect);
 
         if (shellSurface.IsRouteChoiceVisible)
         {
             DrawLegacyDungeonRouteFallbackShell(screenRect, shellSurface);
+            DrawInventorySurfaceOverlay(screenRect, blockingRects);
+            _blockingRects = blockingRects.ToArray();
             return;
         }
 
         if (shellSurface.IsEventChoiceVisible)
         {
             DrawDungeonDecisionShell(screenRect, shellSurface, false);
+            DrawInventorySurfaceOverlay(screenRect, blockingRects);
+            _blockingRects = blockingRects.ToArray();
             return;
         }
 
         if (shellSurface.IsPreEliteChoiceVisible)
         {
             DrawDungeonDecisionShell(screenRect, shellSurface, true);
+            DrawInventorySurfaceOverlay(screenRect, blockingRects);
+            _blockingRects = blockingRects.ToArray();
             return;
         }
 
         DrawDungeonExploreShell(screenRect, shellSurface);
+        if (showBattleResultPopover)
+        {
+            DrawBattleResultPopoverOverlay(screenRect, shellSurface, blockingRects);
+        }
+        else
+        {
+            DrawInventorySurfaceOverlay(screenRect, blockingRects);
+        }
+
+        _blockingRects = blockingRects.ToArray();
+    }
+
+    private void DrawBattleResultPopoverOverlay(Rect screenRect, PrototypeDungeonRunShellSurfaceData shellSurface, List<Rect> blockingRects)
+    {
+        PrototypeDungeonBattleResultPopoverData popover = shellSurface != null && shellSurface.BattleResultPopover != null
+            ? shellSurface.BattleResultPopover
+            : new PrototypeDungeonBattleResultPopoverData();
+        string bodyText = BuildBattleResultPopoverBodyText(popover);
+        float modalWidth = Mathf.Clamp(screenRect.width * 0.32f, 420f, 620f);
+        float bodyWidth = modalWidth - 48f;
+        float bodyHeight = Mathf.Clamp(_bodyStyle.CalcHeight(new GUIContent(bodyText), bodyWidth), 72f, 172f);
+        float modalHeight = Mathf.Clamp(bodyHeight + 138f, 224f, 380f);
+        Rect backdropRect = screenRect;
+        Rect modalRect = CenterRect(modalWidth, modalHeight);
+        Color accentColor = ResolveBattleResultPopoverAccentColor(popover.OutcomeKey);
+
+        DrawRect(backdropRect, new Color(0.02f, 0.03f, 0.06f, 0.64f));
+        DrawPanel(modalRect, new Color(accentColor.r, accentColor.g, accentColor.b, 0.96f), new Color(0.08f, 0.11f, 0.16f, 0.98f));
+        DrawRect(new Rect(modalRect.x + 14f, modalRect.y + 14f, 6f, modalRect.height - 28f), accentColor);
+
+        if (blockingRects != null)
+        {
+            blockingRects.Add(backdropRect);
+            blockingRects.Add(modalRect);
+        }
+
+        Rect innerRect = Inset(modalRect, 22f);
+        GUI.Label(new Rect(innerRect.x + 12f, innerRect.y + 4f, innerRect.width - 24f, 28f), SafeShellText(popover.TitleText), _heroSubtitleStyle);
+        GUI.Label(
+            new Rect(innerRect.x + 12f, innerRect.y + 34f, innerRect.width - 24f, 20f),
+            BuildDisplayBlock(SafeShellText(popover.EncounterNameText), 1, 56),
+            _panelTitleStyle);
+        GUI.Label(
+            new Rect(innerRect.x + 12f, innerRect.y + 62f, innerRect.width - 24f, bodyHeight),
+            bodyText,
+            _bodyStyle);
+        GUI.Label(
+            new Rect(innerRect.x + 12f, modalRect.yMax - 48f, innerRect.width - 24f, 20f),
+            SafeShellText(popover.ContinueHintText),
+            _captionStyle);
+    }
+
+    private string BuildBattleResultPopoverBodyText(PrototypeDungeonBattleResultPopoverData popover)
+    {
+        if (popover == null)
+        {
+            return "None";
+        }
+
+        List<string> lines = new List<string>();
+        lines.Add(BuildDungeonLabeledLine("Summary", popover.SummaryText));
+        lines.Add(BuildDungeonLabeledLine("Loot Gained", popover.LootSummaryText));
+        if (HasMeaningfulValue(popover.DropSummaryText) &&
+            SafeShellText(popover.DropSummaryText) != "None" &&
+            SafeShellText(popover.DropSummaryText) != SafeShellText(popover.LootSummaryText))
+        {
+            lines.Add(BuildDungeonLabeledLine("Battle Drops", popover.DropSummaryText));
+        }
+
+        lines.Add(BuildDungeonLabeledLine("Growth", popover.GrowthSummaryText));
+        return BuildDungeonLines(lines.ToArray());
+    }
+
+    private Color ResolveBattleResultPopoverAccentColor(string outcomeKey)
+    {
+        if (outcomeKey == PrototypeBattleOutcomeKeys.RunDefeat)
+        {
+            return new Color(0.82f, 0.42f, 0.38f, 1f);
+        }
+
+        if (outcomeKey == PrototypeBattleOutcomeKeys.RunRetreat)
+        {
+            return new Color(0.82f, 0.66f, 0.34f, 1f);
+        }
+
+        if (outcomeKey == PrototypeBattleOutcomeKeys.EncounterVictory || outcomeKey == PrototypeBattleOutcomeKeys.RunClear)
+        {
+            return new Color(0.42f, 0.70f, 0.54f, 1f);
+        }
+
+        return new Color(0.40f, 0.58f, 0.80f, 1f);
     }
 
     private void DrawDungeonShellBackdrop(Rect screenRect)
@@ -1928,6 +2050,7 @@ public sealed partial class PrototypePresentationShell
     private string BuildDungeonResultHeaderAftermathLine(PrototypeDungeonRunResultContext resultContext, OutcomeReadback outcomeReadback)
     {
         return ChooseFirstMeaningfulDungeonText(
+            BuildDungeonLabeledLine("Growth", outcomeReadback != null ? outcomeReadback.LatestGrowthHighlightText : "None"),
             BuildDungeonLabeledLine("Latest Return", outcomeReadback != null ? outcomeReadback.LatestReturnAftermathText : "None"),
             BuildDungeonLabeledLine("World Impact", resultContext != null ? resultContext.WorldWritebackResultSummaryText : "None"),
             SafeShellText(resultContext != null ? resultContext.ResultSummaryText : "None"));
@@ -1955,6 +2078,9 @@ public sealed partial class PrototypePresentationShell
 
     private string BuildDungeonResultRewardBody(PrototypeDungeonRunResultContext resultContext)
     {
+        OutcomeReadback outcomeReadback = resultContext != null
+            ? resultContext.WorldOutcomeReadbackPreview ?? new OutcomeReadback()
+            : new OutcomeReadback();
         return BuildDungeonSections(
             BuildDungeonSection(
                 "Reward Outcome",
@@ -1964,14 +2090,15 @@ public sealed partial class PrototypePresentationShell
                 BuildDungeonEliteBonusLine(resultContext),
                 BuildDungeonLabeledLine("Resource Delta", resultContext != null ? resultContext.ResourceDeltaSummaryText : "None")),
             BuildDungeonSection(
-                "Carryover / Build Change",
+                "Growth Reveal",
                 BuildDungeonDecisionPathLine(resultContext),
                 BuildDungeonLabeledLine("Choice Result", resultContext != null ? resultContext.ChoiceOutcomeSummaryText : "None"),
-                BuildDungeonLabeledLine("Gear Reward", resultContext != null ? resultContext.GearRewardCandidateSummaryText : "None"),
-                BuildDungeonLabeledLine("Equip Swap", resultContext != null ? resultContext.EquipSwapChoiceSummaryText : "None"),
-                BuildDungeonLabeledLine("Build Change", BuildDungeonBuildChangeSummary(resultContext)),
-                BuildDungeonLabeledLine("Gear Continuity", resultContext != null ? resultContext.GearCarryContinuitySummaryText : "None"),
-                BuildDungeonLabeledLine("Progression", BuildDungeonProgressionSummary(resultContext))));
+                SafeShellText(outcomeReadback.GrowthRevealSummaryText),
+                BuildDungeonLabeledLine("Item Drop", resultContext != null ? resultContext.GearRewardCandidateSummaryText : "None"),
+                BuildDungeonLabeledLine("Equip / Store", resultContext != null ? resultContext.EquipSwapChoiceSummaryText : "None"),
+                BuildDungeonLabeledLine("Carry", resultContext != null ? resultContext.GearCarryContinuitySummaryText : "None"),
+                BuildDungeonLabeledLine("Next Run", outcomeReadback.NextRunGrowthPreviewText),
+                BuildDungeonLabeledLine("Inspect", outcomeReadback.InspectEquipmentHintText)));
     }
 
     private string BuildDungeonResultWorldBody(PrototypeDungeonRunResultContext resultContext, CityWriteback returnAftermath, OutcomeReadback outcomeReadback)
@@ -1990,6 +2117,9 @@ public sealed partial class PrototypePresentationShell
                 BuildDungeonDungeonStateLine(outcomeReadback)),
             BuildDungeonSection(
                 "Next Follow-Up",
+                BuildDungeonLabeledLine("Growth Highlight", outcomeReadback != null ? outcomeReadback.LatestGrowthHighlightText : "None"),
+                BuildDungeonLabeledLine("Next Run Edge", outcomeReadback != null ? outcomeReadback.NextRunGrowthPreviewText : "None"),
+                BuildDungeonLabeledLine("Inspect", outcomeReadback != null ? outcomeReadback.InspectEquipmentHintText : "None"),
                 BuildDungeonLabeledLine("Corrective Follow-Up", outcomeReadback != null ? outcomeReadback.NextSuggestedActionText : "None"),
                 BuildDungeonLabeledLine("Return Board Hint", outcomeReadback != null ? outcomeReadback.FollowUpHintText : "None")));
     }
@@ -2000,9 +2130,13 @@ public sealed partial class PrototypePresentationShell
             ? "Press [Enter] to return to World and line up the next follow-up."
             : "Press [Enter] to return to World and review the aftermath.";
         string nextText = BuildDungeonLabeledLine("Next", outcomeReadback != null ? outcomeReadback.NextSuggestedActionText : "None");
-        return HasMeaningfulValue(nextText)
+        string inspectText = BuildDungeonLabeledLine("Inspect", outcomeReadback != null ? outcomeReadback.InspectEquipmentHintText : "None");
+        string footerText = HasMeaningfulValue(nextText)
             ? promptText + "  |  " + nextText
             : promptText;
+        return HasMeaningfulValue(inspectText)
+            ? footerText + "  |  " + inspectText
+            : footerText;
     }
 
     private string BuildDungeonSection(string heading, params string[] lines)

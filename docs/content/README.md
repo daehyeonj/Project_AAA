@@ -1,5 +1,62 @@
 # Golden-Path Content Authoring
 
+## What Batch 75.1 Adds
+
+- Batch 75.1 does not add a new loot table, equipment framework, battle rule, or HUD rewrite.
+- It strengthens the already-landed growth / reward loop at the exact combat moment the player needs it:
+  - defeated enemies now show real loot popup text through the existing battle floating popup rail
+  - each battle end now has a centered result popover with encounter name, loot, drop summary, growth follow-through, and continue hint
+  - the inventory/equipment surface no longer shows the large `Comparison` panel
+- The batch stays on canonical ownership:
+  - enemy popup text reads actual monster reward truth
+  - battle-end summary is cached once per result transition, not rebuilt per frame
+  - inventory still reads the same comparison/action truth, but compresses it into selected-item detail text instead of a dedicated panel
+- Treat Batch 75.1 as reward-feedback / readability close-out on the current rail, not as permission to reopen battle HUD layout, invent fake drops, or expand item mechanics.
+
+## What Batch 75 Adds
+
+- Batch 75 does not add a new RPG progression system, inventory mechanic, or battle rule.
+- It makes the already-landed growth loop hit immediately on the current mainline rail:
+  - result surfaces now show who gained XP
+  - level-up and compact stat deltas are surfaced in one growth block
+  - item drop plus equip/store outcome is shown next to that growth block
+  - a short next-run meaning line is cached with the same reveal
+  - `[I]` inspect-equipment hint points the player to the existing Batch 74 surface
+- The reveal stays on canonical ownership:
+  - `ResultPipeline` builds cached growth-reveal summaries from existing progression and equipment outcomes
+  - `ManualTradeRuntimeState` refreshes those summaries after auto-equip/store resolution so world return does not lose the build-change evidence
+  - result, post-run return, and prep return-consume surfaces all read from the same cached fields
+- Treat this batch as readability/legibility close-out for the current growth rail, not as permission to reopen HUD layout, add new item systems, or compute reveal text every frame.
+
+## What Batch 74 Adds
+
+- Batch 74 does not replace the accepted battle HUD, world board, or route portfolio.
+- It promotes the hidden Batch 73 gear continuity rail into the first real player-facing inventory/equipment surface.
+- The surface is intentionally runtime-owned, not presentation-owned:
+  - `ManualTradeRuntimeState` remains the source of truth for party inventory and equipped slot state
+  - `StaticPlaceholderWorldView` now builds a cached inventory surface from that truth
+  - shell/UI layers consume the surface and forward manual equip commands back to the same runtime owner
+- The surface is additive and stage-aware:
+  - open from `WorldSim`
+  - open from `ExpeditionPrep`
+  - open during `DungeonRun` exploration / route / result states
+  - open during `BattleScene` as read-only inspection
+- Current controls:
+  - `[I]` open or close the surface
+  - `[Q/E]` cycle party members
+  - `[1-7]` select equipment slots
+  - `[Up/Down]` select items
+  - `[Enter]` equip
+  - `[U]` / `[Backspace]` unequip
+  - `[Esc]` close
+- The current surface answers four questions on the existing UI rail:
+  - what each member is wearing
+  - what is stored in party inventory
+  - what the selected candidate changes
+  - what the latest manual / auto-equip / carry-continuity outcome was
+
+Treat Batch 74 as the first explicit inventory/equipment UX on the current mainline rail, not as a signal to reopen battle HUD layout or build a second item-framework owner.
+
 ## What Batch 73 Adds
 
 - Batch 73 does not redesign the world map, battle HUD, or route portfolio.

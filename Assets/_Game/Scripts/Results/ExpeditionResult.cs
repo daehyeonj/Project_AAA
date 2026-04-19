@@ -69,6 +69,10 @@ public sealed class ExpeditionResult
     public string EquipSwapChoiceSummaryText = "None";
     public string GearCarryContinuitySummaryText = "None";
     public string PendingRewardSummaryText = "None";
+    public string GrowthRevealSummaryText = "None";
+    public string LatestGrowthHighlightText = "None";
+    public string NextRunGrowthPreviewText = "None";
+    public string InspectEquipmentHintText = "None";
     public string WorldWritebackSummaryText = "None";
     public string LatestReturnAftermathSummaryText = "None";
     public string NextSuggestedActionText = "None";

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 public static class ResultPipeline
 {
@@ -246,6 +247,7 @@ public static class ResultPipeline
             safeInput.ReturnedLootAmount,
             safeInput.ElapsedDays);
         ApplyProgressionOutput(result, safeInput.ProgressionOutput);
+        RefreshGrowthRevealSummaries(result);
         return result;
     }
 
@@ -520,6 +522,18 @@ public static class ResultPipeline
         result.GearRewardSummaryText = ChooseText(gearRewardSummaryText, "None");
         result.EquipSwapSummaryText = ChooseText(equipSwapSummaryText, "None");
         result.GearContinuitySummaryText = ChooseText(gearContinuitySummaryText, "None");
+        result.GrowthRevealSummaryText = ChooseMeaningfulText(
+            safeExpeditionResult.GrowthRevealSummaryText,
+            "None");
+        result.LatestGrowthHighlightText = ChooseMeaningfulText(
+            safeExpeditionResult.LatestGrowthHighlightText,
+            result.LatestReturnAftermathText);
+        result.NextRunGrowthPreviewText = ChooseMeaningfulText(
+            safeExpeditionResult.NextRunGrowthPreviewText,
+            result.FollowUpHintText);
+        result.InspectEquipmentHintText = ChooseMeaningfulText(
+            safeExpeditionResult.InspectEquipmentHintText,
+            "None");
         result.RecentExpeditionLog1Text = ChooseText(recentExpeditionLog1Text, "None");
         result.RecentExpeditionLog2Text = ChooseText(recentExpeditionLog2Text, "None");
         result.RecentExpeditionLog3Text = ChooseText(recentExpeditionLog3Text, "None");
@@ -603,6 +617,19 @@ public static class ResultPipeline
         result.NextPrepFollowUpSummaryText = ChooseMeaningfulText(
             safeOutcomeReadback.FollowUpHintText,
             ChooseMeaningfulText(result.NextPrepFollowUpSummaryText, result.NextSuggestedActionText));
+        result.GrowthRevealSummaryText = ChooseMeaningfulText(
+            safeOutcomeReadback.GrowthRevealSummaryText,
+            result.GrowthRevealSummaryText);
+        result.LatestGrowthHighlightText = ChooseMeaningfulText(
+            safeOutcomeReadback.LatestGrowthHighlightText,
+            ChooseMeaningfulText(result.LatestGrowthHighlightText, result.LatestReturnAftermathSummaryText));
+        result.NextRunGrowthPreviewText = ChooseMeaningfulText(
+            safeOutcomeReadback.NextRunGrowthPreviewText,
+            ChooseMeaningfulText(result.NextRunGrowthPreviewText, result.NextPrepFollowUpSummaryText));
+        result.InspectEquipmentHintText = ChooseMeaningfulText(
+            safeOutcomeReadback.InspectEquipmentHintText,
+            result.InspectEquipmentHintText);
+        RefreshGrowthRevealSummaries(result);
         return result;
     }
 
@@ -784,6 +811,10 @@ public static class ResultPipeline
         copy.EquipSwapChoiceSummaryText = source.EquipSwapChoiceSummaryText;
         copy.GearCarryContinuitySummaryText = source.GearCarryContinuitySummaryText;
         copy.PendingRewardSummaryText = source.PendingRewardSummaryText;
+        copy.GrowthRevealSummaryText = source.GrowthRevealSummaryText;
+        copy.LatestGrowthHighlightText = source.LatestGrowthHighlightText;
+        copy.NextRunGrowthPreviewText = source.NextRunGrowthPreviewText;
+        copy.InspectEquipmentHintText = source.InspectEquipmentHintText;
         copy.WorldWritebackSummaryText = source.WorldWritebackSummaryText;
         copy.LatestReturnAftermathSummaryText = source.LatestReturnAftermathSummaryText;
         copy.NextSuggestedActionText = source.NextSuggestedActionText;
@@ -823,6 +854,42 @@ public static class ResultPipeline
         result.NextSuggestedActionText = ChooseMeaningfulText(result.NextPrepFollowUpSummaryText, result.NextSuggestedActionText);
     }
 
+    public static void RefreshGrowthRevealSummaries(ExpeditionResult result)
+    {
+        if (result == null)
+        {
+            return;
+        }
+
+        result.GrowthRevealSummaryText = BuildGrowthRevealSummary(result.MemberProgressionResults);
+        result.LatestGrowthHighlightText = BuildLatestGrowthHighlightSummary(
+            result.MemberProgressionResults,
+            result.GearRewardCandidateSummaryText,
+            result.EquipSwapChoiceSummaryText,
+            result.PendingRewardSummaryText);
+        result.NextRunGrowthPreviewText = BuildNextRunGrowthPreviewSummary(
+            result.MemberProgressionResults,
+            result.EquipSwapChoiceSummaryText,
+            result.GearCarryContinuitySummaryText);
+        result.InspectEquipmentHintText = HasGrowthRevealContent(result)
+            ? "Press [I] to inspect equipment."
+            : "None";
+
+        if (IsMeaningfulText(result.LatestGrowthHighlightText))
+        {
+            result.LatestReturnAftermathSummaryText = result.LatestGrowthHighlightText;
+        }
+        else if (!IsMeaningfulText(result.LatestReturnAftermathSummaryText) && IsMeaningfulText(result.GrowthRevealSummaryText))
+        {
+            result.LatestReturnAftermathSummaryText = CompactSummaryText(result.GrowthRevealSummaryText.Replace("\n", " | "), 156);
+        }
+
+        if (!IsMeaningfulText(result.NextPrepFollowUpSummaryText) && IsMeaningfulText(result.NextRunGrowthPreviewText))
+        {
+            result.NextPrepFollowUpSummaryText = result.NextRunGrowthPreviewText;
+        }
+    }
+
     private static string ChooseMeaningfulText(string primary, string fallback)
     {
         if (IsMeaningfulText(primary))
@@ -831,6 +898,230 @@ public static class ResultPipeline
         }
 
         return IsMeaningfulText(fallback) ? fallback : "None";
+    }
+
+    private static bool HasGrowthRevealContent(ExpeditionResult result)
+    {
+        return result != null &&
+            (IsMeaningfulText(result.GrowthRevealSummaryText) ||
+             IsMeaningfulText(result.GearRewardCandidateSummaryText) ||
+             IsMeaningfulText(result.EquipSwapChoiceSummaryText) ||
+             IsMeaningfulText(result.PendingRewardSummaryText));
+    }
+
+    private static string BuildGrowthRevealSummary(PrototypeRpgMemberProgressionResult[] memberResults)
+    {
+        PrototypeRpgMemberProgressionResult[] safeResults = memberResults ?? Array.Empty<PrototypeRpgMemberProgressionResult>();
+        List<string> lines = new List<string>();
+        for (int i = 0; i < safeResults.Length && lines.Count < 2; i++)
+        {
+            string line = BuildGrowthRevealMemberLine(safeResults[i]);
+            if (IsMeaningfulText(line))
+            {
+                lines.Add(line);
+            }
+        }
+
+        if (safeResults.Length > lines.Count && lines.Count > 0)
+        {
+            int remaining = safeResults.Length - lines.Count;
+            lines.Add("+" + remaining + " more member change" + (remaining == 1 ? string.Empty : "s"));
+        }
+
+        return lines.Count > 0
+            ? string.Join("\n", lines.ToArray())
+            : "No level-up. XP carried forward.";
+    }
+
+    private static string BuildGrowthRevealMemberLine(PrototypeRpgMemberProgressionResult result)
+    {
+        if (result == null)
+        {
+            return string.Empty;
+        }
+
+        string displayName = IsMeaningfulText(result.DisplayName) ? result.DisplayName : "Party";
+        string levelText = result.LevelAfter > result.LevelBefore
+            ? "Lv" + result.LevelBefore + " -> Lv" + result.LevelAfter
+            : "Lv" + result.LevelAfter + " " + Max(0, result.ExperienceAfter) + "/" + Max(1, result.NextLevelExperience);
+        string line = displayName + " gained " + Max(0, result.ExperienceGained) + " XP | " + levelText;
+        string statText = BuildGrowthStatDeltaSummary(result);
+        return IsMeaningfulText(statText)
+            ? line + " | " + statText
+            : line;
+    }
+
+    private static string BuildGrowthStatDeltaSummary(PrototypeRpgMemberProgressionResult result)
+    {
+        if (result == null)
+        {
+            return string.Empty;
+        }
+
+        List<string> parts = new List<string>();
+        if (result.GrowthBonusMaxHp > 0)
+        {
+            parts.Add("HP +" + result.GrowthBonusMaxHp);
+        }
+
+        if (result.GrowthBonusAttack > 0)
+        {
+            parts.Add("ATK +" + result.GrowthBonusAttack);
+        }
+
+        if (result.GrowthBonusDefense > 0)
+        {
+            parts.Add("DEF +" + result.GrowthBonusDefense);
+        }
+
+        if (result.GrowthBonusSpeed > 0)
+        {
+            parts.Add("SPD +" + result.GrowthBonusSpeed);
+        }
+
+        return parts.Count > 0 ? string.Join(", ", parts.ToArray()) : string.Empty;
+    }
+
+    private static string BuildLatestGrowthHighlightSummary(
+        PrototypeRpgMemberProgressionResult[] memberResults,
+        string gearRewardSummaryText,
+        string equipSwapSummaryText,
+        string pendingRewardSummaryText)
+    {
+        PrototypeRpgMemberProgressionResult[] safeResults = memberResults ?? Array.Empty<PrototypeRpgMemberProgressionResult>();
+        string highlight = string.Empty;
+        for (int i = 0; i < safeResults.Length; i++)
+        {
+            string memberHighlight = BuildCompactGrowthHighlight(safeResults[i]);
+            if (IsMeaningfulText(memberHighlight))
+            {
+                highlight = memberHighlight;
+                break;
+            }
+        }
+
+        string gearHighlight = ChooseMeaningfulText(equipSwapSummaryText, gearRewardSummaryText);
+        if (IsMeaningfulText(gearHighlight))
+        {
+            highlight = AppendSummarySegment(highlight, CompactSummaryText(gearHighlight, 88));
+        }
+        else if (IsMeaningfulText(pendingRewardSummaryText))
+        {
+            highlight = AppendSummarySegment(highlight, "Stash " + CompactSummaryText(pendingRewardSummaryText, 56));
+        }
+
+        return IsMeaningfulText(highlight) ? highlight : "None";
+    }
+
+    private static string BuildCompactGrowthHighlight(PrototypeRpgMemberProgressionResult result)
+    {
+        if (result == null)
+        {
+            return string.Empty;
+        }
+
+        string displayName = IsMeaningfulText(result.DisplayName) ? result.DisplayName : "Party";
+        string levelText = result.LevelAfter > result.LevelBefore
+            ? displayName + " Lv" + result.LevelAfter
+            : displayName + " +" + Max(0, result.ExperienceGained) + " XP";
+        string statText = BuildGrowthStatDeltaSummary(result);
+        return IsMeaningfulText(statText)
+            ? levelText + " | " + statText
+            : levelText;
+    }
+
+    private static string BuildNextRunGrowthPreviewSummary(
+        PrototypeRpgMemberProgressionResult[] memberResults,
+        string equipSwapSummaryText,
+        string gearContinuitySummaryText)
+    {
+        PrototypeRpgMemberProgressionResult[] safeResults = memberResults ?? Array.Empty<PrototypeRpgMemberProgressionResult>();
+        for (int i = 0; i < safeResults.Length; i++)
+        {
+            string preview = BuildMemberNextRunGrowthPreview(safeResults[i]);
+            if (IsMeaningfulText(preview))
+            {
+                return preview;
+            }
+        }
+
+        string equipmentPreview = BuildEquipmentNextRunPreview(equipSwapSummaryText);
+        if (IsMeaningfulText(equipmentPreview))
+        {
+            return equipmentPreview;
+        }
+
+        return IsMeaningfulText(gearContinuitySummaryText)
+            ? "Next run: current gear continuity is locked in."
+            : "None";
+    }
+
+    private static string BuildMemberNextRunGrowthPreview(PrototypeRpgMemberProgressionResult result)
+    {
+        if (result == null)
+        {
+            return string.Empty;
+        }
+
+        string displayName = IsMeaningfulText(result.DisplayName) ? result.DisplayName : "This member";
+        if (result.GrowthBonusAttack > 0)
+        {
+            return "Next run: " + displayName + "'s attacks hit harder.";
+        }
+
+        if (result.GrowthBonusSpeed > 0)
+        {
+            return "Next run: " + displayName + " acts earlier more often.";
+        }
+
+        if (result.GrowthBonusMaxHp > 0 || result.GrowthBonusDefense > 0)
+        {
+            return "Next run: " + displayName + " survives more safely.";
+        }
+
+        if (result.LeveledUp)
+        {
+            return "Next run: " + displayName + " brings stronger overall stats.";
+        }
+
+        return string.Empty;
+    }
+
+    private static string BuildEquipmentNextRunPreview(string equipSwapSummaryText)
+    {
+        if (!IsMeaningfulText(equipSwapSummaryText))
+        {
+            return string.Empty;
+        }
+
+        if (ContainsText(equipSwapSummaryText, "ATK"))
+        {
+            return "Next run: party basic attacks hit harder.";
+        }
+
+        if (ContainsText(equipSwapSummaryText, "SPD"))
+        {
+            return "Next run: party acts earlier more often.";
+        }
+
+        if (ContainsText(equipSwapSummaryText, "HP") || ContainsText(equipSwapSummaryText, "DEF"))
+        {
+            return "Next run: party sustain is safer.";
+        }
+
+        if (ContainsText(equipSwapSummaryText, "POW"))
+        {
+            return "Next run: party skills hit harder.";
+        }
+
+        return "Next run: the latest equipment upgrade is active.";
+    }
+
+    private static bool ContainsText(string value, string token)
+    {
+        return !string.IsNullOrEmpty(value) &&
+            !string.IsNullOrEmpty(token) &&
+            value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static string BuildEliteSummary(PrototypeRpgEliteOutcomeSnapshot eliteOutcome)

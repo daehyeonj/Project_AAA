@@ -475,6 +475,11 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     {
         bool previousFastBackground = _battleHudFastBackground;
         _battleHudFastBackground = true;
+        bool battleModalOpen = IsBattleInputModalOpen();
+        if (battleModalOpen)
+        {
+            DismissBattleCommandOverlayState();
+        }
 
         float screenLeft = Margin;
         float screenWidth = Screen.width - (Margin * 2f);
@@ -494,7 +499,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         float maxPanelHeight = Mathf.Max(132f, availableCommandHeight);
         float commandHeight = Mathf.Min(GetPreferredBattleCommandSelectionHeight(), maxPanelHeight);
         float flyoutWidth = 0f;
-        if (ShouldShowBattleCommandFlyout())
+        if (!battleModalOpen && ShouldShowBattleCommandFlyout())
         {
             float maxFlyoutWidth = Mathf.Max(280f, rightRect.x - (screenLeft + 8f + commandWidth) - 28f);
             flyoutWidth = Mathf.Min(Mathf.Clamp(screenWidth * 0.28f, 360f, 520f), maxFlyoutWidth);
@@ -505,10 +510,14 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         Rect commandRect = new Rect(screenLeft + 8f, commandTop, commandWidth, commandHeight);
 
         DrawBattleTopStrip(topRect);
-        DrawCurrentUnitPanel(currentUnitRect);
-        DrawCommandSelectionPanel(commandRect);
+        if (!battleModalOpen)
+        {
+            DrawCurrentUnitPanel(currentUnitRect);
+            DrawCommandSelectionPanel(commandRect);
+        }
+
         DrawTargetStatusPanel(rightRect);
-        if (ShouldShowBattleCommandFlyout())
+        if (!battleModalOpen && ShouldShowBattleCommandFlyout())
         {
             Rect flyoutRect = new Rect(commandRect.xMax + 16f, commandRect.y, flyoutWidth, commandHeight);
             DrawCommandFlyoutPanel(flyoutRect);
@@ -2326,6 +2335,12 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             return;
         }
 
+        if (IsBattleInputModalOpen())
+        {
+            DismissBattleCommandOverlayState();
+            return;
+        }
+
         string ownerKey = GetBattleCommandOwnerKey();
         if (!HasMeaningfulText(ownerKey))
         {
@@ -2369,9 +2384,17 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         SetBattleActionHoverIfChanged(string.Empty);
     }
 
+    private void DismissBattleCommandOverlayState()
+    {
+        _battleFlyoutMode = BattleHudFlyoutMode.None;
+        _pendingConfirmActionKey = string.Empty;
+        _battleHudHoverDetailKey = string.Empty;
+        SetBattleActionHoverIfChanged(string.Empty);
+    }
+
     private bool IsBattleInputModalOpen()
     {
-        return false;
+        return _bootEntry != null && _bootEntry.IsInventorySurfaceOpen;
     }
 
     private bool IsTargetSelectionActive()

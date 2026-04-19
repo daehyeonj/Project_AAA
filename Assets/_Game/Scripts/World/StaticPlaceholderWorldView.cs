@@ -223,17 +223,17 @@ public sealed partial class StaticPlaceholderWorldView
         }
     }
 
-    public void SelectAtScreenPosition(Camera worldCamera, Vector2 screenPosition)
+    public bool SelectAtScreenPosition(Camera worldCamera, Vector2 screenPosition)
     {
         if (_root == null || !_root.activeInHierarchy || worldCamera == null)
         {
-            return;
+            return false;
         }
 
         Vector3 worldPoint = worldCamera.ScreenToWorldPoint(screenPosition);
         Collider2D hit = Physics2D.OverlapPoint(new Vector2(worldPoint.x, worldPoint.y));
         WorldSelectableMarker marker = hit != null ? hit.GetComponent<WorldSelectableMarker>() : null;
-        SetSelected(marker);
+        return SetSelected(marker);
     }
 
     public void RunEconomyDay()
@@ -1910,11 +1910,11 @@ public sealed partial class StaticPlaceholderWorldView
         resultStateKey = writeback.RunResultStateKey ?? string.Empty;
     }
 
-    private void SetSelected(WorldSelectableMarker nextMarker)
+    private bool SetSelected(WorldSelectableMarker nextMarker)
     {
         if (_selectedMarker == nextMarker)
         {
-            return;
+            return false;
         }
 
         if (_isExpeditionPrepBoardOpen)
@@ -1935,6 +1935,7 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         ApplyWorldBoardEmphasis(BuildWorldObservationSurfaceData());
+        return true;
     }
 
     private Color GetEntityColor(WorldEntityData entity)

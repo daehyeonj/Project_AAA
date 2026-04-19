@@ -54,6 +54,13 @@ public sealed partial class PrototypePresentationShell
         DrawDungeonShellBackdrop(screenRect);
         blockingRects.Add(screenRect);
 
+        if (showBattleResultPopover)
+        {
+            DrawBattleResultPopoverOverlay(screenRect, shellSurface, blockingRects);
+            _blockingRects = blockingRects.ToArray();
+            return;
+        }
+
         if (shellSurface.IsRouteChoiceVisible)
         {
             DrawLegacyDungeonRouteFallbackShell(screenRect, shellSurface);
@@ -77,16 +84,8 @@ public sealed partial class PrototypePresentationShell
             _blockingRects = blockingRects.ToArray();
             return;
         }
-
         DrawDungeonExploreShell(screenRect, shellSurface);
-        if (showBattleResultPopover)
-        {
-            DrawBattleResultPopoverOverlay(screenRect, shellSurface, blockingRects);
-        }
-        else
-        {
-            DrawInventorySurfaceOverlay(screenRect, blockingRects);
-        }
+        DrawInventorySurfaceOverlay(screenRect, blockingRects);
 
         _blockingRects = blockingRects.ToArray();
     }
@@ -97,10 +96,12 @@ public sealed partial class PrototypePresentationShell
             ? shellSurface.BattleResultPopover
             : new PrototypeDungeonBattleResultPopoverData();
         string bodyText = BuildBattleResultPopoverBodyText(popover);
-        float modalWidth = Mathf.Clamp(screenRect.width * 0.32f, 420f, 620f);
+        bool hasSubtitle = HasMeaningfulValue(popover.SubtitleText) && SafeShellText(popover.SubtitleText) != "None";
+        float modalWidth = Mathf.Clamp(screenRect.width * 0.34f, 440f, 660f);
         float bodyWidth = modalWidth - 48f;
-        float bodyHeight = Mathf.Clamp(_bodyStyle.CalcHeight(new GUIContent(bodyText), bodyWidth), 72f, 172f);
-        float modalHeight = Mathf.Clamp(bodyHeight + 138f, 224f, 380f);
+        float headerOffset = hasSubtitle ? 96f : 76f;
+        float bodyHeight = Mathf.Clamp(_bodyStyle.CalcHeight(new GUIContent(bodyText), bodyWidth), 112f, 224f);
+        float modalHeight = Mathf.Clamp(bodyHeight + headerOffset + 64f, 268f, 432f);
         Rect backdropRect = screenRect;
         Rect modalRect = CenterRect(modalWidth, modalHeight);
         Color accentColor = ResolveBattleResultPopoverAccentColor(popover.OutcomeKey);
@@ -108,6 +109,21 @@ public sealed partial class PrototypePresentationShell
         DrawRect(backdropRect, new Color(0.02f, 0.03f, 0.06f, 0.64f));
         DrawPanel(modalRect, new Color(accentColor.r, accentColor.g, accentColor.b, 0.96f), new Color(0.08f, 0.11f, 0.16f, 0.98f));
         DrawRect(new Rect(modalRect.x + 14f, modalRect.y + 14f, 6f, modalRect.height - 28f), accentColor);
+
+        Event currentEvent = Event.current;
+        if (currentEvent != null)
+        {
+            switch (currentEvent.type)
+            {
+                case EventType.MouseDown:
+                case EventType.MouseUp:
+                case EventType.MouseDrag:
+                case EventType.ScrollWheel:
+                case EventType.ContextClick:
+                    currentEvent.Use();
+                    break;
+            }
+        }
 
         if (blockingRects != null)
         {
@@ -121,8 +137,16 @@ public sealed partial class PrototypePresentationShell
             new Rect(innerRect.x + 12f, innerRect.y + 34f, innerRect.width - 24f, 20f),
             BuildDisplayBlock(SafeShellText(popover.EncounterNameText), 1, 56),
             _panelTitleStyle);
+        if (hasSubtitle)
+        {
+            GUI.Label(
+                new Rect(innerRect.x + 12f, innerRect.y + 56f, innerRect.width - 24f, 18f),
+                BuildDisplayBlock(SafeShellText(popover.SubtitleText), 1, 64),
+                _captionStyle);
+        }
+
         GUI.Label(
-            new Rect(innerRect.x + 12f, innerRect.y + 62f, innerRect.width - 24f, bodyHeight),
+            new Rect(innerRect.x + 12f, innerRect.y + (hasSubtitle ? 78f : 62f), innerRect.width - 24f, bodyHeight),
             bodyText,
             _bodyStyle);
         GUI.Label(
@@ -139,17 +163,31 @@ public sealed partial class PrototypePresentationShell
         }
 
         List<string> lines = new List<string>();
-        lines.Add(BuildDungeonLabeledLine("Summary", popover.SummaryText));
-        lines.Add(BuildDungeonLabeledLine("Loot Gained", popover.LootSummaryText));
-        if (HasMeaningfulValue(popover.DropSummaryText) &&
-            SafeShellText(popover.DropSummaryText) != "None" &&
-            SafeShellText(popover.DropSummaryText) != SafeShellText(popover.LootSummaryText))
+        AddBattleResultPopoverLine(lines, "Result", popover.SummaryText);
+        AddBattleResultPopoverLine(lines, "Rewards", popover.LootSummaryText);
+        AddBattleResultPopoverLine(lines, "Drop", popover.DropSummaryText);
+        AddBattleResultPopoverLine(lines, "Party", popover.PartySummaryText);
+        AddBattleResultPopoverLine(lines, "Combat", popover.CombatSummaryText);
+        AddBattleResultPopoverLine(lines, "Highlight", popover.ContributionSummaryText);
+        AddBattleResultPopoverLine(lines, "Growth", popover.GrowthSummaryText);
+        AddBattleResultPopoverLine(lines, "Next", popover.NextStepText);
+        return BuildDungeonLines(lines.ToArray());
+    }
+
+    private void AddBattleResultPopoverLine(List<string> lines, string label, string value)
+    {
+        if (lines == null || !HasMeaningfulValue(value))
         {
-            lines.Add(BuildDungeonLabeledLine("Battle Drops", popover.DropSummaryText));
+            return;
         }
 
-        lines.Add(BuildDungeonLabeledLine("Growth", popover.GrowthSummaryText));
-        return BuildDungeonLines(lines.ToArray());
+        string safeValue = SafeShellText(value);
+        if (safeValue == "None")
+        {
+            return;
+        }
+
+        lines.Add(BuildDungeonLabeledLine(label, safeValue));
     }
 
     private Color ResolveBattleResultPopoverAccentColor(string outcomeKey)

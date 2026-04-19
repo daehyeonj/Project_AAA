@@ -1144,8 +1144,10 @@ public sealed partial class BootEntry : MonoBehaviour
             return;
         }
 
-        _worldView.SelectAtScreenPosition(mainCamera, screenPosition);
-        InvalidateCachedCitySurfaceData();
+        if (_worldView.SelectAtScreenPosition(mainCamera, screenPosition))
+        {
+            InvalidateCachedCitySurfaceData();
+        }
     }
 
     private string GetResourceIdsLabel()

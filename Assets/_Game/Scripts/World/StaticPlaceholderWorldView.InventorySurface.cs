@@ -11,6 +11,7 @@ public sealed partial class StaticPlaceholderWorldView
     private string _cachedInventorySlotKey = string.Empty;
     private string _cachedInventoryItemInstanceId = string.Empty;
     private string _cachedInventoryFeedbackText = string.Empty;
+    private string _cachedInventoryRunSpoilsKey = string.Empty;
     private int _cachedInventoryRevision = -1;
     private bool _cachedInventoryReadOnly;
 
@@ -225,6 +226,9 @@ public sealed partial class StaticPlaceholderWorldView
 
         bool isReadOnly = IsBattleViewActive;
         int revision = _runtimeEconomyState.GetPartyInventoryRevision(partyId);
+        string runSpoilsKey = IsDungeonRunActive
+            ? BuildLootAmountText(_carriedLootAmount) + "|" + _runResultState
+            : string.Empty;
 
         // The presentation shell reads this surface every OnGUI frame, so only rebuild it
         // when the party revision or the player's UI selection changes.
@@ -234,6 +238,7 @@ public sealed partial class StaticPlaceholderWorldView
             _cachedInventorySlotKey == _inventorySelectedSlotKey &&
             _cachedInventoryItemInstanceId == _inventorySelectedItemInstanceId &&
             _cachedInventoryFeedbackText == _inventoryFeedbackText &&
+            _cachedInventoryRunSpoilsKey == runSpoilsKey &&
             _cachedInventoryRevision == revision &&
             _cachedInventoryReadOnly == isReadOnly)
         {
@@ -247,6 +252,7 @@ public sealed partial class StaticPlaceholderWorldView
             _inventorySelectedItemInstanceId,
             isReadOnly,
             _inventoryFeedbackText);
+        ApplyDungeonRunPendingSpoilsSurface(surface);
         _inventorySelectedMemberId = surface.SelectedMemberId;
         _inventorySelectedSlotKey = string.IsNullOrEmpty(surface.SelectedSlotKey) ? PrototypeRpgEquipmentSlotKeys.Head : surface.SelectedSlotKey;
         _inventorySelectedItemInstanceId = surface.SelectedItemInstanceId;
@@ -256,6 +262,7 @@ public sealed partial class StaticPlaceholderWorldView
         _cachedInventorySlotKey = _inventorySelectedSlotKey;
         _cachedInventoryItemInstanceId = _inventorySelectedItemInstanceId;
         _cachedInventoryFeedbackText = _inventoryFeedbackText;
+        _cachedInventoryRunSpoilsKey = runSpoilsKey;
         _cachedInventoryRevision = revision;
         _cachedInventoryReadOnly = isReadOnly;
         return surface;
@@ -269,8 +276,35 @@ public sealed partial class StaticPlaceholderWorldView
         _cachedInventorySlotKey = string.Empty;
         _cachedInventoryItemInstanceId = string.Empty;
         _cachedInventoryFeedbackText = string.Empty;
+        _cachedInventoryRunSpoilsKey = string.Empty;
         _cachedInventoryRevision = -1;
         _cachedInventoryReadOnly = false;
+    }
+
+    private void ApplyDungeonRunPendingSpoilsSurface(PrototypeRpgInventorySurfaceData surface)
+    {
+        if (surface == null || !IsDungeonRunActive)
+        {
+            return;
+        }
+
+        string runSpoilsText = _carriedLootAmount > 0
+            ? "Run Spoils " + BuildLootAmountText(_carriedLootAmount) + " pending extraction"
+            : "No pending run spoils.";
+        string latestRewardText = string.IsNullOrEmpty(surface.LatestRewardSummaryText) || surface.LatestRewardSummaryText == "None"
+            ? runSpoilsText
+            : surface.LatestRewardSummaryText + " | " + runSpoilsText;
+        surface.LatestRewardSummaryText = latestRewardText;
+
+        string footerText = string.IsNullOrEmpty(surface.FooterSummaryText) || surface.FooterSummaryText == "None"
+            ? runSpoilsText
+            : surface.FooterSummaryText + " | " + runSpoilsText;
+        surface.FooterSummaryText = footerText;
+
+        if (string.IsNullOrEmpty(surface.FeedbackText) || surface.FeedbackText == "None")
+        {
+            surface.FeedbackText = runSpoilsText;
+        }
     }
 
     private string ResolveCurrentInventoryPartyId()

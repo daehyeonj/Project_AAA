@@ -3,6 +3,7 @@ using UnityEngine;
 public sealed partial class PrototypePresentationShell
 {
     private GameplayBattleHudPresenter _gameplayBattleHudPresenter;
+    [SerializeField] private BattleUiSkinDefinition _battleUiSkin;
 
     private sealed class GameplayBattleHudPresenter
     {
@@ -17,5 +18,10 @@ public sealed partial class PrototypePresentationShell
         {
             _owner.DrawGameplayBattleHud(screenRect);
         }
+    }
+
+    private BattleUiSkinDefinition GetCurrentBattleUiSkin()
+    {
+        return BattleUiSkinProvider.Resolve(_battleUiSkin);
     }
 }

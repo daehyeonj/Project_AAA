@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 78 + Batch 77.1 blocker fix`
+- Latest closed batch: `Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle UI skinning scaffold`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,7 +18,36 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-b -> dungeon-beta`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: `runtime-click verification on the post-run world-selection spike fix, then resume combat-role follow-through on the accepted Batch 78 rail`
+- Next honest bottleneck: `manual assignment/runtime verification for the new battle UI skin slots, then resume combat-role follow-through on the accepted Batch 78 rail`
+
+## Batch 77.2 Close-Out
+
+- Selected branch: `A with manual-asset guardrails`
+- Honest blocker:
+  - the current accepted battle HUD rail is still immediate-mode and color-authored
+  - user art exists under `Assets/Sprite`, but automatic assignment is unsafe because the pack is not a dedicated runtime-resolved skin path and at least part of it is not guaranteed sprite-imported
+- Fix shape:
+  - added `BattleUiSkinDefinition`, `BattleUiSkinProvider`, and `BattleUiSkinRenderer`
+  - exposed named skin slots for battle panels, command buttons, current-unit card, target-status card, timeline chips, HP bars, and the battle result popover
+  - wired the active `PrototypeDebugHUD` battle rail through null-safe skin hooks
+  - wired the `PrototypePresentationShell` battle result popover through the same skin path
+  - left all slots manual and optional so missing art preserves the current accepted visuals
+- UI shape changed?: `No layout rewrite; fallback parity preserved when slots are empty`
+
+## Batch 77.2 Validation Snapshot
+
+- Compile: `PASS` (`unity-merge-validate.log`, 2026-04-20)
+- Preflight:
+  - active battle HUD owner audit: `PASS`
+  - battle result popover owner audit: `PASS`
+  - inventory overlay interaction-point audit: `PASS`
+  - asset path / non-Resources / importer-risk audit: `PASS`
+- Static scaffold proof:
+  - no random sprite assignment path added: `PASS`
+  - missing-slot fallback preserves current draw path: `PASS`
+  - battle result popover now shares the battle skin scaffold: `PASS`
+- Manual runtime proof: `DEFERRED`
+- Smoke: `DEFERRED`
 
 ## Batch 77.1 Close-Out
 

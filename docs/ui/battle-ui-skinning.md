@@ -65,10 +65,6 @@ The skin definition exposes these high-value slots:
 - `HpBarBackground`
 - `HpBarFill`
 - `PopupBackground`
-- `InventoryOverlayBackground`
-- `SlotFrame`
-
-Not every reserved slot is wired yet.
 
 Current wired surfaces:
 
@@ -80,10 +76,9 @@ Current wired surfaces:
 - HP bars
 - battle result popover background/accent
 
-Reserved-only in this batch:
+Inventory-specific skinning is intentionally split into:
 
-- `InventoryOverlayBackground`
-- `SlotFrame`
+- `docs/ui/inventory-ui-skinning.md`
 
 ## How To Assign A Skin
 
@@ -129,7 +124,6 @@ Safe short-term path:
 - no random sprite selection from `Assets/Sprite`
 - no battle layout rewrite
 - no combat logic change
-- no inventory behavior rewrite
 - no modal behavior rollback
 - no forced atlas slicing
 - no automatic importer mutation
@@ -140,4 +134,4 @@ The next art-facing pass can stay narrow:
 
 - choose a small set of final backgrounds for `PanelBackground`, `CommandButton*`, `CurrentUnitCard`, `TargetStatusCard`, `TimelineChip*`, and `PopupBackground`
 - verify them in-editor
-- only then decide whether inventory/equipment surfaces should share the same skin family
+- continue separately with the inventory skin asset once battle art direction is confirmed

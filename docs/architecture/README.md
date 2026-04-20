@@ -123,6 +123,15 @@ Project AAA is a Unity vertical slice prototype that turns city pressure into ex
 - `World` currently hosts both runtime truth and CityHub decision contracts. Treat `ManualTradeRuntimeState` as truth owner and `CityDecisionReadModel` as the city-side interpretation layer.
 - `BootEntry.cs` and `StaticPlaceholderWorldView*.cs` are integration hot spots, not license to add new owners there.
 
+## Scene Scaffold Docs
+
+Use these documents when a task touches persistent roots, scene lifetime, or presenter unloading rules:
+
+- `docs/architecture/scene-ownership-plan.md`
+- `docs/architecture/ddol-policy.md`
+- `docs/architecture/scene-migration-roadmap.md`
+- `docs/architecture/script-naming-policy.md`
+
 ## Placeholder vs Promotion Candidate
 
 ### Leave as placeholder for now

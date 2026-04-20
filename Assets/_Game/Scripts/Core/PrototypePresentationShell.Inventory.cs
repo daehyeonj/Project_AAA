@@ -1,8 +1,11 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 public sealed partial class PrototypePresentationShell
 {
+    [SerializeField] private InventoryUiSkinDefinition _inventoryUiSkin;
+
     private void DrawInventorySurfaceOverlay(Rect screenRect, List<Rect> blockingRects)
     {
         if (_bootEntry == null || !_bootEntry.IsInventorySurfaceOpen)
@@ -10,6 +13,7 @@ public sealed partial class PrototypePresentationShell
             return;
         }
 
+        InventoryUiSkinProvider.Register(_inventoryUiSkin);
         PrototypeRpgInventorySurfaceData surface = _bootEntry.GetInventorySurfaceData();
         Rect backdropRect = screenRect;
         Rect modalRect = CenterRect(
@@ -71,6 +75,14 @@ public sealed partial class PrototypePresentationShell
         }
 
         Rect closeRect = new Rect(rect.xMax - 144f, rect.yMax - 36f, 126f, 28f);
+        string runSpoilsBadgeText;
+        if (TryGetInventoryRunSpoilsBadgeText(surface, out runSpoilsBadgeText))
+        {
+            float badgeWidth = Mathf.Min(280f, GetCachedBadgeWidth(runSpoilsBadgeText, 20f, 128f, 300f));
+            Rect badgeRect = new Rect(Mathf.Max(rect.x + 18f, closeRect.x - badgeWidth - 8f), closeRect.y + 2f, badgeWidth, 24f);
+            DrawInventoryRunSpoilsBadge(badgeRect, runSpoilsBadgeText);
+        }
+
         if (DrawActionButton(closeRect, "[Esc] Close", new Color(0.22f, 0.18f, 0.18f, 1f), true, _badgeStyle))
         {
             _bootEntry.CloseInventorySurface();
@@ -112,7 +124,7 @@ public sealed partial class PrototypePresentationShell
                 : new Color(0.14f, 0.19f, 0.26f, 1f);
             string label = CompactShellText(member.DisplayName, 22) + "\n" +
                            CompactShellText(member.RoleIdentityText + " | Lv" + Mathf.Max(1, member.Level), 34);
-            if (DrawActionButton(cardRect, label, fill, true))
+            if (DrawInventorySkinnedButton(cardRect, label, true, member.IsSelected, GetCurrentInventoryUiSkin().GetMemberRowSlot(member.IsSelected), fill, _buttonStyle))
             {
                 _bootEntry.TrySelectInventoryMember(member.MemberId);
             }
@@ -200,7 +212,7 @@ public sealed partial class PrototypePresentationShell
                 : new Color(0.14f, 0.19f, 0.24f, 1f);
             string line1 = CompactShellText(slot.SlotLabel + " " + slot.HotkeyLabel, 30);
             string line2 = CompactShellText(slot.HasEquippedItem ? slot.EquippedItemName : "Empty", 26);
-            if (DrawActionButton(cardRect, line1 + "\n" + line2, fill, true))
+            if (DrawInventorySkinnedButton(cardRect, line1 + "\n" + line2, true, slot.IsSelected, GetCurrentInventoryUiSkin().GetEquipmentSlot(slot.IsSelected), fill, _buttonStyle))
             {
                 _bootEntry.TrySelectInventorySlot(slot.SlotKey);
             }
@@ -260,7 +272,7 @@ public sealed partial class PrototypePresentationShell
                     : "Mismatch";
             string label = CompactShellText(item.DisplayName, 34) + "\n" +
                            CompactShellText(item.SlotLabel + " | " + item.TierLabel + " | " + stateTag, 54);
-            if (DrawActionButton(buttonRect, label, fill, true))
+            if (DrawInventorySkinnedButton(buttonRect, label, true, item.IsSelected, GetCurrentInventoryUiSkin().GetItemRowSlot(item.IsSelected), fill, _buttonStyle))
             {
                 _bootEntry.TrySelectInventoryItem(item.ItemInstanceId);
             }
@@ -396,5 +408,91 @@ public sealed partial class PrototypePresentationShell
             "Owner: " + SafeShellText(surface.SelectedItemOwnerText),
             "Action: " + BuildInventoryActionSummary(surface),
             "Hint: " + SafeShellText(surface.InputHintText));
+    }
+
+    private InventoryUiSkinDefinition GetCurrentInventoryUiSkin()
+    {
+        return InventoryUiSkinProvider.Resolve(_inventoryUiSkin);
+    }
+
+    private bool DrawInventorySkinnedButton(
+        Rect rect,
+        string label,
+        bool isEnabled,
+        bool selected,
+        InventoryUiSkinDefinition.GraphicSlot slot,
+        Color fallbackFillColor,
+        GUIStyle style)
+    {
+        if (slot == null || !slot.HasAssignedGraphic)
+        {
+            return DrawActionButton(rect, label, fallbackFillColor, isEnabled, style);
+        }
+
+        InventoryUiSkinRenderer.TryDrawGraphic(rect, slot);
+        Color previousColor = GUI.color;
+        GUI.color = isEnabled ? Color.white : new Color(0.64f, 0.68f, 0.72f, 1f);
+        GUI.Label(rect, label, style);
+        GUI.color = previousColor;
+
+        Event current = Event.current;
+        if (isEnabled && current != null && current.type == EventType.MouseDown && current.button == 0 && rect.Contains(current.mousePosition))
+        {
+            current.Use();
+            return true;
+        }
+
+        return false;
+    }
+
+    private void DrawInventoryRunSpoilsBadge(Rect rect, string label)
+    {
+        if (!InventoryUiSkinRenderer.TryDrawGraphic(rect, GetCurrentInventoryUiSkin().RunSpoilsBadge))
+        {
+            DrawPill(rect, label, new Color(0.38f, 0.30f, 0.16f, 0.96f), Color.white);
+            return;
+        }
+
+        GUI.Label(new Rect(rect.x + 10f, rect.y + 4f, rect.width - 20f, rect.height - 8f), label, GetPillTextStyle(rect.height, Color.white));
+    }
+
+    private bool TryGetInventoryRunSpoilsBadgeText(PrototypeRpgInventorySurfaceData surface, out string badgeText)
+    {
+        badgeText = string.Empty;
+        if (surface == null)
+        {
+            return false;
+        }
+
+        string[] candidates =
+        {
+            SafeShellText(surface.LatestRewardSummaryText),
+            SafeShellText(surface.FooterSummaryText),
+            SafeShellText(surface.FeedbackText)
+        };
+
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            string candidate = candidates[i];
+            if (string.IsNullOrEmpty(candidate))
+            {
+                continue;
+            }
+
+            int startIndex = candidate.IndexOf("Run Spoils", StringComparison.OrdinalIgnoreCase);
+            if (startIndex >= 0)
+            {
+                badgeText = CompactShellText(candidate.Substring(startIndex).Trim(), 40);
+                return true;
+            }
+
+            if (candidate.IndexOf("pending extraction", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                badgeText = CompactShellText(candidate.Trim(), 40);
+                return true;
+            }
+        }
+
+        return false;
     }
 }

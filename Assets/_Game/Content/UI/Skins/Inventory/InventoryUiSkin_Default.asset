@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb7bec9570f89fb4c93d2d42c0aafe5b, type: 3}
+  m_Name: InventoryUiSkin_Default
+  m_EditorClassIdentifier: 
+  InventoryBackground:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  HeaderPanel:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  FooterPanel:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  ItemDetailPanel:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  MemberRow:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  MemberRowSelected:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  ItemRow:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  ItemRowSelected:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  EquipmentSlot:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  EquipmentSlotEmpty:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  EquipmentSlotEquipped:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  EquipmentSlotSelected:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  RunSpoilsBadge:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  PendingExtractionBadge:
+    Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0

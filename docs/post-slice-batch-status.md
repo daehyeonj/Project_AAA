@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle UI skinning scaffold`
+- Latest closed batch: `Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -19,6 +19,69 @@
 - Current signature demo pair: `city-b -> dungeon-beta`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
 - Next honest bottleneck: `manual assignment/runtime verification for the new battle UI skin slots, then resume combat-role follow-through on the accepted Batch 78 rail`
+- Scene architecture status: `compile-safe persistent-root scaffold added; SampleScene remains the live playable baseline`
+
+## Batch 77.3 Close-Out
+
+- Selected branch: `B`
+- Honest scope:
+  - keep the existing runtime/UI rail intact
+  - extend the existing battle/inventory skin scaffold into editor-friendly preview scenes, layout profiles, and mock preview data
+  - avoid all gameplay/runtime migration while giving the designer a safe art-placement workspace
+- Added preview scaffolds:
+  - `Assets/_Game/Scenes/Preview/BattleUiPreviewScene.unity`
+  - `Assets/_Game/Scenes/Preview/InventoryUiPreviewScene.unity`
+  - `Assets/_Game/Content/UI/Skins/Battle/BattleUiSkin_Default.asset`
+  - `Assets/_Game/Content/UI/Skins/Inventory/InventoryUiSkin_Default.asset`
+  - `Assets/_Game/Content/UI/LayoutProfiles/Battle/BattleUiLayout_Default.asset`
+  - `Assets/_Game/Content/UI/LayoutProfiles/Inventory/InventoryUiLayout_Default.asset`
+  - `Assets/_Game/Content/UI/Preview/Battle/BattleUiPreview_Default.asset`
+  - `Assets/_Game/Content/UI/Preview/Inventory/InventoryUiPreview_Default.asset`
+- Added preview code:
+  - battle/inventory layout profile ScriptableObjects
+  - battle/inventory mock preview data ScriptableObjects
+  - scene-local preview presenter/controller scaffold
+  - editor generator for preview scenes/assets
+- Sprite workflow note:
+  - `Assets/Sprite` was audited only
+  - no auto-assignment or import-setting mutation was performed
+  - preview slots support manual Sprite or Texture assignment, which is important because sampled sprite-pack metas were still imported as `textureType: 0`
+- Runtime safety:
+  - `SampleScene` play path unchanged
+  - no BootEntry dependency added to preview scenes
+  - no runtime world/battle/inventory truth mutation added
+  - no DDOL UI hierarchy added
+- Validation snapshot:
+  - compile: `PASS (Unity batch compile succeeded on 2026-04-20 via unity-merge-validate.log)`
+  - preview generation: `PASS (Unity batch generator created preview scenes and default preview assets on 2026-04-20 via unity-ui-preview-builder.log)`
+  - runtime isolation: `PASS (code-path scope only)`
+
+## Scene Architecture Scaffold Follow-Up
+
+- Selected branch: `scaffold-first, no scene cutover`
+- Honest scope:
+  - add a persistent-root code scaffold without claiming the project is already multi-scene
+  - document what should persist, what must unload, and which current files are legacy adapters
+  - keep the accepted `SampleScene` flow, battle HUD rail, inventory rail, and result pipeline intact
+- Added runtime scaffold:
+  - `Assets/_Game/Scripts/App/GameSceneId.cs`
+  - `Assets/_Game/Scripts/App/AppRoot.cs`
+  - `Assets/_Game/Scripts/App/GameSessionRoot.cs`
+  - `Assets/_Game/Scripts/App/RuntimeGameState.cs`
+  - `Assets/_Game/Scripts/App/SceneFlowService.cs`
+- Added architecture docs:
+  - `docs/architecture/scene-ownership-plan.md`
+  - `docs/architecture/ddol-policy.md`
+  - `docs/architecture/scene-migration-roadmap.md`
+  - `docs/architecture/script-naming-policy.md`
+- Ownership call:
+  - persistent truth stays with runtime owners like `ManualTradeRuntimeState` and canonical handoff contracts
+  - scene-local IMGUI shells (`PrototypePresentationShell`, `PrototypeDebugHUD`) remain disposable presenters
+  - `BootEntry` and `StaticPlaceholderWorldView` stay classified as legacy adapters/hot spots, not new long-term owners
+- Validation snapshot:
+  - compile: `PASS (unity-merge-validate.log, 2026-04-20)`
+  - runtime cutover: `NOT STARTED`
+  - SampleScene preservation: `PASS (code-path scope only)`
 
 ## Batch 77.2 Close-Out
 
@@ -28,7 +91,9 @@
   - user art exists under `Assets/Sprite`, but automatic assignment is unsafe because the pack is not a dedicated runtime-resolved skin path and at least part of it is not guaranteed sprite-imported
 - Fix shape:
   - added `BattleUiSkinDefinition`, `BattleUiSkinProvider`, and `BattleUiSkinRenderer`
+  - added `InventoryUiSkinDefinition`, `InventoryUiSkinProvider`, and `InventoryUiSkinRenderer`
   - exposed named skin slots for battle panels, command buttons, current-unit card, target-status card, timeline chips, HP bars, and the battle result popover
+  - split inventory skinning into its own definition and wired member rows, equipment slots, item rows, and the run-spoils badge
   - wired the active `PrototypeDebugHUD` battle rail through null-safe skin hooks
   - wired the `PrototypePresentationShell` battle result popover through the same skin path
   - left all slots manual and optional so missing art preserves the current accepted visuals
@@ -46,6 +111,7 @@
   - no random sprite assignment path added: `PASS`
   - missing-slot fallback preserves current draw path: `PASS`
   - battle result popover now shares the battle skin scaffold: `PASS`
+  - inventory row/slot/badge skinning is isolated from battle skin ownership: `PASS`
 - Manual runtime proof: `DEFERRED`
 - Smoke: `DEFERRED`
 

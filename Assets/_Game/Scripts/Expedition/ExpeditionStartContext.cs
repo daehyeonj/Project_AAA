@@ -4,6 +4,9 @@ public sealed class ExpeditionPartyMemberManifest
     public string DisplayName = "Adventurer";
     public string RoleTag = "adventurer";
     public string RoleLabel = "Adventurer";
+    public string RoleIdentityText = "Flexible role";
+    public string GearPreferenceText = "Wants balanced gear";
+    public string BattleHintText = "Supports the current turn";
     public int PartySlotIndex;
     public string GrowthTrackId = string.Empty;
     public string JobId = string.Empty;
@@ -33,6 +36,7 @@ public sealed class ExpeditionPartyManifest
     public string PartyId = string.Empty;
     public string PartyLabel = "None";
     public int MemberCount;
+    public string RoleSummaryText = "None";
     public string LoadoutSummaryText = "None";
     public string MemberSummaryText = "None";
     public string AppliedProgressionSummaryText = "None";

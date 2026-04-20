@@ -804,6 +804,9 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             : memberData != null && HasMeaningfulText(memberData.RoleLabel)
                 ? memberData.RoleLabel
                 : "Adventurer";
+        string roleHint = actorSurface != null && HasMeaningfulText(actorSurface.RoleHintText)
+            ? actorSurface.RoleHintText
+            : string.Empty;
         bool active = memberData != null && memberData.IsActive;
         bool targeted = memberData != null && memberData.IsTargeted;
         bool knockedOut = memberData != null && memberData.IsKnockedOut;
@@ -848,7 +851,8 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
         DrawOverlaySectionBackground(statusRect, new Color(0.11f, 0.14f, 0.19f, 0.96f));
         DrawFittedLabel(nameRect, GetCompactHudText(memberName, 20, false), _sectionTitleStyle, 12, 10, false);
-        DrawFittedLabel(roleRect, GetCompactHudText(role, 18, false), _bodyStyle, 10, 9, false);
+        string roleLine = HasMeaningfulText(roleHint) ? role + " | " + roleHint : role;
+        DrawFittedLabel(roleRect, GetCompactHudText(roleLine, 38, false), _bodyStyle, 10, 9, false);
         DrawFittedLabel(summaryRect, GetCompactHudText(summaryText, 44, false), _bodyStyle, 9, 8, false);
         DrawFittedLabel(sourceRect, GetCompactHudText(sourceText, 58, false), _bodyStyle, 8, 7, true);
         DrawFittedLabel(new Rect(statusRect.x + 6f, statusRect.y + 3f, statusRect.width - 12f, statusRect.height - 6f), GetCompactHudText(statusText, 16, false), _bodyStyle, 10, 8, false);
@@ -1663,6 +1667,11 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             detailLines.Add(detail);
         }
 
+        if (targetSelection != null && HasMeaningfulText(targetSelection.ThreatSummaryText))
+        {
+            detailLines.Add(GetCompactHudText(targetSelection.ThreatSummaryText, 88, false));
+        }
+
         if (targetSelection != null && HasMeaningfulText(targetSelection.ExpectedEffectText))
         {
             detailLines.Add(GetCompactHudText(targetSelection.ExpectedEffectText, 88, false));
@@ -1680,6 +1689,11 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         else if (targetSelection != null && HasMeaningfulText(targetSelection.GrowthText))
         {
             detailLines.Add(GetCompactHudText(targetSelection.GrowthText, 88, false));
+        }
+
+        if (targetSelection != null && HasMeaningfulText(targetSelection.SkillHintText))
+        {
+            detailLines.Add(GetCompactHudText(targetSelection.SkillHintText, 88, false));
         }
 
         float overlayHeight = 32f + (detailLines.Count * 18f) + 8f;

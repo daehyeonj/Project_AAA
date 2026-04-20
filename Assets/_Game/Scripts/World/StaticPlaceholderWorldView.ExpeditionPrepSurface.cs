@@ -122,7 +122,7 @@ public sealed partial class StaticPlaceholderWorldView
 
     public ExpeditionPrepSurfaceData BuildSelectedExpeditionPrepSurfaceData()
     {
-        WorldObservationSurfaceData observation = BuildWorldObservationSurfaceData();
+        WorldObservationSurfaceData observation = BuildWorldObservationSurfaceData(includeDetailedPartyReadbacks: true);
         return CopyExpeditionPrepSurfaceData(observation != null ? observation.ExpeditionPrep : null);
     }
 
@@ -134,7 +134,8 @@ public sealed partial class StaticPlaceholderWorldView
     private ExpeditionPrepSurfaceData BuildCanonicalExpeditionPrepSurfaceData(
         PrototypeWorldSnapshot snapshot,
         PrototypeWorldDispatchBriefingSnapshot briefing,
-        ExpeditionStartContext startContext)
+        ExpeditionStartContext startContext,
+        bool includeDetailedPartyReadbacks = false)
     {
         ExpeditionPrepSurfaceData data = new ExpeditionPrepSurfaceData();
         CityPartyRosterSurfaceData roster = BuildSelectedCityPartyRosterSurfaceData();
@@ -735,6 +736,15 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string BuildPartyLoadoutSummaryText(string partyId)
     {
+        if (_runtimeEconomyState != null)
+        {
+            string cachedLoadoutSummary = _runtimeEconomyState.GetPartyLoadoutSummary(partyId);
+            if (IsMeaningfulSnapshotText(cachedLoadoutSummary))
+            {
+                return cachedLoadoutSummary;
+            }
+        }
+
         return BuildPartyLoadoutSummaryText(BuildExpeditionPartyRuntimeResolveSurface(partyId));
     }
 
@@ -743,20 +753,48 @@ public sealed partial class StaticPlaceholderWorldView
         return BuildRuntimePartyResolveSurface(partyId);
     }
 
-    private ExpeditionPartyManifest BuildExpeditionPartyManifest(string partyId, string fallbackPartyLabel)
+    private ExpeditionPartyManifest BuildExpeditionPartyManifest(
+        string partyId,
+        string fallbackPartyLabel,
+        bool includeDetailedPartyReadbacks = false)
     {
         ExpeditionPartyManifest manifest = new ExpeditionPartyManifest();
         manifest.PartyId = string.IsNullOrEmpty(partyId) ? string.Empty : partyId;
         manifest.PartyLabel = IsMeaningfulSnapshotText(fallbackPartyLabel) ? fallbackPartyLabel : "None";
+        bool includeDetailed = includeDetailedPartyReadbacks || _isExpeditionPrepBoardOpen;
+
+        if (_runtimeEconomyState != null)
+        {
+            string displayName = _runtimeEconomyState.GetPartyDisplayName(partyId);
+            if (IsMeaningfulSnapshotText(displayName))
+            {
+                manifest.PartyLabel = displayName;
+            }
+
+            manifest.MemberCount = _runtimeEconomyState.GetPartyMemberCount(partyId);
+            manifest.RoleSummaryText = _runtimeEconomyState.GetPartyRoleSummary(partyId);
+            manifest.LoadoutSummaryText = _runtimeEconomyState.GetPartyLoadoutSummary(partyId);
+        }
+
+        if (!includeDetailed)
+        {
+            manifest.ManifestSummaryText = BuildExpeditionPartyManifestSummaryText(manifest);
+            return manifest;
+        }
 
         PrototypeRpgPartyRuntimeResolveSurface partySurface = BuildExpeditionPartyRuntimeResolveSurface(partyId);
         if (partySurface == null)
         {
+            manifest.ManifestSummaryText = BuildExpeditionPartyManifestSummaryText(manifest);
             return manifest;
         }
 
         manifest.PartyLabel = IsMeaningfulSnapshotText(partySurface.DisplayName) ? partySurface.DisplayName : manifest.PartyLabel;
         manifest.MemberCount = partySurface.Members != null ? partySurface.Members.Length : 0;
+        manifest.RoleSummaryText = PrototypeRpgRoleIdentity.BuildPartyRoleSummary(
+            partySurface.Members,
+            member => member != null ? member.DisplayName : string.Empty,
+            member => member != null ? member.RoleTag : string.Empty);
         manifest.LoadoutSummaryText = BuildPartyLoadoutSummaryText(partySurface);
         manifest.MemberSummaryText = BuildExpeditionPartyMemberSummaryText(partySurface.Members);
         manifest.AppliedProgressionSummaryText = IsMeaningfulSnapshotText(partySurface.AppliedProgressionSummaryText)
@@ -801,6 +839,9 @@ public sealed partial class StaticPlaceholderWorldView
         manifest.DisplayName = string.IsNullOrEmpty(member.DisplayName) ? "Adventurer" : member.DisplayName;
         manifest.RoleTag = string.IsNullOrEmpty(member.RoleTag) ? "adventurer" : member.RoleTag;
         manifest.RoleLabel = string.IsNullOrEmpty(member.RoleLabel) ? "Adventurer" : member.RoleLabel;
+        manifest.RoleIdentityText = PrototypeRpgRoleIdentity.BuildRoleIdentityText(manifest.RoleTag);
+        manifest.GearPreferenceText = PrototypeRpgRoleIdentity.BuildGearPreferenceText(manifest.RoleTag);
+        manifest.BattleHintText = PrototypeRpgRoleIdentity.BuildBattleHintText(manifest.RoleTag);
         manifest.PartySlotIndex = member.PartySlotIndex;
         manifest.GrowthTrackId = string.IsNullOrEmpty(member.GrowthTrackId) ? string.Empty : member.GrowthTrackId;
         manifest.JobId = string.IsNullOrEmpty(member.JobId) ? string.Empty : member.JobId;
@@ -859,12 +900,15 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         string partyLabel = IsMeaningfulSnapshotText(manifest.PartyLabel) ? manifest.PartyLabel : "Party";
+        string roleSummaryText = IsMeaningfulSnapshotText(manifest.RoleSummaryText) ? manifest.RoleSummaryText : "None";
         string partyIdentityText = ExtractRuntimeSummaryClauseText(manifest.AppliedProgressionSummaryText, "Party");
         string nextEdgeText = ExtractRuntimeSummaryClauseText(manifest.NextRunPreviewSummaryText, "Next Edge");
         string battlePlanText = ExtractRuntimeSummaryClauseText(manifest.CurrentRunSummaryText, "Battle Plan");
         string previewText = ChooseRuntimePartySummaryText(
-            partyIdentityText,
-            ChooseRuntimePartySummaryText(nextEdgeText, battlePlanText));
+            roleSummaryText,
+            ChooseRuntimePartySummaryText(
+                partyIdentityText,
+                ChooseRuntimePartySummaryText(nextEdgeText, battlePlanText)));
         if (!IsMeaningfulSnapshotText(previewText))
         {
             previewText = manifest.MemberSummaryText;
@@ -908,10 +952,10 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         string displayName = IsMeaningfulSnapshotText(manifest.DisplayName) ? manifest.DisplayName : "Adventurer";
-        return displayName + " " +
-            BuildExpeditionPartyMemberLevelText(manifest) + " | " +
-            BuildExpeditionPartyMemberStatText(manifest) + " | " +
-            BuildExpeditionPartyMemberGearReadback(manifest);
+        return displayName + " | " +
+            PrototypeRpgRoleIdentity.BuildRoleIdentityLabel(manifest.RoleLabel, manifest.RoleTag) + " | " +
+            manifest.GearPreferenceText + " | " +
+            "Skill " + (IsMeaningfulSnapshotText(manifest.ResolvedSkillName) ? manifest.ResolvedSkillName : "Skill");
     }
 
     private string BuildExpeditionPartyMemberLevelText(ExpeditionPartyMemberManifest manifest)

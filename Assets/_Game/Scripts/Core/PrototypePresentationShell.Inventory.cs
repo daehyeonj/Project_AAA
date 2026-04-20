@@ -111,7 +111,7 @@ public sealed partial class PrototypePresentationShell
                 ? new Color(0.28f, 0.46f, 0.60f, 1f)
                 : new Color(0.14f, 0.19f, 0.26f, 1f);
             string label = CompactShellText(member.DisplayName, 22) + "\n" +
-                           CompactShellText(member.RoleLabel + " | Lv" + Mathf.Max(1, member.Level), 32);
+                           CompactShellText(member.RoleIdentityText + " | Lv" + Mathf.Max(1, member.Level), 34);
             if (DrawActionButton(cardRect, label, fill, true))
             {
                 _bootEntry.TrySelectInventoryMember(member.MemberId);
@@ -313,6 +313,8 @@ public sealed partial class PrototypePresentationShell
                 return BuildDungeonLines(
                     surface.SelectedMemberHeaderText,
                     surface.SelectedMemberProgressText,
+                    surface.SelectedMemberRoleText,
+                    "Gear Pref: " + SafeShellText(surface.SelectedMemberGearPreferenceText),
                     member.SummaryText);
             }
         }
@@ -334,6 +336,8 @@ public sealed partial class PrototypePresentationShell
         List<string> lines = new List<string>();
         lines.Add("Member: " + SafeShellText(surface.SelectedMemberHeaderText));
         lines.Add("Progress: " + SafeShellText(surface.SelectedMemberProgressText));
+        lines.Add("Role: " + SafeShellText(surface.SelectedMemberRoleText));
+        lines.Add("Gear Pref: " + SafeShellText(surface.SelectedMemberGearPreferenceText));
 
         bool hasSelectedItem = HasMeaningfulValue(surface.SelectedItemHeaderText) &&
                                !string.Equals(SafeShellText(surface.SelectedItemHeaderText), "Select an item.", System.StringComparison.OrdinalIgnoreCase);
@@ -388,6 +392,7 @@ public sealed partial class PrototypePresentationShell
     {
         return BuildDungeonLines(
             surface.SelectedItemDetailText,
+            SafeShellText(surface.SelectedItemFitText),
             "Owner: " + SafeShellText(surface.SelectedItemOwnerText),
             "Action: " + BuildInventoryActionSummary(surface),
             "Hint: " + SafeShellText(surface.InputHintText));

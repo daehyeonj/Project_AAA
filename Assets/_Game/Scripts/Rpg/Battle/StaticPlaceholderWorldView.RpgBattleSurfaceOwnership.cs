@@ -506,9 +506,24 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         string burstWindowText = BuildRpgOwnedBurstWindowTraitText(monster);
-        return string.IsNullOrEmpty(burstWindowText)
-            ? baseTraitText
-            : baseTraitText + " | " + burstWindowText;
+        string responseHintText = BuildRpgOwnedBattleEnemyResponseHintText(monster);
+        List<string> parts = new List<string>();
+        if (!string.IsNullOrEmpty(baseTraitText))
+        {
+            parts.Add(baseTraitText);
+        }
+
+        if (!string.IsNullOrEmpty(burstWindowText))
+        {
+            parts.Add(burstWindowText);
+        }
+
+        if (!string.IsNullOrEmpty(responseHintText))
+        {
+            parts.Add(responseHintText);
+        }
+
+        return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : "Traits pending";
     }
 
     private PrototypeBattleUiMessageSurfaceData BuildRpgOwnedBattleUiMessageSurfaceData()
@@ -818,6 +833,10 @@ public sealed partial class StaticPlaceholderWorldView
         if (!safeActor.IsEnemy)
         {
             DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
+            surface.RoleLabel = PrototypeRpgRoleIdentity.BuildRoleIdentityLabel(
+                safeActor.RoleLabel,
+                member != null ? member.RoleTag : string.Empty);
+            surface.RoleHintText = PrototypeRpgRoleIdentity.BuildBattleHintText(member != null ? member.RoleTag : string.Empty);
             surface.ResolvedStatsText = BuildRpgOwnedBattleResolvedStatsText(member);
             surface.StatSourceText = BuildRpgOwnedBattleStatSourceText(member);
             surface.SummaryText = !string.IsNullOrEmpty(surface.ResolvedStatsText) ? surface.ResolvedStatsText : safeActor.SummaryText;
@@ -1032,6 +1051,11 @@ public sealed partial class StaticPlaceholderWorldView
 
         string attackTargetText = "Single enemy";
         string attackEffectText = BuildRpgOwnedBattleAttackEffectText(currentMember, previewMonster, currentMember != null ? Mathf.Max(1, currentMember.Attack) : 1);
+        string attackDescription = "Basic attack with projected damage preview.";
+        if (currentMember != null)
+        {
+            attackDescription += " | " + PrototypeRpgRoleIdentity.BuildCommandRoleHintText(currentMember.RoleTag, "attack");
+        }
 
         string moveDescription = "Choose one adjacent row and spend the turn.";
         string moveTargetText = "Self";
@@ -1052,17 +1076,23 @@ public sealed partial class StaticPlaceholderWorldView
             moveEffectText = availableLaneLabels.Length > 0
                 ? "Available shifts: " + string.Join(" / ", availableLaneLabels) + "."
                 : "No adjacent row is available.";
+            moveDescription += " | " + PrototypeRpgRoleIdentity.BuildCommandRoleHintText(currentMember.RoleTag, "move");
         }
 
         string endTurnDescription = "Pass without attacking, using a skill, or moving.";
         string endTurnTargetText = "Self";
         string endTurnEffectText = "Advance to the next unit in the queue.";
+        if (currentMember != null)
+        {
+            skillDescription += " | " + PrototypeRpgRoleIdentity.BuildCommandRoleHintText(currentMember.RoleTag, "skill");
+            endTurnDescription += " | " + PrototypeRpgRoleIdentity.BuildCommandRoleHintText(currentMember.RoleTag, "end_turn");
+        }
 
         List<PrototypeBattleUiCommandDetailData> details = new List<PrototypeBattleUiCommandDetailData>();
         details.Add(BuildBattleUiCommandDetailData(
             "attack",
             "Attack",
-            "Basic attack with projected damage preview.",
+            attackDescription,
             attackTargetText,
             "None",
             attackEffectText,

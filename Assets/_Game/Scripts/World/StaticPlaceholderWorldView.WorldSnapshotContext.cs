@@ -97,8 +97,9 @@ public sealed partial class StaticPlaceholderWorldView
     public string RecentLaunchContextLog2Text => GetRecentLaunchContextLogText(1);
     public string RecentLaunchContextLog3Text => GetRecentLaunchContextLogText(2);
 
-    public WorldObservationSurfaceData BuildWorldObservationSurfaceData()
+    public WorldObservationSurfaceData BuildWorldObservationSurfaceData(bool includeDetailedPartyReadbacks = false)
     {
+        bool includeDetailed = includeDetailedPartyReadbacks || _isExpeditionPrepBoardOpen;
         WorldObservationSurfaceData data = new WorldObservationSurfaceData();
         WorldBoardReadModel board = BuildWorldBoardReadModel();
         string cityId = !string.IsNullOrEmpty(_currentHomeCityId)
@@ -109,9 +110,14 @@ public sealed partial class StaticPlaceholderWorldView
             : ResolveDispatchBriefingDungeonId(cityId);
         string routeId = ResolveWorldSnapshotRouteId(cityId, dungeonId);
         bool requireSelectedRoute = IsExpeditionPrepRouteSelectionActive() && !string.IsNullOrEmpty(routeId);
-        PrototypeWorldDispatchBriefingSnapshot briefing = BuildDispatchBriefingSnapshot(cityId, dungeonId, routeId, requireSelectedRoute);
+        PrototypeWorldDispatchBriefingSnapshot briefing = BuildDispatchBriefingSnapshot(
+            cityId,
+            dungeonId,
+            routeId,
+            requireSelectedRoute,
+            includeDetailed);
         PrototypeWorldSnapshot snapshot = BuildWorldSnapshot(cityId, dungeonId, routeId, briefing);
-        ExpeditionStartContext startContext = BuildProjectedExpeditionStartContext(snapshot, briefing);
+        ExpeditionStartContext startContext = BuildProjectedExpeditionStartContext(snapshot, briefing, includeDetailed);
 
         data.CurrentWorldObservationSummaryText = snapshot != null && IsMeaningfulSnapshotText(snapshot.SnapshotSummaryText)
             ? snapshot.SnapshotSummaryText
@@ -131,7 +137,7 @@ public sealed partial class StaticPlaceholderWorldView
         PopulateWorldObservationCurrentContext(data.CurrentContext, snapshot);
         PopulateWorldObservationSelectedEntity(data.SelectedEntity, snapshot);
         PopulateWorldObservationPriorityBoard(data.PriorityBoard, board);
-        data.ExpeditionPrep = BuildCanonicalExpeditionPrepSurfaceData(snapshot, briefing, startContext);
+        data.ExpeditionPrep = BuildCanonicalExpeditionPrepSurfaceData(snapshot, briefing, startContext, includeDetailed);
         PopulateWorldObservationLaunch(data.Launch, data.ExpeditionPrep, snapshot, briefing, startContext);
         PopulateWorldObservationActiveExpedition(data.ActiveExpedition);
         PopulateWorldObservationRecentOutcome(data.RecentOutcome, snapshot);
@@ -142,6 +148,7 @@ public sealed partial class StaticPlaceholderWorldView
 
     private PrototypeWorldSnapshot BuildCurrentWorldSnapshot()
     {
+        bool includeDetailed = _isExpeditionPrepBoardOpen;
         string cityId = !string.IsNullOrEmpty(_currentHomeCityId)
             ? _currentHomeCityId
             : ResolveDispatchBriefingCityId();
@@ -153,7 +160,8 @@ public sealed partial class StaticPlaceholderWorldView
             cityId,
             dungeonId,
             routeId,
-            IsExpeditionPrepRouteSelectionActive() && !string.IsNullOrEmpty(routeId));
+            IsExpeditionPrepRouteSelectionActive() && !string.IsNullOrEmpty(routeId),
+            includeDetailed);
         return BuildWorldSnapshot(cityId, dungeonId, routeId, briefing);
     }
 
@@ -220,8 +228,9 @@ public sealed partial class StaticPlaceholderWorldView
         return snapshot;
     }
 
-    private ExpeditionStartContext BuildProjectedExpeditionStartContext()
+    private ExpeditionStartContext BuildProjectedExpeditionStartContext(bool includeDetailedPartyReadbacks = false)
     {
+        bool includeDetailed = includeDetailedPartyReadbacks || _isExpeditionPrepBoardOpen;
         string cityId = !string.IsNullOrEmpty(_currentHomeCityId)
             ? _currentHomeCityId
             : ResolveDispatchBriefingCityId();
@@ -234,13 +243,18 @@ public sealed partial class StaticPlaceholderWorldView
             cityId,
             dungeonId,
             routeId,
-            requireSelectedRoute);
+            requireSelectedRoute,
+            includeDetailed);
         PrototypeWorldSnapshot snapshot = BuildWorldSnapshot(cityId, dungeonId, routeId, briefing);
-        return BuildProjectedExpeditionStartContext(snapshot, briefing);
+        return BuildProjectedExpeditionStartContext(snapshot, briefing, includeDetailed);
     }
 
-    private ExpeditionStartContext BuildProjectedExpeditionStartContext(PrototypeWorldSnapshot snapshot, PrototypeWorldDispatchBriefingSnapshot briefing)
+    private ExpeditionStartContext BuildProjectedExpeditionStartContext(
+        PrototypeWorldSnapshot snapshot,
+        PrototypeWorldDispatchBriefingSnapshot briefing,
+        bool includeDetailedPartyReadbacks = false)
     {
+        bool includeDetailed = includeDetailedPartyReadbacks || _isExpeditionPrepBoardOpen;
         ExpeditionStartContext context = new ExpeditionStartContext();
         if (snapshot == null)
         {
@@ -253,7 +267,10 @@ public sealed partial class StaticPlaceholderWorldView
         context.DungeonLabel = snapshot.SelectedDungeonLabel;
         context.PartyId = snapshot.SelectedPartyId;
         context.PartyLabel = snapshot.PartySummary.PartyLabel;
-        context.PartyManifest = BuildExpeditionPartyManifest(snapshot.SelectedPartyId, snapshot.PartySummary.PartyLabel);
+        context.PartyManifest = BuildExpeditionPartyManifest(
+            snapshot.SelectedPartyId,
+            snapshot.PartySummary.PartyLabel,
+            includeDetailed);
         if (context.PartyManifest != null && IsMeaningfulSnapshotText(context.PartyManifest.PartyLabel))
         {
             context.PartyLabel = context.PartyManifest.PartyLabel;
@@ -310,8 +327,10 @@ public sealed partial class StaticPlaceholderWorldView
         context.EventPreviewSummaryText = string.IsNullOrEmpty(snapshot.SelectedDungeonId)
             ? "None"
             : BuildRouteEventPreviewText(snapshot.SelectedDungeonId);
-        context.StagedPartySummaryText = briefing != null && IsMeaningfulSnapshotText(briefing.PartySummaryText)
-            ? briefing.PartySummaryText
+        context.StagedPartySummaryText = context.PartyManifest != null && IsMeaningfulSnapshotText(context.PartyManifest.RoleSummaryText)
+                ? context.PartyManifest.RoleSummaryText
+            : briefing != null && IsMeaningfulSnapshotText(briefing.PartySummaryText)
+                ? briefing.PartySummaryText
             : context.PartyManifest != null && IsMeaningfulSnapshotText(context.PartyManifest.ManifestSummaryText)
                 ? context.PartyManifest.ManifestSummaryText
                 : snapshot.PartySummary.PartySummaryText;
@@ -989,9 +1008,14 @@ public sealed partial class StaticPlaceholderWorldView
     private bool TryConsumeProjectedLaunchContext(string routeId, out ExpeditionStartContext context)
     {
         string normalizedRouteId = NormalizeRouteChoiceId(routeId);
-        PrototypeWorldDispatchBriefingSnapshot briefing = BuildDispatchBriefingSnapshot(_currentHomeCityId, _currentDungeonId, normalizedRouteId, true);
+        PrototypeWorldDispatchBriefingSnapshot briefing = BuildDispatchBriefingSnapshot(
+            _currentHomeCityId,
+            _currentDungeonId,
+            normalizedRouteId,
+            true,
+            true);
         PrototypeWorldSnapshot snapshot = BuildWorldSnapshot(_currentHomeCityId, _currentDungeonId, normalizedRouteId, briefing);
-        context = BuildProjectedExpeditionStartContext(snapshot, briefing);
+        context = BuildProjectedExpeditionStartContext(snapshot, briefing, true);
 
         if (briefing == null || !briefing.CommitAllowed || string.IsNullOrEmpty(normalizedRouteId))
         {
@@ -1007,9 +1031,14 @@ public sealed partial class StaticPlaceholderWorldView
     private void RecordFailedProjectedLaunchContext(string routeId, string failureSummary)
     {
         string normalizedRouteId = NormalizeRouteChoiceId(routeId);
-        PrototypeWorldDispatchBriefingSnapshot briefing = BuildDispatchBriefingSnapshot(_currentHomeCityId, _currentDungeonId, normalizedRouteId, true);
+        PrototypeWorldDispatchBriefingSnapshot briefing = BuildDispatchBriefingSnapshot(
+            _currentHomeCityId,
+            _currentDungeonId,
+            normalizedRouteId,
+            true,
+            true);
         PrototypeWorldSnapshot snapshot = BuildWorldSnapshot(_currentHomeCityId, _currentDungeonId, normalizedRouteId, briefing);
-        ExpeditionStartContext context = BuildProjectedExpeditionStartContext(snapshot, briefing);
+        ExpeditionStartContext context = BuildProjectedExpeditionStartContext(snapshot, briefing, true);
         AppendWorldLaunchContextLog(WorldLaunchRecordType.LaunchFailed, snapshot, context, false, failureSummary);
         CaptureLatestExpeditionStartContext();
     }

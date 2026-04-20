@@ -2,7 +2,7 @@
 
 ## Current Mainline Snapshot
 
-- Snapshot date: `2026-04-19`
+- Snapshot date: `2026-04-20`
 - Sync intent: `preserve the current local runtime state on GitHub main so repository readers can inspect the live working baseline`
 - Active runtime baseline to preserve: `grid dungeon explore shell` + `current battleScene HUD`
 - UI safety rule: `reject rollback prompts against the currently accepted runtime UI; additive or preserving UI work is allowed`
@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 76`
+- Latest closed batch: `Batch 78 + Batch 77.1 blocker fix`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,7 +18,96 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-b -> dungeon-beta`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: manual runtime proof for the new battle stat-feedback rail, plus the still-open battle-scene-only FPS issue as a separate performance track
+- Next honest bottleneck: `runtime-click verification on the post-run world-selection spike fix, then resume combat-role follow-through on the accepted Batch 78 rail`
+
+## Batch 77.1 Close-Out
+
+- Selected branch: `A + B + D`
+- Honest blocker:
+  - legitimate world selection was still invalidating the correct selected-city surfaces
+  - but the click frame also rebuilt world observation, dispatch, projected launch context, and prep readbacks after a run had added party progression / gear / inventory data
+- Measured root-cause seam:
+  - `StaticPlaceholderWorldView.SetSelected` rebuilt `BuildWorldObservationSurfaceData()` just to refresh board emphasis
+  - the same observation build eagerly recreated dispatch + prep surfaces even while the prep board was closed
+  - those closed-board paths still pulled `BuildRuntimePartyResolveSurface(...)` for role/loadout/manifest summaries after post-run data existed
+- Fix shape:
+  - selection now updates board emphasis from the selected marker plus latest writeback without rebuilding the full observation surface
+  - `ManualTradeRuntimeState` now caches compact party identity / role / loadout summaries on progression / equipment / inventory updates
+  - world-selection dispatch, party-roster, start-context, and closed-board prep summaries now consume those cached readbacks by default
+  - detailed party resolve / manifest construction is still forced for actual prep-launch and dungeon handoff paths
+- UI shape changed?: `No`
+
+## Batch 77.1 Validation Snapshot
+
+- Compile: `PASS` (`unity-merge-validate.log`, 2026-04-20)
+- Static performance proof:
+  - selection-board emphasis no longer rebuilds world observation on `SetSelected`: `PASS`
+  - closed-board dispatch/prep/start-context paths no longer require `BuildRuntimePartyResolveSurface(...)`: `PASS`
+  - launch/prep/dungeon handoff still request detailed party manifests explicitly: `PASS`
+- Manual runtime proof: `DEFERRED`
+- Smoke: `DEFERRED`
+- Batch 78 resume gate: `code-path blocker removed; fresh editor/runtime FPS recapture still recommended before calling the spike fully closed`
+
+## Batch 78 Close-Out
+
+- Selected branch: `A`
+- Batch 78 keeps the accepted battle HUD rail and strengthens the already-existing combat pleasure loop instead of adding a second combat system:
+  - `read enemy intent`
+  - `open Burst Window`
+  - `cash role payoff`
+- The implementation stays additive and owner-side:
+  - enemy focus text now carries a clearer response hint when intent is readable or Burst Window is active
+  - action threat summaries now bundle intent-read, threat severity, and recommended response into the existing command/target readback seams
+  - attack / skill preview text now shows visible Burst breakdown when payoff is active
+  - target outcome preview now carries `Burst Window`, `Opens Burst Window`, or `Consumes Burst Window` on the same HP-after-hit rail
+  - `Weak Point` now depends on the visible Burst Window loop instead of quietly receiving a separate low-HP finisher fallback
+  - combat logs now celebrate setup/payoff explicitly instead of hiding the loop only inside generic damage text
+- UI shape changed?: `No layout rewrite; only compact combat readbacks/log wording were strengthened on the accepted rail`
+
+## Batch 78 Validation Snapshot
+
+- Compile: `PASS`
+- Preflight:
+  - Batch 77 role identity rail: `PASS (static audit reused; prep / inventory / battle / growth role seams remain wired)`
+  - Batch 76 preview/log rail: `PASS (static audit reused and strengthened in the same owner-side preview/log path)`
+  - Batch 75.4 world click / modal / pending-spoils guards: `PASS (untouched code-path audit before edits)`
+- Targeted gameplay proof:
+  - intent read -> setup hint visibility: `PASS (code-path audit)`
+  - Burst Window preview breakdown: `PASS (code-path audit)`
+  - target panel window-state readback: `PASS (code-path audit)`
+  - payoff log celebration: `PASS (code-path audit)`
+- Manual UX proof: `DEFERRED`
+- Performance proof: `DEFERRED (readback-only owner-side changes; no fresh runtime capture in this turn)`
+- Smoke: `DEFERRED`
+
+## Batch 77 Close-Out
+
+- Selected branch: `A`
+- Batch 77 keeps the accepted UI rail intact and closes the clearer product bottleneck: the party did not yet read as four distinct RPG roles even though growth, route, and battle-preview rails already existed.
+- The implementation stays additive and owner-respecting:
+  - `PrototypeRpgRoleIdentity` centralizes static role fantasy, gear preference, battle-hint, route-fit, and growth-meaning text
+  - Expedition Prep now prefers a compact staged-party role summary instead of generic party composition wording
+  - route-fit readback now carries role-aware guidance for safer, risky, and mixed-pressure routes without changing route mechanics
+  - inventory/equipment now surfaces role identity, preferred stats, and per-item fit text without restoring the removed comparison panel
+  - battle current-actor and command-detail readbacks now explain what the active role wants to do on this turn
+  - growth/result reveal text now explains why a stat gain matters for that role instead of only listing raw deltas
+- UI shape changed?: `No rollback and no layout rewrite; only readback content was strengthened on the current accepted rail`
+
+## Batch 77 Validation Snapshot
+
+- Compile: `PASS`
+- Preflight:
+  - combat preview visibility rail: `PASS (static audit of actor stats, preview, target after-hit, formula/growth, and applied log path)`
+  - 75.4 modal / no-op click / pending-spoils guards: `PASS (code-path audit reused before edits)`
+  - 74 / 74.1 inventory overlay guardrails: `PASS (surface/input/render audit reused before edits; comparison panel remained removed)`
+- Targeted role-identity proof:
+  - Expedition Prep staged party summary: `PASS`
+  - Inventory selected member + selected item fit readback: `PASS`
+  - Battle current actor + command detail role hints: `PASS`
+  - Growth / result role-meaning readback: `PASS`
+- Manual UX proof: `DEFERRED`
+- Performance proof: `DEFERRED (static/cache-oriented implementation only; no fresh runtime capture in this turn)`
+- Smoke: `DEFERRED`
 
 ## Batch 76 Close-Out
 

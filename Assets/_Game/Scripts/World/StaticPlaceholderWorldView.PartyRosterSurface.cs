@@ -21,8 +21,20 @@ public sealed partial class StaticPlaceholderWorldView
         data.ReadyPartyCarryCapacity = _runtimeEconomyState.GetReadyPartyCarryCapacityForCity(cityId);
         data.ReadyPartyRoleSummaryText = string.IsNullOrEmpty(data.ReadyPartyId)
             ? "None"
-            : ResolveDispatchPartyRoleSummary(data.ReadyPartyId);
-        data.ReadyPartyLoadoutSummaryText = BuildPartyLoadoutSummaryText(data.ReadyPartyId);
+            : _runtimeEconomyState.GetPartyRoleSummary(data.ReadyPartyId);
+        data.ReadyPartyLoadoutSummaryText = string.IsNullOrEmpty(data.ReadyPartyId)
+            ? "None"
+            : _runtimeEconomyState.GetPartyLoadoutSummary(data.ReadyPartyId);
+        if (!IsMeaningfulSnapshotText(data.ReadyPartyRoleSummaryText) && !string.IsNullOrEmpty(data.ReadyPartyId))
+        {
+            data.ReadyPartyRoleSummaryText = ResolveDispatchPartyRoleSummary(data.ReadyPartyId);
+        }
+
+        if (!IsMeaningfulSnapshotText(data.ReadyPartyLoadoutSummaryText) && !string.IsNullOrEmpty(data.ReadyPartyId))
+        {
+            data.ReadyPartyLoadoutSummaryText = BuildPartyLoadoutSummaryText(data.ReadyPartyId);
+        }
+
         data.ActivePartyStatusText = _runtimeEconomyState.GetActivePartyStatusTextForCity(cityId);
 
         if (data.TotalPartyCount <= 0)

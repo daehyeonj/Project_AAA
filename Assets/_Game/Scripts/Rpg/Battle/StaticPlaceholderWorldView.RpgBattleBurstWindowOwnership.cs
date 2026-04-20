@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public sealed partial class StaticPlaceholderWorldView
@@ -116,13 +117,13 @@ public sealed partial class StaticPlaceholderWorldView
     {
         if (monster == null)
         {
-            return "Burst window active.";
+            return "Burst Window | Payoff +" + Mathf.Max(1, bonusDamage) + " | " + Mathf.Max(1, remainingPartyActions) + " ally action(s).";
         }
 
         string intentRead = HasReadableRpgOwnedIntent(monster)
             ? "Intent read"
             : "Setup active";
-        return intentRead + " | Payoff +" + Mathf.Max(1, bonusDamage) + " | " + Mathf.Max(1, remainingPartyActions) + " ally action(s).";
+        return "Burst Window | " + intentRead + " | Payoff +" + Mathf.Max(1, bonusDamage) + " | " + Mathf.Max(1, remainingPartyActions) + " ally action(s).";
     }
 
     private bool TryApplyRpgOwnedBurstWindowSetup(DungeonPartyMemberRuntimeData actor, PrototypeRpgSkillDefinition skillDefinition, DungeonMonsterRuntimeData targetMonster)
@@ -152,14 +153,14 @@ public sealed partial class StaticPlaceholderWorldView
             actor.MemberId,
             targetMonster.MonsterId,
             bonusDamage,
-            actor.DisplayName + " opened a burst window on " + targetMonster.DisplayName + ".",
+            actor.DisplayName + " read intent and opened Burst Window on " + targetMonster.DisplayName + ".",
             actionKey: "skill",
             skillId: skillDefinition.SkillId,
             phaseKey: "resolution",
             actorName: actor.DisplayName,
             targetName: targetMonster.DisplayName,
-            shortText: "Burst ready");
-        AppendBattleLog(targetMonster.DisplayName + " is exposed. Next payoff gains +" + bonusDamage + ".");
+            shortText: "Burst Window");
+        AppendBattleLog(actor.DisplayName + " read intent and opened Burst Window on " + targetMonster.DisplayName + " (+" + bonusDamage + " for " + RpgOwnedBurstWindowFuturePartyActions + " ally actions).");
         return true;
     }
 
@@ -196,14 +197,14 @@ public sealed partial class StaticPlaceholderWorldView
                 actor.MemberId,
                 string.Empty,
                 extendedCount,
-                actor.DisplayName + " stabilized " + extendedCount + " burst window(s).",
+                actor.DisplayName + " stabilized " + extendedCount + " Burst Window(s).",
                 actionKey: "skill",
                 skillId: skillDefinition.SkillId,
                 phaseKey: "resolution",
                 actorName: actor.DisplayName,
-                targetName: "Burst windows",
-                shortText: "Burst extended");
-            AppendBattleLog(actor.DisplayName + " stabilized " + extendedCount + " burst window(s).");
+                targetName: "Burst Window",
+                shortText: "Burst Window+");
+            AppendBattleLog(actor.DisplayName + " stabilized " + extendedCount + " Burst Window(s) for one more ally action.");
         }
 
         return extendedCount;
@@ -242,14 +243,14 @@ public sealed partial class StaticPlaceholderWorldView
             actor.MemberId,
             targetMonster.MonsterId,
             consumedBonus,
-            actor.DisplayName + " cashed the burst window on " + targetMonster.DisplayName + ".",
+            actor.DisplayName + " cashed Burst Window on " + targetMonster.DisplayName + ".",
             actionKey: "skill",
             skillId: skillDefinition.SkillId,
             phaseKey: "resolution",
             actorName: actor.DisplayName,
             targetName: targetMonster.DisplayName,
             shortText: "Burst payoff");
-        AppendBattleLog(actor.DisplayName + " cashed the burst window on " + targetMonster.DisplayName + " for +" + consumedBonus + ".");
+        AppendBattleLog(actor.DisplayName + " cashed Burst Window on " + targetMonster.DisplayName + " for +" + consumedBonus + ".");
         return consumedBonus;
     }
 
@@ -277,8 +278,8 @@ public sealed partial class StaticPlaceholderWorldView
         if (selectedActionKey == "attack")
         {
             return HasRpgOwnedBurstWindow(targetMonster)
-                ? "Payoff ready: Attack gains +" + RpgOwnedBurstWindowAttackBonus + " on exposed targets."
-                : "Setup step: basic attack is weaker than opening a burst window first.";
+                ? "Burst Window live: Attack gains +" + RpgOwnedBurstWindowAttackBonus + ", but Mira or Rune get the stronger payoff."
+                : "Setup step: basic attack chips safely, but Power Strike should open the Burst Window first.";
         }
 
         if (selectedActionKey != "skill" || skillDefinition == null)
@@ -290,23 +291,108 @@ public sealed partial class StaticPlaceholderWorldView
         {
             case "skill_power_strike":
                 return HasReadableRpgOwnedIntent(targetMonster)
-                    ? "Setup opener: read the target intent, then open a burst window for the next payoff."
-                    : "Setup opener: pick a living enemy with a readable intent to open the window.";
+                    ? "Setup opener: read the target intent, then open Burst Window for the next payoff."
+                    : "Setup opener: pick a living enemy with a readable intent to open Burst Window.";
             case "skill_weak_point":
                 return HasRpgOwnedBurstWindow(targetMonster)
-                    ? "Payoff ready: Weak Point cashes the exposed target now."
-                    : "Setup first: Weak Point spikes after Power Strike opens the window.";
+                    ? "Role payoff: Mira cashes Burst Window now."
+                    : "Setup first: Weak Point spikes only after Burst Window is open.";
             case "skill_arcane_burst":
                 return HasAnyRpgOwnedBurstWindow()
-                    ? "Payoff sweep: exposed enemies take +" + RpgOwnedBurstWindowMageSplashBonus + " and keep the window."
-                    : "Setup first: Arcane Burst becomes stronger once exposed targets exist.";
+                    ? "Role payoff: Rune splashes Burst Window targets for +" + RpgOwnedBurstWindowMageSplashBonus + " without consuming the window."
+                    : "Setup first: Arcane Burst becomes stronger once Burst Window targets exist.";
             case "skill_radiant_hymn":
                 return HasAnyRpgOwnedBurstWindow()
-                    ? "Support bridge: Radiant Hymn heals and extends every active burst window by +1 ally action."
-                    : "Support bridge: heal now, then use this to stabilize windows once setup is active.";
+                    ? "Support bridge: Radiant Hymn heals and extends every active Burst Window by +1 ally action."
+                    : "Support bridge: heal now, then use this to stabilize Burst Window once setup is active.";
             default:
                 return string.Empty;
         }
+    }
+
+    private string BuildRpgOwnedBurstWindowResponseHint(
+        DungeonPartyMemberRuntimeData member,
+        PrototypeRpgSkillDefinition skillDefinition,
+        DungeonMonsterRuntimeData targetMonster)
+    {
+        if (member == null)
+        {
+            return string.Empty;
+        }
+
+        string roleTag = string.IsNullOrEmpty(member.RoleTag) ? string.Empty : member.RoleTag;
+        string skillId = skillDefinition != null && !string.IsNullOrEmpty(skillDefinition.SkillId)
+            ? skillDefinition.SkillId
+            : string.Empty;
+
+        if (targetMonster != null && HasRpgOwnedBurstWindow(targetMonster))
+        {
+            if (skillId == "skill_weak_point" || roleTag == "rogue")
+            {
+                return "Response: Mira cashes Burst Window now.";
+            }
+
+            if (skillId == "skill_arcane_burst" || roleTag == "mage")
+            {
+                return "Response: Rune punishes Burst Window targets without consuming it.";
+            }
+
+            if (skillId == "skill_radiant_hymn" || roleTag == "cleric")
+            {
+                return "Response: Lia stabilizes Burst Window before the next hit.";
+            }
+
+            if (skillId == "skill_power_strike" || roleTag == "warrior")
+            {
+                return "Response: Alden can chip it, but Mira or Rune get the stronger payoff.";
+            }
+
+            return "Response: use Burst Window before it expires.";
+        }
+
+        if (targetMonster != null && HasReadableRpgOwnedIntent(targetMonster))
+        {
+            if (skillId == "skill_power_strike" || roleTag == "warrior")
+            {
+                return "Response: Alden reads this intent and opens Burst Window.";
+            }
+
+            if (roleTag == "rogue")
+            {
+                return "Response: wait for Burst Window, then cash with Weak Point.";
+            }
+
+            if (roleTag == "mage")
+            {
+                return "Response: wait for Burst Window, then punish with Arcane Burst.";
+            }
+
+            if (roleTag == "cleric")
+            {
+                return "Response: prepare to stabilize Burst Window after setup.";
+            }
+
+            return "Response: read intent, then open Burst Window.";
+        }
+
+        return string.Empty;
+    }
+
+    private string BuildRpgOwnedBattleEnemyResponseHintText(DungeonMonsterRuntimeData monster)
+    {
+        if (monster == null)
+        {
+            return string.Empty;
+        }
+
+        if (HasRpgOwnedBurstWindow(monster))
+        {
+            return "Mira or Rune can cash the active Burst Window.";
+        }
+
+        return HasReadableRpgOwnedIntent(monster)
+            ? "Read intent, then Alden opens Burst Window."
+            : string.Empty;
     }
 
     private PrototypeRpgPartyRuntimeResolveSurface BuildRpgOwnedBattlePartyResolveSurface()
@@ -372,29 +458,45 @@ public sealed partial class StaticPlaceholderWorldView
         DungeonMonsterRuntimeData targetMonster)
     {
         string roleDirectiveText = BuildRpgOwnedBattleRoleDirectiveText(member);
+        string intentReadText = string.Empty;
+        if (targetMonster != null && targetMonster.RuntimeState != null && HasReadableRpgOwnedIntent(targetMonster))
+        {
+            string threatLevel = targetMonster.IsElite || targetMonster.RuntimeState.IntentPredictedValue >= 7
+                ? "High"
+                : targetMonster.RuntimeState.IntentPredictedValue >= 4
+                    ? "Medium"
+                    : "Low";
+            intentReadText = "Intent read | Threat " + threatLevel + " | " + targetMonster.RuntimeState.IntentLabel;
+        }
+
         string burstText = BuildRpgOwnedBurstWindowActionReadback(selectedActionKey, member, skillDefinition, targetMonster);
-        if (string.IsNullOrEmpty(defaultThreatSummary))
+        string responseText = BuildRpgOwnedBurstWindowResponseHint(member, skillDefinition, targetMonster);
+        List<string> parts = new List<string>();
+        if (!string.IsNullOrEmpty(roleDirectiveText))
         {
-            if (string.IsNullOrEmpty(roleDirectiveText))
-            {
-                return burstText;
-            }
-
-            return string.IsNullOrEmpty(burstText)
-                ? roleDirectiveText
-                : roleDirectiveText + " | " + burstText;
+            parts.Add(roleDirectiveText);
         }
 
-        if (string.IsNullOrEmpty(burstText))
+        if (!string.IsNullOrEmpty(intentReadText))
         {
-            return string.IsNullOrEmpty(roleDirectiveText)
-                ? defaultThreatSummary
-                : roleDirectiveText + " | " + defaultThreatSummary;
+            parts.Add(intentReadText);
         }
 
-        string summary = burstText + " | " + defaultThreatSummary;
-        return string.IsNullOrEmpty(roleDirectiveText)
-            ? summary
-            : roleDirectiveText + " | " + summary;
+        if (!string.IsNullOrEmpty(responseText))
+        {
+            parts.Add(responseText);
+        }
+
+        if (!string.IsNullOrEmpty(burstText))
+        {
+            parts.Add(burstText);
+        }
+
+        if (!string.IsNullOrEmpty(defaultThreatSummary))
+        {
+            parts.Add(defaultThreatSummary);
+        }
+
+        return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : string.Empty;
     }
 }

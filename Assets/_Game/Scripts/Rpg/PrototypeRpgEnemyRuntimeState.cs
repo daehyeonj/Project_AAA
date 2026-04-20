@@ -146,8 +146,8 @@ public sealed class PrototypeRpgEnemyRuntimeState
 
     public void OpenBurstWindow(string sourceRoleLabel, string sourceSkillLabel, int bonusDamage, int futurePartyActions, string summaryText)
     {
-        BurstWindowStateKey = "burst_ready";
-        BurstWindowLabel = "Burst Ready";
+        BurstWindowStateKey = "burst_window";
+        BurstWindowLabel = "Burst Window";
         BurstWindowSourceRoleLabel = string.IsNullOrWhiteSpace(sourceRoleLabel) ? string.Empty : sourceRoleLabel.Trim();
         BurstWindowSourceSkillLabel = string.IsNullOrWhiteSpace(sourceSkillLabel) ? string.Empty : sourceSkillLabel.Trim();
         BurstWindowBonusDamage = Mathf.Max(1, bonusDamage);

@@ -11,8 +11,12 @@ public sealed partial class StaticPlaceholderWorldView
         public string GrowthText = string.Empty;
         public int ExpectedAmount;
         public int ExpectedTargetHpAfter;
+        public int SituationalBonusAmount;
+        public string SituationalBonusLabel = string.Empty;
         public bool WouldDefeatTarget;
         public bool IsBlocked;
+        public bool OpensBurstWindow;
+        public bool ConsumesBurstWindow;
     }
 
     private string GetRpgOwnedActivePartyId()
@@ -96,6 +100,19 @@ public sealed partial class StaticPlaceholderWorldView
         return parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : string.Empty;
     }
 
+    private string BuildRpgOwnedExpectedDamagePreviewText(string targetName, int resolvedAmount, int situationalBonus = 0, string situationalLabel = "")
+    {
+        string safeTargetName = string.IsNullOrEmpty(targetName) ? string.Empty : " to " + targetName;
+        if (situationalBonus <= 0)
+        {
+            return "Expected: " + Mathf.Max(1, resolvedAmount) + " dmg" + safeTargetName;
+        }
+
+        int baseAmount = Mathf.Max(1, resolvedAmount - situationalBonus);
+        string label = string.IsNullOrEmpty(situationalLabel) ? "Bonus" : situationalLabel;
+        return "Expected: " + Mathf.Max(1, resolvedAmount) + " dmg" + safeTargetName + " (" + baseAmount + " + " + label + " " + situationalBonus + ")";
+    }
+
     private void PopulateRpgOwnedTargetOutcomePreview(RpgOwnedBattleActionPreviewData preview, DungeonMonsterRuntimeData targetMonster, int expectedAmount)
     {
         if (preview == null || targetMonster == null)
@@ -109,6 +126,36 @@ public sealed partial class StaticPlaceholderWorldView
         preview.PostEffectText = preview.WouldDefeatTarget
             ? "Would defeat"
             : "HP " + currentHp + " -> " + preview.ExpectedTargetHpAfter;
+    }
+
+    private void AppendRpgOwnedTargetWindowOutcomeText(RpgOwnedBattleActionPreviewData preview, DungeonMonsterRuntimeData targetMonster)
+    {
+        if (preview == null || targetMonster == null)
+        {
+            return;
+        }
+
+        List<string> parts = new List<string>();
+        if (!string.IsNullOrEmpty(preview.PostEffectText))
+        {
+            parts.Add(preview.PostEffectText);
+        }
+
+        if (preview.OpensBurstWindow && HasReadableRpgOwnedIntent(targetMonster))
+        {
+            parts.Add("Opens Burst Window");
+        }
+        else if (HasRpgOwnedBurstWindow(targetMonster))
+        {
+            parts.Add("Burst Window");
+        }
+
+        if (preview.ConsumesBurstWindow && preview.SituationalBonusAmount > 0)
+        {
+            parts.Add("Consumes Burst Window");
+        }
+
+        preview.PostEffectText = parts.Count > 0 ? string.Join(" | ", parts.ToArray()) : preview.PostEffectText;
     }
 
     private int PeekRpgOwnedFinisherBonus(DungeonPartyMemberRuntimeData member, PrototypeRpgSkillDefinition skillDefinition, DungeonMonsterRuntimeData targetMonster)
@@ -127,11 +174,6 @@ public sealed partial class StaticPlaceholderWorldView
             if (HasRpgOwnedBurstWindow(targetMonster) && targetMonster.RuntimeState != null)
             {
                 return Mathf.Max(0, targetMonster.RuntimeState.BurstWindowBonusDamage);
-            }
-
-            if (targetMonster.CurrentHp <= member.Attack)
-            {
-                return 1;
             }
         }
 
@@ -170,9 +212,13 @@ public sealed partial class StaticPlaceholderWorldView
             int burstBonus = targetMonster != null ? GetRpgOwnedAttackBurstBonus(targetMonster) : 0;
             int resolvedDamage = Mathf.Max(1, member.Attack + burstBonus);
             preview.ExpectedAmount = resolvedDamage;
-            preview.PreviewText = targetMonster != null
-                ? "Expected: " + resolvedDamage + " dmg to " + targetMonster.DisplayName
-                : "Expected: " + resolvedDamage + " dmg";
+            preview.SituationalBonusAmount = burstBonus;
+            preview.SituationalBonusLabel = burstBonus > 0 ? "Burst" : string.Empty;
+            preview.PreviewText = BuildRpgOwnedExpectedDamagePreviewText(
+                targetMonster != null ? targetMonster.DisplayName : string.Empty,
+                resolvedDamage,
+                burstBonus,
+                "Burst");
             preview.FormulaText = BuildRpgOwnedResolvedFormulaText(
                 "ATK",
                 resolvedDamage,
@@ -180,9 +226,10 @@ public sealed partial class StaticPlaceholderWorldView
                 growthBonus,
                 gearBonus,
                 burstBonus,
-                burstBonus > 0 ? "Expose" : string.Empty);
+                burstBonus > 0 ? "Burst" : string.Empty);
             preview.GrowthText = BuildRpgOwnedGrowthContributionText(member, "ATK", growthBonus, gearBonus);
             PopulateRpgOwnedTargetOutcomePreview(preview, targetMonster, resolvedDamage);
+            AppendRpgOwnedTargetWindowOutcomeText(preview, targetMonster);
             return preview;
         }
 
@@ -218,16 +265,19 @@ public sealed partial class StaticPlaceholderWorldView
         if (effectType == "finisher_damage")
         {
             situationalBonus = PeekRpgOwnedFinisherBonus(member, skillDefinition, targetMonster);
-            situationalLabel = "Payoff";
+            situationalLabel = "Burst";
+            preview.ConsumesBurstWindow = situationalBonus > 0;
         }
         else if (targetKind == "all_enemies" && effectType == "damage" && targetMonster != null)
         {
             situationalBonus = GetRpgOwnedArcaneBurstBonus(targetMonster);
-            situationalLabel = "Expose";
+            situationalLabel = "Burst";
         }
 
         int resolvedAmount = Mathf.Max(1, resolvedSkillPower + situationalBonus);
         preview.ExpectedAmount = resolvedAmount;
+        preview.SituationalBonusAmount = situationalBonus;
+        preview.SituationalBonusLabel = situationalLabel;
         preview.FormulaText = BuildRpgOwnedResolvedFormulaText(
             "Skill",
             targetKind == "all_enemies" ? resolvedSkillPower : resolvedAmount,
@@ -241,18 +291,21 @@ public sealed partial class StaticPlaceholderWorldView
         if (effectType == "heal")
         {
             preview.PreviewText = "Expected: party heal " + Mathf.Max(1, resolvedSkillPower) + " HP";
-            preview.PostEffectText = "Supports all living allies.";
+            preview.PostEffectText = skillDefinition != null && skillDefinition.SkillId == "skill_radiant_hymn" && HasAnyRpgOwnedBurstWindow()
+                ? "Supports all living allies | Extends Burst Window +1 ally action"
+                : "Supports all living allies.";
             return preview;
         }
 
         if (targetKind == "all_enemies")
         {
             preview.PreviewText = situationalBonus > 0
-                ? "Expected: " + resolvedSkillPower + " dmg to all enemies (+" + situationalBonus + " vs exposed)"
+                ? "Expected: " + resolvedSkillPower + " dmg to all enemies (+" + situationalBonus + " Burst on Burst Window targets)"
                 : "Expected: " + resolvedSkillPower + " dmg to all enemies";
             if (targetMonster != null)
             {
                 PopulateRpgOwnedTargetOutcomePreview(preview, targetMonster, resolvedAmount);
+                AppendRpgOwnedTargetWindowOutcomeText(preview, targetMonster);
             }
             else
             {
@@ -261,10 +314,16 @@ public sealed partial class StaticPlaceholderWorldView
             return preview;
         }
 
-        preview.PreviewText = targetMonster != null
-            ? "Expected: " + resolvedAmount + " dmg to " + targetMonster.DisplayName
-            : "Expected: " + resolvedAmount + " dmg";
+        preview.OpensBurstWindow = skillDefinition != null &&
+                                   skillDefinition.SkillId == "skill_power_strike" &&
+                                   HasReadableRpgOwnedIntent(targetMonster);
+        preview.PreviewText = BuildRpgOwnedExpectedDamagePreviewText(
+            targetMonster != null ? targetMonster.DisplayName : string.Empty,
+            resolvedAmount,
+            situationalBonus,
+            string.IsNullOrEmpty(situationalLabel) ? "Burst" : situationalLabel);
         PopulateRpgOwnedTargetOutcomePreview(preview, targetMonster, resolvedAmount);
+        AppendRpgOwnedTargetWindowOutcomeText(preview, targetMonster);
         return preview;
     }
 
@@ -279,6 +338,17 @@ public sealed partial class StaticPlaceholderWorldView
             ? " (" + preview.FormulaText + ")."
             : ".";
         string targetName = targetMonster != null ? targetMonster.DisplayName : "target";
+        if (preview != null && preview.SituationalBonusAmount > 0)
+        {
+            string burstVerb = preview.ConsumesBurstWindow ? "cashed Burst Window" : "exploited Burst Window";
+            return member.DisplayName + " " + burstVerb + " on " + targetName + " for " + appliedDamage + " damage" + formulaSuffix;
+        }
+
+        if (preview != null && preview.OpensBurstWindow)
+        {
+            return member.DisplayName + " read intent and hit " + targetName + " for " + appliedDamage + " damage" + formulaSuffix + " Burst Window opened.";
+        }
+
         if (string.Equals(actionName, "Attack", System.StringComparison.Ordinal))
         {
             return member.DisplayName + " attacked " + targetName + " for " + appliedDamage + " damage" + formulaSuffix;
@@ -299,7 +369,8 @@ public sealed partial class StaticPlaceholderWorldView
             : "Skill resolved";
         if (exposedHitCount > 0)
         {
-            detailText += "; exposed +" + RpgOwnedBurstWindowMageSplashBonus + " on " + exposedHitCount + " target(s)";
+            detailText += "; Burst +" + RpgOwnedBurstWindowMageSplashBonus + " on " + exposedHitCount + " target(s)";
+            return member.DisplayName + " used " + actionName + " for " + totalDamage + " total damage and exploited Burst Window on " + exposedHitCount + " target(s) (" + detailText + ").";
         }
 
         return member.DisplayName + " used " + actionName + " for " + totalDamage + " total damage (" + detailText + ").";
@@ -542,11 +613,6 @@ public sealed partial class StaticPlaceholderWorldView
             if (resolvedSkillEffectType == "finisher_damage")
             {
                 int burstBonus = ConsumeRpgOwnedBurstWindowPayoff(member, resolvedSkillDefinition, targetMonster);
-                if (burstBonus <= 0 && targetMonster.CurrentHp <= member.Attack)
-                {
-                    burstBonus = 1;
-                }
-
                 if (burstBonus > 0)
                 {
                     burstFeedbackText = "Burst payoff +" + burstBonus + ".";

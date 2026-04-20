@@ -515,7 +515,7 @@ public sealed partial class StaticPlaceholderWorldView
 
     private ExpeditionStartContext BuildCurrentExpeditionStartContext()
     {
-        return BuildProjectedExpeditionStartContext();
+        return BuildProjectedExpeditionStartContext(includeDetailedPartyReadbacks: true);
     }
 
     private PrototypeDungeonEncounterRequest BuildCurrentEncounterRequest(DungeonRoomTemplateData room = null, DungeonEncounterRuntimeData encounter = null)

@@ -10,7 +10,7 @@ This scaffold keeps the current inventory/equipment overlay behavior intact whil
 
 Current inventory overlay owner:
 
-- `Assets/_Game/Scripts/Core/PrototypePresentationShell.Inventory.cs`
+- `Assets/_Game/Scripts/UI/Inventory/PrototypePresentationShell.Inventory.cs`
 
 This file draws the current inventory/equipment overlay that can appear during world/prep/battle-adjacent contexts.
 

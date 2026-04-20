@@ -46,7 +46,7 @@ That is a live UI behavior change, not a passive audit.
 
 ### Presentation consumers still live
 
-- `Assets/_Game/Scripts/Core/PrototypePresentationShell.DungeonRun.cs`
+- `Assets/_Game/Scripts/UI/Battle/PrototypePresentationShell.DungeonRun.cs`
   - `DrawDungeonRunShell()` still branches on:
     - `shellSurface.IsRouteChoiceVisible`
     - `shellSurface.IsEventChoiceVisible`

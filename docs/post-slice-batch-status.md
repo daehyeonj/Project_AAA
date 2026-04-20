@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
+- Latest closed batch: `Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,8 +18,71 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-b -> dungeon-beta`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: `manual assignment/runtime verification for the new battle UI skin slots, then resume combat-role follow-through on the accepted Batch 78 rail`
+- Next honest bottleneck: `manual Unity Editor assignment of the curated UI sprite candidates into battle/inventory skin slots, then either layout tuning or a return to combat-role follow-through on the accepted Batch 78 rail`
 - Scene architecture status: `compile-safe persistent-root scaffold added; SampleScene remains the live playable baseline`
+
+## Batch 77.5 Close-Out
+
+- Selected branch: `A`
+- Honest scope:
+  - audit raw UI sprite packs without moving them
+  - create a project-owned curated staging area under `Assets/_Game/Content/UI/Sprites`
+  - copy only a small intentional starter set of battle/inventory UI candidates
+  - document slot mapping and manual assignment workflow
+- Raw source audit:
+  - `Assets/Sprite/Complete_UI_Book_Styles_Pack_Free_v1.0` is the clearest UI-source pack for panel/button/bar/slot candidates
+  - `Assets/Sprite/Free - Raven Fantasy Icons` contains many numeric icon files and was audited but not curated in this batch because the filenames are too opaque for safe narrowing
+  - raw sampled UI metas still show `textureType: 0`, `spriteMode: 0`, `alphaIsTransparency: 0`, `spritePixelsToUnits: 100`, and `filterMode: 1`
+- Curated starter copy:
+  - battle panel/button/timeline/bar/popup/badge/icon candidates were copied from `TravelBookLite`
+  - inventory panel/slot/row/badge/icon candidates were copied from `TravelBookLite`
+  - shared frame/divider/background/icon examples were staged for future reuse
+  - raw source packs were not moved, renamed, or reimported
+- Docs added:
+  - `docs/ui/ui-sprite-curation.md`
+  - `docs/ui/battle-skin-slot-map.md`
+  - `docs/ui/inventory-skin-slot-map.md`
+  - `Assets/_Game/Content/UI/Sprites/_SourceMap/README.md`
+  - `Assets/_Game/Content/UI/Sprites/_SourceMap/ui-sprite-candidate-map.md`
+- Import setting changes:
+  - none
+  - curated copies intentionally preserved the sampled raw import behavior for now
+  - any future `Sprite (2D and UI)` conversion should happen on curated copies only, not on raw source art
+- Gameplay changes: `none`
+- Validation snapshot:
+  - compile: `PASS (unity-merge-validate.log, 2026-04-20)`
+  - raw source untouched: `PASS`
+  - curated folders created: `PASS`
+  - runtime/resource rail unchanged: `PASS`
+  - SampleScene path preserved: `PASS`
+
+## Batch 77.4 Close-Out
+
+- Selected branch: `A`
+- Honest scope:
+  - clarify folder ownership for battle UI, inventory UI, debug HUD, and runtime-vs-preview scene assets without changing gameplay behavior
+  - keep path-sensitive runtime content in place where the audit showed higher breakage risk
+- Files moved:
+  - `Assets/_Game/Scripts/Core/PrototypeDebugHUD.cs` -> `Assets/_Game/Scripts/Debug/PrototypeDebugHUD.cs`
+  - `Assets/_Game/Scripts/Core/PrototypePresentationShell.DungeonRun.cs` -> `Assets/_Game/Scripts/UI/Battle/PrototypePresentationShell.DungeonRun.cs`
+  - `Assets/_Game/Scripts/Core/PrototypePresentationShell.GameplayBattleHud.cs` -> `Assets/_Game/Scripts/UI/Battle/PrototypePresentationShell.GameplayBattleHud.cs`
+  - `Assets/_Game/Scripts/Core/PrototypePresentationShell.Inventory.cs` -> `Assets/_Game/Scripts/UI/Inventory/PrototypePresentationShell.Inventory.cs`
+  - `Assets/_Game/Scenes/Boot.Unity` -> `Assets/_Game/Scenes/Runtime/Boot.Unity`
+- Folder structure added:
+  - `Assets/_Game/Scripts/Debug/`
+  - `Assets/_Game/Scenes/Runtime/`
+  - `Assets/_Game/Scenes/Test/`
+  - `Assets/_Game/Content/UI/Sprites/`
+- Intentionally not moved:
+  - `Assets/Scenes/SampleScene.unity` because Build Settings, editor defaults, and smoke tooling still point at that legacy baseline
+  - `Assets/_Game/Resources/Content/*` because `Resources.Load(...)` paths are active runtime/editor dependencies
+  - `Assets/Sprite/*` because runtime import/path ownership is not stabilized yet and this batch is not an asset migration batch
+  - `BootEntry.cs` and `StaticPlaceholderWorldView*.cs` because they are still hot spots and not safe folder-shuffle targets in this pass
+- Gameplay changes: `none`
+- Validation snapshot:
+  - compile: `PASS (unity-merge-validate.log, 2026-04-20)`
+  - playable-path proof: `SampleScene path intentionally preserved`
+  - path-risk guard: `runtime Resources and preview scene paths preserved`
 
 ## Batch 77.3 Close-Out
 

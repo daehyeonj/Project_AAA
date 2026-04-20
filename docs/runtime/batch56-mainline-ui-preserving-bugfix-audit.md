@@ -29,7 +29,7 @@ The suspected bug is not supported strongly enough on the current GitHub `main` 
 
 Current `main` already has the lane-card bridge wired through:
 
-- `Assets/_Game/Scripts/Core/PrototypePresentationShell.DungeonRun.cs`
+- `Assets/_Game/Scripts/UI/Battle/PrototypePresentationShell.DungeonRun.cs`
   - explore shell clicks call `_bootEntry.TryTriggerDungeonPanelLaneOption(option.OptionId)`
   - hover state calls `_bootEntry.SetDungeonPanelLaneHover(hoveredOptionId)`
 - `Assets/_Game/Scripts/Bootstrap/BootEntry.cs`

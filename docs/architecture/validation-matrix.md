@@ -137,6 +137,6 @@ This matrix defines the minimum checks that should be run after architecture or 
 - `Assets/_Game/Scripts/Bootstrap/BootEntry.cs`
 - `Assets/_Game/Scripts/World/StaticPlaceholderWorldView.cs`
 - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.cs`
-- `Assets/_Game/Scripts/Core/PrototypeDebugHUD.cs`
+- `Assets/_Game/Scripts/Debug/PrototypeDebugHUD.cs`
 
 When one of these changes, always run compile plus at least one handoff smoke check.

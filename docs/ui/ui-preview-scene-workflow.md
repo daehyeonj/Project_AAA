@@ -51,11 +51,12 @@ See `docs/ui/ui-preview-scene-setup.md` for the exact fallback steps.
 
 1. Open `BattleUiPreviewScene`.
 2. Select `BattleUiSkin_Default.asset`.
-3. Manually drag sprites or textures from `Assets/Sprite` into the named slots.
-4. Tune sizes and spacing in `BattleUiLayout_Default.asset`.
-5. If needed, edit preview copy/text in `BattleUiPreview_Default.asset`.
-6. Press Play to verify the layout.
-7. Repeat the same flow in `InventoryUiPreviewScene`.
+3. Manually drag curated sprites or textures from `Assets/_Game/Content/UI/Sprites` into the named slots.
+4. If a needed candidate has not been staged yet, inspect the raw source pack under `Assets/Sprite` and curate it first instead of assigning from the raw pack blindly.
+5. Tune sizes and spacing in `BattleUiLayout_Default.asset`.
+6. If needed, edit preview copy/text in `BattleUiPreview_Default.asset`.
+7. Press Play to verify the layout.
+8. Repeat the same flow in `InventoryUiPreviewScene`.
 
 ## Slot Meaning
 
@@ -124,7 +125,7 @@ This is intentional so the scene is useful before art assignment.
 Because of that:
 
 - Codex did not guess slot mappings
-- Codex did not change import settings
+- Codex did not change raw source import settings
 - Codex did not auto-pick “best looking” art
 
 Human assignment is the correct workflow here.

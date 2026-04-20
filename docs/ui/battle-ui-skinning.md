@@ -17,16 +17,16 @@ The goal is:
 
 Current battle-facing owners on the active rail:
 
-- `Assets/_Game/Scripts/Core/PrototypeDebugHUD.cs`
+- `Assets/_Game/Scripts/Debug/PrototypeDebugHUD.cs`
   - draws the active player-facing battle HUD shell
   - draws `Command Selection`
   - draws `Current Unit`
   - draws `Target Status`
   - draws the top timeline strip and queue chips
-- `Assets/_Game/Scripts/Core/PrototypePresentationShell.DungeonRun.cs`
+- `Assets/_Game/Scripts/UI/Battle/PrototypePresentationShell.DungeonRun.cs`
   - owns the battle result popover overlay
   - still contains a presentation-shell battle renderer, but that is not the currently accepted player-facing battle HUD rail
-- `Assets/_Game/Scripts/Core/PrototypePresentationShell.Inventory.cs`
+- `Assets/_Game/Scripts/UI/Inventory/PrototypePresentationShell.Inventory.cs`
   - owns the inventory/equipment overlay interaction during battle-adjacent moments
 
 ## Asset Audit

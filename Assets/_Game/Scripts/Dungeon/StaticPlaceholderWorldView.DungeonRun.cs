@@ -6828,7 +6828,7 @@ public sealed partial class StaticPlaceholderWorldView
 
     private void StartDungeonRunForRoute(DungeonRouteTemplate template, string partyId)
     {
-        StartDungeonRunForRoute(template, partyId, BuildProjectedExpeditionStartContext());
+        StartDungeonRunForRoute(template, partyId, BuildProjectedExpeditionStartContext(includeDetailedPartyReadbacks: true));
     }
 
     private void StartDungeonRunForRoute(DungeonRouteTemplate template, string partyId, ExpeditionStartContext launchContext)

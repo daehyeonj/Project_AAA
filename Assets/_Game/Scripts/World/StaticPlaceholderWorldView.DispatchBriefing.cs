@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 
+using UnityEngine;
+
 public sealed partial class StaticPlaceholderWorldView
 {
     private enum PrototypeWorldDispatchLaunchLockState
@@ -67,9 +69,15 @@ public sealed partial class StaticPlaceholderWorldView
         return BuildDispatchBriefingSnapshot(_currentHomeCityId, _currentDungeonId, _selectedRouteChoiceId, true);
     }
 
-    private PrototypeWorldDispatchBriefingSnapshot BuildDispatchBriefingSnapshot(string cityId, string dungeonId, string selectedRouteId, bool requireSelectedRoute)
+    private PrototypeWorldDispatchBriefingSnapshot BuildDispatchBriefingSnapshot(
+        string cityId,
+        string dungeonId,
+        string selectedRouteId,
+        bool requireSelectedRoute,
+        bool includeDetailedPartyReadbacks = false)
     {
         PrototypeWorldDispatchBriefingSnapshot snapshot = new PrototypeWorldDispatchBriefingSnapshot();
+        bool includeDetailed = includeDetailedPartyReadbacks || _isExpeditionPrepBoardOpen;
         snapshot.CityId = cityId ?? string.Empty;
         snapshot.CityLabel = ResolveDispatchEntityDisplayName(cityId);
         snapshot.DungeonId = dungeonId ?? string.Empty;
@@ -116,7 +124,7 @@ public sealed partial class StaticPlaceholderWorldView
             snapshot.HardBlockerKeys.Add("route_unavailable");
         }
 
-        PrototypeWorldDispatchFitSummary fitSummary = BuildDispatchFitSummary(cityId, dungeonId, resolvedRouteId, snapshot.PartyId);
+        PrototypeWorldDispatchFitSummary fitSummary = BuildDispatchFitSummary(cityId, dungeonId, resolvedRouteId, snapshot.PartyId, includeDetailed);
         snapshot.RouteFitLabel = fitSummary.RouteFitLabel;
         snapshot.ProjectedRiskLabel = fitSummary.ProjectedRiskLabel;
         snapshot.ProjectedRewardLabel = fitSummary.ProjectedRewardLabel;
@@ -157,7 +165,7 @@ public sealed partial class StaticPlaceholderWorldView
             : snapshot.SoftWarningKeys.Count > 0
                 ? PrototypeWorldDispatchLaunchLockState.Warning
                 : PrototypeWorldDispatchLaunchLockState.Clear;
-        snapshot.PartySummaryText = BuildDispatchPartySummaryText(snapshot, partyResultEcho);
+        snapshot.PartySummaryText = BuildDispatchPartySummaryText(snapshot, partyResultEcho, includeDetailed);
         snapshot.BriefingSummaryText = BuildDispatchBriefingSummaryText(snapshot, requireSelectedRoute);
         snapshot.RouteFitSummaryText = BuildDispatchRouteFitSummaryText(snapshot);
         snapshot.LaunchLockSummaryText = BuildDispatchLaunchLockSummaryText(snapshot);
@@ -250,19 +258,11 @@ public sealed partial class StaticPlaceholderWorldView
     {
         if (_activeDungeonParty != null && _activeDungeonParty.PartyId == partyId && _activeDungeonParty.Members != null && _activeDungeonParty.Members.Length > 0)
         {
-            string text = string.Empty;
-            for (int i = 0; i < _activeDungeonParty.Members.Length; i++)
-            {
-                DungeonPartyMemberRuntimeData member = _activeDungeonParty.Members[i];
-                if (member == null || string.IsNullOrEmpty(member.RoleLabel))
-                {
-                    continue;
-                }
-
-                text = string.IsNullOrEmpty(text) ? member.RoleLabel : text + " / " + member.RoleLabel;
-            }
-
-            if (!string.IsNullOrEmpty(text))
+            string text = PrototypeRpgRoleIdentity.BuildPartyRoleSummary(
+                _activeDungeonParty.Members,
+                member => member != null ? member.DisplayName : string.Empty,
+                member => member != null ? member.RoleTag : string.Empty);
+            if (!string.IsNullOrEmpty(text) && text != "Party roles are pending.")
             {
                 return text;
             }
@@ -278,7 +278,12 @@ public sealed partial class StaticPlaceholderWorldView
             : "no_ready_party";
     }
 
-    private PrototypeWorldDispatchFitSummary BuildDispatchFitSummary(string cityId, string dungeonId, string routeId, string partyId)
+    private PrototypeWorldDispatchFitSummary BuildDispatchFitSummary(
+        string cityId,
+        string dungeonId,
+        string routeId,
+        string partyId,
+        bool includeDetailedPartyReadbacks)
     {
         PrototypeWorldDispatchFitSummary summary = new PrototypeWorldDispatchFitSummary();
         if (string.IsNullOrEmpty(dungeonId))
@@ -338,12 +343,17 @@ public sealed partial class StaticPlaceholderWorldView
         string echoTone = recentFailure
             ? "Recent failure suggests a steadier launch."
             : "Last run echo is stable.";
-        string partyFitTone = BuildRuntimePartyRouteFitText(partyId, dungeonId, routeId);
+        string partyFitTone = includeDetailedPartyReadbacks
+            ? BuildRuntimePartyRouteFitText(partyId, dungeonId, routeId)
+            : BuildLightRuntimePartyRouteFitText(partyId, dungeonId, routeId);
         summary.RouteFitLabel = BuildScenarioSentenceText(routeTone, powerTone, readinessTone, echoTone, partyFitTone);
         return summary;
     }
 
-    private string BuildDispatchPartySummaryText(PrototypeWorldDispatchBriefingSnapshot snapshot, string partyResultEcho)
+    private string BuildDispatchPartySummaryText(
+        PrototypeWorldDispatchBriefingSnapshot snapshot,
+        string partyResultEcho,
+        bool includeDetailedPartyReadbacks)
     {
         if (snapshot == null || string.IsNullOrEmpty(snapshot.CityId))
         {
@@ -358,18 +368,45 @@ public sealed partial class StaticPlaceholderWorldView
                 : "No ready party in " + snapshot.CityLabel + ".";
         }
 
-        PrototypeRpgPartyRuntimeResolveSurface partySurface = BuildRuntimePartyResolveSurface(snapshot.PartyId);
         int partyPower = _runtimeEconomyState.GetReadyPartyPowerForCity(snapshot.CityId);
         int carryCapacity = _runtimeEconomyState.GetReadyPartyCarryCapacityForCity(snapshot.CityId);
+        if (!includeDetailedPartyReadbacks)
+        {
+            return BuildCachedDispatchPartySummaryText(snapshot.PartyId, snapshot.PartyRoleSummary, partyPower, carryCapacity, partyResultEcho);
+        }
+
+        PrototypeRpgPartyRuntimeResolveSurface partySurface = BuildRuntimePartyResolveSurface(snapshot.PartyId);
         if (partySurface == null)
         {
-            string lastEcho = string.IsNullOrEmpty(partyResultEcho) || partyResultEcho == "None" || partyResultEcho.StartsWith("Ready in ")
-                ? string.Empty
-                : " | Last: " + partyResultEcho;
-            return snapshot.PartyId + " | " + snapshot.PartyRoleSummary + " | Power " + partyPower + " | Carry " + carryCapacity + lastEcho;
+            return BuildCachedDispatchPartySummaryText(snapshot.PartyId, snapshot.PartyRoleSummary, partyPower, carryCapacity, partyResultEcho);
         }
 
         return BuildRuntimePartyPrepSummaryText(partySurface, partyPower, carryCapacity, partyResultEcho);
+    }
+
+    private string BuildCachedDispatchPartySummaryText(
+        string partyId,
+        string fallbackRoleSummary,
+        int partyPower,
+        int carryCapacity,
+        string partyResultEcho)
+    {
+        string identityText = BuildCachedRuntimePartyIdentitySummaryText(partyId);
+        string roleSummary = _runtimeEconomyState != null ? _runtimeEconomyState.GetPartyRoleSummary(partyId) : string.Empty;
+        if (!HasText(roleSummary) || roleSummary == "None")
+        {
+            roleSummary = fallbackRoleSummary;
+        }
+
+        string powerText = "Power " + Mathf.Max(0, partyPower) + " / Carry " + Mathf.Max(0, carryCapacity);
+        string lastReturnText = HasText(partyResultEcho) && partyResultEcho != "None" && !partyResultEcho.StartsWith("Ready in ")
+            ? "Last Return: " + partyResultEcho
+            : string.Empty;
+        return BuildScenarioSentenceText(
+            BuildLabeledScenarioClause("Party", identityText),
+            roleSummary,
+            powerText,
+            lastReturnText);
     }
 
     private string BuildDispatchBriefingSummaryText(PrototypeWorldDispatchBriefingSnapshot snapshot, bool requireSelectedRoute)

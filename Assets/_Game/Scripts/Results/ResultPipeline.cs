@@ -946,9 +946,19 @@ public static class ResultPipeline
             : "Lv" + result.LevelAfter + " " + Max(0, result.ExperienceAfter) + "/" + Max(1, result.NextLevelExperience);
         string line = displayName + " gained " + Max(0, result.ExperienceGained) + " XP | " + levelText;
         string statText = BuildGrowthStatDeltaSummary(result);
-        return IsMeaningfulText(statText)
+        string meaningText = PrototypeRpgRoleIdentity.BuildGrowthMeaningClause(
+            result.RoleTag,
+            result.GrowthBonusMaxHp,
+            result.GrowthBonusAttack,
+            result.GrowthBonusDefense,
+            result.GrowthBonusSpeed,
+            result.LeveledUp);
+        string growthLine = IsMeaningfulText(statText)
             ? line + " | " + statText
             : line;
+        return IsMeaningfulText(meaningText)
+            ? growthLine + " | " + meaningText
+            : growthLine;
     }
 
     private static string BuildGrowthStatDeltaSummary(PrototypeRpgMemberProgressionResult result)
@@ -1021,13 +1031,22 @@ public static class ResultPipeline
         }
 
         string displayName = IsMeaningfulText(result.DisplayName) ? result.DisplayName : "Party";
-        string levelText = result.LevelAfter > result.LevelBefore
-            ? displayName + " Lv" + result.LevelAfter
-            : displayName + " +" + Max(0, result.ExperienceGained) + " XP";
         string statText = BuildGrowthStatDeltaSummary(result);
-        return IsMeaningfulText(statText)
-            ? levelText + " | " + statText
-            : levelText;
+        string meaningText = PrototypeRpgRoleIdentity.BuildGrowthMeaningClause(
+            result.RoleTag,
+            result.GrowthBonusMaxHp,
+            result.GrowthBonusAttack,
+            result.GrowthBonusDefense,
+            result.GrowthBonusSpeed,
+            result.LeveledUp);
+        if (IsMeaningfulText(statText))
+        {
+            return displayName + " | " + statText + " | " + meaningText;
+        }
+
+        return IsMeaningfulText(meaningText)
+            ? displayName + " | " + meaningText
+            : displayName + " +" + Max(0, result.ExperienceGained) + " XP";
     }
 
     private static string BuildNextRunGrowthPreviewSummary(
@@ -1063,28 +1082,14 @@ public static class ResultPipeline
             return string.Empty;
         }
 
-        string displayName = IsMeaningfulText(result.DisplayName) ? result.DisplayName : "This member";
-        if (result.GrowthBonusAttack > 0)
-        {
-            return "Next run: " + displayName + "'s attacks hit harder.";
-        }
-
-        if (result.GrowthBonusSpeed > 0)
-        {
-            return "Next run: " + displayName + " acts earlier more often.";
-        }
-
-        if (result.GrowthBonusMaxHp > 0 || result.GrowthBonusDefense > 0)
-        {
-            return "Next run: " + displayName + " survives more safely.";
-        }
-
-        if (result.LeveledUp)
-        {
-            return "Next run: " + displayName + " brings stronger overall stats.";
-        }
-
-        return string.Empty;
+        return PrototypeRpgRoleIdentity.BuildNextRunMeaningText(
+            result.DisplayName,
+            result.RoleTag,
+            result.GrowthBonusMaxHp,
+            result.GrowthBonusAttack,
+            result.GrowthBonusDefense,
+            result.GrowthBonusSpeed,
+            result.LeveledUp);
     }
 
     private static string BuildEquipmentNextRunPreview(string equipSwapSummaryText)

@@ -1791,6 +1791,58 @@ public sealed partial class StaticPlaceholderWorldView
 
         ResolveSelectedBoardChain(observation, out string selectedCityId, out string selectedDungeonId);
         ResolveLatestReturnBoardChain(observation, out string latestCityId, out string latestDungeonId, out string latestStateKey);
+        ApplyWorldBoardEmphasisState(selectedCityId, selectedDungeonId, latestCityId, latestDungeonId, latestStateKey);
+    }
+
+    private void ApplyCurrentWorldBoardEmphasis()
+    {
+        if (_root == null)
+        {
+            return;
+        }
+
+        string selectedCityId = string.Empty;
+        string selectedDungeonId = string.Empty;
+        if (_selectedMarker != null && _selectedMarker.EntityData != null)
+        {
+            if (_selectedMarker.EntityData.Kind == WorldEntityKind.City)
+            {
+                selectedCityId = _selectedMarker.EntityData.Id;
+                selectedDungeonId = GetLinkedDungeonIdForCity(selectedCityId);
+            }
+            else if (_selectedMarker.EntityData.Kind == WorldEntityKind.Dungeon)
+            {
+                selectedDungeonId = _selectedMarker.EntityData.Id;
+                selectedCityId = _selectedMarker.EntityData.LinkedCityId ?? string.Empty;
+            }
+        }
+
+        if (string.IsNullOrEmpty(selectedCityId) && !string.IsNullOrEmpty(selectedDungeonId))
+        {
+            selectedCityId = GetLinkedCityIdForDungeon(selectedDungeonId);
+        }
+
+        if (string.IsNullOrEmpty(selectedDungeonId) && !string.IsNullOrEmpty(selectedCityId))
+        {
+            selectedDungeonId = GetLinkedDungeonIdForCity(selectedCityId);
+        }
+
+        global::WorldWriteback latestWriteback = _runtimeEconomyState != null
+            ? _runtimeEconomyState.GetLatestWorldWriteback()
+            : null;
+        string latestCityId = latestWriteback != null ? latestWriteback.SourceCityId ?? string.Empty : string.Empty;
+        string latestDungeonId = latestWriteback != null ? latestWriteback.TargetDungeonId ?? string.Empty : string.Empty;
+        string latestStateKey = latestWriteback != null ? latestWriteback.RunResultStateKey ?? string.Empty : string.Empty;
+        ApplyWorldBoardEmphasisState(selectedCityId, selectedDungeonId, latestCityId, latestDungeonId, latestStateKey);
+    }
+
+    private void ApplyWorldBoardEmphasisState(
+        string selectedCityId,
+        string selectedDungeonId,
+        string latestCityId,
+        string latestDungeonId,
+        string latestStateKey)
+    {
         bool latestMatchesSelected =
             !string.IsNullOrEmpty(selectedCityId) &&
             !string.IsNullOrEmpty(selectedDungeonId) &&
@@ -1934,7 +1986,7 @@ public sealed partial class StaticPlaceholderWorldView
             _selectedMarker.SetSelected(true);
         }
 
-        ApplyWorldBoardEmphasis(BuildWorldObservationSurfaceData());
+        ApplyCurrentWorldBoardEmphasis();
         return true;
     }
 

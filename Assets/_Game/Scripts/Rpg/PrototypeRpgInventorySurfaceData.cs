@@ -5,6 +5,8 @@ public sealed class PrototypeRpgInventoryMemberSurfaceData
     public string MemberId = string.Empty;
     public string DisplayName = "Adventurer";
     public string RoleLabel = "Adventurer";
+    public string RoleIdentityText = "Flexible role";
+    public string GearPreferenceText = "Wants balanced gear";
     public int Level = 1;
     public int CurrentExperience;
     public int NextLevelExperience = 18;
@@ -78,9 +80,12 @@ public sealed class PrototypeRpgInventorySurfaceData
     public string FeedbackText = "None";
     public string SelectedMemberHeaderText = "None";
     public string SelectedMemberProgressText = "None";
+    public string SelectedMemberRoleText = "None";
+    public string SelectedMemberGearPreferenceText = "None";
     public string SelectedItemHeaderText = "None";
     public string SelectedItemMetaText = "None";
     public string SelectedItemDetailText = "None";
+    public string SelectedItemFitText = "None";
     public string SelectedItemOwnerText = "None";
     public PrototypeRpgInventoryMemberSurfaceData[] Members = Array.Empty<PrototypeRpgInventoryMemberSurfaceData>();
     public PrototypeRpgInventorySlotSurfaceData[] Slots = Array.Empty<PrototypeRpgInventorySlotSurfaceData>();

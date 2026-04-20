@@ -77,6 +77,7 @@ public sealed class CurrentActorSurfaceData
     public string ResourceLabel = "Resource";
     public string ResourceText = string.Empty;
     public string SkillLabel = "None";
+    public string RoleHintText = string.Empty;
     public string SummaryText = string.Empty;
     public string ResolvedStatsText = string.Empty;
     public string StatSourceText = string.Empty;

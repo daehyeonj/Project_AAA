@@ -50,7 +50,7 @@ Evidence:
 
 - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.ShellContracts.cs`
   - `context.CurrentLaneSelectionText = CurrentLaneSelectionText`
-- `Assets/_Game/Scripts/Core/PrototypePresentationShell.DungeonRun.cs`
+- `Assets/_Game/Scripts/UI/Battle/PrototypePresentationShell.DungeonRun.cs`
   - explore footer draws:
     - `"Current Lane: " + SafeShellText(panelContext.CurrentLaneSelectionText)`
 

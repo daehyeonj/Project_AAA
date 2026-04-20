@@ -39,7 +39,7 @@ Evidence:
   - `GetBattleUiSelectedActionKey()` maps `_queuedBattleAction` into the selected command key.
 - `Assets/_Game/Scripts/Rpg/Battle/StaticPlaceholderWorldView.RpgBattleSurfaceOwnership.cs`
   - `BuildRpgOwnedBattleUiCommandSurfaceData(...)` uses that selected action key to build the command panel and contextual details.
-- `Assets/_Game/Scripts/Core/PrototypePresentationShell.DungeonRun.cs`
+- `Assets/_Game/Scripts/UI/Battle/PrototypePresentationShell.DungeonRun.cs`
   - `ResolveDungeonBattleFocusDetail(...)` resolves the focus card from `commandSurface.SelectedActionKey` and selected detail rows, not from the hovered action key.
   - `ShouldShowDungeonBattleCommandFocus(...)` only shows command focus for selected `skill`, `move`, or `retreat`.
 
@@ -47,7 +47,7 @@ Target focus is target-selection-driven.
 
 Evidence:
 
-- `Assets/_Game/Scripts/Core/PrototypePresentationShell.DungeonRun.cs`
+- `Assets/_Game/Scripts/UI/Battle/PrototypePresentationShell.DungeonRun.cs`
   - target hover is only forwarded through `_bootEntry.SetBattleTargetHover(...)` while `surface.TargetSelection.IsActive`
 - `Assets/_Game/Scripts/Rpg/Battle/StaticPlaceholderWorldView.RpgBattleSurfaceOwnership.cs`
   - `BuildRpgOwnedBattleUiTargetSelectionData(...)` only activates the target-focus surface while `_battleState == BattleState.PartyTargetSelect`

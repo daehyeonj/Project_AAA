@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle UI skinning scaffold`
+- Latest closed batch: `Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,7 +18,133 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-b -> dungeon-beta`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: `manual assignment/runtime verification for the new battle UI skin slots, then resume combat-role follow-through on the accepted Batch 78 rail`
+- Next honest bottleneck: `manual Unity Editor assignment of the curated UI sprite candidates into battle/inventory skin slots, then either layout tuning or a return to combat-role follow-through on the accepted Batch 78 rail`
+- Scene architecture status: `compile-safe persistent-root scaffold added; SampleScene remains the live playable baseline`
+
+## Batch 77.5 Close-Out
+
+- Selected branch: `A`
+- Honest scope:
+  - audit raw UI sprite packs without moving them
+  - create a project-owned curated staging area under `Assets/_Game/Content/UI/Sprites`
+  - copy only a small intentional starter set of battle/inventory UI candidates
+  - document slot mapping and manual assignment workflow
+- Raw source audit:
+  - `Assets/Sprite/Complete_UI_Book_Styles_Pack_Free_v1.0` is the clearest UI-source pack for panel/button/bar/slot candidates
+  - `Assets/Sprite/Free - Raven Fantasy Icons` contains many numeric icon files and was audited but not curated in this batch because the filenames are too opaque for safe narrowing
+  - raw sampled UI metas still show `textureType: 0`, `spriteMode: 0`, `alphaIsTransparency: 0`, `spritePixelsToUnits: 100`, and `filterMode: 1`
+- Curated starter copy:
+  - battle panel/button/timeline/bar/popup/badge/icon candidates were copied from `TravelBookLite`
+  - inventory panel/slot/row/badge/icon candidates were copied from `TravelBookLite`
+  - shared frame/divider/background/icon examples were staged for future reuse
+  - raw source packs were not moved, renamed, or reimported
+- Docs added:
+  - `docs/ui/ui-sprite-curation.md`
+  - `docs/ui/battle-skin-slot-map.md`
+  - `docs/ui/inventory-skin-slot-map.md`
+  - `Assets/_Game/Content/UI/Sprites/_SourceMap/README.md`
+  - `Assets/_Game/Content/UI/Sprites/_SourceMap/ui-sprite-candidate-map.md`
+- Import setting changes:
+  - none
+  - curated copies intentionally preserved the sampled raw import behavior for now
+  - any future `Sprite (2D and UI)` conversion should happen on curated copies only, not on raw source art
+- Gameplay changes: `none`
+- Validation snapshot:
+  - compile: `PASS (unity-merge-validate.log, 2026-04-20)`
+  - raw source untouched: `PASS`
+  - curated folders created: `PASS`
+  - runtime/resource rail unchanged: `PASS`
+  - SampleScene path preserved: `PASS`
+
+## Batch 77.4 Close-Out
+
+- Selected branch: `A`
+- Honest scope:
+  - clarify folder ownership for battle UI, inventory UI, debug HUD, and runtime-vs-preview scene assets without changing gameplay behavior
+  - keep path-sensitive runtime content in place where the audit showed higher breakage risk
+- Files moved:
+  - `Assets/_Game/Scripts/Core/PrototypeDebugHUD.cs` -> `Assets/_Game/Scripts/Debug/PrototypeDebugHUD.cs`
+  - `Assets/_Game/Scripts/Core/PrototypePresentationShell.DungeonRun.cs` -> `Assets/_Game/Scripts/UI/Battle/PrototypePresentationShell.DungeonRun.cs`
+  - `Assets/_Game/Scripts/Core/PrototypePresentationShell.GameplayBattleHud.cs` -> `Assets/_Game/Scripts/UI/Battle/PrototypePresentationShell.GameplayBattleHud.cs`
+  - `Assets/_Game/Scripts/Core/PrototypePresentationShell.Inventory.cs` -> `Assets/_Game/Scripts/UI/Inventory/PrototypePresentationShell.Inventory.cs`
+  - `Assets/_Game/Scenes/Boot.Unity` -> `Assets/_Game/Scenes/Runtime/Boot.Unity`
+- Folder structure added:
+  - `Assets/_Game/Scripts/Debug/`
+  - `Assets/_Game/Scenes/Runtime/`
+  - `Assets/_Game/Scenes/Test/`
+  - `Assets/_Game/Content/UI/Sprites/`
+- Intentionally not moved:
+  - `Assets/Scenes/SampleScene.unity` because Build Settings, editor defaults, and smoke tooling still point at that legacy baseline
+  - `Assets/_Game/Resources/Content/*` because `Resources.Load(...)` paths are active runtime/editor dependencies
+  - `Assets/Sprite/*` because runtime import/path ownership is not stabilized yet and this batch is not an asset migration batch
+  - `BootEntry.cs` and `StaticPlaceholderWorldView*.cs` because they are still hot spots and not safe folder-shuffle targets in this pass
+- Gameplay changes: `none`
+- Validation snapshot:
+  - compile: `PASS (unity-merge-validate.log, 2026-04-20)`
+  - playable-path proof: `SampleScene path intentionally preserved`
+  - path-risk guard: `runtime Resources and preview scene paths preserved`
+
+## Batch 77.3 Close-Out
+
+- Selected branch: `B`
+- Honest scope:
+  - keep the existing runtime/UI rail intact
+  - extend the existing battle/inventory skin scaffold into editor-friendly preview scenes, layout profiles, and mock preview data
+  - avoid all gameplay/runtime migration while giving the designer a safe art-placement workspace
+- Added preview scaffolds:
+  - `Assets/_Game/Scenes/Preview/BattleUiPreviewScene.unity`
+  - `Assets/_Game/Scenes/Preview/InventoryUiPreviewScene.unity`
+  - `Assets/_Game/Content/UI/Skins/Battle/BattleUiSkin_Default.asset`
+  - `Assets/_Game/Content/UI/Skins/Inventory/InventoryUiSkin_Default.asset`
+  - `Assets/_Game/Content/UI/LayoutProfiles/Battle/BattleUiLayout_Default.asset`
+  - `Assets/_Game/Content/UI/LayoutProfiles/Inventory/InventoryUiLayout_Default.asset`
+  - `Assets/_Game/Content/UI/Preview/Battle/BattleUiPreview_Default.asset`
+  - `Assets/_Game/Content/UI/Preview/Inventory/InventoryUiPreview_Default.asset`
+- Added preview code:
+  - battle/inventory layout profile ScriptableObjects
+  - battle/inventory mock preview data ScriptableObjects
+  - scene-local preview presenter/controller scaffold
+  - editor generator for preview scenes/assets
+- Sprite workflow note:
+  - `Assets/Sprite` was audited only
+  - no auto-assignment or import-setting mutation was performed
+  - preview slots support manual Sprite or Texture assignment, which is important because sampled sprite-pack metas were still imported as `textureType: 0`
+- Runtime safety:
+  - `SampleScene` play path unchanged
+  - no BootEntry dependency added to preview scenes
+  - no runtime world/battle/inventory truth mutation added
+  - no DDOL UI hierarchy added
+- Validation snapshot:
+  - compile: `PASS (Unity batch compile succeeded on 2026-04-20 via unity-merge-validate.log)`
+  - preview generation: `PASS (Unity batch generator created preview scenes and default preview assets on 2026-04-20 via unity-ui-preview-builder.log)`
+  - runtime isolation: `PASS (code-path scope only)`
+
+## Scene Architecture Scaffold Follow-Up
+
+- Selected branch: `scaffold-first, no scene cutover`
+- Honest scope:
+  - add a persistent-root code scaffold without claiming the project is already multi-scene
+  - document what should persist, what must unload, and which current files are legacy adapters
+  - keep the accepted `SampleScene` flow, battle HUD rail, inventory rail, and result pipeline intact
+- Added runtime scaffold:
+  - `Assets/_Game/Scripts/App/GameSceneId.cs`
+  - `Assets/_Game/Scripts/App/AppRoot.cs`
+  - `Assets/_Game/Scripts/App/GameSessionRoot.cs`
+  - `Assets/_Game/Scripts/App/RuntimeGameState.cs`
+  - `Assets/_Game/Scripts/App/SceneFlowService.cs`
+- Added architecture docs:
+  - `docs/architecture/scene-ownership-plan.md`
+  - `docs/architecture/ddol-policy.md`
+  - `docs/architecture/scene-migration-roadmap.md`
+  - `docs/architecture/script-naming-policy.md`
+- Ownership call:
+  - persistent truth stays with runtime owners like `ManualTradeRuntimeState` and canonical handoff contracts
+  - scene-local IMGUI shells (`PrototypePresentationShell`, `PrototypeDebugHUD`) remain disposable presenters
+  - `BootEntry` and `StaticPlaceholderWorldView` stay classified as legacy adapters/hot spots, not new long-term owners
+- Validation snapshot:
+  - compile: `PASS (unity-merge-validate.log, 2026-04-20)`
+  - runtime cutover: `NOT STARTED`
+  - SampleScene preservation: `PASS (code-path scope only)`
 
 ## Batch 77.2 Close-Out
 
@@ -28,7 +154,9 @@
   - user art exists under `Assets/Sprite`, but automatic assignment is unsafe because the pack is not a dedicated runtime-resolved skin path and at least part of it is not guaranteed sprite-imported
 - Fix shape:
   - added `BattleUiSkinDefinition`, `BattleUiSkinProvider`, and `BattleUiSkinRenderer`
+  - added `InventoryUiSkinDefinition`, `InventoryUiSkinProvider`, and `InventoryUiSkinRenderer`
   - exposed named skin slots for battle panels, command buttons, current-unit card, target-status card, timeline chips, HP bars, and the battle result popover
+  - split inventory skinning into its own definition and wired member rows, equipment slots, item rows, and the run-spoils badge
   - wired the active `PrototypeDebugHUD` battle rail through null-safe skin hooks
   - wired the `PrototypePresentationShell` battle result popover through the same skin path
   - left all slots manual and optional so missing art preserves the current accepted visuals
@@ -46,6 +174,7 @@
   - no random sprite assignment path added: `PASS`
   - missing-slot fallback preserves current draw path: `PASS`
   - battle result popover now shares the battle skin scaffold: `PASS`
+  - inventory row/slot/badge skinning is isolated from battle skin ownership: `PASS`
 - Manual runtime proof: `DEFERRED`
 - Smoke: `DEFERRED`
 

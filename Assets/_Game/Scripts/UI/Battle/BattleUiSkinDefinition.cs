@@ -76,11 +76,11 @@ public sealed class BattleUiSkinDefinition : ScriptableObject
     [Tooltip("Battle result popover background.")]
     public GraphicSlot PopupBackground = new GraphicSlot();
 
-    [Tooltip("Reserved for the battle-adjacent inventory overlay if the project later chooses to share the same skin.")]
-    public GraphicSlot InventoryOverlayBackground = new GraphicSlot();
+    [Tooltip("Optional badge background for reward/drop callouts in preview or result popovers.")]
+    public GraphicSlot DropPopupBadge = new GraphicSlot();
 
-    [Tooltip("Reserved for inventory/equipment slot framing if this skin is expanded later.")]
-    public GraphicSlot SlotFrame = new GraphicSlot();
+    [Tooltip("Reserved badge/background slot for burst-window callouts.")]
+    public GraphicSlot BurstWindowBadge = new GraphicSlot();
 
     public GraphicSlot GetCommandButtonSlot(BattleUiSkinButtonState state)
     {

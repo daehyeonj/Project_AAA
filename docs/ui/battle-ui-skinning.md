@@ -17,16 +17,16 @@ The goal is:
 
 Current battle-facing owners on the active rail:
 
-- `Assets/_Game/Scripts/Core/PrototypeDebugHUD.cs`
+- `Assets/_Game/Scripts/Debug/PrototypeDebugHUD.cs`
   - draws the active player-facing battle HUD shell
   - draws `Command Selection`
   - draws `Current Unit`
   - draws `Target Status`
   - draws the top timeline strip and queue chips
-- `Assets/_Game/Scripts/Core/PrototypePresentationShell.DungeonRun.cs`
+- `Assets/_Game/Scripts/UI/Battle/PrototypePresentationShell.DungeonRun.cs`
   - owns the battle result popover overlay
   - still contains a presentation-shell battle renderer, but that is not the currently accepted player-facing battle HUD rail
-- `Assets/_Game/Scripts/Core/PrototypePresentationShell.Inventory.cs`
+- `Assets/_Game/Scripts/UI/Inventory/PrototypePresentationShell.Inventory.cs`
   - owns the inventory/equipment overlay interaction during battle-adjacent moments
 
 ## Asset Audit
@@ -65,10 +65,6 @@ The skin definition exposes these high-value slots:
 - `HpBarBackground`
 - `HpBarFill`
 - `PopupBackground`
-- `InventoryOverlayBackground`
-- `SlotFrame`
-
-Not every reserved slot is wired yet.
 
 Current wired surfaces:
 
@@ -80,10 +76,9 @@ Current wired surfaces:
 - HP bars
 - battle result popover background/accent
 
-Reserved-only in this batch:
+Inventory-specific skinning is intentionally split into:
 
-- `InventoryOverlayBackground`
-- `SlotFrame`
+- `docs/ui/inventory-ui-skinning.md`
 
 ## How To Assign A Skin
 
@@ -129,7 +124,6 @@ Safe short-term path:
 - no random sprite selection from `Assets/Sprite`
 - no battle layout rewrite
 - no combat logic change
-- no inventory behavior rewrite
 - no modal behavior rollback
 - no forced atlas slicing
 - no automatic importer mutation
@@ -140,4 +134,4 @@ The next art-facing pass can stay narrow:
 
 - choose a small set of final backgrounds for `PanelBackground`, `CommandButton*`, `CurrentUnitCard`, `TargetStatusCard`, `TimelineChip*`, and `PopupBackground`
 - verify them in-editor
-- only then decide whether inventory/equipment surfaces should share the same skin family
+- continue separately with the inventory skin asset once battle art direction is confirmed

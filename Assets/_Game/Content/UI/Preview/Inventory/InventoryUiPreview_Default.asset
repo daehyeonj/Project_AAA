@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08ea6e57f55ff6844b45fef175a5a23c, type: 3}
+  m_Name: InventoryUiPreview_Default
+  m_EditorClassIdentifier: 
+  HeaderTitle: Character Equipment
+  PartyLabel: Bulwark Crew
+  SummaryText: 4 members | 6 items
+  RunSpoilsBadgeText: Run Spoils +3 pending extraction
+  PendingExtractionBadgeText: Pending Extraction
+  SelectedItemDetailText: 'Iron Bulwark Helm
+
+    HP +3 | DEF +2
+
+    Held for Alden
+    after extraction.'
+  Members:
+  - Name: Alden
+    Role: Anchor
+    Level: 4
+    Selected: 1
+  - Name: Mira
+    Role: Rogue
+    Level: 4
+    Selected: 0
+  - Name: Rune
+    Role: Mage
+    Level: 4
+    Selected: 0
+  - Name: Lia
+    Role: Cleric
+    Level: 4
+    Selected: 0
+  Slots:
+  - SlotLabel: Head
+    ItemLabel: Iron Bulwark Helm
+    HasItem: 1
+    Selected: 1
+  - SlotLabel: Left Arm
+    ItemLabel: Guard Buckler
+    HasItem: 1
+    Selected: 0
+  - SlotLabel: Right Arm
+    ItemLabel: Guild Blade
+    HasItem: 1
+    Selected: 0
+  - SlotLabel: Torso
+    ItemLabel: Traveler Coat
+    HasItem: 1
+    Selected: 0
+  - SlotLabel: Belt
+    ItemLabel: No gear
+    HasItem: 0
+    Selected: 0
+  - SlotLabel: Pants
+    ItemLabel: Field Greaves
+    HasItem: 1
+    Selected: 0
+  - SlotLabel: Shoes
+    ItemLabel: No gear
+    HasItem: 0
+    Selected: 0
+  Items:
+  - ItemLabel: Iron Bulwark Helm
+    DetailText: HP +3 | DEF +2 | Safe frontline upgrade.
+    Selected: 1
+  - ItemLabel: Traveler Gloves
+    DetailText: SPD +1 | low-risk utility fit.
+    Selected: 0
+  - ItemLabel: Mana Thread Sash
+    DetailText: Skill +2 | backline-friendly item.
+    Selected: 0
+  - ItemLabel: Field Tonic
+    DetailText: Preview-only consumable row.
+    Selected: 0

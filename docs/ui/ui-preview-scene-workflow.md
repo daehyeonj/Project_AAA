@@ -51,12 +51,13 @@ See `docs/ui/ui-preview-scene-setup.md` for the exact fallback steps.
 
 1. Open `BattleUiPreviewScene`.
 2. Select `BattleUiSkin_Default.asset`.
-3. Manually drag curated sprites or textures from `Assets/_Game/Content/UI/Sprites` into the named slots.
+3. Manually drag curated sprites from `Assets/_Game/Content/UI/Sprites` into the named slots.
 4. If a needed candidate has not been staged yet, inspect the raw source pack under `Assets/Sprite` and curate it first instead of assigning from the raw pack blindly.
-5. Tune sizes and spacing in `BattleUiLayout_Default.asset`.
-6. If needed, edit preview copy/text in `BattleUiPreview_Default.asset`.
-7. Press Play to verify the layout.
-8. Repeat the same flow in `InventoryUiPreviewScene`.
+5. Follow `docs/ui/manual-skin-assignment-checklist.md` for the minimum required slot checks.
+6. Tune sizes and spacing in `BattleUiLayout_Default.asset`.
+7. If needed, edit preview copy/text in `BattleUiPreview_Default.asset`.
+8. Press Play to verify the layout.
+9. Repeat the same flow in `InventoryUiPreviewScene`.
 
 ## Slot Meaning
 
@@ -120,13 +121,13 @@ This is intentional so the scene is useful before art assignment.
 
 ## Why Codex Did Not Auto-Assign
 
-`Assets/Sprite` currently contains multiple unrelated packs and category structures, and sampled `.meta` files show textures imported with `textureType: 0` rather than one guaranteed unified UI-sprite setup.
+The curated sprite copies now import as `Sprite (2D and UI)` after Batch 77.6, but no explicit slot-to-file mapping has been provided by the user.
 
 Because of that:
 
 - Codex did not guess slot mappings
 - Codex did not change raw source import settings
-- Codex did not auto-pick “best looking” art
+- Codex did not auto-pick "best looking" art
 
 Human assignment is the correct workflow here.
 

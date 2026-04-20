@@ -25,4 +25,4 @@ The folders below are candidate pools, not final design decisions.
 ## Notes
 
 - `Inventory/Icons` is staged for future overlay glyph work, but the current skin asset does not expose a dedicated icon slot.
-- If a chosen candidate still needs `Sprite (2D and UI)` import mode, convert the curated copy only.
+- Curated copies were normalized to `Sprite (2D and UI)` import mode in Batch 77.6.

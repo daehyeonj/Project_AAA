@@ -38,7 +38,7 @@ If Codex cannot run Unity batchmode because the project is already open in the e
     - `InventoryUiSkin_Default`
     - `InventoryUiLayout_Default`
     - `InventoryUiPreview_Default`
-15. Open the default skin assets and manually drag Sprite or Texture assets into slots.
+15. Open the default skin assets and manually drag curated Sprite assets into slots.
 16. Press Play to inspect the preview layouts.
 
 ## If The Menu Is Missing
@@ -94,5 +94,6 @@ If a preview scene still does not exist:
 
 - Codex created slots and preview scaffolds.
 - Human designer assigns art.
+- Curated copies under `Assets/_Game/Content/UI/Sprites` were normalized for Sprite assignment in Batch 77.6.
 - Codex did not auto-map by filename.
 - Codex did not touch `Assets/Sprite` import settings in this batch.

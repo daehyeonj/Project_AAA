@@ -105,10 +105,19 @@ public sealed partial class PrototypePresentationShell
         Rect backdropRect = screenRect;
         Rect modalRect = CenterRect(modalWidth, modalHeight);
         Color accentColor = ResolveBattleResultPopoverAccentColor(popover.OutcomeKey);
+        BattleUiSkinDefinition skin = GetCurrentBattleUiSkin();
 
         DrawRect(backdropRect, new Color(0.02f, 0.03f, 0.06f, 0.64f));
-        DrawPanel(modalRect, new Color(accentColor.r, accentColor.g, accentColor.b, 0.96f), new Color(0.08f, 0.11f, 0.16f, 0.98f));
-        DrawRect(new Rect(modalRect.x + 14f, modalRect.y + 14f, 6f, modalRect.height - 28f), accentColor);
+        if (!BattleUiSkinRenderer.TryDrawGraphic(modalRect, skin.PopupBackground))
+        {
+            DrawPanel(modalRect, new Color(accentColor.r, accentColor.g, accentColor.b, 0.96f), new Color(0.08f, 0.11f, 0.16f, 0.98f));
+        }
+
+        Rect accentRect = new Rect(modalRect.x + 14f, modalRect.y + 14f, 6f, modalRect.height - 28f);
+        if (!BattleUiSkinRenderer.TryDrawGraphic(accentRect, skin.PanelAccent))
+        {
+            DrawRect(accentRect, accentColor);
+        }
 
         Event currentEvent = Event.current;
         if (currentEvent != null)

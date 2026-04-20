@@ -178,6 +178,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     private HudFilter _activeFilter = HudFilter.All;
     private string _searchText = string.Empty;
     private Dictionary<string, bool> _expandedByKey;
+    [SerializeField] private BattleUiSkinDefinition _battleUiSkin;
     [SerializeField] private bool _startDebugHudVisible;
     private bool _debugHudVisible;
     private BattleHudFlyoutMode _battleFlyoutMode = BattleHudFlyoutMode.None;
@@ -204,6 +205,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     private void Awake()
     {
         CacheBootEntry();
+        BattleUiSkinProvider.Register(_battleUiSkin);
         _debugHudVisible = _startDebugHudVisible;
         EnsureExpandedState();
     }
@@ -211,6 +213,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     private void OnGUI()
     {
         CacheBootEntry();
+        BattleUiSkinProvider.Register(_battleUiSkin);
         if (_bootEntry == null)
         {
             _isSearchFieldFocused = false;
@@ -533,7 +536,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private void DrawCurrentUnitPanel(Rect rect)
     {
-        DrawOverlaySectionBackground(rect, new Color(0.08f, 0.11f, 0.16f, 0.98f));
+        DrawBattleHudSectionBackground(rect, new Color(0.08f, 0.11f, 0.16f, 0.98f), GetCurrentBattleUiSkin().PanelBackground);
         Rect titleRect = new Rect(rect.x + SectionInnerPadding, rect.y + 8f, rect.width - (SectionInnerPadding * 2f), 18f);
         Rect subtitleRect = new Rect(titleRect.x, titleRect.yMax + 3f, titleRect.width, 16f);
         Rect contentRect = new Rect(rect.x + SectionInnerPadding, subtitleRect.yMax + 8f, rect.width - (SectionInnerPadding * 2f), rect.height - (subtitleRect.yMax - rect.y) - 12f);
@@ -555,7 +558,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private void DrawTargetStatusPanel(Rect rect)
     {
-        DrawOverlaySectionBackground(rect, new Color(0.08f, 0.12f, 0.10f, 0.98f));
+        DrawBattleHudSectionBackground(rect, new Color(0.08f, 0.12f, 0.10f, 0.98f), GetCurrentBattleUiSkin().PanelBackground);
         Rect titleRect = new Rect(rect.x + SectionInnerPadding, rect.y + 8f, rect.width - (SectionInnerPadding * 2f), 18f);
         Rect subtitleRect = new Rect(titleRect.x, titleRect.yMax + 3f, titleRect.width, 16f);
         Rect contentRect = new Rect(rect.x + SectionInnerPadding, subtitleRect.yMax + 8f, rect.width - (SectionInnerPadding * 2f), rect.height - (subtitleRect.yMax - rect.y) - 12f);
@@ -578,7 +581,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private void DrawCurrentTurnHeaderCard(Rect rect)
     {
-        DrawOverlaySectionBackground(rect, new Color(0.11f, 0.17f, 0.24f, 0.90f));
+        DrawBattleHudSectionBackground(rect, new Color(0.11f, 0.17f, 0.24f, 0.90f), GetCurrentBattleUiSkin().PanelHeader);
         Rect titleRect = new Rect(rect.x + 10f, rect.y + 6f, rect.width - 20f, 12f);
         Rect nameRect = new Rect(rect.x + 10f, titleRect.yMax + 5f, rect.width - 20f, 16f);
         Rect roleRect = new Rect(rect.x + 10f, nameRect.yMax + 3f, rect.width - 20f, rect.height - (nameRect.yMax - rect.y) - 8f);
@@ -589,7 +592,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private void DrawBattleTopStrip(Rect rect)
     {
-        DrawOverlaySectionBackground(rect, new Color(0.05f, 0.09f, 0.14f, 0.84f));
+        DrawBattleHudSectionBackground(rect, new Color(0.05f, 0.09f, 0.14f, 0.84f), GetCurrentBattleUiSkin().PanelBackground);
         float summaryWidth = Mathf.Clamp(rect.width * 0.24f, 280f, 420f);
         float currentWidth = Mathf.Clamp(rect.width * 0.10f, 136f, 176f);
         float phaseWidth = Mathf.Clamp(rect.width * 0.07f, 96f, 116f);
@@ -606,7 +609,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private void DrawBattleDungeonSummaryCard(Rect rect)
     {
-        DrawOverlaySectionBackground(rect, new Color(0.09f, 0.14f, 0.20f, 0.90f));
+        DrawBattleHudSectionBackground(rect, new Color(0.09f, 0.14f, 0.20f, 0.90f), GetCurrentBattleUiSkin().PanelHeader);
         Rect titleRect = new Rect(rect.x + 14f, rect.y + 8f, rect.width - 28f, 18f);
         Rect typeRect = new Rect(rect.x + 14f, titleRect.yMax + 4f, rect.width - 28f, 15f);
         Rect progressRect = new Rect(rect.x + 14f, typeRect.yMax + 4f, rect.width - 28f, rect.height - (typeRect.yMax - rect.y) - 10f);
@@ -617,14 +620,14 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private void DrawTurnOrderTimeline(Rect rect)
     {
-        DrawOverlaySectionBackground(rect, new Color(0.07f, 0.11f, 0.16f, 0.99f));
+        DrawBattleHudSectionBackground(rect, new Color(0.07f, 0.11f, 0.16f, 0.99f), GetCurrentBattleUiSkin().PanelHeader);
         Rect innerRect = new Rect(rect.x + SectionInnerPadding, rect.y + 7f, rect.width - (SectionInnerPadding * 2f), rect.height - 14f);
         DrawTimelineQueue(innerRect, GetBattleUiSurfaceData().Timeline);
     }
 
     private void DrawTimelinePhaseToken(Rect rect, PrototypeBattleUiTimelineData timeline)
     {
-        DrawOverlaySectionBackground(rect, new Color(0.13f, 0.21f, 0.30f, 0.98f));
+        DrawBattleHudSectionBackground(rect, new Color(0.13f, 0.21f, 0.30f, 0.98f), GetCurrentBattleUiSkin().PanelHeader);
         Rect titleRect = new Rect(rect.x + 7f, rect.y + 5f, rect.width - 14f, 12f);
         Rect phaseRect = new Rect(rect.x + 7f, titleRect.yMax + 3f, rect.width - 14f, 15f);
         Rect footerRect = new Rect(rect.x + 7f, phaseRect.yMax + 3f, rect.width - 14f, rect.height - 26f);
@@ -688,8 +691,8 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 : isEnemy
                     ? new Color(0.22f, 0.12f, 0.12f, 0.98f)
                     : new Color(0.10f, 0.15f, 0.22f, 0.98f);
-        DrawOverlaySectionBackground(rect, backgroundColor);
-        DrawSolidHudRect(new Rect(rect.x, rect.y, rect.width, 3f), accentColor);
+        DrawBattleHudSectionBackground(rect, backgroundColor, GetCurrentBattleUiSkin().GetTimelineSlot(isCurrent, isEnemy));
+        DrawBattleHudAccentRect(new Rect(rect.x, rect.y, rect.width, 3f), accentColor);
 
         string statusLabel = slotData != null && HasMeaningfulText(slotData.StatusLabel)
             ? GetCompactHudText(slotData.StatusLabel.ToUpperInvariant(), 12, false)
@@ -756,8 +759,8 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
                 : targeted
                     ? new Color(0.17f, 0.14f, 0.10f, 0.98f)
                     : new Color(0.09f, 0.12f, 0.18f, 0.98f);
-        DrawOverlaySectionBackground(rect, backgroundColor);
-        DrawSolidHudRect(new Rect(rect.x, rect.y, 5f, rect.height), accentColor);
+        DrawBattleHudSectionBackground(rect, backgroundColor, GetCurrentBattleUiSkin().CurrentUnitCard);
+        DrawBattleHudAccentRect(new Rect(rect.x, rect.y, 5f, rect.height), accentColor);
 
         Rect avatarRect = new Rect(rect.x + 10f, rect.y + 10f, 28f, 28f);
         DrawOverlaySectionBackground(avatarRect, new Color(accentColor.r, accentColor.g, accentColor.b, 0.28f));
@@ -898,8 +901,8 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             HasMeaningfulText(targetSelection.ExpectedEffectText);
         Color accentColor = GetBattleRoleAccentColor(roleLabel, true);
 
-        DrawOverlaySectionBackground(rect, new Color(0.10f, 0.12f, 0.17f, 0.98f));
-        DrawSolidHudRect(new Rect(rect.x, rect.y, rect.width, 4f), accentColor);
+        DrawBattleHudSectionBackground(rect, new Color(0.10f, 0.12f, 0.17f, 0.98f), GetCurrentBattleUiSkin().TargetStatusCard);
+        DrawBattleHudAccentRect(new Rect(rect.x, rect.y, rect.width, 4f), accentColor);
 
         Rect nameRect = new Rect(rect.x + 10f, rect.y + 10f, rect.width - 106f, 20f);
         Rect eliteRect = new Rect(rect.xMax - 88f, rect.y + 10f, 78f, 22f);
@@ -1023,7 +1026,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             return;
         }
 
-        DrawOverlaySectionBackground(rect, new Color(0.07f, 0.10f, 0.15f, 0.98f));
+        DrawBattleHudSectionBackground(rect, new Color(0.07f, 0.10f, 0.15f, 0.98f), GetCurrentBattleUiSkin().PanelBackground);
         PrototypeBattleUiCommandDetailData[] moveOptions = focusKey == "move"
             ? GetBattleUiMoveOptionDetails()
             : Array.Empty<PrototypeBattleUiCommandDetailData>();
@@ -1147,9 +1150,9 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
     private void DrawCommandSelectionPanel(Rect rect)
     {
         _battleHudHoverDetailKey = string.Empty;
-        DrawOverlaySectionBackground(rect, new Color(0.08f, 0.11f, 0.16f, 0.96f));
+        DrawBattleHudSectionBackground(rect, new Color(0.08f, 0.11f, 0.16f, 0.96f), GetCurrentBattleUiSkin().PanelBackground);
         Rect shellRect = new Rect(rect.x + 10f, rect.y + 10f, rect.width - 20f, rect.height - 20f);
-        DrawOverlaySectionBackground(shellRect, new Color(0.06f, 0.09f, 0.14f, 0.94f));
+        DrawBattleHudSectionBackground(shellRect, new Color(0.06f, 0.09f, 0.14f, 0.94f), GetCurrentBattleUiSkin().PanelHeader);
         Rect titleRect = new Rect(shellRect.x + 10f, shellRect.y + 8f, shellRect.width - 20f, 18f);
         Rect subtitleRect = new Rect(titleRect.x, titleRect.yMax + 3f, titleRect.width, 16f);
         Rect hintRect = new Rect(titleRect.x, subtitleRect.yMax + 4f, titleRect.width, 15f);
@@ -1729,7 +1732,24 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private bool DrawBottomCommandButton(Rect rect, string label, bool available, bool hovered, bool selected)
     {
-        return DrawInteractiveButton(rect, label, available, hovered, selected);
+        if (ShouldDrawCurrentEventVisuals())
+        {
+            DrawBattleHudButtonBackground(rect, available, hovered, selected);
+
+            Color previousColor = GUI.color;
+            GUI.color = available ? Color.white : new Color(0.6f, 0.64f, 0.68f, 1f);
+            DrawHudLabel(rect, label, _actionButtonStyle);
+            GUI.color = previousColor;
+        }
+
+        Event current = Event.current;
+        if (available && current != null && current.type == EventType.MouseDown && current.button == 0 && rect.Contains(current.mousePosition))
+        {
+            current.Use();
+            return true;
+        }
+
+        return false;
     }
 
     private string BuildEnemyRosterBody()
@@ -2442,17 +2462,93 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
             return;
         }
 
-        DrawSolidHudRect(rect, new Color(0.06f, 0.08f, 0.11f, 0.92f));
+        BattleUiSkinDefinition skin = GetCurrentBattleUiSkin();
+        if (!BattleUiSkinRenderer.TryDrawGraphic(rect, skin.HpBarBackground))
+        {
+            DrawSolidHudRect(rect, new Color(0.06f, 0.08f, 0.11f, 0.92f));
+        }
 
         float fillRatio = Mathf.Clamp01(current / max);
         if (fillRatio > 0f)
         {
             Rect fillRect = new Rect(rect.x + 1f, rect.y + 1f, (rect.width - 2f) * fillRatio, rect.height - 2f);
-            DrawSolidHudRect(fillRect, fillColor);
+            if (!BattleUiSkinRenderer.TryDrawGraphic(fillRect, skin.HpBarFill))
+            {
+                DrawSolidHudRect(fillRect, fillColor);
+            }
         }
 
         int maxLength = rect.width < 120f ? 14 : 22;
         DrawHudLabel(new Rect(rect.x + 6f, rect.y, rect.width - 12f, rect.height), GetCompactHudText(label, maxLength, false), _sectionTitleStyle);
+    }
+
+    private BattleUiSkinDefinition GetCurrentBattleUiSkin()
+    {
+        return BattleUiSkinProvider.Resolve(_battleUiSkin);
+    }
+
+    private void DrawBattleHudSectionBackground(Rect rect, Color fallbackColor, BattleUiSkinDefinition.GraphicSlot slot)
+    {
+        if (!ShouldDrawCurrentEventVisuals())
+        {
+            return;
+        }
+
+        if (BattleUiSkinRenderer.TryDrawGraphic(rect, slot))
+        {
+            return;
+        }
+
+        DrawOverlaySectionBackground(rect, fallbackColor);
+    }
+
+    private void DrawBattleHudAccentRect(Rect rect, Color fallbackColor)
+    {
+        if (!ShouldDrawCurrentEventVisuals())
+        {
+            return;
+        }
+
+        if (BattleUiSkinRenderer.TryDrawGraphic(rect, GetCurrentBattleUiSkin().PanelAccent))
+        {
+            return;
+        }
+
+        DrawSolidHudRect(rect, fallbackColor);
+    }
+
+    private void DrawBattleHudButtonBackground(Rect rect, bool available, bool hovered, bool selected)
+    {
+        if (!ShouldDrawCurrentEventVisuals())
+        {
+            return;
+        }
+
+        BattleUiSkinButtonState state = !available
+            ? BattleUiSkinButtonState.Disabled
+            : selected
+                ? BattleUiSkinButtonState.Selected
+                : hovered
+                    ? BattleUiSkinButtonState.Hover
+                    : BattleUiSkinButtonState.Normal;
+        BattleUiSkinDefinition.GraphicSlot slot = GetCurrentBattleUiSkin().GetCommandButtonSlot(state);
+        if (BattleUiSkinRenderer.TryDrawGraphic(rect, slot))
+        {
+            return;
+        }
+
+        Color buttonColor = !available
+            ? new Color(0.10f, 0.10f, 0.12f, 0.72f)
+            : selected
+                ? new Color(0.22f, 0.37f, 0.52f, 0.96f)
+                : hovered
+                    ? new Color(0.18f, 0.28f, 0.40f, 0.96f)
+                    : new Color(0.10f, 0.14f, 0.20f, 0.94f);
+        DrawSolidHudRect(rect, buttonColor);
+        if (!_battleHudFastBackground)
+        {
+            DrawSolidHudRect(new Rect(rect.x, rect.y, rect.width, 1f), new Color(0.64f, 0.78f, 0.92f, 0.16f));
+        }
     }
     private string GetNextBattleTimelineText()
     {

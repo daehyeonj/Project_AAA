@@ -592,7 +592,7 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
 
     private void DrawBattleTopStrip(Rect rect)
     {
-        DrawBattleHudSectionBackground(rect, new Color(0.05f, 0.09f, 0.14f, 0.84f), GetCurrentBattleUiSkin().PanelBackground);
+        DrawBattleHudSectionBackground(rect, new Color(0.05f, 0.09f, 0.14f, 0.84f), GetCurrentBattleUiSkin().GetTopStripSlot());
         float summaryWidth = Mathf.Clamp(rect.width * 0.24f, 280f, 420f);
         float currentWidth = Mathf.Clamp(rect.width * 0.10f, 136f, 176f);
         float phaseWidth = Mathf.Clamp(rect.width * 0.07f, 96f, 116f);

@@ -24,5 +24,8 @@ The folders below are candidate pools, not final design decisions.
 
 ## Notes
 
+- final skin inputs should use `Sprite` references; `Texture` references remain preview-only fallback
+- `UI_TravelBook_Slot01a` and `UI_TravelBook_Slot01b` are acceptable preview candidates for empty/equipped slot testing
 - `Inventory/Icons` is staged for future overlay glyph work, but the current skin asset does not expose a dedicated icon slot.
 - Curated copies were normalized to `Sprite (2D and UI)` import mode in Batch 77.6.
+- Raven Fantasy Icons remains blocked until license confirmation.

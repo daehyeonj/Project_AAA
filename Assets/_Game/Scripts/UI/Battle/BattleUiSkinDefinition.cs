@@ -10,7 +10,7 @@ public sealed class BattleUiSkinDefinition : ScriptableObject
         [Tooltip("Optional sprite reference. Preferred when the source texture is imported as Sprite (2D and UI).")]
         public Sprite Sprite;
 
-        [Tooltip("Optional texture reference for packs that are still imported as Default Texture.")]
+        [Tooltip("Preview-only texture fallback. Final skin authoring should prefer Sprite references.")]
         public Texture2D Texture;
 
         [Tooltip("Tint applied to the assigned sprite or texture.")]
@@ -34,6 +34,9 @@ public sealed class BattleUiSkinDefinition : ScriptableObject
 
     [Tooltip("Optional accent strip/line graphic.")]
     public GraphicSlot PanelAccent = new GraphicSlot();
+
+    [Tooltip("Wide battle top-strip background. Leave empty to keep fallback rendering instead of stretching general panel art.")]
+    public GraphicSlot TopStripBackground = new GraphicSlot();
 
     [Header("Command Buttons")]
     [Tooltip("Normal command button background.")]
@@ -82,6 +85,16 @@ public sealed class BattleUiSkinDefinition : ScriptableObject
     [Tooltip("Reserved badge/background slot for burst-window callouts.")]
     public GraphicSlot BurstWindowBadge = new GraphicSlot();
 
+    [Header("Text")]
+    [Tooltip("Default title text color when a light popup background is assigned.")]
+    public Color PopupTitleTextColor = new Color(0.18f, 0.12f, 0.08f, 1f);
+
+    [Tooltip("Default body text color when a light popup background is assigned.")]
+    public Color PopupBodyTextColor = new Color(0.20f, 0.14f, 0.10f, 1f);
+
+    [Tooltip("Default hint or badge text color when a light popup background is assigned.")]
+    public Color PopupHintTextColor = new Color(0.24f, 0.17f, 0.11f, 1f);
+
     public GraphicSlot GetCommandButtonSlot(BattleUiSkinButtonState state)
     {
         switch (state)
@@ -110,6 +123,34 @@ public sealed class BattleUiSkinDefinition : ScriptableObject
         }
 
         return TimelineChip;
+    }
+
+    public GraphicSlot GetTopStripSlot()
+    {
+        return TopStripBackground != null && TopStripBackground.HasAssignedGraphic
+            ? TopStripBackground
+            : null;
+    }
+
+    public Color GetPopupTitleTextColor(Color fallbackColor)
+    {
+        return PopupBackground != null && PopupBackground.HasAssignedGraphic
+            ? PopupTitleTextColor
+            : fallbackColor;
+    }
+
+    public Color GetPopupBodyTextColor(Color fallbackColor)
+    {
+        return PopupBackground != null && PopupBackground.HasAssignedGraphic
+            ? PopupBodyTextColor
+            : fallbackColor;
+    }
+
+    public Color GetPopupHintTextColor(Color fallbackColor)
+    {
+        return PopupBackground != null && PopupBackground.HasAssignedGraphic
+            ? PopupHintTextColor
+            : fallbackColor;
     }
 }
 

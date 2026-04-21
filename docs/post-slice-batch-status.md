@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
+- Latest closed batch: `Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,8 +18,61 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-b -> dungeon-beta`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: `explicit user/designer sprite-to-slot mapping or preview screenshots are still required before any skin assignment or layout tuning can happen`
+- Next honest bottleneck: `capture fresh battle/inventory preview screenshots against the current user-authored test assignments, then either tune remaining visual issues or decide whether to open 77.9 runtime skin bridge`
 - Scene architecture status: `compile-safe persistent-root scaffold added; SampleScene remains the live playable baseline`
+
+## Batch 77.8.1 Close-Out
+
+- Selected branch: `A`
+- Honest scope:
+  - validate the already-landed 77.8 renderer/policy changes
+  - rerun compile after the Unity editor blocker was cleared
+  - confirm the current skin assets still reflect user-authored preview testing rather than random Codex assignments
+  - close the validation gate with static proof
+- Preflight:
+  - Unity editor blocker: `cleared before validation`
+  - skin assets: `present with partial user-authored preview test assignments`
+  - TravelBook attribution note: `present`
+  - Raven icons: `still blocked / UNKNOWN`
+- Compile:
+  - log: `unity-merge-validate.log`
+  - result: `PASS`
+  - proof markers:
+    - `*** Tundra build success`
+    - `Batchmode quit successfully invoked - shutting down!`
+    - `Exiting batchmode successfully now!`
+- Visual/static proof:
+  - top bar: `PASS (TopStripBackground is now the only skin slot queried for the full-width battle top strip; empty slot falls back instead of stretching PanelBackground)`
+  - popover readability: `PASS (popup title/body/hint color path is wired through the battle skin definition and the current PopupBackground test assignment remains Sprite-based)`
+  - inventory: `PASS (no new inventory code landed in 77.8.1; current equipment slot and run-spoils test assignments remain preview-only and policy-stable)`
+- Gameplay changes: `none`
+- Runtime/resource rail unchanged: `PASS`
+
+## Batch 77.8 Close-Out
+
+- Selected branch: `A with popover readability guard`
+- Honest scope:
+  - verify whether the reported manual preview assignments were serialized
+  - stop wide battle top-strip rects from consuming general panel art blindly
+  - keep the final authoring policy Sprite-first while preserving preview-only Texture fallback
+  - add a generic popover text-color path for light parchment backgrounds
+- Preflight:
+  - serialized assignments in the default skin assets: `none`
+  - Battle/Inventory skin assets: `present`
+  - Battle/Inventory layout profiles: `present`
+  - preview scenes: `present`
+  - Raven icons: `still blocked`
+- Fix summary:
+  - top bar: `BattleUiSkinDefinition.TopStripBackground` added; preview and shared battle HUD now fall back instead of stretching PanelBackground across the full-width top strip
+  - Sprite/Texture policy: `Sprite` is documented as the final input path; `Texture` is explicitly preview-only fallback
+  - popover readability: `PopupTitleTextColor`, `PopupBodyTextColor`, and `PopupHintTextColor` added for light popup-background cases
+  - inventory: `no layout or code changes; existing slot-preview guidance kept stable`
+- Gameplay changes: `none`
+- Validation snapshot:
+  - compile: `BLOCKED (Project_AAA was already open in another Unity editor instance on 2026-04-21)`
+  - top-strip fallback guard: `PASS`
+  - popover text-color path: `PASS`
+  - runtime/resource rail unchanged: `PASS`
 
 ## Batch 77.7 Close-Out
 

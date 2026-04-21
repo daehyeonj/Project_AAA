@@ -56,9 +56,10 @@ Working project rule:
 
 ## Current Usage Boundary
 
-- Batch 77.7 made no sprite assignments
-- Battle and Inventory skin assets remain empty
-- preview scenes stay on fallback rendering until the user provides explicit mapping and/or screenshots
+- Codex made no random sprite assignments
+- current default skin assets contain user-authored preview test assignments on a few Battle and Inventory slots
+- those assignments are still preview/test state, not final art approval
+- preview scenes should be re-tested after the 77.8 top-strip fallback guard and popover text-color path
 
 ## Related Docs
 

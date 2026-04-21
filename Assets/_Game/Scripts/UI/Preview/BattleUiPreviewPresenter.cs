@@ -54,7 +54,7 @@ public sealed class BattleUiPreviewPresenter
 
     private void DrawTopStrip(Rect rect, BattleUiLayoutProfile layout, BattleUiPresenterModel model)
     {
-        DrawBattleSlot(rect, new Color(0.06f, 0.10f, 0.14f, 0.98f), _skin != null ? _skin.PanelBackground : null);
+        DrawBattleSlot(rect, new Color(0.06f, 0.10f, 0.14f, 0.98f), _skin != null ? _skin.GetTopStripSlot() : null);
         float innerPadding = layout.PanelPadding;
         Rect dungeonRect = new Rect(rect.x + innerPadding, rect.y + innerPadding, 400f, rect.height - (innerPadding * 2f));
         Rect phaseRect = new Rect(dungeonRect.xMax + layout.CardGap, dungeonRect.y, 118f, dungeonRect.height);
@@ -137,8 +137,11 @@ public sealed class BattleUiPreviewPresenter
     private void DrawPopover(Rect rect, BattleUiPresenterModel model)
     {
         DrawBattleSlot(rect, new Color(0.12f, 0.18f, 0.24f, 0.96f), _skin != null ? _skin.PopupBackground : null);
-        GUI.Label(new Rect(rect.x + 16f, rect.y + 12f, rect.width - 32f, 24f), model.ResultPopoverTitle, _sectionStyle);
-        GUI.Label(new Rect(rect.x + 16f, rect.y + 40f, rect.width - 32f, rect.height - 56f), model.ResultPopoverBody, _bodyStyle);
+        Color titleColor = _skin != null ? _skin.GetPopupTitleTextColor(_sectionStyle.normal.textColor) : _sectionStyle.normal.textColor;
+        Color bodyColor = _skin != null ? _skin.GetPopupBodyTextColor(_bodyStyle.normal.textColor) : _bodyStyle.normal.textColor;
+        Color hintColor = _skin != null ? _skin.GetPopupHintTextColor(_captionStyle.normal.textColor) : _captionStyle.normal.textColor;
+        DrawLabel(new Rect(rect.x + 16f, rect.y + 12f, rect.width - 32f, 24f), model.ResultPopoverTitle, _sectionStyle, titleColor);
+        DrawLabel(new Rect(rect.x + 16f, rect.y + 40f, rect.width - 32f, rect.height - 56f), model.ResultPopoverBody, _bodyStyle, bodyColor);
         if (_skin != null && _skin.DropPopupBadge != null && _skin.DropPopupBadge.HasAssignedGraphic)
         {
             Rect badgeRect = new Rect(rect.x + 16f, rect.yMax - 36f, 108f, 22f);
@@ -147,7 +150,7 @@ public sealed class BattleUiPreviewPresenter
                 DrawRect(badgeRect, new Color(0.62f, 0.46f, 0.19f, 0.98f));
             }
 
-            GUI.Label(badgeRect, "Drop Preview", _captionStyle);
+            DrawLabel(badgeRect, "Drop Preview", _captionStyle, hintColor);
         }
     }
 
@@ -203,6 +206,14 @@ public sealed class BattleUiPreviewPresenter
         {
             DrawRect(rect, fallbackColor);
         }
+    }
+
+    private static void DrawLabel(Rect rect, string text, GUIStyle style, Color color)
+    {
+        Color previous = GUI.contentColor;
+        GUI.contentColor = color;
+        GUI.Label(rect, text, style);
+        GUI.contentColor = previous;
     }
 
     private static Rect Inset(Rect rect, float padding)

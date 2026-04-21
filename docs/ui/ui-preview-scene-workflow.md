@@ -20,6 +20,12 @@ Codex did **not**:
 - change the runtime battle/inventory truth
 - switch the real game flow to these preview scenes
 
+Final skin policy:
+
+- use `Sprite` references as the final skin inputs
+- treat `Texture` references as preview-only fallback for temporary/manual testing
+- do not use Raven Fantasy Icons until license confirmation exists
+
 ## Scenes To Open
 
 - `Assets/_Game/Scenes/Preview/BattleUiPreviewScene.unity`
@@ -54,15 +60,18 @@ See `docs/ui/ui-preview-scene-setup.md` for the exact fallback steps.
 3. Manually drag curated sprites from `Assets/_Game/Content/UI/Sprites` into the named slots.
 4. If a needed candidate has not been staged yet, inspect the raw source pack under `Assets/Sprite` and curate it first instead of assigning from the raw pack blindly.
 5. Follow `docs/ui/manual-skin-assignment-checklist.md` for the minimum required slot checks.
-6. Tune sizes and spacing in `BattleUiLayout_Default.asset`.
-7. If needed, edit preview copy/text in `BattleUiPreview_Default.asset`.
-8. Press Play to verify the layout.
-9. Repeat the same flow in `InventoryUiPreviewScene`.
+6. Do not assign book-cover or generic panel art to the full-width battle top strip. Use `TopStripBackground` only when you have a strip-safe sprite; otherwise keep fallback rendering.
+7. If `PopupBackground` is a light parchment sprite, use the popup text color fields to keep title/body/hint text dark enough to read.
+8. Tune sizes and spacing in `BattleUiLayout_Default.asset`.
+9. If needed, edit preview copy/text in `BattleUiPreview_Default.asset`.
+10. Press Play to verify the layout.
+11. Repeat the same flow in `InventoryUiPreviewScene`.
 
 ## Slot Meaning
 
 ### Battle skin slots
 
+- `TopStripBackground`: full-width battle top bar only; leave empty if no strip-safe sprite exists
 - `PanelBackground`: general battle panel shells
 - `PanelHeader`: top strip / summary / header surfaces
 - `PanelAccent`: optional accent strip
@@ -128,6 +137,7 @@ Because of that:
 - Codex did not guess slot mappings
 - Codex did not change raw source import settings
 - Codex did not auto-pick "best looking" art
+- Codex did add a top-strip fallback guard so wide bars no longer blindly stretch `PanelBackground`
 
 Human assignment is the correct workflow here.
 

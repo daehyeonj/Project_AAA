@@ -33,7 +33,28 @@ This map records the current Batch 77.5 starter curation.
 - `Tiny RPG Character Asset Pack v1.03 -Free Soldier&Orc`
   - character/world art, not a primary UI skin source for this batch
 
-## Sampled Import Settings From Raw TravelBook Candidates
+## License / Attribution Snapshot
+
+### TravelBook Lite
+
+- source pack: `Assets/Sprite/Complete_UI_Book_Styles_Pack_Free_v1.0`
+- license evidence found: `License.txt`
+- visible status: personal/commercial project use is allowed
+- visible credit requirement: give appropriate credit or provide the product page link, and indicate changes
+- visible restriction: do not resell or publish the same material, or adapted versions of it, as a standalone asset pack
+- repo working note: curated copies should keep attribution notes in docs and should not be treated as freely redistributable source art
+
+### Raven Fantasy Icons
+
+- source pack: `Assets/Sprite/Free - Raven Fantasy Icons`
+- license evidence found: none in the audited folder
+- note found: `Special Note to the Dev.txt`
+- LicenseStatus: `UNKNOWN`
+- repo working note: keep this pack out of curated assignment until the actual license is confirmed
+
+## Import Audit
+
+### Raw TravelBook candidates
 
 Sampled files:
 
@@ -60,7 +81,26 @@ Interpretation:
 
 - these are still imported like generic textures rather than guaranteed UI sprites
 - no import setting changes were made in Batch 77.5
-- future import cleanup should happen on curated copies only
+- raw source remains untouched
+
+### Curated copies after Batch 77.6
+
+Observed normalized values:
+
+- `textureType: 8`
+- `spriteMode: 1`
+- `spriteMeshType: 1`
+- `spritePixelsToUnits: 100`
+- `alphaIsTransparency: 1`
+- `filterMode: 1`
+- `textureCompression: 0`
+- `enableMipMap: 0`
+
+Interpretation:
+
+- curated copies now import as UI-test sprites
+- curated copies are assignable to `Sprite` fields
+- generated `.meta` files exist only on the project-owned curated copies
 
 ## Curated Copy Map
 

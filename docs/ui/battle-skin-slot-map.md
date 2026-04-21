@@ -8,6 +8,7 @@ The folders below are candidate pools, not final design decisions.
 | Slot | Candidate folder | Current curated examples | Notes |
 | --- | --- | --- | --- |
 | `PanelBackground` | `Assets/_Game/Content/UI/Sprites/Battle/Panels` | `UI_TravelBook_BookCover01a`, `UI_TravelBook_Frame01a`, `UI_TravelBook_Popup01a` | human assignment required |
+| `TopStripBackground` | `Assets/_Game/Content/UI/Sprites/Shared/Dividers` | `UI_TravelBook_Line01a` | leave empty unless you have a dedicated strip/tile sprite; fallback is preferred over stretching book-cover art |
 | `PanelHeader` | `Assets/_Game/Content/UI/Sprites/Battle/Panels` | `UI_TravelBook_FrameSelect01a`, `UI_TravelBook_Frame01a` | human assignment required |
 | `PanelAccent` | `Assets/_Game/Content/UI/Sprites/Shared/Dividers` | `UI_TravelBook_Line01a` | human assignment required |
 | `CommandButtonNormal` | `Assets/_Game/Content/UI/Sprites/Battle/Buttons` | `UI_TravelBook_ButtonValue01a`, `UI_TravelBook_Select01a` | human assignment required |
@@ -27,5 +28,9 @@ The folders below are candidate pools, not final design decisions.
 
 ## Notes
 
+- final skin inputs should use `Sprite` references; `Texture` references remain preview-only fallback
+- do not use `PanelBackground` for the full-width top strip; use `TopStripBackground` or fallback rendering
+- light parchment `PopupBackground` choices should pair with dark popup text colors
 - `Battle/Icons` is staged for future battle-specific glyph use, but the current skin asset does not expose a dedicated icon slot.
-- If a chosen candidate still needs `Sprite (2D and UI)` import mode, convert the curated copy only.
+- Curated copies were normalized to `Sprite (2D and UI)` import mode in Batch 77.6.
+- Raven Fantasy Icons remains blocked until license confirmation.

@@ -10,7 +10,7 @@ public sealed class InventoryUiSkinDefinition : ScriptableObject
         [Tooltip("Optional sprite reference. Preferred when the source texture is imported as Sprite (2D and UI).")]
         public Sprite Sprite;
 
-        [Tooltip("Optional texture reference for packs that are still imported as Default Texture.")]
+        [Tooltip("Preview-only texture fallback. Final skin authoring should prefer Sprite references.")]
         public Texture2D Texture;
 
         [Tooltip("Tint applied to the assigned sprite or texture.")]

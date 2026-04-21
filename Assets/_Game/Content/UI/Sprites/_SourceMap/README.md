@@ -8,6 +8,7 @@ This folder explains where the curated UI sprite copies came from.
 - curated copies under `Assets/_Game/Content/UI/Sprites` are project-owned staging assets
 - raw source `.meta` files were **not** copied, so Unity can generate fresh GUIDs for curated copies
 - this folder documents candidate intent only; it does not approve any final visual assignment
+- license and attribution notes must travel with curated usage decisions
 
 ## Current Batch 77.5 Scope
 
@@ -16,3 +17,4 @@ This folder explains where the curated UI sprite copies came from.
 - not part of this batch: character packs and runtime world/battle sprites
 
 See `ui-sprite-candidate-map.md` for the actual source-to-curated mapping.
+See `docs/ui/ui-sprite-curation.md` for the current license/import audit.

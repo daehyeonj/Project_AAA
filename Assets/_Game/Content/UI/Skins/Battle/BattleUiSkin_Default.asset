@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BattleUiSkin_Default
   m_EditorClassIdentifier: 
   PanelBackground:
-    Sprite: {fileID: 0}
+    Sprite: {fileID: 21300000, guid: 4b580e0160fc44f4b9470d5c84c6e1c0, type: 3}
     Texture: {fileID: 0}
     Tint: {r: 1, g: 1, b: 1, a: 1}
     PreserveAspect: 0
@@ -27,8 +27,13 @@ MonoBehaviour:
     Texture: {fileID: 0}
     Tint: {r: 1, g: 1, b: 1, a: 1}
     PreserveAspect: 0
-  CommandButtonNormal:
+  TopStripBackground:
     Sprite: {fileID: 0}
+    Texture: {fileID: 0}
+    Tint: {r: 1, g: 1, b: 1, a: 1}
+    PreserveAspect: 0
+  CommandButtonNormal:
+    Sprite: {fileID: 21300000, guid: ae7053c74f59a5e4e934b9c254d333fa, type: 3}
     Texture: {fileID: 0}
     Tint: {r: 1, g: 1, b: 1, a: 1}
     PreserveAspect: 0
@@ -83,7 +88,7 @@ MonoBehaviour:
     Tint: {r: 1, g: 1, b: 1, a: 1}
     PreserveAspect: 0
   PopupBackground:
-    Sprite: {fileID: 0}
+    Sprite: {fileID: 21300000, guid: eb9a43b079ec69346a9c65c826bfe1cb, type: 3}
     Texture: {fileID: 0}
     Tint: {r: 1, g: 1, b: 1, a: 1}
     PreserveAspect: 0
@@ -97,3 +102,6 @@ MonoBehaviour:
     Texture: {fileID: 0}
     Tint: {r: 1, g: 1, b: 1, a: 1}
     PreserveAspect: 0
+  PopupTitleTextColor: {r: 0.18, g: 0.12, b: 0.08, a: 1}
+  PopupBodyTextColor: {r: 0.2, g: 0.14, b: 0.1, a: 1}
+  PopupHintTextColor: {r: 0.24, g: 0.17, b: 0.11, a: 1}

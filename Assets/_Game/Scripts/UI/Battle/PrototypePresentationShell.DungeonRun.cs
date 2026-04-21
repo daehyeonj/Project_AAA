@@ -141,27 +141,37 @@ public sealed partial class PrototypePresentationShell
         }
 
         Rect innerRect = Inset(modalRect, 22f);
+        Color popupTitleColor = skin.GetPopupTitleTextColor(_heroSubtitleStyle.normal.textColor);
+        Color popupBodyColor = skin.GetPopupBodyTextColor(_bodyStyle.normal.textColor);
+        Color popupHintColor = skin.GetPopupHintTextColor(_captionStyle.normal.textColor);
+        Color previousContentColor = GUI.contentColor;
+        GUI.contentColor = popupTitleColor;
         GUI.Label(new Rect(innerRect.x + 12f, innerRect.y + 4f, innerRect.width - 24f, 28f), SafeShellText(popover.TitleText), _heroSubtitleStyle);
+        GUI.contentColor = popupTitleColor;
         GUI.Label(
             new Rect(innerRect.x + 12f, innerRect.y + 34f, innerRect.width - 24f, 20f),
             BuildDisplayBlock(SafeShellText(popover.EncounterNameText), 1, 56),
             _panelTitleStyle);
         if (hasSubtitle)
         {
+            GUI.contentColor = popupHintColor;
             GUI.Label(
                 new Rect(innerRect.x + 12f, innerRect.y + 56f, innerRect.width - 24f, 18f),
                 BuildDisplayBlock(SafeShellText(popover.SubtitleText), 1, 64),
                 _captionStyle);
         }
 
+        GUI.contentColor = popupBodyColor;
         GUI.Label(
             new Rect(innerRect.x + 12f, innerRect.y + (hasSubtitle ? 78f : 62f), innerRect.width - 24f, bodyHeight),
             bodyText,
             _bodyStyle);
+        GUI.contentColor = popupHintColor;
         GUI.Label(
             new Rect(innerRect.x + 12f, modalRect.yMax - 48f, innerRect.width - 24f, 20f),
             SafeShellText(popover.ContinueHintText),
             _captionStyle);
+        GUI.contentColor = previousContentColor;
     }
 
     private string BuildBattleResultPopoverBodyText(PrototypeDungeonBattleResultPopoverData popover)

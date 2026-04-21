@@ -40,7 +40,37 @@ Why this pack was chosen first:
 - `Assets/_Game/Content/UI/Sprites/Shared/*`
 - `Assets/_Game/Content/UI/Sprites/_SourceMap/*`
 
+## License / Attribution Audit
+
+### TravelBook Lite
+
+- source pack: `Assets/Sprite/Complete_UI_Book_Styles_Pack_Free_v1.0`
+- evidence: `License.txt`
+- visible license status: usable for personal and commercial projects
+- visible credit requirement: appropriate credit or a link to the product page, plus note if changes were made
+- visible restriction: do not resell or publish the same material, or adapted/remixed versions of the material, as a standalone asset pack
+
+Working rule for this repo:
+
+- curated copies should keep an attribution note in project docs
+- do not claim repo redistribution is release-safe beyond the visible license text
+- use in the game project is reasonable, but public asset-pack style redistribution should stay blocked without explicit confirmation
+
+### Raven Fantasy Icons
+
+- source pack: `Assets/Sprite/Free - Raven Fantasy Icons`
+- evidence found: `Special Note to the Dev.txt`
+- license file found: none in the audited folder
+- LicenseStatus: `UNKNOWN`
+
+Working rule for this repo:
+
+- do not claim commercial-safe or redistribution-safe use from the current evidence
+- keep this pack held out from curated UI assignment until the actual license is confirmed
+
 ## Current Import Audit
+
+### Raw source files
 
 Sampled raw TravelBook UI files still show:
 
@@ -54,22 +84,46 @@ Sampled raw TravelBook UI files still show:
 Meaning:
 
 - the source files are still treated like generic textures rather than guaranteed UI sprites
-- the current skin definitions can still accept them through the `Texture` field
-- no import settings were changed in Batch 77.5
+- raw source files remain untouched on purpose
+- raw packs are not the place for UI preview import cleanup
 
-## Recommended Import Settings For Curated Copies
+### Curated copies after Batch 77.6
 
-Only if the designer wants to use the `Sprite` field rather than the `Texture` field:
+Curated `.meta` files under `Assets/_Game/Content/UI/Sprites` now show:
+
+- `textureType: 8`
+- `spriteMode: 1`
+- `spriteMeshType: 1`
+- `spritePixelsToUnits: 100`
+- `alphaIsTransparency: 1`
+- `filterMode: 1`
+- `textureCompression: 0`
+- `enableMipMap: 0`
+
+Meaning:
+
+- curated copies are now prepared as `Sprite (2D and UI)` test assets
+- curated copies are assignable to `Sprite` fields as well as `Texture` fields
+- generated `.meta` files exist for the curated copies, and only those copies were normalized
+
+## Curated Import Decisions In Batch 77.6
+
+Applied on curated copies only:
 
 - Texture Type: `Sprite (2D and UI)`
 - Sprite Mode: `Single`
 - Alpha Is Transparency: `true`
 - Mesh Type: `Full Rect`
 - Filter Mode: `Bilinear` for this painted UI pack
-- Compression: `None` or highest-quality testing-safe option
+- Compression: `None`
+- Mip Maps: `Off`
 
-Do this on curated copies only.
-Do not batch-edit the raw source pack.
+Intentionally not changed:
+
+- raw source import settings under `Assets/Sprite`
+- `spritePixelsToUnits: 100`
+- folder layout or candidate membership
+- any runtime loading path
 
 ## Manual Assignment Workflow
 
@@ -81,9 +135,10 @@ Do not batch-edit the raw source pack.
 4. Read the slot maps:
    - `docs/ui/battle-skin-slot-map.md`
    - `docs/ui/inventory-skin-slot-map.md`
-5. If a candidate still needs better import settings, change the curated copy only.
-6. Drag the chosen asset into the relevant `Sprite` or `Texture` field manually.
-7. Press Play in the preview scene and tune layout after assignment.
+5. Follow `docs/ui/manual-skin-assignment-checklist.md`.
+6. If the team wants a written slot plan first, fill `Assets/_Game/Content/UI/Sprites/_SourceMap/skin-assignment-template.md`.
+7. Drag the chosen curated sprite into the relevant `Sprite` field manually.
+8. Press Play in the preview scene and tune layout after assignment.
 
 ## What This Batch Intentionally Does Not Do
 
@@ -98,4 +153,6 @@ Do not batch-edit the raw source pack.
 
 - `docs/ui/battle-skin-slot-map.md`
 - `docs/ui/inventory-skin-slot-map.md`
+- `docs/ui/manual-skin-assignment-checklist.md`
+- `docs/ui/ui-asset-attribution.md`
 - `Assets/_Game/Content/UI/Sprites/_SourceMap/ui-sprite-candidate-map.md`

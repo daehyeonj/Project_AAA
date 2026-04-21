@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
+- Latest closed batch: `Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,8 +18,137 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-b -> dungeon-beta`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: `manual Unity Editor assignment of the curated UI sprite candidates into battle/inventory skin slots, then either layout tuning or a return to combat-role follow-through on the accepted Batch 78 rail`
+- Next honest bottleneck: `capture fresh battle/inventory preview screenshots against the current user-authored test assignments, then either tune remaining visual issues or decide whether to open 77.9 runtime skin bridge`
 - Scene architecture status: `compile-safe persistent-root scaffold added; SampleScene remains the live playable baseline`
+
+## Batch 77.8.1 Close-Out
+
+- Selected branch: `A`
+- Honest scope:
+  - validate the already-landed 77.8 renderer/policy changes
+  - rerun compile after the Unity editor blocker was cleared
+  - confirm the current skin assets still reflect user-authored preview testing rather than random Codex assignments
+  - close the validation gate with static proof
+- Preflight:
+  - Unity editor blocker: `cleared before validation`
+  - skin assets: `present with partial user-authored preview test assignments`
+  - TravelBook attribution note: `present`
+  - Raven icons: `still blocked / UNKNOWN`
+- Compile:
+  - log: `unity-merge-validate.log`
+  - result: `PASS`
+  - proof markers:
+    - `*** Tundra build success`
+    - `Batchmode quit successfully invoked - shutting down!`
+    - `Exiting batchmode successfully now!`
+- Visual/static proof:
+  - top bar: `PASS (TopStripBackground is now the only skin slot queried for the full-width battle top strip; empty slot falls back instead of stretching PanelBackground)`
+  - popover readability: `PASS (popup title/body/hint color path is wired through the battle skin definition and the current PopupBackground test assignment remains Sprite-based)`
+  - inventory: `PASS (no new inventory code landed in 77.8.1; current equipment slot and run-spoils test assignments remain preview-only and policy-stable)`
+- Gameplay changes: `none`
+- Runtime/resource rail unchanged: `PASS`
+
+## Batch 77.8 Close-Out
+
+- Selected branch: `A with popover readability guard`
+- Honest scope:
+  - verify whether the reported manual preview assignments were serialized
+  - stop wide battle top-strip rects from consuming general panel art blindly
+  - keep the final authoring policy Sprite-first while preserving preview-only Texture fallback
+  - add a generic popover text-color path for light parchment backgrounds
+- Preflight:
+  - serialized assignments in the default skin assets: `none`
+  - Battle/Inventory skin assets: `present`
+  - Battle/Inventory layout profiles: `present`
+  - preview scenes: `present`
+  - Raven icons: `still blocked`
+- Fix summary:
+  - top bar: `BattleUiSkinDefinition.TopStripBackground` added; preview and shared battle HUD now fall back instead of stretching PanelBackground across the full-width top strip
+  - Sprite/Texture policy: `Sprite` is documented as the final input path; `Texture` is explicitly preview-only fallback
+  - popover readability: `PopupTitleTextColor`, `PopupBodyTextColor`, and `PopupHintTextColor` added for light popup-background cases
+  - inventory: `no layout or code changes; existing slot-preview guidance kept stable`
+- Gameplay changes: `none`
+- Validation snapshot:
+  - compile: `BLOCKED (Project_AAA was already open in another Unity editor instance on 2026-04-21)`
+  - top-strip fallback guard: `PASS`
+  - popover text-color path: `PASS`
+  - runtime/resource rail unchanged: `PASS`
+
+## Batch 77.7 Close-Out
+
+- Selected branch: `C`
+- Honest scope:
+  - verify the 77.6-ready preview/skin/layout state
+  - confirm there is still no explicit human mapping, screenshot set, or layout-note packet to act on
+  - add a dedicated attribution doc
+  - keep all preview skins empty and fallback-safe
+- Preflight:
+  - BattleUiSkin_Default and InventoryUiSkin_Default: `present and still fully unassigned`
+  - BattleUiLayout_Default and InventoryUiLayout_Default: `present`
+  - BattleUiPreviewScene and InventoryUiPreviewScene: `present`
+  - curated sprite folders: `present`
+  - Raven icons: `still blocked with UNKNOWN license status`
+- Assignments:
+  - Battle: `none`
+  - Inventory: `none`
+- Layout changes:
+  - Battle: `none`
+  - Inventory: `none`
+- Docs added:
+  - `docs/ui/ui-asset-attribution.md`
+- Gameplay changes: `none`
+- Validation snapshot:
+  - compile: `PASS (unity-merge-validate.log, 2026-04-20)`
+  - preview scenes remain usable with fallback: `PASS`
+  - runtime hot spots untouched in this batch: `PASS`
+  - waiting-for-human-input close-out: `PASS`
+
+## Batch 77.6 Close-Out
+
+- Selected branch: `A`
+- Honest scope:
+  - verify the curated sprite staging from Batch 77.5
+  - audit visible license text before any assignment claim
+  - normalize curated copies for Sprite-field assignment without touching raw packs
+  - keep preview scaffolds intact and produce a manual assignment checklist
+- 77.5 staging audit:
+  - `Assets/_Game/Content/UI/Sprites` exists with `Battle`, `Inventory`, `Shared`, and `_SourceMap`
+  - candidate-map docs exist
+  - `Assets/Sprite` remained untouched
+  - default battle/inventory skin assets still existed and still had no assigned art
+- License / attribution audit:
+  - `Complete_UI_Book_Styles_Pack_Free_v1.0/License.txt` was found
+  - visible text allows personal/commercial project use but requires credit or a product-page link and a note if changes were made
+  - visible text also says not to resell or publish the same or adapted material as a standalone asset pack
+  - `Free - Raven Fantasy Icons` had no visible license text in the audited folder, so its status remains `UNKNOWN`
+  - result: TravelBook Lite is acceptable for project-side preview work with attribution notes; Raven remains held out
+- Import audit:
+  - raw TravelBook source remained at `textureType: 0`, `spriteMode: 0`, and related generic-texture values
+  - curated copies under `Assets/_Game/Content/UI/Sprites` were normalized to `Sprite (2D and UI)` import with `spriteMode: Single`, `alphaIsTransparency: 1`, `textureCompression: 0`, and `enableMipMap: 0`
+  - curated `.meta` files now exist and the sprites are prepared for `Sprite` field assignment
+- Skin assets:
+  - `Assets/_Game/Content/UI/Skins/Battle/BattleUiSkin_Default.asset`: present, still intentionally unassigned
+  - `Assets/_Game/Content/UI/Skins/Inventory/InventoryUiSkin_Default.asset`: present, still intentionally unassigned
+- Layout profiles:
+  - `Assets/_Game/Content/UI/LayoutProfiles/Battle/BattleUiLayout_Default.asset`: present
+  - `Assets/_Game/Content/UI/LayoutProfiles/Inventory/InventoryUiLayout_Default.asset`: present
+- Preview scenes:
+  - `Assets/_Game/Scenes/Preview/BattleUiPreviewScene.unity`: present
+  - `Assets/_Game/Scenes/Preview/InventoryUiPreviewScene.unity`: present
+  - static proof: preview scene/controller path shows no `BootEntry`, `StaticPlaceholderWorldView`, or `SampleScene` dependency in the preview scaffold audit
+- Assignments made:
+  - Battle: `none`
+  - Inventory: `none`
+- Docs added:
+  - `docs/ui/manual-skin-assignment-checklist.md`
+  - `Assets/_Game/Content/UI/Sprites/_SourceMap/skin-assignment-template.md`
+- Gameplay changes: `none`
+- Validation snapshot:
+  - compile: `PASS (unity-merge-validate.log, 2026-04-20)`
+  - license/import audit: `PASS`
+  - preview scaffold presence proof: `PASS`
+  - manual visual proof: `DEFERRED to Unity Editor screenshot pass`
+  - runtime/resource rail unchanged: `PASS`
 
 ## Batch 77.5 Close-Out
 

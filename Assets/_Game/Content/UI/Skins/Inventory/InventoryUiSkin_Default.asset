@@ -58,12 +58,12 @@ MonoBehaviour:
     Tint: {r: 1, g: 1, b: 1, a: 1}
     PreserveAspect: 0
   EquipmentSlotEmpty:
-    Sprite: {fileID: 0}
+    Sprite: {fileID: 21300000, guid: 7f848a0ecca1f7a4daf23b845bd0570c, type: 3}
     Texture: {fileID: 0}
     Tint: {r: 1, g: 1, b: 1, a: 1}
     PreserveAspect: 0
   EquipmentSlotEquipped:
-    Sprite: {fileID: 0}
+    Sprite: {fileID: 21300000, guid: c705914e93d33464180c7ab1dc0de423, type: 3}
     Texture: {fileID: 0}
     Tint: {r: 1, g: 1, b: 1, a: 1}
     PreserveAspect: 0
@@ -73,7 +73,7 @@ MonoBehaviour:
     Tint: {r: 1, g: 1, b: 1, a: 1}
     PreserveAspect: 0
   RunSpoilsBadge:
-    Sprite: {fileID: 0}
+    Sprite: {fileID: 21300000, guid: eb9a43b079ec69346a9c65c826bfe1cb, type: 3}
     Texture: {fileID: 0}
     Tint: {r: 1, g: 1, b: 1, a: 1}
     PreserveAspect: 0

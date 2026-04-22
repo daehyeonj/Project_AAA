@@ -5,6 +5,7 @@ public sealed class ExpeditionPrepRouteOptionData
     public string RouteRiskText = "None";
     public string RoutePreviewText = "None";
     public string RewardPreviewText = "None";
+    public string EventPreviewText = "None";
     public bool IsSelected;
     public bool IsRecommended;
 }

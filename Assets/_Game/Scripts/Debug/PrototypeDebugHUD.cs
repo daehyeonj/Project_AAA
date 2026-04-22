@@ -517,18 +517,17 @@ public sealed class PrototypeDebugHUD : MonoBehaviour
         {
             DrawCurrentUnitPanel(currentUnitRect);
             DrawCommandSelectionPanel(commandRect);
-        }
+            DrawTargetStatusPanel(rightRect);
+            if (ShouldShowBattleCommandFlyout())
+            {
+                Rect flyoutRect = new Rect(commandRect.xMax + 16f, commandRect.y, flyoutWidth, commandHeight);
+                DrawCommandFlyoutPanel(flyoutRect);
+            }
 
-        DrawTargetStatusPanel(rightRect);
-        if (!battleModalOpen && ShouldShowBattleCommandFlyout())
-        {
-            Rect flyoutRect = new Rect(commandRect.xMax + 16f, commandRect.y, flyoutWidth, commandHeight);
-            DrawCommandFlyoutPanel(flyoutRect);
-        }
-
-        if (IsTargetSelectionActive())
-        {
-            DrawTargetSelectionOverlay(topRect, statusRowRect);
+            if (IsTargetSelectionActive())
+            {
+                DrawTargetSelectionOverlay(topRect, statusRowRect);
+            }
         }
 
         _battleHudFastBackground = previousFastBackground;

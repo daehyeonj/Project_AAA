@@ -1,5 +1,16 @@
 # Golden-Path Content Authoring
 
+## What Batch 79 Adds
+
+- Batch 79 does not add a new route, city, dungeon, or content system.
+- The surfaced operating-scenario proof pair is `city-a -> dungeon-alpha -> safe/risky`.
+- Existing Alpha route-meaning authoring now reaches the player-facing loop as operating-scenario copy:
+  - prep route options show scenario label, choose-when, risk/reward/follow-up, party fit, and combat plan.
+  - launch and dungeon-run readbacks keep the selected route plan visible after commit.
+  - battle result popovers include a compact route-plan line.
+  - final result readback calls out whether the selected scenario paid off, partially paid off, or missed.
+- The source of meaning remains the existing `GoldenPathRouteMeanings` / `GoldenPathChains` rail; no per-frame route scenario builder or parallel content owner was introduced.
+
 ## What Batch 75.2 Confirms
 
 - Batch 75.2 is a latest-git audit / close-out batch, not a new gameplay implementation batch.

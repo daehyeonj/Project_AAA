@@ -2,16 +2,16 @@
 
 These mappings use the current `BattleUiSkinDefinition` API.
 
-Every slot still requires human assignment.
-The folders below are candidate pools, not final design decisions.
+Batch 77.9 serializes only the approved preview assignments listed in the notes column.
+The folders below are candidate pools for future human assignment, not permission to fill every slot.
 
 | Slot | Candidate folder | Current curated examples | Notes |
 | --- | --- | --- | --- |
-| `PanelBackground` | `Assets/_Game/Content/UI/Sprites/Battle/Panels` | `UI_TravelBook_BookCover01a`, `UI_TravelBook_Frame01a`, `UI_TravelBook_Popup01a` | human assignment required |
-| `TopStripBackground` | `Assets/_Game/Content/UI/Sprites/Shared/Dividers` | `UI_TravelBook_Line01a` | leave empty unless you have a dedicated strip/tile sprite; fallback is preferred over stretching book-cover art |
+| `PanelBackground` | `Assets/_Game/Content/UI/Sprites/Battle/Panels` | `UI_TravelBook_BookCover01a`, `UI_TravelBook_Frame01a`, `UI_TravelBook_Popup01a` | Batch 77.9 assigned `UI_TravelBook_BookCover01a` |
+| `TopStripBackground` | `Assets/_Game/Content/UI/Sprites/Shared/Dividers` | `UI_TravelBook_Line01a` | Batch 77.9 intentionally empty; fallback is preferred over stretching book-cover art |
 | `PanelHeader` | `Assets/_Game/Content/UI/Sprites/Battle/Panels` | `UI_TravelBook_FrameSelect01a`, `UI_TravelBook_Frame01a` | human assignment required |
 | `PanelAccent` | `Assets/_Game/Content/UI/Sprites/Shared/Dividers` | `UI_TravelBook_Line01a` | human assignment required |
-| `CommandButtonNormal` | `Assets/_Game/Content/UI/Sprites/Battle/Buttons` | `UI_TravelBook_ButtonValue01a`, `UI_TravelBook_Select01a` | human assignment required |
+| `CommandButtonNormal` | `Assets/_Game/Content/UI/Sprites/Battle/Buttons` | `UI_TravelBook_Button01a_1`, `UI_TravelBook_ButtonValue01a`, `UI_TravelBook_Select01a` | Batch 77.9 assigned `UI_TravelBook_Button01a_1` |
 | `CommandButtonHover` | `Assets/_Game/Content/UI/Sprites/Battle/Buttons` | `UI_TravelBook_ButtonValue01b`, `UI_TravelBook_Select01a` | human assignment required |
 | `CommandButtonSelected` | `Assets/_Game/Content/UI/Sprites/Battle/Buttons` | `UI_TravelBook_ButtonValue01b`, `UI_TravelBook_Select01a` | human assignment required |
 | `CommandButtonDisabled` | `Assets/_Game/Content/UI/Sprites/Battle/Buttons` | `UI_TravelBook_ButtonValue01a` | may need tinting rather than a unique sprite |
@@ -22,7 +22,7 @@ The folders below are candidate pools, not final design decisions.
 | `TimelineChipEnemy` | `Assets/_Game/Content/UI/Sprites/Battle/Timeline` | `UI_TravelBook_Marker01a`, `UI_TravelBook_Point01a` | human assignment required |
 | `HpBarBackground` | `Assets/_Game/Content/UI/Sprites/Battle/Bars` | `UI_TravelBook_Bar01a` | human assignment required |
 | `HpBarFill` | `Assets/_Game/Content/UI/Sprites/Battle/Bars` | `UI_TravelBook_Fill01a`, `UI_TravelBook_Fill01b` | human assignment required |
-| `PopupBackground` | `Assets/_Game/Content/UI/Sprites/Battle/Popups` | `UI_TravelBook_Popup01a`, `UI_TravelBook_Alert01a` | human assignment required |
+| `PopupBackground` | `Assets/_Game/Content/UI/Sprites/Battle/Popups` | `UI_TravelBook_Popup01a`, `UI_TravelBook_Alert01a` | Batch 77.9 assigned `UI_TravelBook_Popup01a`; use dark popup text colors |
 | `DropPopupBadge` | `Assets/_Game/Content/UI/Sprites/Battle/Badges` | `UI_TravelBook_IconCoin01a`, `UI_TravelBook_IconStar01a` | human assignment required |
 | `BurstWindowBadge` | `Assets/_Game/Content/UI/Sprites/Battle/Badges` | `UI_TravelBook_IconStar01a`, `UI_TravelBook_IconHeart01a` | human assignment required |
 
@@ -31,6 +31,7 @@ The folders below are candidate pools, not final design decisions.
 - final skin inputs should use `Sprite` references; `Texture` references remain preview-only fallback
 - do not use `PanelBackground` for the full-width top strip; use `TopStripBackground` or fallback rendering
 - light parchment `PopupBackground` choices should pair with dark popup text colors
+- unlisted Battle slots are intentionally empty in the Batch 77.9 default preview skin
 - `Battle/Icons` is staged for future battle-specific glyph use, but the current skin asset does not expose a dedicated icon slot.
 - Curated copies were normalized to `Sprite (2D and UI)` import mode in Batch 77.6.
 - Raven Fantasy Icons remains blocked until license confirmation.

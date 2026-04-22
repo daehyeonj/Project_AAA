@@ -12,7 +12,7 @@ Codex created:
 - mock preview data assets
 - preview scenes for asset placement and layout tuning
 
-Codex did **not**:
+Codex did **not** during scaffold creation:
 
 - choose art assets for you
 - auto-map sprites by filename
@@ -25,6 +25,25 @@ Final skin policy:
 - use `Sprite` references as the final skin inputs
 - treat `Texture` references as preview-only fallback for temporary/manual testing
 - do not use Raven Fantasy Icons until license confirmation exists
+
+Current Batch 77.9 preview mapping:
+
+- Battle `PanelBackground`: `UI_TravelBook_BookCover01a`
+- Battle `CommandButtonNormal`: `UI_TravelBook_Button01a_1`
+- Battle `PopupBackground`: `UI_TravelBook_Popup01a`
+- Battle `TopStripBackground`: empty by design, so the top strip uses fallback rendering
+- Inventory `EquipmentSlotEmpty`: `UI_TravelBook_Slot01a`
+- Inventory `EquipmentSlotEquipped`: `UI_TravelBook_Slot01b`
+- Inventory `RunSpoilsBadge`: `UI_TravelBook_Popup01a`
+
+Unlisted slots are intentionally empty in the default preview skins.
+
+Batch 77.10 runtime bridge:
+
+- `SampleScene` registers `BattleUiSkin_Default.asset` and `InventoryUiSkin_Default.asset` through `RuntimeUiSkinBridge`
+- runtime UI consumes the same approved mapping through cached `BattleUiSkinProvider` and `InventoryUiSkinProvider`
+- runtime gameplay, combat, RPG progression, world simulation, and dungeon truth are unchanged
+- preview scenes remain design workflow scenes and are still not the real game flow
 
 ## Scenes To Open
 
@@ -130,16 +149,17 @@ This is intentional so the scene is useful before art assignment.
 
 ## Why Codex Did Not Auto-Assign
 
-The curated sprite copies now import as `Sprite (2D and UI)` after Batch 77.6, but no explicit slot-to-file mapping has been provided by the user.
+The curated sprite copies now import as `Sprite (2D and UI)` after Batch 77.6.
+The Batch 77.9 assignments were made only after the user provided an explicit slot-to-file mapping.
 
 Because of that:
 
-- Codex did not guess slot mappings
+- Codex did not guess slot mappings beyond the approved Batch 77.9 list
 - Codex did not change raw source import settings
 - Codex did not auto-pick "best looking" art
 - Codex did add a top-strip fallback guard so wide bars no longer blindly stretch `PanelBackground`
 
-Human assignment is the correct workflow here.
+Human assignment remains the correct workflow for any unlisted slot.
 
 ## How This Differs From Runtime SampleScene UI
 

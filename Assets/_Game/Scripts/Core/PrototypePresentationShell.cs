@@ -687,7 +687,8 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
             BuildDisplayBlock(
                 V(option.RouteRiskText) + "\n" +
                 V(option.RoutePreviewText) + "\n" +
-                "Reward Mix: " + V(option.RewardPreviewText),
+                "Reward Mix: " + V(option.RewardPreviewText) + "\n" +
+                "Combat Plan: " + V(option.EventPreviewText),
                 maxLines,
                 rect.width >= 420f ? 78 : 58),
             _bodyStyle);

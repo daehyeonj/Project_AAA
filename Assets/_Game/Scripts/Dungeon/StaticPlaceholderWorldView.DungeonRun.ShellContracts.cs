@@ -228,6 +228,7 @@ public sealed class PrototypeDungeonBattleResultPopoverData
     public string EncounterNameText = "None";
     public string SubtitleText = "None";
     public string SummaryText = "None";
+    public string RoutePlanText = "None";
     public string LootSummaryText = "None";
     public string DropSummaryText = "None";
     public string PartySummaryText = "None";
@@ -412,6 +413,7 @@ public sealed partial class StaticPlaceholderWorldView
             EncounterNameText = string.IsNullOrEmpty(safePopover.EncounterNameText) ? "None" : safePopover.EncounterNameText,
             SubtitleText = string.IsNullOrEmpty(safePopover.SubtitleText) ? "None" : safePopover.SubtitleText,
             SummaryText = string.IsNullOrEmpty(safePopover.SummaryText) ? "None" : safePopover.SummaryText,
+            RoutePlanText = string.IsNullOrEmpty(safePopover.RoutePlanText) ? "None" : safePopover.RoutePlanText,
             LootSummaryText = string.IsNullOrEmpty(safePopover.LootSummaryText) ? "None" : safePopover.LootSummaryText,
             DropSummaryText = string.IsNullOrEmpty(safePopover.DropSummaryText) ? "None" : safePopover.DropSummaryText,
             PartySummaryText = string.IsNullOrEmpty(safePopover.PartySummaryText) ? "None" : safePopover.PartySummaryText,
@@ -2338,6 +2340,7 @@ public sealed partial class StaticPlaceholderWorldView
         copy.EncounterNameText = string.IsNullOrEmpty(source.EncounterNameText) ? "None" : source.EncounterNameText;
         copy.SubtitleText = string.IsNullOrEmpty(source.SubtitleText) ? "None" : source.SubtitleText;
         copy.SummaryText = string.IsNullOrEmpty(source.SummaryText) ? "None" : source.SummaryText;
+        copy.RoutePlanText = string.IsNullOrEmpty(source.RoutePlanText) ? "None" : source.RoutePlanText;
         copy.LootSummaryText = string.IsNullOrEmpty(source.LootSummaryText) ? "None" : source.LootSummaryText;
         copy.DropSummaryText = string.IsNullOrEmpty(source.DropSummaryText) ? "None" : source.DropSummaryText;
         copy.PartySummaryText = string.IsNullOrEmpty(source.PartySummaryText) ? "None" : source.PartySummaryText;

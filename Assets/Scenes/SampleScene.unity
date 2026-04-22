@@ -129,6 +129,7 @@ GameObject:
   m_Component:
   - component: {fileID: 11312185}
   - component: {fileID: 11312186}
+  - component: {fileID: 11312187}
   m_Layer: 0
   m_Name: BootEntry
   m_TagString: Untagged
@@ -161,8 +162,22 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 95c1ac13f2e64616bb2cc8f3f962fa89, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
+--- !u!114 &11312187
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 11312184}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d9f4b3e2a6c4d9f8b1e5c0a3f2d6e91, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  _battleUiSkin: {fileID: 11400000, guid: b3162a668ebdb6d4f83eb5ff07346435, type: 2}
+  _inventoryUiSkin: {fileID: 11400000, guid: 747bc3ffcd4ec7c4b9a9d31667b0ac1d, type: 2}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0

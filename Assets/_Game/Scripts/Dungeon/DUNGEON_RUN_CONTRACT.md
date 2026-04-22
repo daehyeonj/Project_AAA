@@ -52,3 +52,4 @@
 - The legacy dungeon partial still owns combat/exploration rules.
 - `DungeonRunStateFactory` and `DungeonRunCoordinator` only assemble and project run state.
 - This keeps the prototype additive while making `ExpeditionPlan -> DungeonRun -> ResultPipeline` handoff explicit.
+- Batch 79 keeps route operating-scenario text as display/readback only: route plan lines on dungeon, battle-result, and final-result surfaces derive from the confirmed route plus shared route-meaning authoring, not from a new DungeonRun truth source.

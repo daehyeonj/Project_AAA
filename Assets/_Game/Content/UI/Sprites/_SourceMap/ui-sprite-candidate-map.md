@@ -2,10 +2,10 @@
 
 ## Purpose
 
-This map records the current Batch 77.5 starter curation.
+This map records the current Batch 77.5 starter curation and the Batch 77.9 preview-mapping addition.
 
 - It is a staging map, not a final art decision.
-- Every slot still requires human assignment in Unity Editor.
+- Future unlisted slots still require explicit human assignment in Unity Editor.
 - Raw source art remains untouched under `Assets/Sprite`.
 
 ## Raw Source Audit Summary
@@ -110,6 +110,7 @@ Interpretation:
 - `Battle/Panels/UI_TravelBook_Popup01a.png`
 - `Battle/Panels/UI_TravelBook_Frame01a.png`
 - `Battle/Panels/UI_TravelBook_FrameSelect01a.png`
+- `Battle/Buttons/UI_TravelBook_Button01a_1.png`
 - `Battle/Buttons/UI_TravelBook_ButtonValue01a.png`
 - `Battle/Buttons/UI_TravelBook_ButtonValue01b.png`
 - `Battle/Buttons/UI_TravelBook_Select01a.png`
@@ -148,3 +149,21 @@ Interpretation:
 - `Shared/Dividers/UI_TravelBook_Line01a.png`
 - `Shared/Backgrounds/UI_TravelBook_BookCover01a.png`
 - `Shared/Icons/UI_TravelBook_IconGear01a.png`
+
+## Batch 77.9 Approved Preview Mapping
+
+Battle:
+
+- `PanelBackground` -> `Battle/Panels/UI_TravelBook_BookCover01a.png`
+- `CommandButtonNormal` -> `Battle/Buttons/UI_TravelBook_Button01a_1.png`
+- `PopupBackground` -> `Battle/Popups/UI_TravelBook_Popup01a.png`
+- `TopStripBackground` -> empty; fallback rendering expected
+
+Inventory:
+
+- `EquipmentSlotEmpty` -> `Inventory/Slots/UI_TravelBook_Slot01a.png`
+- `EquipmentSlotEquipped` -> `Inventory/Slots/UI_TravelBook_Slot01b.png`
+- `RunSpoilsBadge` -> `Battle/Popups/UI_TravelBook_Popup01a.png`
+
+No Raven assets are part of this mapping.
+Unlisted skin slots remain empty.

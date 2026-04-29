@@ -327,6 +327,7 @@ public sealed partial class StaticPlaceholderWorldView
             ? decision.WhyCityMattersText
             : data.RecentOutcomeText;
         data.RecentResultEvidenceText = BuildCityRecentResultEvidenceText(city);
+        data.PressureChangeText = BuildCityPressureChangeText(city);
         data.PartyReadinessSummaryText = BuildCityPartyReadinessSummaryText(city);
         data.CanRecruitParty = prep.TotalPartyCount == 0;
         data.CanOpenPartyRoster = true;
@@ -402,7 +403,10 @@ public sealed partial class StaticPlaceholderWorldView
             city.DisplayName,
             urgencyText,
             BuildCityRecentResultEvidenceText(city),
-            answerText);
+            BuildCityPressureChangeText(city),
+            BuildCityPartyReadinessSummaryText(city),
+            answerText,
+            BuildCityBoardNextActionText(city, topAction));
     }
 
     private CitySimSurfaceData BuildSelectedCitySimSurfaceData(WorldObservationSurfaceData observation)

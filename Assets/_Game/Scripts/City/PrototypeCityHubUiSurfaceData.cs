@@ -52,6 +52,7 @@ public sealed class PrototypeCityHubSelectionSurfaceData
     public string PressureBoardSummaryText = "None";
     public string WhyCityMattersText = "None";
     public string RecentResultEvidenceText = "None";
+    public string PressureChangeText = "None";
     public string PartyReadinessSummaryText = "None";
     public string RecommendedRouteText = "None";
     public string RecommendationReasonText = "None";

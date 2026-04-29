@@ -382,10 +382,9 @@ public sealed partial class StaticPlaceholderWorldView
                 ? priorityCity.RecommendedRouteSummaryText
                 : "Review the linked dungeon and route answer.";
         priorityBoard.RecentResultEvidenceText = BuildCityRecentResultEvidenceText(priorityCity);
+        priorityBoard.PressureChangeText = BuildCityPressureChangeText(priorityCity);
         priorityBoard.PartyReadinessText = BuildCityPartyReadinessSummaryText(priorityCity);
-        priorityBoard.NextActionText = IsMeaningfulSnapshotText(topAction != null ? topAction.ReasonText : string.Empty)
-            ? topAction.ReasonText
-            : BuildCityNextActionFallbackText(priorityCity);
+        priorityBoard.NextActionText = BuildCityBoardNextActionText(priorityCity, topAction);
         priorityBoard.SummaryText = BuildWorldPriorityBoardSummaryText(priorityBoard);
     }
 
@@ -500,6 +499,47 @@ public sealed partial class StaticPlaceholderWorldView
             return "None";
         }
 
+        ExpeditionResultReadModel latestResult = city.LatestResult;
+        if (latestResult != null && latestResult.HasResult)
+        {
+            List<string> parts = new List<string>();
+            string routeText = IsMeaningfulSnapshotText(latestResult.RouteSummaryText)
+                ? latestResult.RouteSummaryText
+                : IsMeaningfulSnapshotText(latestResult.TargetDungeonDisplayName)
+                    ? latestResult.TargetDungeonDisplayName
+                    : latestResult.TargetDungeonId;
+            string resultText = IsMeaningfulSnapshotText(latestResult.ResultStateKey)
+                ? latestResult.ResultStateKey
+                : latestResult.Success
+                    ? "run_clear"
+                    : "run_result";
+            parts.Add(IsMeaningfulSnapshotText(routeText)
+                ? "Last run: " + routeText + " (" + resultText + ")"
+                : "Last run: " + resultText);
+
+            string lootText = IsMeaningfulSnapshotText(latestResult.LootSummaryText)
+                ? latestResult.LootSummaryText
+                : latestResult.ReturnedLootAmount > 0 && IsMeaningfulSnapshotText(latestResult.RewardResourceId)
+                    ? latestResult.RewardResourceId + " x" + latestResult.ReturnedLootAmount
+                    : string.Empty;
+            if (IsMeaningfulSnapshotText(lootText))
+            {
+                parts.Add("Returned " + lootText);
+            }
+
+            string partyText = IsMeaningfulSnapshotText(latestResult.PartyConditionText)
+                ? latestResult.PartyConditionText
+                : latestResult.SurvivingMemberCount > 0
+                    ? latestResult.SurvivingMemberCount + " survivor(s)"
+                    : latestResult.SurvivingMembersSummaryText;
+            if (IsMeaningfulSnapshotText(partyText))
+            {
+                parts.Add("Party " + partyText);
+            }
+
+            return string.Join(" | ", parts.ToArray());
+        }
+
         CityDecisionReadModel decision = city.Decision ?? new CityDecisionReadModel();
         RecentImpactSummary topImpact = GetFirstBoardItem(decision.RecentImpacts);
         if (topImpact != null && IsMeaningfulSnapshotText(topImpact.SummaryText))
@@ -530,7 +570,7 @@ public sealed partial class StaticPlaceholderWorldView
         return "No recent expedition evidence is reshaping this city yet.";
     }
 
-    private string BuildCityPartyReadinessSummaryText(CityStatusReadModel city)
+    private string BuildCityPressureChangeText(CityStatusReadModel city)
     {
         if (city == null)
         {
@@ -538,30 +578,113 @@ public sealed partial class StaticPlaceholderWorldView
         }
 
         List<string> parts = new List<string>();
-        if (IsMeaningfulSnapshotText(city.DispatchReadinessStateId))
+        if (IsMeaningfulSnapshotText(city.LastNeedPressureChangeText))
         {
-            parts.Add("Readiness " + city.DispatchReadinessStateId);
+            parts.Add("Need pressure " + city.LastNeedPressureChangeText);
+        }
+
+        if (IsMeaningfulSnapshotText(city.LastDispatchReadinessChangeText))
+        {
+            parts.Add("Dispatch readiness " + city.LastDispatchReadinessChangeText);
+        }
+
+        ExpeditionResultReadModel latestResult = city.LatestResult;
+        if (latestResult != null && latestResult.HasResult)
+        {
+            if (latestResult.ReturnedLootAmount > 0 && IsMeaningfulSnapshotText(latestResult.RewardResourceId))
+            {
+                parts.Add("Stock +" + latestResult.ReturnedLootAmount + " " + latestResult.RewardResourceId);
+            }
+
+            if (parts.Count == 0 && IsMeaningfulSnapshotText(latestResult.CityStatusChangeSummaryText))
+            {
+                parts.Add(latestResult.CityStatusChangeSummaryText);
+            }
+        }
+
+        if (parts.Count == 0 && IsMeaningfulSnapshotText(city.LastDispatchImpactText))
+        {
+            parts.Add(city.LastDispatchImpactText);
+        }
+
+        return parts.Count > 0
+            ? string.Join(" | ", parts.ToArray())
+            : "No pressure change recorded.";
+    }
+
+    private string BuildCityPartyReadinessSummaryText(CityStatusReadModel city)
+    {
+        if (city == null)
+        {
+            return "None";
+        }
+
+        string readinessText = IsMeaningfulSnapshotText(city.DispatchReadinessStateId)
+            ? city.DispatchReadinessStateId
+            : "Unknown";
+        string recoveryText = city.DispatchRecoveryDaysRemaining > 0
+            ? "recovery " + BuildDayCountText(city.DispatchRecoveryDaysRemaining)
+            : "no recovery wait";
+        if (city.IdlePartyCount < 1)
+        {
+            return city.ActiveExpeditionCount > 0
+                ? "Blocked: party is already deployed. Active expeditions " + city.ActiveExpeditionCount + " | Readiness " + readinessText + "."
+                : "Blocked: no idle party. Readiness " + readinessText + ".";
+        }
+
+        if (IsMeaningfulSnapshotText(city.LinkedDungeonId) && city.AvailableContractSlots < 1)
+        {
+            return "Blocked: no contract slot. Readiness " + readinessText + " | Idle parties " + city.IdlePartyCount + ".";
+        }
+
+        if (readinessText == "Strained")
+        {
+            return "Blocked: city dispatch is strained. " + recoveryText + " | Idle parties " + city.IdlePartyCount + ".";
         }
 
         if (city.DispatchRecoveryDaysRemaining > 0)
         {
-            parts.Add("Recovery " + BuildDayCountText(city.DispatchRecoveryDaysRemaining));
+            return "Ready with warning: party idle, route available, " + recoveryText + ".";
         }
 
-        if (city.IdlePartyCount > 0)
+        return "Ready: party idle and route available. Readiness " + readinessText + ".";
+    }
+
+    private string BuildCityBoardNextActionText(CityStatusReadModel city, CityActionRecommendation topAction)
+    {
+        if (topAction != null && IsMeaningfulSnapshotText(topAction.SummaryText))
         {
-            parts.Add("Idle parties " + city.IdlePartyCount);
-        }
-        else if (city.ActiveExpeditionCount > 0)
-        {
-            parts.Add("Active expeditions " + city.ActiveExpeditionCount);
-        }
-        else
-        {
-            parts.Add("No idle party");
+            return topAction.SummaryText;
         }
 
-        return string.Join(" | ", parts.ToArray());
+        if (city == null)
+        {
+            return "Review the world board before the next dispatch.";
+        }
+
+        if (city.IdlePartyCount < 1)
+        {
+            return "Recruit or wait for a party before opening Expedition Prep.";
+        }
+
+        if (IsMeaningfulSnapshotText(city.LinkedDungeonId) && city.AvailableContractSlots < 1)
+        {
+            return "Wait for the linked dungeon contract slot to reopen.";
+        }
+
+        if (city.DispatchReadinessStateId == "Strained")
+        {
+            return city.DispatchRecoveryDaysRemaining > 0
+                ? "Wait " + BuildDayCountText(city.DispatchRecoveryDaysRemaining) + " for dispatch recovery."
+                : "Wait until dispatch readiness is no longer strained.";
+        }
+
+        if (IsMeaningfulSnapshotText(city.RecommendedRouteSummaryText))
+        {
+            return "Open Expedition Prep and review " + city.RecommendedRouteSummaryText + ".";
+        }
+
+        return BuildCityNextActionFallbackText(city);
     }
 
     private string BuildCityNextActionFallbackText(CityStatusReadModel city)
@@ -597,34 +720,55 @@ public sealed partial class StaticPlaceholderWorldView
             priorityBoard.CityLabel,
             priorityBoard.UrgencyText,
             priorityBoard.RecentResultEvidenceText,
-            priorityBoard.AnswerText);
+            priorityBoard.PressureChangeText,
+            priorityBoard.PartyReadinessText,
+            priorityBoard.AnswerText,
+            priorityBoard.NextActionText);
     }
 
     private string BuildPressureBoardSummaryText(
         string cityLabel,
         string urgencyText,
         string recentResultEvidenceText,
-        string answerText)
+        string pressureChangeText,
+        string readinessText,
+        string answerText,
+        string nextActionText)
     {
         List<string> parts = new List<string>();
         if (IsMeaningfulSnapshotText(cityLabel))
         {
-            parts.Add(cityLabel);
+            parts.Add(cityLabel + " pressure board");
         }
 
         if (IsMeaningfulSnapshotText(urgencyText))
         {
-            parts.Add(urgencyText);
+            parts.Add("Pressure " + urgencyText);
         }
 
         if (IsMeaningfulSnapshotText(recentResultEvidenceText))
         {
-            parts.Add("Evidence " + recentResultEvidenceText);
+            parts.Add("Latest " + recentResultEvidenceText);
+        }
+
+        if (IsMeaningfulSnapshotText(pressureChangeText))
+        {
+            parts.Add("Changed " + pressureChangeText);
+        }
+
+        if (IsMeaningfulSnapshotText(readinessText))
+        {
+            parts.Add(readinessText);
         }
 
         if (IsMeaningfulSnapshotText(answerText))
         {
-            parts.Add("Answer " + answerText);
+            parts.Add("Route " + answerText);
+        }
+
+        if (IsMeaningfulSnapshotText(nextActionText))
+        {
+            parts.Add("Next " + nextActionText);
         }
 
         return parts.Count > 0

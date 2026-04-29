@@ -27,3 +27,4 @@
 - DungeonRun logs now reference the confirmed objective so the launch reason stays visible after entering the run.
 - Batch 19 re-entry rule: when the player comes back through `ResultPipeline -> WorldSim -> CityHub`, `ExpeditionPrepReadModel` should carry the refreshed city decision context forward too, especially the top recent impact and recommendation summary/reason that made the next launch prompt relevant.
 - Batch 79 operating-scenario rule: route option UI may surface route-meaning scenario/party/combat/follow-up copy, but `RouteChoice` stays lightweight and `ExpeditionPlan` remains the confirmed launch payload.
+- Batch 79.3 re-entry cache rule: after result return, AppFlow's active prep model must be refreshed on explicit ExpeditionPrep open, route selection, and dispatch policy changes. The route prompt may stay focused on `LaunchReadiness`; returned city decision evidence belongs in `ExpeditionPrepReadModel` and route aftermath echo.

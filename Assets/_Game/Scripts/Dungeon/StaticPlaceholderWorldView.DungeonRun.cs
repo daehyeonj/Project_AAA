@@ -1769,6 +1769,7 @@ public sealed partial class StaticPlaceholderWorldView
         _selectedRouteRiskLabel = template.RiskLabel;
         _followedRecommendation = template.RouteId == _recommendedRouteId;
         _hoverRouteChoiceId = string.Empty;
+        CacheCurrentExpeditionPrepReadModel();
         if (_isExpeditionPrepBoardOpen)
         {
             SetExpeditionPrepFeedbackText("Route set to " + template.RouteLabel + ".");
@@ -3760,6 +3761,7 @@ public sealed partial class StaticPlaceholderWorldView
             else
             {
                 _followedRecommendation = !string.IsNullOrEmpty(_selectedRouteChoiceId) && _selectedRouteChoiceId == _recommendedRouteId;
+                CacheCurrentExpeditionPrepReadModel();
                 RefreshSelectionPrompt();
                 RefreshDungeonPresentation();
             }

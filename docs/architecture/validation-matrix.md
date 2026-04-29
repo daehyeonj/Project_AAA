@@ -59,6 +59,7 @@ This matrix defines the minimum checks that should be run after architecture or 
 - Batch 18 continuity guard: confirm CityHub now prefers `LatestResult.WorldReturnSummaryText` for the top `RecentImpactSummary`, and that the top recommendation reason still points at the same refreshed impact or changed bottleneck before the player moves toward ExpeditionPrep
 - Batch 26 authoring guard: if `LatestResult.RecommendationShiftText` is present for a representative chain, confirm the top recent-impact hint or top recommendation reason still carries that same shared shift text instead of dropping back to chain-local fallback wording
 - Batch 27 authoring guard: if a representative chain resolves a shared city-decision meaning asset, confirm `CityOpportunitySignal.WhyItMattersText`, the top recommendation reason, and `WhyCityMattersText` still carry that same shared rationale instead of dropping back to CityHub-local fallback text
+- Batch 80 pressure-board guard: after result return, selected CityHub/selected-city board readback must explain what happened, why it mattered, what changed, next action, readiness/re-entry, and route recommendation from existing result/writeback/readiness data. Use `Batch80WorldResultPressureBoardProofRunner.RunBatch80WorldResultPressureBoardProof` for the targeted runtime proof.
 
 ### CityHub -> ExpeditionPrep
 
@@ -66,6 +67,7 @@ This matrix defines the minimum checks that should be run after architecture or 
 - Route choice/readiness are still explainable from prep contracts
 - Batch 19 continuity guard: after the result-return loop, re-enter ExpeditionPrep and confirm the prep read model plus route-choice prompt still carry the selected city's refreshed `RecentImpactSummary`, top recommendation summary/reason, and why-now text before the player commits to the next launch
 - Batch 21 clarity guard: confirm the returned `WhyNowText` no longer repeats the same decision clause and is short enough to fit the prep prompt without truncating the main reason for the next launch
+- Batch 79.3 re-entry guard: after a result return, re-enter ExpeditionPrep and confirm selected city/dungeon, prep `RecentImpactSummaryText`, recommendation summary/reason, `WhyNowText`, visible route options, dispatch readiness, and route aftermath echo. Do not require the route prompt to repeat returned decision copy when it correctly carries `LaunchReadiness` gate/warning text.
 
 ### ExpeditionPrep -> DungeonRun
 
@@ -129,6 +131,7 @@ This matrix defines the minimum checks that should be run after architecture or 
 - Confirm the returned city's `LatestResult.SourceCityId`, `LastDispatchImpactText`, and appflow applied marker all agree after world return
 - Batch 17 continuity guard: confirm the refreshed `ExpeditionResultReadModel` keeps `MissionObjectiveText` and `MissionRelevanceText` from `OutcomeReadback`, and that `WorldReturnSummaryText` combines the applied city-status change with the mission relevance anchor before the next CityHub hop
 - Batch 26 authoring guard: for representative chains, confirm the refreshed `ExpeditionResultReadModel` now also carries `OutcomeMeaningId`, `CityImpactMeaningText`, and `RecommendationShiftText`, and that `WorldReturnSummaryText` prefers the shared city-impact meaning when it is available
+- Batch 80 pressure-board handoff: confirm selected CityHub pressure copy is a cached/read-model consumer of `ExpeditionResultReadModel`, `OutcomeReadback`, `WorldWriteback`, `CityDecisionReadModel`, and `LaunchReadiness`, not a new ResultPipeline field set or per-frame world-board rebuild.
 
 ## Static Checks When Manual Play Is Not Available
 

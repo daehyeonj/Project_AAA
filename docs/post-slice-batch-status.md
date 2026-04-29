@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 79.2 ResultPipeline intent packaging smoke triage + Batch 79.1 route scenario runtime proof + smoke timeout triage + Batch 79 dungeon route operating scenario + Batch 78.1 combat core runtime proof + Batch 78 post-UI combat core revalidation + Batch 77.10.1 inventory modal target-status cleanup + Batch 77.10 runtime skin bridge + Batch 77.9 UI skin preview mapping QA + Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
+- Latest closed batch: `Batch 80 world result-pressure board + Batch 79.3 CityHub -> ExpeditionPrep re-entry continuity triage + Batch 79.2 ResultPipeline intent packaging smoke triage + Batch 79.1 route scenario runtime proof + smoke timeout triage + Batch 79 dungeon route operating scenario + Batch 78.1 combat core runtime proof + Batch 78 post-UI combat core revalidation + Batch 77.10.1 inventory modal target-status cleanup + Batch 77.10 runtime skin bridge + Batch 77.9 UI skin preview mapping QA + Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,8 +18,134 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-a -> dungeon-alpha operating-scenario rail; city-b -> dungeon-beta remains the content-thickened presenter rail`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: `CityHub -> ExpeditionPrep re-entry continuity is now the next Batch10 smoke failure; ResultPipeline intent packaging is fixed`
+- Next honest bottleneck: `manual UX review of the selected CityHub pressure board, then choose the next roadmap priority beyond result-pressure clarity`
 - Scene architecture status: `compile-safe persistent-root scaffold added; SampleScene remains the live playable baseline`
+
+## Batch 80 World Result-Pressure Board Close-Out
+
+- Selected branch: `Branch A, with narrow Branch C/D readback work; existing outcome/world writeback data was present but not clear enough on the selected city board`
+- Why this was the honest next problem:
+  - Batch79.3 closed the CityHub -> ExpeditionPrep re-entry blocker, so the next player-facing gap was not result production but city/world explanation
+  - ResultPipeline, WorldWriteback, OutcomeReadback, CityDecision, and LaunchReadiness already had enough source data; the selected CityHub board needed clearer aggregation
+  - the work could stay display/readback-only without new economy, combat, route, inventory, or ResultPipeline systems
+- Preflight:
+  - Batch79.3 re-entry: `PASS`, proof re-run in `unity-batch80-reentry-proof.log`
+  - Batch79.2 packaging: `PASS`, proof re-run in `unity-batch80-packaging-proof.log`
+  - Batch79 route scenario: `PASS`, proof re-run in `unity-batch80-route-proof.log`
+  - Batch78.1 combat: `PASS`, proof re-run in `unity-batch80-combat-proof.log`
+  - UI/modal/perf: `PASS through Batch78.1 UI/modal/skin sanity; no per-frame result/selection rebuild added`
+- Board focus: `selected CityHub / selected city world board`
+- Board implementation:
+  - What happened: `RecentResultEvidenceText` now prefers latest result route/scenario, result key, returned loot, and party condition
+  - Why it mattered: selected board continues to use `CityDecisionReadModel.WhyCityMattersText`
+  - What changed: new `PressureChangeText` carries need pressure, dispatch readiness, streak, and stock evidence derived from existing city/result readbacks
+  - Next action: priority and selected board summaries use existing CityHub recommendation / outcome follow-up as the next action line
+  - Readiness/re-entry: `PartyReadinessSummaryText` now states ready, warning, or blocked status using idle party, contract slot, readiness, and recovery data
+- Data/cache policy:
+  - board copy is derived from `WorldBoardReadModel`, `CityStatusReadModel.Decision`, `ExpeditionResultReadModel`, `OutcomeReadback`, `WorldWriteback`, and `LaunchReadiness`
+  - no new ResultPipeline fields, world pressure system, UI skin/layout work, scene migration, route content, combat mechanic, or per-frame rebuild path was added
+- Files changed:
+  - `Assets/_Game/Scripts/World/StaticPlaceholderWorldView.WorldSnapshotContext.cs`
+  - `Assets/_Game/Scripts/World/StaticPlaceholderWorldView.OutcomeReadbackSurface.cs`
+  - `Assets/_Game/Scripts/World/WorldObservationSurfaceData.cs`
+  - `Assets/_Game/Scripts/City/CityHubSurfaceData.cs`
+  - `Assets/_Game/Scripts/City/PrototypeCityHubUiSurfaceData.cs`
+  - `Assets/_Game/Scripts/City/CityInteraction.cs`
+  - `Assets/_Game/Scripts/Core/PrototypePresentationShell.cs`
+  - `Assets/_Game/Scripts/Editor/Batch80WorldResultPressureBoardProofRunner.cs`
+  - `docs/runtime/batch80-world-result-pressure-board-proof.md`
+  - `docs/architecture/flow-contracts.md`
+  - `docs/architecture/validation-matrix.md`
+  - `Assets/_Game/Scripts/World/WORLDSIM_READMODEL.md`
+  - `Assets/_Game/Scripts/World/CITYHUB_DECISION_LAYER.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch80-compile.log`
+  - result: `PASS`
+- Targeted proof:
+  - log: `unity-batch80-board-proof.log`
+  - result: `PASS`
+  - proof markers: `World return -> CityHub pressure board`, `Pressure board answers five questions`, `Readiness/re-entry`, `Targeted board proof completed`
+- Manual UX proof: `AUTOMATED Play Mode proof only; human visual pass not claimed`
+- Batch10 smoke:
+  - log: `unity-batch80-smoke.log`
+  - result: `PASS`
+- Regression proof:
+  - Batch79.3 re-entry: `PASS`, log `unity-batch80-reentry-proof.log`
+  - Batch79.2 packaging: `PASS`, log `unity-batch80-packaging-proof.log`
+  - Batch79.1 route scenario: `PASS`, log `unity-batch80-route-proof.log`
+  - Batch78.1 combat: `PASS`, log `unity-batch80-combat-proof.log`
+  - Inventory modal Target Status / runtime skin bridge: `PASS through Batch78.1 UI/modal/skin sanity`
+- Performance proof:
+  - City selection after result: `PASS through targeted board proof returning to selected CityHub and reading the board`
+  - World/CityHub board: `static PASS; no new OnGUI, mouse-move, Update, asset scan, or ResultPipeline rebuild path`
+  - `git diff --check`: `PASS with CRLF warnings only`
+- UI shape changed?: `No layout, skin, or scene migration work; only existing selected board copy/surface fields changed`
+- What the player can now feel:
+  - the run came back, City A's pressure changed, the board says why it mattered, and it points to the next sensible dispatch/recovery action
+- Recommended next batch:
+  - `manual UX review of selected CityHub pressure board density/readability, then pick the next roadmap feature with Batch10 still green`
+- Detailed proof note: `docs/runtime/batch80-world-result-pressure-board-proof.md`
+
+## Batch 79.3 CityHub -> ExpeditionPrep Re-entry Continuity Triage Close-Out
+
+- Selected branch: `Branch A primary runtime AppFlow prep-cache fix, plus narrow Branch B smoke-contract update after the runtime gap was closed`
+- Why this was the honest next step:
+  - Batch79.2 fixed ResultPipeline intent packaging and exposed the next full-smoke blocker at `CityHub -> ExpeditionPrep re-entry continuity`
+  - Batch80 depends on result return, CityHub evidence, selected city/dungeon identity, prep re-entry, route options, and launch readiness all agreeing
+  - the issue was a contract/cache seam, not a reason to start the world result-pressure board feature early
+- Failure audit:
+  - failing smoke step: `Batch10SmokeValidationRunner.ValidatePrepReentryContinuity()` / `CityHub -> ExpeditionPrep re-entry continuity`
+  - expected: after result return, AppFlow's active prep read model carries selected city `city-a`, target dungeon `dungeon-alpha`, returned recent impact, recommendation summary/reason, and why-now text
+  - actual: stage reached `ExpeditionPrep` and `SelectedCity=city-a`, but AppFlow's prep read model still had `TargetDungeon=None`, `ImpactSummary=None`, `ImpactHint=None`, `Recommendation=None`, `RecommendationReason=None`, and `WhyNow=None`
+  - root cause: visible prep surface rebuilt through `_isExpeditionPrepBoardOpen`, while AppFlow read-model caching still depended on `_dungeonRunState == DungeonRunState.RouteChoice`
+- Re-entry contract:
+  - selection identity: `city-a -> dungeon-alpha` survives result return and prep re-entry
+  - result evidence: returned impact/recommendation/why-now live in `ExpeditionPrepReadModel`; route aftermath text may echo the last result/route
+  - dispatch readiness: `LaunchReadiness` remains the route-prompt/commit-gate source, including warnings
+  - route options: Alpha safe/risky route cards remain visible
+  - post-run reveal: no bypass added; proof uses the existing world/city/prep path
+- Fix summary:
+  - cache `ExpeditionPrepReadModel` on explicit prep-open, route-change, and dispatch-policy-change points
+  - update Batch10 narrowly so route prompt may be launch gate text while returned-result evidence is asserted through prep model plus route aftermath echo
+  - add `Batch79_3CityHubExpeditionPrepReentryProofRunner`
+- Files changed:
+  - `Assets/_Game/Scripts/World/StaticPlaceholderWorldView.ExpeditionPrepSurface.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.cs`
+  - `Assets/_Game/Scripts/Editor/Batch10SmokeValidationRunner.cs`
+  - `Assets/_Game/Scripts/Editor/Batch79_3CityHubExpeditionPrepReentryProofRunner.cs`
+  - `docs/runtime/batch79-3-cityhub-expeditionprep-reentry-continuity-triage.md`
+  - `docs/architecture/flow-contracts.md`
+  - `docs/architecture/validation-matrix.md`
+  - `Assets/_Game/Scripts/Bootstrap/EXPEDITION_PREP_CONTRACT.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch79-3-compile.log`
+  - result: `PASS`
+- Targeted re-entry proof:
+  - log: `unity-batch79-3-reentry-proof.log`
+  - result: `PASS`
+  - proof marker: `PASS :: CityHub -> ExpeditionPrep re-entry continuity`
+- Batch10 smoke:
+  - log: `unity-batch79-3-smoke.log`
+  - ResolveCoreLoop: `PASS`
+  - ResultPipeline packaging: `PASS`
+  - CityHub -> ExpeditionPrep: `PASS`
+  - full smoke status: `PASS`
+- Regression proof:
+  - Batch79.1 route scenario: `PASS`, log `unity-batch79-3-route-proof.log`
+  - Batch78.1 combat: `PASS`, log `unity-batch79-3-combat-proof.log`
+  - Batch79.2 packaging: `PASS`, log `unity-batch79-3-packaging-proof.log`
+  - Inventory modal: `PASS through Batch78.1 UI/modal/skin regression sanity`
+  - Runtime skin bridge: `PASS through Batch78.1 UI/modal/skin regression sanity`
+  - World selection: `UNCHANGED; no new per-selection or per-frame prep rebuild path`
+- Performance impact:
+  - no `OnGUI`, mouse-move, world-selection, inventory-scan, asset-load, or result-pipeline per-frame rebuild was added
+  - prep cache refresh now occurs only on explicit prep open, route change, and dispatch policy change
+- Can Batch80 begin?: `Yes`
+- Why / why not:
+  - `Yes` because the previous CityHub -> ExpeditionPrep full-smoke blocker is closed and the adjacent ResultPipeline, route, combat, modal, skin, and world-selection guards remain stable
+- Detailed proof note: `docs/runtime/batch79-3-cityhub-expeditionprep-reentry-continuity-triage.md`
 
 ## Batch 79.2 ResultPipeline Intent Packaging Smoke Triage Close-Out
 

@@ -79,6 +79,7 @@ public sealed partial class StaticPlaceholderWorldView
             TryTriggerRouteChoice(recommendedRouteId);
         }
 
+        CacheCurrentExpeditionPrepReadModel();
         SetExpeditionPrepFeedbackText(
             IsMeaningfulSnapshotText(handoff.RecommendedNextActionText)
                 ? handoff.RecommendedNextActionText

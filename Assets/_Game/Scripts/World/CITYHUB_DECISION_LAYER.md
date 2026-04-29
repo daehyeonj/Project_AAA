@@ -27,3 +27,8 @@
 - Representative chains may now resolve a shared city-decision meaning asset before CityHub falls back to local string assembly.
 - Keep the canonical flow `world state / latest result -> CityDecisionReadModel -> ExpeditionPrepReadModel`.
 - Use shared city-decision meaning for bottleneck framing, opportunity rationale, and recommendation rationale; keep economy math and final action ordering inside CityHub-owned code.
+
+## Batch 80 Result-Pressure Board
+- CityHub pressure-board readback should prefer existing `CityDecisionReadModel` signals, latest result evidence, outcome/writeback text, and launch readiness before adding any new surface field.
+- The selected-city board can compactly say what happened, why it mattered, what changed, what to do next, and whether re-entry is ready or blocked.
+- Keep the decision layer deterministic and read-only; do not move economy math, result packaging, or route-authoring truth into CityHub copy builders.

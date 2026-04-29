@@ -30,6 +30,7 @@ public sealed class WorldObservationPriorityBoardData
     public string WhyCityMattersText = "None";
     public string AnswerText = "None";
     public string RecentResultEvidenceText = "None";
+    public string PressureChangeText = "None";
     public string PartyReadinessText = "None";
     public string NextActionText = "None";
     public string SummaryText = "None";

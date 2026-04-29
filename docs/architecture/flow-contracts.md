@@ -56,6 +56,7 @@ This file is the repo-level registry for Project AAA shared contracts. It answer
 - `WorldBoardReadModel` and `CityStatusReadModel` are the canonical world-side read contracts.
 - `CityDecisionReadModel` is the canonical city decision layer on top of those read models.
 - `Selected*Label` properties in `BootEntry.cs` and `PrototypeDebugHUD.cs` are display adapters only.
+- Batch 80 pressure-board summaries are display/readback aggregations over `WorldBoardReadModel`, `CityStatusReadModel.Decision`, `ExpeditionResultReadModel`, `OutcomeReadback`, and `LaunchReadiness`; they must not introduce a second result, pressure, or recommendation truth source.
 
 ### ExpeditionPrep
 
@@ -102,6 +103,7 @@ This file is the repo-level registry for Project AAA shared contracts. It answer
 - Batch 18 continuity: CityHub should prefer `CityStatusReadModel.LatestResult.WorldReturnSummaryText` / mission-relevance carry-through when building `RecentImpactSummary`, `RecommendedActions`, and `WhyCityMattersText`, so the city panel explains what changed and why the next recommendation shifted
 - Batch 26 normalization: when a representative chain resolves a shared outcome-meaning asset, `CityDecisionModelBuilder` should prefer its carried `RecommendationShiftText` / `CityImpactMeaningText` before falling back to older mission-relevance heuristics, so city-side hints stay authoring-driven instead of chain-local string glue
 - Batch 27 normalization: when a representative chain resolves a shared city-decision meaning asset, `CityDecisionModelBuilder` should prefer its bottleneck/opportunity/recommendation rationale text for `CityBottleneckSignal`, `CityOpportunitySignal`, `RecommendedActions`, and `WhyCityMattersText` before falling back to older CityHub-only string assembly
+- Batch 80 pressure-board guard: selected CityHub/selected-city board readback should answer what happened, why it mattered, what changed, next action, and readiness/re-entry using the existing world board, city decision, latest result, outcome readback, and launch readiness data. The board is a presentation aggregation only.
 
 ### CityHub -> ExpeditionPrep
 
@@ -114,6 +116,7 @@ This file is the repo-level registry for Project AAA shared contracts. It answer
 - Batch 22 post-slice data seam: representative-chain authoring data may override prep-facing objective/usefulness text through `GoldenPathContentRegistry`, but `ExpeditionPrepReadModel` remains the canonical runtime prep contract
 - Batch 27 city-side seam: representative chains may now carry shared bottleneck/opportunity/recommendation rationale through `CityDecisionReadModel`, and `ExpeditionPrepReadModel` should consume that through existing recent-impact / recommendation / why-now fields rather than new chain-local display glue
 - Batch 79 operating-scenario guard: prep route-option display may surface route-meaning scenario label, choose-when, party-fit, combat-plan, risk/reward, and follow-up text, but those strings remain display projections of `GoldenPathRouteMeaningDefinition` plus `ExpeditionPrepReadModel`; they are not a second prep truth source
+- Batch 79.3 re-entry continuity: after result return, Appflow's `ActiveExpeditionPlan.PrepReadModel` must be refreshed on explicit prep-open, route-change, and dispatch-policy-change points so it carries the returned city/dungeon identity plus recent impact, recommendation, and why-now evidence. The route prompt may remain `LaunchReadiness` gate/warning text; returned decision evidence should be asserted through `ExpeditionPrepReadModel` and route aftermath echo instead of forcing the prompt to duplicate city-decision copy.
 
 ### ExpeditionPrep -> DungeonRun
 
@@ -162,6 +165,7 @@ This file is the repo-level registry for Project AAA shared contracts. It answer
 - Batch 26 normalization: representative chains should now carry `OutcomeMeaningId`, `CityImpactMeaningText`, and `RecommendationShiftText` through `ExpeditionOutcome -> WorldDelta -> OutcomeReadback -> ExpeditionResultReadModel`, so `WorldReturnSummaryText` and later CityHub hints can consume shared outcome authoring instead of only chain-local heuristics
 - Batch 28 route-variant seam: when `ExpeditionOutcome` still knows the route id through the run snapshot, representative route variants should resolve shared outcome meaning by `cityId + dungeonId + routeId` before falling back to the primary city+dungeon chain
 - Batch 79.2 public reconstruction: `ManualTradeRuntimeState` should call `ResultPipeline.BuildExpeditionOutcome(ExpeditionResult)` when it needs a public outcome from a packaged result, so mission intent fields stay aligned with the ResultPipeline owner.
+- Batch 80 result-pressure handoff: world/city pressure-board copy may compactly combine `OutcomeReadback`, `WorldWriteback`, `ExpeditionResultReadModel`, city decision, and launch-readiness fields, but it must not expand the ResultPipeline contract or rebuild result summaries during UI layout/mouse/update loops.
 
 ## Adapter Boundaries To Keep Thin
 

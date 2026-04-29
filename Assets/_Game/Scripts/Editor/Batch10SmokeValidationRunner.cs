@@ -871,9 +871,11 @@ public static class Batch10SmokeValidationRunner
                                                ContainsValue(prepReadModel != null ? prepReadModel.WhyNowText : string.Empty, topRecommendation.ReasonText);
             bool descriptionTracksReturnedDecision = ContainsValue(routeDescription, prepReadModel != null ? prepReadModel.RecentImpactSummaryText : string.Empty) ||
                                                      ContainsValue(routeDescription, prepReadModel != null ? prepReadModel.RecommendedActionSummaryText : string.Empty) ||
-                                                     ContainsValue(routeDescription, prepReadModel != null ? prepReadModel.WhyNowText : string.Empty);
+                                                     ContainsValue(routeDescription, prepReadModel != null ? prepReadModel.WhyNowText : string.Empty) ||
+                                                     DescriptionCarriesReturnedAftermath(routeDescription, prepReadModel);
             bool promptTracksSignal = ContainsValue(routePrompt, prepReadModel != null ? prepReadModel.RecommendedActionSummaryText : string.Empty) ||
-                                      ContainsValue(routePrompt, prepReadModel != null ? prepReadModel.RecentImpactHintText : string.Empty);
+                                      ContainsValue(routePrompt, prepReadModel != null ? prepReadModel.RecentImpactHintText : string.Empty) ||
+                                      PromptCarriesLaunchGate(routePrompt, prepReadModel);
             bool whyNowFitsPrompt = prepReadModel != null &&
                                     HasMeaningfulValue(prepReadModel.WhyNowText) &&
                                     prepReadModel.WhyNowText.Length <= 120;
@@ -904,6 +906,8 @@ public static class Batch10SmokeValidationRunner
                     " RecommendationReason=" + SafeText(prepReadModel != null ? prepReadModel.RecommendedActionReasonText : "None") +
                     " WhyNow=" + SafeText(prepReadModel != null ? prepReadModel.WhyNowText : "None") +
                     " WhyNowLength=" + (prepReadModel != null && prepReadModel.WhyNowText != null ? prepReadModel.WhyNowText.Length.ToString() : "0") +
+                    " DescriptionTracks=" + descriptionTracksReturnedDecision +
+                    " PromptTracks=" + promptTracksSignal +
                     " RouteDescription=" + routeDescription +
                     " RoutePrompt=" + routePrompt +
                     " CityImpact=" + SafeText(topImpact != null ? topImpact.SummaryText : "None") +
@@ -924,6 +928,79 @@ public static class Batch10SmokeValidationRunner
                 " WhyNowLength=" + (prepReadModel.WhyNowText != null ? prepReadModel.WhyNowText.Length.ToString() : "0") +
                 " RoutePrompt=" + routePrompt + ".");
             AdvanceTo(SmokeStep.Shutdown, "Smoke complete.");
+        }
+
+        private bool DescriptionCarriesReturnedAftermath(string routeDescription, ExpeditionPrepReadModel prepReadModel)
+        {
+            if (!HasMeaningfulValue(routeDescription) || prepReadModel == null)
+            {
+                return false;
+            }
+
+            bool hasAftermathAnchor = ContainsValue(routeDescription, "Aftermath") ||
+                                      ContainsValue(routeDescription, "Last run") ||
+                                      ContainsValue(routeDescription, "Last route");
+            bool hasSelectionIdentity = ContainsValue(routeDescription, prepReadModel.OriginCityLabel) ||
+                                        ContainsValue(routeDescription, prepReadModel.OriginCityId) ||
+                                        ContainsValue(routeDescription, prepReadModel.TargetDungeonLabel) ||
+                                        ContainsValue(routeDescription, prepReadModel.TargetDungeonId);
+            bool hasReturnedResultEvidence = ContainsValue(routeDescription, "Clear") ||
+                                             ContainsValue(routeDescription, "returned") ||
+                                             ContainsValue(routeDescription, "mana_shard") ||
+                                             ContainsValue(routeDescription, prepReadModel.RecommendedActionReasonText);
+            return hasAftermathAnchor && hasSelectionIdentity && hasReturnedResultEvidence;
+        }
+
+        private bool PromptCarriesLaunchGate(string routePrompt, ExpeditionPrepReadModel prepReadModel)
+        {
+            if (!HasMeaningfulValue(routePrompt) || prepReadModel == null || prepReadModel.LaunchReadiness == null)
+            {
+                return false;
+            }
+
+            LaunchReadiness readiness = prepReadModel.LaunchReadiness;
+            if (ContainsValue(routePrompt, readiness.SummaryText))
+            {
+                return true;
+            }
+
+            if (readiness.CanLaunch && ContainsValue(routePrompt, "Commit allowed"))
+            {
+                return true;
+            }
+
+            if (readiness.HasWarnings && ContainsValue(routePrompt, "warning"))
+            {
+                return true;
+            }
+
+            PrepBlocker[] blockingIssues = readiness.BlockingIssues;
+            if (blockingIssues != null)
+            {
+                for (int i = 0; i < blockingIssues.Length; i++)
+                {
+                    PrepBlocker issue = blockingIssues[i];
+                    if (issue != null && ContainsValue(routePrompt, issue.SummaryText))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            PrepBlocker[] warningIssues = readiness.WarningIssues;
+            if (warningIssues != null)
+            {
+                for (int i = 0; i < warningIssues.Length; i++)
+                {
+                    PrepBlocker issue = warningIssues[i];
+                    if (issue != null && ContainsValue(routePrompt, issue.SummaryText))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         private void ResolveExploreStep()

@@ -19,3 +19,8 @@
 - Reuse `CityStatusReadModel.Decision` when CityHub needs an explicit "what should the player do now?" layer.
 - `CityDecisionModelBuilder` should stay a thin builder over existing read models, not a second economy system.
 - If CityHub needs more detail later, extend the builder additively instead of bypassing the read model path.
+
+## Batch 80 Result-Pressure Board
+- Selected-city pressure board text is a presentation aggregation over `CityStatusReadModel`, `CityStatusReadModel.Decision`, the latest result read model, outcome/writeback readback, and launch readiness.
+- The board may answer what happened, why it mattered, what changed, next action, and readiness/re-entry, but it must not become a new world pressure system or ResultPipeline owner.
+- Build or refresh the copy through existing world/result/selection/prep refresh points; do not rebuild result-pressure summaries from `OnGUI`, mouse-move, or per-frame update paths.

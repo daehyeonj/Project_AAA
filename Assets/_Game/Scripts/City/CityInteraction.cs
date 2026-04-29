@@ -176,6 +176,9 @@ public sealed class CityInteraction
         data.Selection.RecentResultEvidenceText = HasMeaningfulText(entry.RecentResultEvidenceText)
             ? entry.RecentResultEvidenceText
             : entry.RecentOutcomeText;
+        data.Selection.PressureChangeText = HasMeaningfulText(entry.PressureChangeText)
+            ? entry.PressureChangeText
+            : "No pressure change recorded.";
         data.Selection.PartyReadinessSummaryText = HasMeaningfulText(entry.PartyReadinessSummaryText)
             ? entry.PartyReadinessSummaryText
             : entry.PartyRosterSummaryText;
@@ -384,6 +387,7 @@ public sealed class CityInteraction
         data.ReturnEtaText = safeUiSurface.Actions.ReturnEtaText;
         data.RewardPreviewText = safeUiSurface.Selection.RewardPreviewText;
         data.EventPreviewText = safeUiSurface.Selection.EventPreviewText;
+        data.PressureChangeText = safeUiSurface.Selection.PressureChangeText;
         data.LatestReturnAftermathText = safeUiSurface.Outcome.LatestReturnAftermathText;
         data.OutcomeReadbackText = safeUiSurface.Outcome.OutcomeReadbackText;
         data.CorrectiveFollowUpText = safeUiSurface.Outcome.CorrectiveFollowUpText;
@@ -896,6 +900,7 @@ public sealed class CityInteractionPresentationSurfaceData
     public string ReturnEtaText = "None";
     public string RewardPreviewText = "None";
     public string EventPreviewText = "None";
+    public string PressureChangeText = "None";
     public string LatestReturnAftermathText = "None";
     public string OutcomeReadbackText = "None";
     public string CorrectiveFollowUpText = "None";

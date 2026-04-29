@@ -37,6 +37,7 @@ public sealed class WorldSimCitySourceData
     public string PressureBoardSummaryText = "None";
     public string WhyCityMattersText = "None";
     public string RecentResultEvidenceText = "None";
+    public string PressureChangeText = "None";
     public string PartyReadinessSummaryText = "None";
     public bool CanRecruitParty;
     public bool CanOpenPartyRoster;

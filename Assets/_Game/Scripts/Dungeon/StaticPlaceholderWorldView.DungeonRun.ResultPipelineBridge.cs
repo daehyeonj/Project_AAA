@@ -39,6 +39,27 @@ public sealed partial class StaticPlaceholderWorldView
         input.SourceCityId = string.IsNullOrEmpty(_currentHomeCityId) ? string.Empty : _currentHomeCityId;
         input.SourceCityLabel = GetHomeCityDisplayName();
         input.RewardResourceId = DungeonRewardResourceId;
+        ExpeditionRunState runState = BuildExpeditionRunStateInternal();
+        ExpeditionPrepSurfaceData prepSurface = BuildSelectedExpeditionPrepSurfaceData();
+        input.MissionObjectiveText = IsMeaningfulSnapshotText(runState != null ? runState.ObjectiveText : string.Empty)
+            ? runState.ObjectiveText
+            : IsMeaningfulSnapshotText(prepSurface != null ? prepSurface.BoardSummaryText : string.Empty)
+                ? prepSurface.BoardSummaryText
+                : "None";
+        input.MissionRelevanceText = IsMeaningfulSnapshotText(runState != null ? runState.ExpectedUsefulnessText : string.Empty)
+            ? runState.ExpectedUsefulnessText
+            : IsMeaningfulSnapshotText(prepSurface != null ? prepSurface.ProjectedOutcomeSummaryText : string.Empty)
+                ? prepSurface.ProjectedOutcomeSummaryText
+                : IsMeaningfulSnapshotText(runState != null ? runState.WhyNowText : string.Empty)
+                    ? runState.WhyNowText
+                    : IsMeaningfulSnapshotText(prepSurface != null ? prepSurface.RecommendationReasonText : string.Empty)
+                        ? prepSurface.RecommendationReasonText
+                        : "None";
+        input.RiskRewardContextText = IsMeaningfulSnapshotText(runState != null ? runState.RiskRewardPreviewText : string.Empty)
+            ? runState.RiskRewardPreviewText
+            : IsMeaningfulSnapshotText(prepSurface != null ? prepSurface.RoutePreviewSummaryText : string.Empty)
+                ? prepSurface.RoutePreviewSummaryText
+                : "None";
         input.Success = success;
         input.ReturnedLootAmount = safeReturnedLoot > 0 ? safeReturnedLoot : 0;
         input.ElapsedDays = 1;

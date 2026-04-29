@@ -41,8 +41,9 @@
   - copied `PrototypeBattleResultSnapshot`
 
 ## Result Path
-- `FinishDungeonRun(...)` still builds `PrototypeRpgRunResultSnapshot` and `ExpeditionOutcome`.
+- `FinishDungeonRun(...)` still builds `PrototypeRpgRunResultSnapshot`, `PostRunResolutionInput`, `ExpeditionResult`, and `ExpeditionOutcome`.
 - `AppFlowResultContext.ResolvedRunState` now carries the resolved `ExpeditionRunState` beside the existing `ExpeditionOutcome` / `OutcomeReadback`.
+- Batch 79.2 intent packaging: DungeonRun must pass mission objective, mission relevance, and risk/reward context explicitly into the ResultPipeline bridge instead of letting ResultPipeline infer those fields from key encounter or world writeback summaries.
 - Follow-up `ResultPipeline` or `BattleScene` work should prefer:
   1. `AppFlowDungeonRunContext.RunState`
   2. `AppFlowBattleContext.HandoffPayload` / `ReturnPayload`

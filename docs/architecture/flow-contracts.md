@@ -35,6 +35,8 @@ This file is the repo-level registry for Project AAA shared contracts. It answer
 | `PrototypeBattleRuntimeState` | BattleScene | battle runtime snapshot builders | `PrototypeBattleViewModel`, battle UI | Source of truth | Canonical live battle state contract. |
 | `PrototypeBattleResolution` | BattleScene | battle resolution builders | DungeonRun, ResultPipeline follow-up | Shared handoff | Canonical battle output. |
 | `BattleReturnPayload` | DungeonRun | run-state assembly after battle | Appflow, DungeonRun readers | Adapter | Summary wrapper around battle output for run consumers. |
+| `PostRunResolutionInput` | ResultPipeline | DungeonRun result bridge | `ResultPipeline.BuildExpeditionResult(...)` | Shared handoff | Carries post-run snapshot plus mission objective/relevance/risk intent fields into ResultPipeline. |
+| `ExpeditionResult` | ResultPipeline | `ResultPipeline.BuildExpeditionResult(...)` | `ExpeditionOutcome`, `WorldWriteback`, `OutcomeReadback`, `ManualTradeRuntimeState` | Shared handoff | Packaged result payload. Preserve mission objective/relevance/risk before deriving public readbacks. |
 | `ExpeditionOutcome` | ResultPipeline | `ResultPipeline.BuildExpeditionOutcome(...)` | `WorldDelta`, Appflow, WorldSim follow-up | Shared handoff | Canonical post-run expedition result. |
 | `WorldDelta` | ResultPipeline | `ResultPipeline.BuildWorldDelta(...)` | `ManualTradeRuntimeState.ResolveDungeonRun(...)` | Shared handoff | Canonical world mutation payload. |
 | `OutcomeReadback` | ResultPipeline | `ResultPipeline.BuildOutcomeReadback(...)` | WorldSim/CityHub/Appflow readers | Derived read model | Canonical follow-up summary after world application. |
@@ -77,8 +79,10 @@ This file is the repo-level registry for Project AAA shared contracts. It answer
 ### ResultPipeline
 
 - `ExpeditionOutcome -> WorldDelta -> OutcomeReadback` is the canonical result chain.
+- `PostRunResolutionInput -> ExpeditionResult -> ExpeditionOutcome` is the current result-packaging bridge before world writeback.
 - `ExpeditionResultReadModel` is the world/read-model projection of that chain.
 - Cached strings in runtime state or HUD should be derived from these contracts, not treated as new owners.
+- Batch 79.2 continuity: mission objective, mission relevance, and risk/reward context must survive the `PostRunResolutionInput -> ExpeditionResult -> ExpeditionOutcome -> OutcomeReadback` path before any key-encounter or world-writeback fallback text is used.
 
 ## Handoff Flow Map
 
@@ -141,11 +145,12 @@ This file is the repo-level registry for Project AAA shared contracts. It answer
 ### DungeonRun -> ResultPipeline
 
 - Producer: dungeon completion flow in `StaticPlaceholderWorldView.DungeonRun.cs`
-- Contract: `PrototypeRpgRunResultSnapshot`, `ExpeditionRunState`, then `ExpeditionOutcome`
+- Contract: `PrototypeRpgRunResultSnapshot`, `ExpeditionRunState`, `PostRunResolutionInput`, `ExpeditionResult`, then `ExpeditionOutcome`
 - Owner thread: DungeonRun upstream, ResultPipeline downstream
-- Consumer: `ResultPipeline.BuildExpeditionOutcome(...)`
+- Consumer: `ResultPipeline.BuildExpeditionResult(...)` and `ResultPipeline.BuildExpeditionOutcome(...)`
 - Batch 16 continuity: seed `ExpeditionOutcome` from canonical `ExpeditionRunState` mission context too, not only the run-result snapshot, so objective, city-usefulness anchor, risk/reward context, and run-path summary survive into `OutcomeReadback`
 - Batch 79 operating-scenario guard: final run/result presentation can state whether the selected route scenario paid off, partially paid off, or missed, but it must derive that from the existing route summary plus result key instead of mutating world state directly
+- Batch 79.2 intent-package guard: `MissionObjectiveText`, `MissionRelevanceText`, and `RiskRewardContextText` should be copied explicitly from DungeonRun run/prep intent into `PostRunResolutionInput` and `ExpeditionResult`; do not infer those fields from key encounter, growth/loot, or world writeback summaries.
 
 ### ResultPipeline -> WorldSim
 
@@ -156,6 +161,7 @@ This file is the repo-level registry for Project AAA shared contracts. It answer
 - Batch 17 continuity: WorldSim's `ExpeditionResultReadModel` should keep the returned `MissionObjectiveText`, `MissionRelevanceText`, and a world-return summary derived from `OutcomeReadback.CityStatusChangeSummaryText` so the board refresh explains both what changed and why it matters before CityHub consumes it
 - Batch 26 normalization: representative chains should now carry `OutcomeMeaningId`, `CityImpactMeaningText`, and `RecommendationShiftText` through `ExpeditionOutcome -> WorldDelta -> OutcomeReadback -> ExpeditionResultReadModel`, so `WorldReturnSummaryText` and later CityHub hints can consume shared outcome authoring instead of only chain-local heuristics
 - Batch 28 route-variant seam: when `ExpeditionOutcome` still knows the route id through the run snapshot, representative route variants should resolve shared outcome meaning by `cityId + dungeonId + routeId` before falling back to the primary city+dungeon chain
+- Batch 79.2 public reconstruction: `ManualTradeRuntimeState` should call `ResultPipeline.BuildExpeditionOutcome(ExpeditionResult)` when it needs a public outcome from a packaged result, so mission intent fields stay aligned with the ResultPipeline owner.
 
 ## Adapter Boundaries To Keep Thin
 

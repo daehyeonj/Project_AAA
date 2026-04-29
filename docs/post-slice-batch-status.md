@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 79 dungeon route operating scenario + Batch 78.1 combat core runtime proof + Batch 78 post-UI combat core revalidation + Batch 77.10.1 inventory modal target-status cleanup + Batch 77.10 runtime skin bridge + Batch 77.9 UI skin preview mapping QA + Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
+- Latest closed batch: `Batch 79.2 ResultPipeline intent packaging smoke triage + Batch 79.1 route scenario runtime proof + smoke timeout triage + Batch 79 dungeon route operating scenario + Batch 78.1 combat core runtime proof + Batch 78 post-UI combat core revalidation + Batch 77.10.1 inventory modal target-status cleanup + Batch 77.10 runtime skin bridge + Batch 77.9 UI skin preview mapping QA + Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,8 +18,108 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-a -> dungeon-alpha operating-scenario rail; city-b -> dungeon-beta remains the content-thickened presenter rail`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: `Batch 79.1 runtime/manual route-scenario proof and copy tuning, then choose Batch 80 world pressure board or a short demo-script pass`
+- Next honest bottleneck: `CityHub -> ExpeditionPrep re-entry continuity is now the next Batch10 smoke failure; ResultPipeline intent packaging is fixed`
 - Scene architecture status: `compile-safe persistent-root scaffold added; SampleScene remains the live playable baseline`
+
+## Batch 79.2 ResultPipeline Intent Packaging Smoke Triage Close-Out
+
+- Selected branch: `fix the intent packaging seam before Batch80; do not start world pressure board work`
+- Why this was the honest next step:
+  - Batch79.1 cleared the stale core-loop smoke timeout and exposed the next real failure at `DungeonRun -> ResultPipeline intent packaging`
+  - the failing fields were mission intent fields: objective, relevance, and risk/reward text drifted into key-encounter or world-writeback summaries after run clear
+  - the fix needed to preserve the existing DungeonRun, ResultPipeline, WorldSim, and CityHub contracts without adding a new world-pressure board surface
+- What changed:
+  - `PostRunResolutionInput`, `ExpeditionResult`, and `PrototypeDungeonRunResultContext` now carry `MissionObjectiveText`, `MissionRelevanceText`, and `RiskRewardContextText`
+  - DungeonRun result input now fills those fields from the canonical run state, with prep-surface fallback only when the run state is missing a meaningful line
+  - `ResultPipeline.BuildExpeditionOutcome(ExpeditionResult)` centralizes public outcome reconstruction so `ManualTradeRuntimeState` no longer duplicates stale mapping logic
+  - Batch10 world-return smoke no longer reflects against the retired private `BootEntry._appFlowCoordinator` field and accepts the current shell flow returning to `WorldSim` or immediately observed `CityHub`
+- Files changed:
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.ResultPipelineBridge.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.ShellContracts.cs`
+  - `Assets/_Game/Scripts/Editor/Batch10SmokeValidationRunner.cs`
+  - `Assets/_Game/Scripts/Editor/Batch79_2ResultPipelineIntentPackagingProofRunner.cs`
+  - `Assets/_Game/Scripts/Results/ExpeditionResult.cs`
+  - `Assets/_Game/Scripts/Results/PostRunResolutionInput.cs`
+  - `Assets/_Game/Scripts/Results/ResultPipeline.cs`
+  - `Assets/_Game/Scripts/World/ManualTradeRuntimeState.cs`
+  - `docs/runtime/batch79-2-result-pipeline-intent-packaging-smoke-triage.md`
+  - `docs/architecture/flow-contracts.md`
+  - `docs/architecture/validation-matrix.md`
+  - `Assets/_Game/Scripts/Dungeon/DUNGEON_RUN_CONTRACT.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch79-2-compile.log`
+  - result: `PASS`
+- Targeted ResultPipeline proof:
+  - log: `unity-batch79-2-packaging-proof.log`
+  - result: `PASS`
+  - proof marker: `[Batch79_2Proof] PASS :: Package/consumer fields stable`
+- Batch10 smoke:
+  - log: `unity-batch79-2-smoke.log`
+  - result: `PARTIAL`
+  - fixed checkpoint: `PASS :: DungeonRun -> ResultPipeline intent packaging`
+  - additional passed checkpoints after the fix: `ResultPipeline -> WorldSim board refresh`, `WorldSim -> CityHub recent impact coherence`, `WorldSim -> CityHub decision relevance carry-through`, and `World return chain causal summary`
+  - later failure: `FAIL :: CityHub -> ExpeditionPrep re-entry continuity`
+  - later failure scope: prep re-entry carries route description/city impact/recommendation on route-facing fields, but the smoke still observes top prep continuity fields as `None`; this is a separate next triage, not the Batch79.2 ResultPipeline packaging seam
+- Regression proof:
+  - Batch79.1 route scenario proof: `PASS`, log `unity-batch79-2-route-proof.log`
+  - Batch78.1 combat core proof: `PASS`, log `unity-batch79-2-combat-proof.log`
+  - UI/modal/skin sanity remains covered by Batch78.1 proof: `RuntimeUiSkinBridge=present`, top-strip fallback true, inventory overlay not open during battle proof
+- UI shape changed?: `No runtime UI layout or skin replacement work`
+- Can Batch80 begin?: `Yes for ResultPipeline packaging risk; no claim of full Batch10 green until the CityHub -> ExpeditionPrep re-entry continuity failure is triaged`
+- Detailed proof note: `docs/runtime/batch79-2-result-pipeline-intent-packaging-smoke-triage.md`
+
+## Batch 79.1 Route Scenario Runtime Proof + Smoke Triage Close-Out
+
+- Selected branch: `C - ResolveCoreLoop timeout was caused by a stale smoke wait condition`
+- Why this was the honest next step:
+  - Batch 79 had the right route-scenario direction, but only static proof plus a partial Batch10 smoke
+  - the player-facing question was whether `Stability Run` is actually visible in a short flow
+  - the engineering question was whether the Batch10 timeout was a Batch79 regression or an old harness wait issue
+- Preflight:
+  - Batch79 surfaces: `PASS static producer/consumer audit; route card, commit/start context, dungeon shell, encounter popover, and final payoff consumers are wired`
+  - Batch10 timeout: `root cause was stale smoke visibility checks that only read bootstrap booleans while current dungeon shell state exposes event/pre-elite visibility`
+  - Regression checks: `combat payoff, inventory modal, runtime skin bridge, world selection cache, pending spoils/extraction policy unchanged`
+- Runtime/static proof:
+  - Route card: `PASS`, captured `Rest Path | Stability Run` plus `Combat: Expect slime-heavy sustain fights, stronger shrine value, and a steadier elite setup`
+  - Commit summary: `PASS`, captured `RoutePreview=Rest Path | Stability Run`, `LaunchGate=Commit allowed. Launch window is clear.`, and `StartBattleWatch=Rest Path | Combat: Expect slime-heavy sustain fights...`
+  - Dungeon readback: `PASS`, captured `Route Plan=Rest Path | Stability Run`, `Route Risk=Safer | Slime-heavy / Recover-friendly`, `Battle Watch=Rest Path | Combat...`, `Next=Reach Elite`
+  - Encounter popover: `PASS`, captured `RoutePlan=Rest Path | Stability Run | Low Risk | Combat: Expect slime-heavy sustain fights... | Follow-up: Usually leaves the next dispatch cleaner...`
+  - Final scenario payoff: `PASS static consumer proof`; final popover and result panel paths still consume `BuildSelectedRouteScenarioPayoffText(outcomeKey)` and `BuildDungeonScenarioPayoffLine(resultContext)`
+- Smoke triage:
+  - Passed: `Boot -> MainMenu`, `MainMenu -> WorldSim`, `WorldSim -> CityHub`, representative content catalog, `CityHub -> ExpeditionPrep`, `ExpeditionPrep -> DungeonRun launch`, `DungeonRun -> BattleScene intent carry-through`, first battle return, and full route progression into run-clear result packaging
+  - Timeout: `FIXED`; no `ResolveCoreLoop` timeout after the shell-surface visibility fix
+  - Cause: `Batch10 was looking at retired bootstrap event/pre-elite visibility booleans instead of current dungeon shell surface state`
+  - Fixed or deferred: `fixed narrowly for the timeout; later full-smoke failure deferred as ResultPipeline packaging mismatch`
+  - Later failure: `FAIL :: DungeonRun -> ResultPipeline intent packaging`, with objective/relevance/risk-reward mismatch after run clear
+  - Later failure scope: `not caused by Batch79 route scenario text; no ResultPipeline, world mutation, combat, spoils, or UI skin path was changed`
+- Files changed:
+  - `Assets/_Game/Scripts/Editor/Batch10SmokeValidationRunner.cs`
+  - `Assets/_Game/Scripts/Editor/Batch79_1RouteScenarioRuntimeProofRunner.cs`
+  - `docs/runtime/batch79-1-route-scenario-runtime-proof.md`
+  - `docs/post-slice-batch-status.md`
+  - `docs/architecture/validation-matrix.md`
+- Compile:
+  - log: `unity-merge-validate.log`
+  - result: `PASS`
+  - proof markers:
+    - `*** Tundra build success`
+    - `Batchmode quit successfully invoked - shutting down!`
+    - `Exiting batchmode successfully now!`
+- Targeted proof:
+  - log: `unity-batch79-1-route-proof.log`
+  - result: `PASS`
+  - proof markers: route card, commit summary, dungeon readback, encounter popover, final static consumer proof all `PASS`
+- Manual UX proof: `AUTOMATED Play Mode proof captured; human screenshot proof still not claimed`
+- Regression proof: `static unchanged for 78.1 combat, inventory modal Target Status guard, runtime skin bridge, world selection cache, and pending spoils/extraction policy`
+- Performance proof: `editor-only proof runner plus existing smoke tick shell-surface read; no new runtime per-frame route scenario rebuild`
+- UI shape changed?: `No runtime UI shape change`
+- Can Batch80 begin?: `Yes for route-scenario risk, with one caveat`
+- Why / why not:
+  - `Yes` because Batch79.1 proves the selected Alpha safe route scenario is visible from route card through first encounter popover, and the original ResolveCoreLoop timeout is fixed
+  - `Caveat` full Batch10 is still red at a later ResultPipeline packaging checkpoint, so if the lead requires full Batch10 green before priority 4, open a narrow ResultPipeline smoke/contract triage before Batch80
+- Detailed proof note: `docs/runtime/batch79-1-route-scenario-runtime-proof.md`
 
 ## Batch 79 Dungeon Route Operating Scenario Close-Out
 

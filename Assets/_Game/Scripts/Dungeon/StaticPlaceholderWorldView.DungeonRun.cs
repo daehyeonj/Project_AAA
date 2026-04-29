@@ -1864,6 +1864,12 @@ public sealed partial class StaticPlaceholderWorldView
             return false;
         }
 
+        ExpeditionPrepReadModel prepReadModel = GetCurrentExpeditionPrepReadModel();
+        _confirmedExpeditionPlan = ExpeditionLaunchCoordinator.BuildConfirmedPlan(
+            prepReadModel,
+            WorldDayCount,
+            partyId,
+            launchContext != null && !string.IsNullOrEmpty(launchContext.PartyLabel) ? launchContext.PartyLabel : partyId);
         StartDungeonRunForRoute(template, partyId, launchContext);
         CloseExpeditionPrepBoardShell();
         return true;

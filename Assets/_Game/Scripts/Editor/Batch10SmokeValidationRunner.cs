@@ -468,7 +468,13 @@ public static class Batch10SmokeValidationRunner
                 return;
             }
 
-            if (_boot.IsDungeonEventChoiceVisible)
+            PrototypeDungeonRunShellSurfaceData shellSurface = _boot.GetDungeonRunShellSurfaceData();
+            bool isEventChoiceVisible = _boot.IsDungeonEventChoiceVisible ||
+                                        (shellSurface != null && shellSurface.IsEventChoiceVisible);
+            bool isPreEliteChoiceVisible = _boot.IsDungeonPreEliteChoiceVisible ||
+                                           (shellSurface != null && shellSurface.IsPreEliteChoiceVisible);
+
+            if (isEventChoiceVisible)
             {
                 if (!_boot.TryTriggerEventChoice("recover"))
                 {
@@ -478,7 +484,7 @@ public static class Batch10SmokeValidationRunner
                 return;
             }
 
-            if (_boot.IsDungeonPreEliteChoiceVisible)
+            if (isPreEliteChoiceVisible)
             {
                 if (!_boot.TryTriggerPreEliteChoice("recover"))
                 {
@@ -494,8 +500,7 @@ public static class Batch10SmokeValidationRunner
         private void ReturnToWorld()
         {
             object worldView = GetWorldView();
-            AppFlowCoordinator coordinator = GetPrivateField<AppFlowCoordinator>(_boot, "_appFlowCoordinator");
-            if (worldView == null || coordinator == null)
+            if (worldView == null)
             {
                 Fail("World return prerequisites were missing.");
                 return;
@@ -503,16 +508,19 @@ public static class Batch10SmokeValidationRunner
 
             SetPrivateField(worldView, "_pendingDungeonExit", true);
             AppFlowObservedSnapshot snapshot = (AppFlowObservedSnapshot)InvokePublicMethod(worldView, "BuildAppFlowSnapshot");
-            bool consumed = (bool)InvokePublicMethod(worldView, "ConsumeDungeonRunExitRequest");
-            if (!snapshot.HasPendingWorldReturn || !consumed)
+            bool returned = (bool)InvokeNonPublicMethod(_boot, "TryExitDungeonRunToWorldSim");
+            if (!snapshot.HasPendingWorldReturn || !returned)
             {
-                Fail("Result return request was not consumed cleanly. SnapshotPending=" + snapshot.HasPendingWorldReturn + " Consumed=" + consumed + ".");
+                Fail("Result return request was not consumed cleanly. SnapshotPending=" + snapshot.HasPendingWorldReturn + " Returned=" + returned + ".");
                 return;
             }
 
-            if (!coordinator.TryReturnToWorld(snapshot))
+            bool returnedToWorldShell = _boot.IsWorldSimActive &&
+                                        (_boot.CurrentAppFlowStage == AppFlowStage.WorldSim ||
+                                         _boot.CurrentAppFlowStage == AppFlowStage.CityHub);
+            if (!returnedToWorldShell)
             {
-                Fail("AppFlowCoordinator.TryReturnToWorld returned false.");
+                Fail("BootEntry did not return to WorldSim. State=" + _boot.CurrentStateLabel + " Stage=" + _boot.CurrentAppFlowStage + ".");
                 return;
             }
 

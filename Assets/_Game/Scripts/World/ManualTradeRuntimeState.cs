@@ -3251,41 +3251,7 @@ public sealed class ManualTradeRuntimeState
 
     private ExpeditionOutcome CreatePublicExpeditionOutcome(ExpeditionResult expeditionResult)
     {
-        if (expeditionResult == null)
-        {
-            return new ExpeditionOutcome();
-        }
-
-        ExpeditionOutcome result = ResultPipeline.BuildExpeditionOutcome(
-            expeditionResult.SourceCityId,
-            expeditionResult.SourceCityLabel,
-            expeditionResult.DungeonId,
-            expeditionResult.DungeonLabel,
-            expeditionResult.RewardResourceId,
-            expeditionResult.ReturnedLootAmount,
-            expeditionResult.Success,
-            expeditionResult.ResultStateKey,
-            expeditionResult.ResultSummaryText,
-            expeditionResult.SurvivingMembersSummaryText,
-            expeditionResult.ClearedEncounterSummaryText,
-            expeditionResult.SelectedEventChoiceText,
-            expeditionResult.LootBreakdownSummaryText,
-            expeditionResult.SelectedRouteSummaryText,
-            expeditionResult.DungeonSummaryText);
-        result.TotalTurnsTaken = expeditionResult.TotalTurnsTaken;
-        result.ClearedEncounterCount = expeditionResult.ClearedEncounterCount;
-        result.OpenedChestCount = expeditionResult.OpenedChestCount;
-        result.SurvivingMemberCount = expeditionResult.BattleResult != null ? expeditionResult.BattleResult.SurvivingMemberCount : 0;
-        result.KnockedOutMemberCount = expeditionResult.BattleResult != null ? expeditionResult.BattleResult.KnockedOutMemberCount : 0;
-        result.EliteDefeated = expeditionResult.EliteDefeated;
-        result.MissionObjectiveText = ChooseMeaningfulWorldText(expeditionResult.KeyEncounterSummaryText, expeditionResult.DungeonSummaryText);
-        result.MissionRelevanceText = ChooseMeaningfulWorldText(expeditionResult.WorldWritebackSummaryText, expeditionResult.NextSuggestedActionText);
-        result.RiskRewardContextText = ChooseMeaningfulWorldText(expeditionResult.BattleContextSummaryText, expeditionResult.ReturnedLootSummaryText);
-        result.RunPathSummaryText = ChooseMeaningfulWorldText(expeditionResult.RoomPathSummaryText, expeditionResult.SelectedRouteSummaryText);
-        result.PartyConditionText = ChooseMeaningfulWorldText(expeditionResult.PartyConditionText, expeditionResult.InjurySummaryText);
-        result.PartyHpSummaryText = expeditionResult.PartyHpSummaryText;
-        result.EliteSummaryText = ChooseMeaningfulWorldText(expeditionResult.EliteOutcomeSummaryText, expeditionResult.EliteRewardLabel);
-        return result;
+        return ResultPipeline.BuildExpeditionOutcome(expeditionResult);
     }
 
     private OutcomeReadback CreatePublicOutcomeReadback(string cityId, ExpeditionResult expeditionResult, global::WorldWriteback worldWriteback)

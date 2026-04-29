@@ -95,6 +95,8 @@ This matrix defines the minimum checks that should be run after architecture or 
 - Batch 45 draft-promotion guard: when using `GoldenPathAuthoringDraftHelper.RunDraftPromotionReadinessSummary`, do not treat a hidden draft as an automatic surfaced-expansion candidate. If the summary reports `BlockedByCanonicalOwner>0`, `PromotionRecommendation=retarget-the-draft-resolver-key-before-promotion`, or an inline `SurfacedExpansionGate=... ExpansionGate=C:tooling-next`, treat that as proof that the current Alpha/Beta surfaced rail is already full for that draft key and that the next honest move is retargeting or rail expansion rather than silently colliding with an existing surfaced route.
 - Batch 46 draft-preflight guard: when draft promotion is still ambiguous after readiness/context, also run `GoldenPathAuthoringDraftHelper.RunDraftPromotionPreflightSummary`. Treat `OpenSupportedRailSlots=None`, `OpenSupportedResolverKeys=None`, or `SupportedRailFit=supported-slot-owned-and-current-rail-saturated` as explicit proof that the current Alpha/Beta surfaced rail has no honest open promotion slot left. In that state, the next honest move is retargeting beyond the current rail or widening the surfaced seam, not silently promoting the colliding draft.
 - Batch 79 operating-scenario guard: for the selected `city-a -> dungeon-alpha -> safe/risky` pair, route scenario text should be visible in prep option cards, launch/dungeon readback, battle-result popover, and final-result readback without adding a new route content owner or a per-frame scenario rebuild.
+- Batch 79.1 smoke-triage guard: smoke automation that resolves the dungeon core loop should read event/pre-elite visibility from `PrototypeDungeonRunShellSurfaceData` as the current dungeon shell surface, not only from retired bootstrap event/pre-elite booleans that can remain false for legacy-shell suppression.
+- Batch 79.2 confirmed-plan guard: once a route choice is confirmed, keep the confirmed `ExpeditionPlan` available to DungeonRun and ResultPipeline instead of relying only on a live prep-surface fallback.
 
 ### DungeonRun -> BattleScene
 
@@ -115,12 +117,15 @@ This matrix defines the minimum checks that should be run after architecture or 
 - Run completion produces a meaningful `ExpeditionOutcome`
 - Run state snapshot remains readable for post-run analysis
 - Batch 16 continuity guard: confirm `ResultPipeline` copies the run state's objective, mission-relevance anchor, risk/reward context, and room-path summary into `ExpeditionOutcome` plus `OutcomeReadback` before world return
+- Batch 79.2 packaging guard: `PostRunResolutionInput`, `ExpeditionResult`, and `PrototypeDungeonRunResultContext` must carry `MissionObjectiveText`, `MissionRelevanceText`, and `RiskRewardContextText` from the run/prep intent package before falling back to key-encounter or world-writeback summaries.
 
 ### ResultPipeline -> WorldSim
 
 - `WorldDelta` applies without null/missing references
 - `OutcomeReadback` shows up in world/city follow-up summaries
 - Batch 10 hardening: treat `ResultPipeline` as the owner and keep the `StaticPlaceholderWorldView.AppFlow.cs` adapter keyed to the canonical latest `ExpeditionOutcome` / `OutcomeReadback` source city, not only the current world selection or `_currentHomeCityId`
+- Batch 79.2 smoke-return guard: world-return smoke should use the current `BootEntry` return path and accept either `WorldSim` or immediate observed `CityHub` when a selected city consumes the refreshed world result.
+- Batch 79.2 public-outcome guard: public reconstruction from `ExpeditionResult` should go through `ResultPipeline.BuildExpeditionOutcome(ExpeditionResult)` so `ManualTradeRuntimeState` does not duplicate stale intent-field mapping.
 - Confirm the returned city's `LatestResult.SourceCityId`, `LastDispatchImpactText`, and appflow applied marker all agree after world return
 - Batch 17 continuity guard: confirm the refreshed `ExpeditionResultReadModel` keeps `MissionObjectiveText` and `MissionRelevanceText` from `OutcomeReadback`, and that `WorldReturnSummaryText` combines the applied city-status change with the mission relevance anchor before the next CityHub hop
 - Batch 26 authoring guard: for representative chains, confirm the refreshed `ExpeditionResultReadModel` now also carries `OutcomeMeaningId`, `CityImpactMeaningText`, and `RecommendationShiftText`, and that `WorldReturnSummaryText` prefers the shared city-impact meaning when it is available

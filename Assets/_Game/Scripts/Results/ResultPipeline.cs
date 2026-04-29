@@ -246,6 +246,9 @@ public static class ResultPipeline
             safeInput.Success,
             safeInput.ReturnedLootAmount,
             safeInput.ElapsedDays);
+        result.MissionObjectiveText = ChooseMeaningfulText(safeInput.MissionObjectiveText, result.MissionObjectiveText);
+        result.MissionRelevanceText = ChooseMeaningfulText(safeInput.MissionRelevanceText, result.MissionRelevanceText);
+        result.RiskRewardContextText = ChooseMeaningfulText(safeInput.RiskRewardContextText, result.RiskRewardContextText);
         ApplyProgressionOutput(result, safeInput.ProgressionOutput);
         RefreshGrowthRevealSummaries(result);
         return result;
@@ -315,6 +318,9 @@ public static class ResultPipeline
         result.PartyMembersAtEndSummaryText = ChooseText(partyOutcome.PartyMembersAtEndSummary, context.CasualtySummaryText);
         result.LootBreakdownSummaryText = ChooseText(context.ResourceDeltaSummaryText, lootOutcome.FinalLootSummary);
         result.DungeonSummaryText = ChooseText(context.WorldWritebackDungeonSummaryText, result.DungeonLabel);
+        result.MissionObjectiveText = ChooseMeaningfulText(context.MissionObjectiveText, "None");
+        result.MissionRelevanceText = ChooseMeaningfulText(context.MissionRelevanceText, "None");
+        result.RiskRewardContextText = ChooseMeaningfulText(context.RiskRewardContextText, "None");
         result.EncounterRequestSummaryText = ChooseText(context.EncounterRequestSummaryText, runResult.EncounterRequestSummaryText);
         result.BattleContextSummaryText = ChooseText(context.BattleContextSummaryText, safeBattleResult.BattleContextSummaryText);
         result.BattleRuntimeSummaryText = ChooseText(context.BattleRuntimeSummaryText, safeBattleResult.RuntimeSummaryText);
@@ -348,6 +354,53 @@ public static class ResultPipeline
             "None");
         result.NextSuggestedActionText = result.NextPrepFollowUpSummaryText;
         result.BattleResult = CopyBattleResult(safeBattleResult);
+        return result;
+    }
+
+    public static ExpeditionOutcome BuildExpeditionOutcome(ExpeditionResult expeditionResult)
+    {
+        if (expeditionResult == null)
+        {
+            return new ExpeditionOutcome();
+        }
+
+        ExpeditionResult safeResult = expeditionResult ?? new ExpeditionResult();
+        ExpeditionOutcome result = BuildExpeditionOutcome(
+            safeResult.SourceCityId,
+            safeResult.SourceCityLabel,
+            safeResult.DungeonId,
+            safeResult.DungeonLabel,
+            safeResult.RewardResourceId,
+            safeResult.ReturnedLootAmount,
+            safeResult.Success,
+            safeResult.ResultStateKey,
+            safeResult.ResultSummaryText,
+            safeResult.SurvivingMembersSummaryText,
+            safeResult.ClearedEncounterSummaryText,
+            safeResult.SelectedEventChoiceText,
+            safeResult.LootBreakdownSummaryText,
+            safeResult.SelectedRouteSummaryText,
+            safeResult.DungeonSummaryText);
+
+        result.TotalTurnsTaken = safeResult.TotalTurnsTaken;
+        result.ClearedEncounterCount = safeResult.ClearedEncounterCount;
+        result.OpenedChestCount = safeResult.OpenedChestCount;
+        result.SurvivingMemberCount = safeResult.BattleResult != null ? safeResult.BattleResult.SurvivingMemberCount : 0;
+        result.KnockedOutMemberCount = safeResult.BattleResult != null ? safeResult.BattleResult.KnockedOutMemberCount : 0;
+        result.EliteDefeated = safeResult.EliteDefeated;
+        result.MissionObjectiveText = ChooseMeaningfulText(
+            safeResult.MissionObjectiveText,
+            ChooseMeaningfulText(safeResult.KeyEncounterSummaryText, safeResult.DungeonSummaryText));
+        result.MissionRelevanceText = ChooseMeaningfulText(
+            safeResult.MissionRelevanceText,
+            ChooseMeaningfulText(safeResult.WorldWritebackSummaryText, safeResult.NextSuggestedActionText));
+        result.RiskRewardContextText = ChooseMeaningfulText(
+            safeResult.RiskRewardContextText,
+            ChooseMeaningfulText(safeResult.BattleContextSummaryText, safeResult.ReturnedLootSummaryText));
+        result.RunPathSummaryText = ChooseMeaningfulText(safeResult.RoomPathSummaryText, safeResult.SelectedRouteSummaryText);
+        result.PartyConditionText = ChooseMeaningfulText(safeResult.PartyConditionText, safeResult.InjurySummaryText);
+        result.PartyHpSummaryText = ChooseMeaningfulText(safeResult.PartyHpSummaryText, "None");
+        result.EliteSummaryText = ChooseMeaningfulText(safeResult.EliteOutcomeSummaryText, safeResult.EliteRewardLabel);
         return result;
     }
 
@@ -511,9 +564,9 @@ public static class ResultPipeline
         result.DispatchReadinessBeforeText = ChooseText(safeCityWriteback.DispatchReadinessBeforeText, "None");
         result.DispatchReadinessAfterText = ChooseText(safeCityWriteback.DispatchReadinessAfterText, "None");
         result.RecoveryEtaText = ChooseText(safeCityWriteback.RecoveryEtaText, "None");
-        result.MissionObjectiveText = ChooseText(safeExpeditionResult.DungeonSummaryText, "None");
-        result.MissionRelevanceText = ChooseText(result.SelectedWorldWritebackText, "None");
-        result.RiskRewardContextText = ChooseText(result.WorldWritebackSummaryText, "None");
+        result.MissionObjectiveText = ChooseMeaningfulText(safeExpeditionResult.MissionObjectiveText, safeExpeditionResult.DungeonSummaryText);
+        result.MissionRelevanceText = ChooseMeaningfulText(safeExpeditionResult.MissionRelevanceText, result.SelectedWorldWritebackText);
+        result.RiskRewardContextText = ChooseMeaningfulText(safeExpeditionResult.RiskRewardContextText, result.WorldWritebackSummaryText);
         result.RunPathSummaryText = ChooseText(safeExpeditionResult.RoomPathSummaryText, "None");
         result.OutcomeMeaningId = string.Empty;
         result.OutcomeRewardMeaningText = "None";
@@ -591,6 +644,15 @@ public static class ResultPipeline
         result.LootBreakdownSummaryText = ChooseMeaningfulText(
             safeOutcomeReadback.LootBreakdownSummaryText,
             result.LootBreakdownSummaryText);
+        result.MissionObjectiveText = ChooseMeaningfulText(
+            safeOutcomeReadback.MissionObjectiveText,
+            result.MissionObjectiveText);
+        result.MissionRelevanceText = ChooseMeaningfulText(
+            safeOutcomeReadback.MissionRelevanceText,
+            result.MissionRelevanceText);
+        result.RiskRewardContextText = ChooseMeaningfulText(
+            safeOutcomeReadback.RiskRewardContextText,
+            result.RiskRewardContextText);
         result.EliteOutcomeSummaryText = ChooseMeaningfulText(
             result.EliteOutcomeSummaryText,
             ChooseMeaningfulText(result.EliteRewardLabel, result.EliteName));
@@ -787,6 +849,9 @@ public static class ResultPipeline
         copy.PartyMembersAtEndSummaryText = source.PartyMembersAtEndSummaryText;
         copy.LootBreakdownSummaryText = source.LootBreakdownSummaryText;
         copy.DungeonSummaryText = source.DungeonSummaryText;
+        copy.MissionObjectiveText = source.MissionObjectiveText;
+        copy.MissionRelevanceText = source.MissionRelevanceText;
+        copy.RiskRewardContextText = source.RiskRewardContextText;
         copy.EncounterRequestSummaryText = source.EncounterRequestSummaryText;
         copy.BattleContextSummaryText = source.BattleContextSummaryText;
         copy.BattleRuntimeSummaryText = source.BattleRuntimeSummaryText;

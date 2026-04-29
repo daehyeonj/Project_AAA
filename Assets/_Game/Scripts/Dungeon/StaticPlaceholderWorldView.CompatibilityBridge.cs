@@ -93,6 +93,28 @@ public sealed partial class StaticPlaceholderWorldView
             " | Total " + totalReward;
     }
 
+    private string BuildRouteCombatPlanEntryText(string dungeonId, string routeId)
+    {
+        DungeonRouteTemplate template = GetRouteTemplateById(dungeonId, routeId);
+        if (template == null)
+        {
+            return "None";
+        }
+
+        string cityId = ResolveScenarioContextCityId();
+        string strategicPreview = BuildScenarioPipeText(
+            BuildLabeledScenarioClause("Combat", TryBuildRouteCombatPlanTextFromContent(cityId, dungeonId, routeId)),
+            BuildLabeledScenarioClause("Event", template.EventFocus));
+        if (strategicPreview != "None")
+        {
+            return strategicPreview;
+        }
+
+        return HasText(template.EventFocus)
+            ? template.EventFocus
+            : "No combat plan authored for this route.";
+    }
+
     private string BuildCurrentDungeonWritebackSummaryText()
     {
         if (_runtimeEconomyState != null)

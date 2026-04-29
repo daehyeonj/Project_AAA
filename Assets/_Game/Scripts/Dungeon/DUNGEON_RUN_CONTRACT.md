@@ -41,8 +41,9 @@
   - copied `PrototypeBattleResultSnapshot`
 
 ## Result Path
-- `FinishDungeonRun(...)` still builds `PrototypeRpgRunResultSnapshot` and `ExpeditionOutcome`.
+- `FinishDungeonRun(...)` still builds `PrototypeRpgRunResultSnapshot`, `PostRunResolutionInput`, `ExpeditionResult`, and `ExpeditionOutcome`.
 - `AppFlowResultContext.ResolvedRunState` now carries the resolved `ExpeditionRunState` beside the existing `ExpeditionOutcome` / `OutcomeReadback`.
+- Batch 79.2 intent packaging: DungeonRun must pass mission objective, mission relevance, and risk/reward context explicitly into the ResultPipeline bridge instead of letting ResultPipeline infer those fields from key encounter or world writeback summaries.
 - Follow-up `ResultPipeline` or `BattleScene` work should prefer:
   1. `AppFlowDungeonRunContext.RunState`
   2. `AppFlowBattleContext.HandoffPayload` / `ReturnPayload`
@@ -52,3 +53,4 @@
 - The legacy dungeon partial still owns combat/exploration rules.
 - `DungeonRunStateFactory` and `DungeonRunCoordinator` only assemble and project run state.
 - This keeps the prototype additive while making `ExpeditionPlan -> DungeonRun -> ResultPipeline` handoff explicit.
+- Batch 79 keeps route operating-scenario text as display/readback only: route plan lines on dungeon, battle-result, and final-result surfaces derive from the confirmed route plus shared route-meaning authoring, not from a new DungeonRun truth source.

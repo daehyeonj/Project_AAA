@@ -10,16 +10,370 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
+- Latest closed batch: `Batch 79.2 ResultPipeline intent packaging smoke triage + Batch 79.1 route scenario runtime proof + smoke timeout triage + Batch 79 dungeon route operating scenario + Batch 78.1 combat core runtime proof + Batch 78 post-UI combat core revalidation + Batch 77.10.1 inventory modal target-status cleanup + Batch 77.10 runtime skin bridge + Batch 77.9 UI skin preview mapping QA + Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
 - Alpha surfaced pair: `content-completed on current rail`
 - Beta surfaced pair: `content-thickened on current rail`
-- Current signature demo pair: `city-b -> dungeon-beta`
+- Current signature demo pair: `city-a -> dungeon-alpha operating-scenario rail; city-b -> dungeon-beta remains the content-thickened presenter rail`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: `capture fresh battle/inventory preview screenshots against the current user-authored test assignments, then either tune remaining visual issues or decide whether to open 77.9 runtime skin bridge`
+- Next honest bottleneck: `CityHub -> ExpeditionPrep re-entry continuity is now the next Batch10 smoke failure; ResultPipeline intent packaging is fixed`
 - Scene architecture status: `compile-safe persistent-root scaffold added; SampleScene remains the live playable baseline`
+
+## Batch 79.2 ResultPipeline Intent Packaging Smoke Triage Close-Out
+
+- Selected branch: `fix the intent packaging seam before Batch80; do not start world pressure board work`
+- Why this was the honest next step:
+  - Batch79.1 cleared the stale core-loop smoke timeout and exposed the next real failure at `DungeonRun -> ResultPipeline intent packaging`
+  - the failing fields were mission intent fields: objective, relevance, and risk/reward text drifted into key-encounter or world-writeback summaries after run clear
+  - the fix needed to preserve the existing DungeonRun, ResultPipeline, WorldSim, and CityHub contracts without adding a new world-pressure board surface
+- What changed:
+  - `PostRunResolutionInput`, `ExpeditionResult`, and `PrototypeDungeonRunResultContext` now carry `MissionObjectiveText`, `MissionRelevanceText`, and `RiskRewardContextText`
+  - DungeonRun result input now fills those fields from the canonical run state, with prep-surface fallback only when the run state is missing a meaningful line
+  - `ResultPipeline.BuildExpeditionOutcome(ExpeditionResult)` centralizes public outcome reconstruction so `ManualTradeRuntimeState` no longer duplicates stale mapping logic
+  - Batch10 world-return smoke no longer reflects against the retired private `BootEntry._appFlowCoordinator` field and accepts the current shell flow returning to `WorldSim` or immediately observed `CityHub`
+- Files changed:
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.ResultPipelineBridge.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.ShellContracts.cs`
+  - `Assets/_Game/Scripts/Editor/Batch10SmokeValidationRunner.cs`
+  - `Assets/_Game/Scripts/Editor/Batch79_2ResultPipelineIntentPackagingProofRunner.cs`
+  - `Assets/_Game/Scripts/Results/ExpeditionResult.cs`
+  - `Assets/_Game/Scripts/Results/PostRunResolutionInput.cs`
+  - `Assets/_Game/Scripts/Results/ResultPipeline.cs`
+  - `Assets/_Game/Scripts/World/ManualTradeRuntimeState.cs`
+  - `docs/runtime/batch79-2-result-pipeline-intent-packaging-smoke-triage.md`
+  - `docs/architecture/flow-contracts.md`
+  - `docs/architecture/validation-matrix.md`
+  - `Assets/_Game/Scripts/Dungeon/DUNGEON_RUN_CONTRACT.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch79-2-compile.log`
+  - result: `PASS`
+- Targeted ResultPipeline proof:
+  - log: `unity-batch79-2-packaging-proof.log`
+  - result: `PASS`
+  - proof marker: `[Batch79_2Proof] PASS :: Package/consumer fields stable`
+- Batch10 smoke:
+  - log: `unity-batch79-2-smoke.log`
+  - result: `PARTIAL`
+  - fixed checkpoint: `PASS :: DungeonRun -> ResultPipeline intent packaging`
+  - additional passed checkpoints after the fix: `ResultPipeline -> WorldSim board refresh`, `WorldSim -> CityHub recent impact coherence`, `WorldSim -> CityHub decision relevance carry-through`, and `World return chain causal summary`
+  - later failure: `FAIL :: CityHub -> ExpeditionPrep re-entry continuity`
+  - later failure scope: prep re-entry carries route description/city impact/recommendation on route-facing fields, but the smoke still observes top prep continuity fields as `None`; this is a separate next triage, not the Batch79.2 ResultPipeline packaging seam
+- Regression proof:
+  - Batch79.1 route scenario proof: `PASS`, log `unity-batch79-2-route-proof.log`
+  - Batch78.1 combat core proof: `PASS`, log `unity-batch79-2-combat-proof.log`
+  - UI/modal/skin sanity remains covered by Batch78.1 proof: `RuntimeUiSkinBridge=present`, top-strip fallback true, inventory overlay not open during battle proof
+- UI shape changed?: `No runtime UI layout or skin replacement work`
+- Can Batch80 begin?: `Yes for ResultPipeline packaging risk; no claim of full Batch10 green until the CityHub -> ExpeditionPrep re-entry continuity failure is triaged`
+- Detailed proof note: `docs/runtime/batch79-2-result-pipeline-intent-packaging-smoke-triage.md`
+
+## Batch 79.1 Route Scenario Runtime Proof + Smoke Triage Close-Out
+
+- Selected branch: `C - ResolveCoreLoop timeout was caused by a stale smoke wait condition`
+- Why this was the honest next step:
+  - Batch 79 had the right route-scenario direction, but only static proof plus a partial Batch10 smoke
+  - the player-facing question was whether `Stability Run` is actually visible in a short flow
+  - the engineering question was whether the Batch10 timeout was a Batch79 regression or an old harness wait issue
+- Preflight:
+  - Batch79 surfaces: `PASS static producer/consumer audit; route card, commit/start context, dungeon shell, encounter popover, and final payoff consumers are wired`
+  - Batch10 timeout: `root cause was stale smoke visibility checks that only read bootstrap booleans while current dungeon shell state exposes event/pre-elite visibility`
+  - Regression checks: `combat payoff, inventory modal, runtime skin bridge, world selection cache, pending spoils/extraction policy unchanged`
+- Runtime/static proof:
+  - Route card: `PASS`, captured `Rest Path | Stability Run` plus `Combat: Expect slime-heavy sustain fights, stronger shrine value, and a steadier elite setup`
+  - Commit summary: `PASS`, captured `RoutePreview=Rest Path | Stability Run`, `LaunchGate=Commit allowed. Launch window is clear.`, and `StartBattleWatch=Rest Path | Combat: Expect slime-heavy sustain fights...`
+  - Dungeon readback: `PASS`, captured `Route Plan=Rest Path | Stability Run`, `Route Risk=Safer | Slime-heavy / Recover-friendly`, `Battle Watch=Rest Path | Combat...`, `Next=Reach Elite`
+  - Encounter popover: `PASS`, captured `RoutePlan=Rest Path | Stability Run | Low Risk | Combat: Expect slime-heavy sustain fights... | Follow-up: Usually leaves the next dispatch cleaner...`
+  - Final scenario payoff: `PASS static consumer proof`; final popover and result panel paths still consume `BuildSelectedRouteScenarioPayoffText(outcomeKey)` and `BuildDungeonScenarioPayoffLine(resultContext)`
+- Smoke triage:
+  - Passed: `Boot -> MainMenu`, `MainMenu -> WorldSim`, `WorldSim -> CityHub`, representative content catalog, `CityHub -> ExpeditionPrep`, `ExpeditionPrep -> DungeonRun launch`, `DungeonRun -> BattleScene intent carry-through`, first battle return, and full route progression into run-clear result packaging
+  - Timeout: `FIXED`; no `ResolveCoreLoop` timeout after the shell-surface visibility fix
+  - Cause: `Batch10 was looking at retired bootstrap event/pre-elite visibility booleans instead of current dungeon shell surface state`
+  - Fixed or deferred: `fixed narrowly for the timeout; later full-smoke failure deferred as ResultPipeline packaging mismatch`
+  - Later failure: `FAIL :: DungeonRun -> ResultPipeline intent packaging`, with objective/relevance/risk-reward mismatch after run clear
+  - Later failure scope: `not caused by Batch79 route scenario text; no ResultPipeline, world mutation, combat, spoils, or UI skin path was changed`
+- Files changed:
+  - `Assets/_Game/Scripts/Editor/Batch10SmokeValidationRunner.cs`
+  - `Assets/_Game/Scripts/Editor/Batch79_1RouteScenarioRuntimeProofRunner.cs`
+  - `docs/runtime/batch79-1-route-scenario-runtime-proof.md`
+  - `docs/post-slice-batch-status.md`
+  - `docs/architecture/validation-matrix.md`
+- Compile:
+  - log: `unity-merge-validate.log`
+  - result: `PASS`
+  - proof markers:
+    - `*** Tundra build success`
+    - `Batchmode quit successfully invoked - shutting down!`
+    - `Exiting batchmode successfully now!`
+- Targeted proof:
+  - log: `unity-batch79-1-route-proof.log`
+  - result: `PASS`
+  - proof markers: route card, commit summary, dungeon readback, encounter popover, final static consumer proof all `PASS`
+- Manual UX proof: `AUTOMATED Play Mode proof captured; human screenshot proof still not claimed`
+- Regression proof: `static unchanged for 78.1 combat, inventory modal Target Status guard, runtime skin bridge, world selection cache, and pending spoils/extraction policy`
+- Performance proof: `editor-only proof runner plus existing smoke tick shell-surface read; no new runtime per-frame route scenario rebuild`
+- UI shape changed?: `No runtime UI shape change`
+- Can Batch80 begin?: `Yes for route-scenario risk, with one caveat`
+- Why / why not:
+  - `Yes` because Batch79.1 proves the selected Alpha safe route scenario is visible from route card through first encounter popover, and the original ResolveCoreLoop timeout is fixed
+  - `Caveat` full Batch10 is still red at a later ResultPipeline packaging checkpoint, so if the lead requires full Batch10 green before priority 4, open a narrow ResultPipeline smoke/contract triage before Batch80
+- Detailed proof note: `docs/runtime/batch79-1-route-scenario-runtime-proof.md`
+
+## Batch 79 Dungeon Route Operating Scenario Close-Out
+
+- Selected branch: `A - existing route meaning authoring was present but not visible enough`
+- Chosen route pair: `city-a -> dungeon-alpha safe/risky`
+- Why this was the honest next problem:
+  - Batch 78.1 proved the first combat payoff loop, so the next player-facing gap was why a route choice should feel like a plan before, during, and after the run
+  - Alpha is the shortest manual demo path, and its existing safe/risky content already had route meaning text that could be surfaced without widening the route portfolio
+  - the weak seam was visibility, not missing combat/RPG/world systems
+- Preflight:
+  - 78.1 combat: `PASS static preservation; Burst Window formula/payoff path was not changed`
+  - RPG/role: `PASS static preservation; party role/growth/equipment truth was not changed`
+  - UI/modal/skin: `PASS static preservation; runtime skin bridge, inventory Target Status guard, result popover modality, and top-strip fallback paths were not changed`
+  - Performance: `PASS static preservation; no new Update loop, per-frame asset loading, Resources scan, or world selection cache rebuild`
+- Scenario implementation:
+  - Scenario label: `Stability Run` for Alpha safe and `Surge Window` for Alpha risky now remain visible through route summaries
+  - Choose-when: existing route preview text remains the player-facing reason line on prep/launch surfaces
+  - Party fit: existing route reward/fit preview remains on route choice details
+  - Combat plan: prep route cards now show compact `Combat Plan` text from the route meaning rail
+  - Risk/follow-up: existing risk/reward/follow-up text remains surfaced and is reused in route-plan/result readback
+  - Commit summary: launch/start context keeps selected scenario and event preview readback on the dungeon handoff
+  - Dungeon readback: dungeon explore sidebar now shows `Route Plan`, `Route Risk`, `Battle Watch`, and `Next Goal`
+  - Encounter/result follow-through: battle result popover now has one compact `Route Plan` line, and final result now has `Scenario Payoff`
+- Files changed for Batch 79:
+  - `Assets/_Game/Scripts/Expedition/ExpeditionPrepSurfaceData.cs`
+  - `Assets/_Game/Scripts/World/StaticPlaceholderWorldView.ExpeditionPrepSurface.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.CompatibilityBridge.cs`
+  - `Assets/_Game/Scripts/Core/PrototypePresentationShell.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.ShellContracts.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.cs`
+  - `Assets/_Game/Scripts/UI/Battle/PrototypePresentationShell.DungeonRun.cs`
+  - `Assets/_Game/Scripts/Bootstrap/EXPEDITION_PREP_CONTRACT.md`
+  - `Assets/_Game/Scripts/Dungeon/DUNGEON_RUN_CONTRACT.md`
+  - `docs/content/README.md`
+  - `docs/architecture/flow-contracts.md`
+  - `docs/architecture/validation-matrix.md`
+  - `docs/runtime/batch79-route-operating-scenario-proof.md`
+- Compile:
+  - log: `unity-merge-validate.log`
+  - result: `PASS`
+  - proof markers:
+    - `*** Tundra build success`
+    - `Batchmode quit successfully invoked - shutting down!`
+    - `Exiting batchmode successfully now!`
+- Targeted proof:
+  - authoring validation log: `unity-batch79-authoring.log`
+  - result: `PASS`
+  - proof markers: `PassCount=4`, `WarnCount=0`, `FailCount=0`
+  - Alpha safe resolves `route-steady-rest`, `outcome-mana-shard-city-a`, `city-decision-city-a-shard-stability`, `encounter-profile-alpha-safe-entry`, and `battle-setup-alpha-safe-room1`
+  - Alpha risky resolves `route-balanced-volatile`, `outcome-mana-shard-city-a-surge`, `city-decision-city-a-shard-surge-window`, `encounter-profile-alpha-risky-breach`, and `battle-setup-alpha-risky-room1`
+- Manual UX proof: `DEFERRED; exact repro steps recorded in docs/runtime/batch79-route-operating-scenario-proof.md`
+- Automated smoke:
+  - log: `unity-batch79-smoke.log`
+  - result: `PARTIAL`
+  - passed before timeout: Boot -> MainMenu, MainMenu -> WorldSim, WorldSim -> CityHub, CityHub -> ExpeditionPrep, ExpeditionPrep -> DungeonRun launch, DungeonRun -> BattleScene intent carry-through, and first encounter return
+  - blocker: `FAIL :: Smoke runner :: Timed out while waiting for step ResolveCoreLoop` after first encounter return
+  - conclusion: `do not claim full automatic core-loop smoke pass for Batch 79`
+- Performance proof: `static + code-path proof; route scenario text is built through existing route selection/surface/result paths, not per frame`
+- Regression proof:
+  - route portfolio widening: `No`
+  - combat mechanic expansion: `No`
+  - RPG/world/economy system expansion: `No`
+  - UI skin/modal changes: `No`
+  - pending spoils/extraction policy changes: `No`
+  - world selection cache changes: `No`
+- UI shape changed?: `Compact text additions only; no broad redesign`
+- What the player can now feel: `the Alpha safe/risky choice reads as an operating plan with a reason, party/combat expectation, visible in-run reminder, and result payoff check`
+- Recommended next batch: `Batch 79.1 runtime/manual route-scenario proof and text tuning; after that choose Batch 80 world pressure board or a short demo-script pass`
+- Detailed proof note: `docs/runtime/batch79-route-operating-scenario-proof.md`
+
+## Batch 78.1 Combat Core Runtime Proof Close-Out
+
+- Selected branch: `B - minimal readback seam tuning`
+- Why this was the honest next problem:
+  - Batch 78 proved the combat rail statically, but product proof needed the first short playable battle to expose the loop without waiting for a later round
+  - the existing rules, skills, damage math, and first Alpha safe encounter were already viable
+  - the weak seam was battle-start readback: the first player turn used the older turn-start wrapper and did not refresh RPG-owned enemy intent before Alden's first action
+- Runtime seam:
+  - `RecordCurrentPartyTurnStartEvent()` now calls `RefreshRpgOwnedEnemyIntentPreviewState()` before recording the turn-start event
+  - no encounter HP, skill formula, role payoff, UI skin mapping, inventory truth, world route, dungeon route, or result pipeline rule changed
+- Runtime proof:
+  - runner: `Batch78_1CombatCoreRuntimeProofRunner.RunBatch78_1CombatCoreRuntimeProof`
+  - log: `unity-batch78-1-combat-proof.log`
+  - result: `PASS`
+  - path: `SampleScene -> city-a -> safe route -> Dungeon Alpha -> Slime Front`
+  - intent read: `Slime A (Bulwark) intends Attack on random target: Alden. Front Row -> Front Row | Front Row or Middle Row | Reachable.`
+  - setup: `Alden / Power Strike / Slime A`
+  - setup preview: `Expected: 10 dmg to Slime A`
+  - setup after-hit preview: `HP 19 -> 9 | Opens Burst Window`
+  - setup log: `Alden read intent and opened Burst Window on Slime A (+3 for 2 ally actions).`
+  - window label: `Burst Window | Intent read | Payoff +3 | 2 ally action(s).`
+  - payoff: `Mira / Weak Point / Slime A`
+  - payoff preview: `Expected: 10 dmg to Slime A (7 + Burst 3)`
+  - payoff after-hit preview: `Would defeat | Burst Window | Consumes Burst Window`
+  - role payoff text: `Response: Mira cashes Burst Window now. | Role payoff: Mira cashes Burst Window now.`
+  - payoff log: `Mira cashed Burst Window on Slime A for +3.`
+  - clear/consume: `Target defeated; window cleared`
+- Regression proof:
+  - runtime skin bridge: `PASS RuntimeUiSkinBridge=present`
+  - battle top strip: `PASS TopStripFallback=True`
+  - battle inventory modal: `PASS InventoryOpen=True InventoryReadOnly=True HudBlocksDungeonInput=True InventoryClosed=True`
+  - popover/spoils: `static unchanged; this batch does not touch result popover or pending Run Spoils paths`
+- Compile:
+  - log: `unity-merge-validate.log`
+  - result: `PASS`
+  - proof markers:
+    - `*** Tundra build success`
+    - `Batchmode quit successfully invoked - shutting down!`
+    - `Exiting batchmode successfully now!`
+- Manual UX proof: `AUTOMATED Play Mode runtime proof captured; human screenshot/visual QA not claimed`
+- Performance proof: `turn-start intent refresh only; no per-frame scan, asset lookup, OnGUI rebuild, or combat cache widening added`
+- UI shape changed?: `No`
+- Detailed proof note: `docs/runtime/batch78-1-combat-core-runtime-proof.md`
+
+## Batch 78 Post-UI Revalidation Close-Out
+
+- Selected branch: `A`
+- Why this was the honest next problem:
+  - Batch 77.10 and 77.10.1 closed the runtime skin bridge plus inventory modal leak enough to stop blocking combat work
+  - the BattleScene owner-side combat loop already exists on the accepted branch, so this batch revalidated it after UI closeout instead of adding a second mechanic
+  - no UI skin mapping, sprite assignment, world cache, pending-spoils, RPG growth, or inventory truth changed in this pass
+- Preflight:
+  - UI skin/modal: `PASS static audit; RuntimeUiSkinBridge still registers BattleUiSkin_Default and InventoryUiSkin_Default, TopStripBackground remains empty/fallback, and Target Status is under !battleModalOpen`
+  - World selection: `PASS static audit; cached city/world surface invalidation remains on explicit selection changes and no combat files touched that rail`
+  - Popover/spoils: `PASS static audit; battle result popover remains modal and Run Spoils / pending extraction wording remains intact`
+  - Preview/role: `PASS static audit; current actor role, resolved stats, command preview, target after-hit preview, formula/growth text, and actual damage log paths remain wired`
+- Combat loop:
+  - intent read: enemy intent snapshots surface current target/action/threat data through the battle HUD and target context
+  - window trigger: readable enemy intent plus setup action opens `Burst Window`
+  - role payoff: Mira/Weak Point cashes the window and Rune/Arcane Burst can exploit active windows without consuming them
+  - preview text: command and target previews show expected damage plus Burst breakdown before commit
+  - target panel: target outcome text carries `Burst Window`, `Opens Burst Window`, or `Consumes Burst Window`
+  - actual log: setup/payoff log lines call out read-intent, opened window, exploited/cashed window, and applied damage
+  - clear/consume: window advances after party actions and consuming payoff clears the target bonus
+- Compile:
+  - log: `unity-merge-validate.log`
+  - result: `PASS`
+  - proof markers:
+    - `*** Tundra build success`
+    - `Batchmode quit successfully invoked - shutting down!`
+    - `Exiting batchmode successfully now!`
+- Manual UX proof: `DEFERRED; user skipped screenshot QA for time`
+- Performance proof: `static only; no new combat code, per-frame scan, asset lookup, or UI rebuild path added`
+- UI shape changed?: `No`
+
+## Batch 77.10.1 Close-Out
+
+- Selected branch: `A`
+- Honest scope:
+  - hide the leaked battle `Target Status` panel while the inventory/equipment modal is open
+  - reuse the existing inventory-open battle modal guard instead of adding a new state flag
+  - preserve the Batch 77.10 runtime skin bridge and all approved skin mappings
+- Preflight:
+  - runtime skin bridge: `present through RuntimeUiSkinBridge on SampleScene BootEntry`
+  - inventory modal state: `BootEntry.IsInventorySurfaceOpen`
+  - Target Status owner: `PrototypeDebugHUD.DrawBattleHudShell -> DrawTargetStatusPanel`
+  - existing modal guard: `IsBattleInputModalOpen()` already hides Current Unit, Command Selection, command flyouts, and blocks dungeon battle input while inventory is open`
+- Fix summary:
+  - Target Status visibility: `DrawTargetStatusPanel(rightRect)` now runs only when `!battleModalOpen`
+  - input/hover blocking: target-selection overlay and command flyouts are skipped under the same guard while inventory is open
+  - inventory behavior: `DrawInventorySurfaceOverlay` remains unchanged
+  - battle HUD restore: when inventory closes, `!battleModalOpen` restores Current Unit, Command Selection, Target Status, command flyouts, and target-selection overlay through the existing draw path
+- Compile:
+  - log: `unity-merge-validate.log`
+  - result: `PASS`
+  - proof markers:
+    - `*** Tundra build success`
+    - `Batchmode quit successfully invoked - shutting down!`
+    - `Exiting batchmode successfully now!`
+- Manual visual proof: `DEFERRED to user SampleScene screenshot QA`
+- Gameplay changes: `none`
+- Runtime/resource rail unchanged: `PASS`
+- Performance impact: `guard-only draw skip; no new asset lookup, Update loop, scan, or allocation-heavy path`
+
+## Batch 77.10 Close-Out
+
+- Selected branch: `A`
+- Honest scope:
+  - bridge the verified Battle/Inventory skin assets into the actual `SampleScene` manual runtime path
+  - avoid gameplay, combat, RPG progression, world, dungeon, result, Resources, and scene migration changes
+  - keep the exact approved Batch 77.9 mapping and leave unlisted slots empty
+- Preflight:
+  - skin assets: `BattleUiSkin_Default.asset` and `InventoryUiSkin_Default.asset present with approved Sprite-only mappings`
+  - preview path: `preview controllers consume the default skin assets directly`
+  - runtime path: `PrototypeDebugHUD` and `PrototypePresentationShell` already resolve through Battle/Inventory skin providers, but runtime-added components had no serialized scene skin assignment
+  - assignment source: `SampleScene serialized bridge reference; no runtime AssetDatabase, folder scan, per-frame lookup, or broad Resources.Load added`
+- Runtime bridge:
+  - added `RuntimeUiSkinBridge` on the `BootEntry` GameObject in `Assets/Scenes/SampleScene.unity`
+  - bridge registers `BattleUiSkin_Default.asset` with `BattleUiSkinProvider`
+  - bridge registers `InventoryUiSkin_Default.asset` with `InventoryUiSkinProvider`
+  - runtime-added `PrototypeDebugHUD` and `PrototypePresentationShell` now resolve the cached provider skins when local serialized fields are empty
+- Renderer consumption:
+  - battle top strip remains on `GetTopStripSlot()` and falls back because `TopStripBackground` is empty
+  - battle command buttons continue to consume `GetCommandButtonSlot(...)`, which falls back to `CommandButtonNormal`
+  - battle result popover consumes `PopupBackground` plus dark popup title/body/hint colors
+  - runtime inventory equipment slots now pass `slot.HasEquippedItem` into `GetEquipmentSlot(selected, hasEquippedItem)` so empty/equipped slots can consume `Slot01a`/`Slot01b`
+  - run-spoils badge continues to consume `RunSpoilsBadge`
+- Compile:
+  - log: `unity-merge-validate.log`
+  - result: `PASS`
+  - proof markers:
+    - `*** Tundra build success`
+    - `Batchmode quit successfully invoked - shutting down!`
+    - `Exiting batchmode successfully now!`
+- Manual visual proof: `DEFERRED to user SampleScene screenshot QA`
+- Gameplay changes: `none`
+- Runtime/resource rail unchanged: `PASS`
+- Performance impact: `one scene-load provider registration only; no new Update/OnGUI hot-path asset lookup`
+
+## Batch 77.9 Close-Out
+
+- Selected branch: `B + C`
+- Honest scope:
+  - verify the user-provided Battle/Inventory preview mapping
+  - serialize only the approved preview assignments
+  - create the missing curated Sprite copy for `UI_TravelBook_Button01a_1`
+  - keep `TopStripBackground` empty so the battle top strip uses fallback rendering
+  - document a GPT-shareable mapping handoff before any runtime bridge
+- Preflight:
+  - BattleUiSkin_Default and InventoryUiSkin_Default: `present`
+  - preview scenes: `present`
+  - preview scene scaffold skin paths: `BattleUiSkin_Default.asset` and `InventoryUiSkin_Default.asset`
+  - preview scaffold dependency check: `no BootEntry / StaticPlaceholderWorldView / SampleScene dependency found`
+  - renderer safeguards: `top strip queries TopStripBackground through GetTopStripSlot; popup text colors are wired`
+  - license policy: `TravelBook attribution note present; Raven Fantasy Icons still blocked / UNKNOWN`
+- Assignments:
+  - Battle `PanelBackground`: `UI_TravelBook_BookCover01a`
+  - Battle `CommandButtonNormal`: `UI_TravelBook_Button01a_1`
+  - Battle `PopupBackground`: `UI_TravelBook_Popup01a`
+  - Battle `TopStripBackground`: `empty`
+  - Inventory `EquipmentSlotEmpty`: `UI_TravelBook_Slot01a`
+  - Inventory `EquipmentSlotEquipped`: `UI_TravelBook_Slot01b`
+  - Inventory `RunSpoilsBadge`: `UI_TravelBook_Popup01a`
+- Curated Sprite changes:
+  - added `Assets/_Game/Content/UI/Sprites/Battle/Buttons/UI_TravelBook_Button01a_1.png`
+  - normalized its curated `.meta` to Sprite import policy: `textureType: 8`, `spriteMode: 1`, `alphaIsTransparency: 1`, `textureCompression: 0`, `enableMipMap: 0`
+- Visual/static proof:
+  - battle top bar: `PASS static (TopStripBackground is empty and PanelBackground is not queried for the full-width top strip)`
+  - battle popup readability: `PASS static (dark popup title/body/hint color path remains wired)`
+  - battle command button: `PASS static (curated Sprite reference serialized)`
+  - inventory slots: `PASS static (Slot01a / Slot01b Sprite references serialized)`
+  - inventory badge: `PASS static (Popup01a Sprite reference serialized; manual screenshot pass still needed for final size judgment)`
+- Docs:
+  - added `docs/ui/ui-skin-preview-mapping-qa.md`
+  - updated manual assignment checklist, slot maps, source map, attribution note, and this status file
+- Compile:
+  - log: `unity-merge-validate.log`
+  - result: `PASS`
+  - proof markers:
+    - `*** Tundra build success`
+    - `Batchmode quit successfully invoked - shutting down!`
+    - `Exiting batchmode successfully now!`
+- Gameplay changes: `none`
+- Runtime/resource rail unchanged: `PASS`
 
 ## Batch 77.8.1 Close-Out
 

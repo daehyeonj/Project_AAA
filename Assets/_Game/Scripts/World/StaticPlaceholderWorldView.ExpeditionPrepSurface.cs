@@ -573,6 +573,7 @@ public sealed partial class StaticPlaceholderWorldView
                 RouteRiskText = option.RouteRiskText ?? "None",
                 RoutePreviewText = option.RoutePreviewText ?? "None",
                 RewardPreviewText = option.RewardPreviewText ?? "None",
+                EventPreviewText = option.EventPreviewText ?? "None",
                 IsSelected = option.IsSelected,
                 IsRecommended = option.IsRecommended
             };
@@ -605,6 +606,7 @@ public sealed partial class StaticPlaceholderWorldView
         option.RouteRiskText = BuildRouteRiskSummaryForRoute(dungeonId, routeId);
         option.RoutePreviewText = BuildRoutePreviewSummaryText(dungeonId, routeId);
         option.RewardPreviewText = BuildRouteRewardPreviewEntryText(dungeonId, routeId);
+        option.EventPreviewText = BuildRouteCombatPlanEntryText(dungeonId, routeId);
         option.IsSelected = selectedRouteId == routeId;
         option.IsRecommended = recommendedRouteId == routeId;
         return option;

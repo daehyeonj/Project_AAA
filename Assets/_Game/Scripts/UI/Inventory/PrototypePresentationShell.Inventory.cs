@@ -212,7 +212,7 @@ public sealed partial class PrototypePresentationShell
                 : new Color(0.14f, 0.19f, 0.24f, 1f);
             string line1 = CompactShellText(slot.SlotLabel + " " + slot.HotkeyLabel, 30);
             string line2 = CompactShellText(slot.HasEquippedItem ? slot.EquippedItemName : "Empty", 26);
-            if (DrawInventorySkinnedButton(cardRect, line1 + "\n" + line2, true, slot.IsSelected, GetCurrentInventoryUiSkin().GetEquipmentSlot(slot.IsSelected), fill, _buttonStyle))
+            if (DrawInventorySkinnedButton(cardRect, line1 + "\n" + line2, true, slot.IsSelected, GetCurrentInventoryUiSkin().GetEquipmentSlot(slot.IsSelected, slot.HasEquippedItem), fill, _buttonStyle))
             {
                 _bootEntry.TrySelectInventorySlot(slot.SlotKey);
             }

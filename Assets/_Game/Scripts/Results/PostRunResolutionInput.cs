@@ -8,6 +8,9 @@ public sealed class PostRunResolutionInput
     public string SourceCityId = string.Empty;
     public string SourceCityLabel = "None";
     public string RewardResourceId = string.Empty;
+    public string MissionObjectiveText = "None";
+    public string MissionRelevanceText = "None";
+    public string RiskRewardContextText = "None";
     public bool Success;
     public int ReturnedLootAmount;
     public int ElapsedDays = 1;

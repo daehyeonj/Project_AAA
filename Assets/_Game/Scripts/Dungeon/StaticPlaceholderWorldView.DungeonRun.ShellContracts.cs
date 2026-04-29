@@ -167,6 +167,9 @@ public sealed class PrototypeDungeonRunResultContext
     public string ResultSummaryText = "None";
     public string SurvivingMembersSummaryText = "None";
     public string ResourceDeltaSummaryText = "None";
+    public string MissionObjectiveText = "None";
+    public string MissionRelevanceText = "None";
+    public string RiskRewardContextText = "None";
     public string SupplyPressureSummaryText = "None";
     public string InjurySummaryText = "None";
     public string CasualtySummaryText = "None";
@@ -228,6 +231,7 @@ public sealed class PrototypeDungeonBattleResultPopoverData
     public string EncounterNameText = "None";
     public string SubtitleText = "None";
     public string SummaryText = "None";
+    public string RoutePlanText = "None";
     public string LootSummaryText = "None";
     public string DropSummaryText = "None";
     public string PartySummaryText = "None";
@@ -412,6 +416,7 @@ public sealed partial class StaticPlaceholderWorldView
             EncounterNameText = string.IsNullOrEmpty(safePopover.EncounterNameText) ? "None" : safePopover.EncounterNameText,
             SubtitleText = string.IsNullOrEmpty(safePopover.SubtitleText) ? "None" : safePopover.SubtitleText,
             SummaryText = string.IsNullOrEmpty(safePopover.SummaryText) ? "None" : safePopover.SummaryText,
+            RoutePlanText = string.IsNullOrEmpty(safePopover.RoutePlanText) ? "None" : safePopover.RoutePlanText,
             LootSummaryText = string.IsNullOrEmpty(safePopover.LootSummaryText) ? "None" : safePopover.LootSummaryText,
             DropSummaryText = string.IsNullOrEmpty(safePopover.DropSummaryText) ? "None" : safePopover.DropSummaryText,
             PartySummaryText = string.IsNullOrEmpty(safePopover.PartySummaryText) ? "None" : safePopover.PartySummaryText,
@@ -1722,6 +1727,18 @@ public sealed partial class StaticPlaceholderWorldView
         context.ResultSummaryText = string.IsNullOrEmpty(snapshot.ResultSummary) ? "None" : snapshot.ResultSummary;
         context.SurvivingMembersSummaryText = string.IsNullOrEmpty(snapshot.SurvivingMembersSummary) ? "None" : snapshot.SurvivingMembersSummary;
         context.ResourceDeltaSummaryText = string.IsNullOrEmpty(lootOutcome.FinalLootSummary) ? "None" : lootOutcome.FinalLootSummary;
+        ExpeditionPlan launchPlan = GetCurrentExpeditionPlanForAppFlow();
+        context.MissionObjectiveText = IsMeaningfulSnapshotText(launchPlan != null ? launchPlan.ObjectiveText : string.Empty)
+            ? launchPlan.ObjectiveText
+            : "None";
+        context.MissionRelevanceText = IsMeaningfulSnapshotText(launchPlan != null ? launchPlan.ExpectedUsefulnessText : string.Empty)
+            ? launchPlan.ExpectedUsefulnessText
+            : IsMeaningfulSnapshotText(launchPlan != null ? launchPlan.WhyNowText : string.Empty)
+                ? launchPlan.WhyNowText
+                : "None";
+        context.RiskRewardContextText = IsMeaningfulSnapshotText(launchPlan != null ? launchPlan.RiskRewardPreviewText : string.Empty)
+            ? launchPlan.RiskRewardPreviewText
+            : "None";
         context.SupplyPressureSummaryText = BuildRunResultSupplyPressureSummary(partyOutcome);
         context.InjurySummaryText = string.IsNullOrEmpty(partyOutcome.PartyConditionText) ? "None" : partyOutcome.PartyConditionText;
         context.CasualtySummaryText = string.IsNullOrEmpty(partyOutcome.PartyMembersAtEndSummary) ? "None" : partyOutcome.PartyMembersAtEndSummary;
@@ -2270,6 +2287,9 @@ public sealed partial class StaticPlaceholderWorldView
         copy.ResultSummaryText = string.IsNullOrEmpty(source.ResultSummaryText) ? "None" : source.ResultSummaryText;
         copy.SurvivingMembersSummaryText = string.IsNullOrEmpty(source.SurvivingMembersSummaryText) ? "None" : source.SurvivingMembersSummaryText;
         copy.ResourceDeltaSummaryText = string.IsNullOrEmpty(source.ResourceDeltaSummaryText) ? "None" : source.ResourceDeltaSummaryText;
+        copy.MissionObjectiveText = string.IsNullOrEmpty(source.MissionObjectiveText) ? "None" : source.MissionObjectiveText;
+        copy.MissionRelevanceText = string.IsNullOrEmpty(source.MissionRelevanceText) ? "None" : source.MissionRelevanceText;
+        copy.RiskRewardContextText = string.IsNullOrEmpty(source.RiskRewardContextText) ? "None" : source.RiskRewardContextText;
         copy.SupplyPressureSummaryText = string.IsNullOrEmpty(source.SupplyPressureSummaryText) ? "None" : source.SupplyPressureSummaryText;
         copy.InjurySummaryText = string.IsNullOrEmpty(source.InjurySummaryText) ? "None" : source.InjurySummaryText;
         copy.CasualtySummaryText = string.IsNullOrEmpty(source.CasualtySummaryText) ? "None" : source.CasualtySummaryText;
@@ -2338,6 +2358,7 @@ public sealed partial class StaticPlaceholderWorldView
         copy.EncounterNameText = string.IsNullOrEmpty(source.EncounterNameText) ? "None" : source.EncounterNameText;
         copy.SubtitleText = string.IsNullOrEmpty(source.SubtitleText) ? "None" : source.SubtitleText;
         copy.SummaryText = string.IsNullOrEmpty(source.SummaryText) ? "None" : source.SummaryText;
+        copy.RoutePlanText = string.IsNullOrEmpty(source.RoutePlanText) ? "None" : source.RoutePlanText;
         copy.LootSummaryText = string.IsNullOrEmpty(source.LootSummaryText) ? "None" : source.LootSummaryText;
         copy.DropSummaryText = string.IsNullOrEmpty(source.DropSummaryText) ? "None" : source.DropSummaryText;
         copy.PartySummaryText = string.IsNullOrEmpty(source.PartySummaryText) ? "None" : source.PartySummaryText;

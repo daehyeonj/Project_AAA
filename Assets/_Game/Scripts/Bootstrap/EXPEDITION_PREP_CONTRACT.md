@@ -26,3 +26,4 @@
 - `AppFlowDungeonRunContext.LaunchPlan` carries the confirmed payload into DungeonRun/AppFlow.
 - DungeonRun logs now reference the confirmed objective so the launch reason stays visible after entering the run.
 - Batch 19 re-entry rule: when the player comes back through `ResultPipeline -> WorldSim -> CityHub`, `ExpeditionPrepReadModel` should carry the refreshed city decision context forward too, especially the top recent impact and recommendation summary/reason that made the next launch prompt relevant.
+- Batch 79 operating-scenario rule: route option UI may surface route-meaning scenario/party/combat/follow-up copy, but `RouteChoice` stays lightweight and `ExpeditionPlan` remains the confirmed launch payload.

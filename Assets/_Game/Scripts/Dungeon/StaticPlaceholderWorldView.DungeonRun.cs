@@ -1451,6 +1451,7 @@ public sealed partial class StaticPlaceholderWorldView
 
     private void RecordCurrentPartyTurnStartEvent()
     {
+        RefreshRpgOwnedEnemyIntentPreviewState();
         DungeonPartyMemberRuntimeData member = GetCurrentActorMember();
         if (member == null)
         {
@@ -1863,6 +1864,12 @@ public sealed partial class StaticPlaceholderWorldView
             return false;
         }
 
+        ExpeditionPrepReadModel prepReadModel = GetCurrentExpeditionPrepReadModel();
+        _confirmedExpeditionPlan = ExpeditionLaunchCoordinator.BuildConfirmedPlan(
+            prepReadModel,
+            WorldDayCount,
+            partyId,
+            launchContext != null && !string.IsNullOrEmpty(launchContext.PartyLabel) ? launchContext.PartyLabel : partyId);
         StartDungeonRunForRoute(template, partyId, launchContext);
         CloseExpeditionPrepBoardShell();
         return true;
@@ -2599,9 +2606,78 @@ public sealed partial class StaticPlaceholderWorldView
 
     private string BuildSelectedRouteSummary()
     {
-        return string.IsNullOrEmpty(_selectedRouteLabel)
-            ? "None"
-            : _selectedRouteLabel + " | " + _selectedRouteRiskLabel + " Risk";
+        string routeId = HasText(_selectedRouteId) ? _selectedRouteId : _selectedRouteChoiceId;
+        DungeonRouteTemplate template = HasText(routeId) ? GetRouteTemplateById(_currentDungeonId, routeId) : null;
+        string routeLabel = HasText(_selectedRouteLabel)
+            ? _selectedRouteLabel
+            : template != null && HasText(template.RouteLabel)
+                ? template.RouteLabel
+                : string.Empty;
+        if (!HasText(routeLabel))
+        {
+            return "None";
+        }
+
+        string riskLabel = HasText(_selectedRouteRiskLabel)
+            ? _selectedRouteRiskLabel
+            : template != null && HasText(template.RiskLabel)
+                ? template.RiskLabel
+                : "Unknown";
+        string scenarioLabel = HasText(routeId)
+            ? TryBuildRouteScenarioLabelFromContent(ResolveScenarioContextCityId(), _currentDungeonId, routeId)
+            : string.Empty;
+        return HasText(scenarioLabel)
+            ? routeLabel + " | " + scenarioLabel + " | " + riskLabel + " Risk"
+            : routeLabel + " | " + riskLabel + " Risk";
+    }
+
+    private string BuildSelectedRouteScenarioPlanText()
+    {
+        string routeId = HasText(_selectedRouteId) ? _selectedRouteId : _selectedRouteChoiceId;
+        string dungeonId = _currentDungeonId ?? string.Empty;
+        if (!HasText(dungeonId) || !HasText(routeId))
+        {
+            return "None";
+        }
+
+        string cityId = ResolveScenarioContextCityId();
+        string scenarioLabel = TryBuildRouteScenarioLabelFromContent(cityId, dungeonId, routeId);
+        string combatPlanText = TryBuildRouteCombatPlanTextFromContent(cityId, dungeonId, routeId);
+        string followUpHintText = TryBuildRouteFollowUpHintTextFromContent(cityId, dungeonId, routeId);
+        string planText = BuildScenarioPipeText(
+            BuildSelectedRouteSummary(),
+            BuildLabeledScenarioClause("Combat", combatPlanText),
+            BuildLabeledScenarioClause("Follow-up", followUpHintText));
+        if (planText != "None")
+        {
+            return planText;
+        }
+
+        return HasText(scenarioLabel) ? scenarioLabel : "None";
+    }
+
+    private string BuildSelectedRouteScenarioPayoffText(string outcomeKey)
+    {
+        string routePlanText = BuildSelectedRouteScenarioPlanText();
+        if (routePlanText == "None")
+        {
+            return "None";
+        }
+
+        string routeId = HasText(_selectedRouteId) ? _selectedRouteId : _selectedRouteChoiceId;
+        string followUpHintText = HasText(routeId)
+            ? TryBuildRouteFollowUpHintTextFromContent(ResolveScenarioContextCityId(), _currentDungeonId, routeId)
+            : string.Empty;
+        string payoffStateText = outcomeKey == PrototypeBattleOutcomeKeys.RunClear || _runResultState == RunResultState.Clear
+            ? "Paid off"
+            : outcomeKey == PrototypeBattleOutcomeKeys.RunRetreat || _runResultState == RunResultState.Retreat
+                ? "Partially paid off"
+                : outcomeKey == PrototypeBattleOutcomeKeys.RunDefeat || _runResultState == RunResultState.Defeat
+                    ? "Missed"
+                    : "Checked";
+        return BuildScenarioPipeText(
+            payoffStateText + ": " + routePlanText,
+            BuildLabeledScenarioClause("Result follow-up", followUpHintText));
     }
 
     private void AddPlannedRoomStep(string roomId, string displayName, string roomTypeLabel, DungeonRoomType roomType, Vector2Int markerPosition, string encounterId = "")
@@ -5001,6 +5077,7 @@ public sealed partial class StaticPlaceholderWorldView
                 EncounterNameText = encounterName,
                 SubtitleText = BuildEncounterBattleResultSubtitleText(encounterName),
                 SummaryText = BuildEncounterBattleResultSummaryText(encounterName, eliteVictory),
+                RoutePlanText = BuildSelectedRouteScenarioPlanText(),
                 LootSummaryText = BuildEncounterBattleRewardSummaryText(grantedLoot, eliteVictory),
                 DropSummaryText = BuildEncounterBattleDropSummaryText(encounter, eliteVictory),
                 PartySummaryText = BuildBattleResultPartySummaryText(BuildTotalPartyHpSummary(), GetPartyConditionText()),
@@ -5034,6 +5111,7 @@ public sealed partial class StaticPlaceholderWorldView
                 EncounterNameText = encounterName,
                 SubtitleText = BuildRunBattleResultSubtitleText(),
                 SummaryText = string.IsNullOrEmpty(safeResultSummary) ? "Battle result captured." : safeResultSummary,
+                RoutePlanText = BuildSelectedRouteScenarioPayoffText(outcomeKey),
                 LootSummaryText = safeReturnedLoot > 0 ? BuildLootAmountText(safeReturnedLoot) + " returned." : "No loot returned.",
                 DropSummaryText = BuildRunBattleResultDropSummaryText(resultContext),
                 PartySummaryText = BuildBattleResultPartySummaryText(

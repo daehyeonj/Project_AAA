@@ -19,7 +19,7 @@ The raw source packs remain under `Assets/Sprite`.
 
 - source pack: `Assets/Sprite/Complete_UI_Book_Styles_Pack_Free_v1.0/01_TravelBookLite`
 - audited license evidence: `Assets/Sprite/Complete_UI_Book_Styles_Pack_Free_v1.0/License.txt`
-- current project status: `allowed for preview/workflow use based on visible license text`
+- current project status: `allowed for preview/workflow/manual-test runtime use based on visible license text`
 
 Visible license summary from the audited text:
 
@@ -57,12 +57,17 @@ Working project rule:
 ## Current Usage Boundary
 
 - Codex made no random sprite assignments
-- current default skin assets contain user-authored preview test assignments on a few Battle and Inventory slots
+- current default skin assets contain only the Batch 77.9 user-provided preview mapping
+- Batch 77.10 bridges those same skin assets into `SampleScene` manual-test runtime through `RuntimeUiSkinBridge`
+- Battle preview mapping: `PanelBackground = UI_TravelBook_BookCover01a`, `CommandButtonNormal = UI_TravelBook_Button01a_1`, `PopupBackground = UI_TravelBook_Popup01a`, `TopStripBackground = empty`
+- Inventory preview mapping: `EquipmentSlotEmpty = UI_TravelBook_Slot01a`, `EquipmentSlotEquipped = UI_TravelBook_Slot01b`, `RunSpoilsBadge = UI_TravelBook_Popup01a`
 - those assignments are still preview/test state, not final art approval
-- preview scenes should be re-tested after the 77.8 top-strip fallback guard and popover text-color path
+- final skin slots use `Sprite` references; `Texture` references remain preview-only fallback
+- preview and runtime scenes should still receive a human screenshot pass before final art approval
 
 ## Related Docs
 
 - `docs/ui/ui-sprite-curation.md`
 - `docs/ui/manual-skin-assignment-checklist.md`
+- `docs/ui/ui-skin-preview-mapping-qa.md`
 - `Assets/_Game/Content/UI/Sprites/_SourceMap/ui-sprite-candidate-map.md`

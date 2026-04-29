@@ -183,6 +183,7 @@ public sealed partial class PrototypePresentationShell
 
         List<string> lines = new List<string>();
         AddBattleResultPopoverLine(lines, "Result", popover.SummaryText);
+        AddBattleResultPopoverLine(lines, "Route Plan", popover.RoutePlanText);
         AddBattleResultPopoverLine(lines, "Rewards", popover.LootSummaryText);
         AddBattleResultPopoverLine(lines, "Drop", popover.DropSummaryText);
         AddBattleResultPopoverLine(lines, "Party", popover.PartySummaryText);
@@ -369,6 +370,7 @@ public sealed partial class PrototypePresentationShell
     private void DrawDungeonExploreShell(Rect screenRect, PrototypeDungeonRunShellSurfaceData shellSurface)
     {
         PrototypeDungeonPanelContext panelContext = shellSurface != null ? shellSurface.PanelContext : new PrototypeDungeonPanelContext();
+        ExpeditionStartContext startContext = shellSurface != null ? shellSurface.ExpeditionStartContext : new ExpeditionStartContext();
         Rect layoutRect = new Rect(DungeonShellMargin, DungeonShellMargin, screenRect.width - (DungeonShellMargin * 2f), screenRect.height - (DungeonShellMargin * 2f));
         Rect headerRect = new Rect(layoutRect.x, layoutRect.y, layoutRect.width, DungeonHeaderHeight);
         Rect contentRect = new Rect(layoutRect.x, headerRect.yMax + DungeonShellGap, layoutRect.width, layoutRect.height - DungeonHeaderHeight - DungeonShellGap);
@@ -396,6 +398,9 @@ public sealed partial class PrototypePresentationShell
             BuildDungeonLines(
                 "Current Room: " + SafeShellText(panelContext.RoomDisplayLabel),
                 "Room Type: " + SafeShellText(panelContext.RoomTypeLabel),
+                "Route Plan: " + SafeShellText(startContext.RoutePreviewSummaryText),
+                "Route Risk: " + SafeShellText(panelContext.RiskPreviewSummaryText),
+                "Battle Watch: " + SafeShellText(startContext.EventPreviewSummaryText),
                 "Next Goal: " + SafeShellText(panelContext.NextMajorGoalText),
                 "Party HP: " + SafeShellText(shellSurface.TotalPartyHpText),
                 "Party Condition: " + SafeShellText(shellSurface.PartyConditionText),
@@ -2120,6 +2125,7 @@ public sealed partial class PrototypePresentationShell
                 "Run Outcome",
                 SafeShellText(resultContext != null ? resultContext.ResultSummaryText : "None"),
                 BuildDungeonLabeledLine("Route Run", resultContext != null ? resultContext.SelectedRouteSummaryText : "None"),
+                BuildDungeonLabeledLine("Scenario Payoff", BuildDungeonScenarioPayoffLine(resultContext)),
                 BuildDungeonLabeledLine("Room Path", resultContext != null ? resultContext.RoomPathSummaryText : "None"),
                 BuildDungeonLabeledLine("Encounters Closed", resultContext != null ? resultContext.ClearedEncountersText : "None"),
                 BuildDungeonLabeledLine("Extraction", resultContext != null ? resultContext.ExtractionSummaryText : "None"),
@@ -2131,6 +2137,42 @@ public sealed partial class PrototypePresentationShell
                 BuildDungeonLabeledLine("Party End HP", resultContext != null ? resultContext.PartyHpSummaryText : "None"),
                 BuildDungeonLabeledLine("Party Aftermath", returnAftermath != null ? returnAftermath.PartyOutcomeSummaryText : "None"),
                 BuildDungeonLabeledLine("Key Encounter", resultContext != null ? resultContext.KeyEncounterSummaryText : "None")));
+    }
+
+    private string BuildDungeonScenarioPayoffLine(PrototypeDungeonRunResultContext resultContext)
+    {
+        if (resultContext == null)
+        {
+            return string.Empty;
+        }
+
+        string routeText = ChooseFirstOptionalDungeonText(
+            resultContext.SelectedRouteSummaryText,
+            resultContext.WorldWritebackRouteSummaryText);
+        string followUpText = ChooseFirstOptionalDungeonText(
+            resultContext.WorldOutcomeReadbackPreview != null ? resultContext.WorldOutcomeReadbackPreview.FollowUpHintText : "None",
+            resultContext.WorldOutcomeReadbackPreview != null ? resultContext.WorldOutcomeReadbackPreview.CityImpactMeaningText : "None",
+            resultContext.WorldWritebackResultSummaryText);
+        if (!HasOptionalDungeonCopyValue(routeText) && !HasOptionalDungeonCopyValue(followUpText))
+        {
+            return string.Empty;
+        }
+
+        string stateText = resultContext.RunOutcomeKey == PrototypeBattleOutcomeKeys.RunClear
+            ? "Paid off"
+            : resultContext.RunOutcomeKey == PrototypeBattleOutcomeKeys.RunRetreat
+                ? "Partial"
+                : resultContext.RunOutcomeKey == PrototypeBattleOutcomeKeys.RunDefeat
+                    ? "Missed"
+                    : "Checked";
+        if (HasOptionalDungeonCopyValue(routeText) && HasOptionalDungeonCopyValue(followUpText))
+        {
+            return stateText + " | " + routeText + " | " + followUpText;
+        }
+
+        return HasOptionalDungeonCopyValue(routeText)
+            ? stateText + " | " + routeText
+            : stateText + " | " + followUpText;
     }
 
     private string BuildDungeonResultRewardBody(PrototypeDungeonRunResultContext resultContext)

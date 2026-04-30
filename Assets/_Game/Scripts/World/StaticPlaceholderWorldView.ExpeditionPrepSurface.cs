@@ -148,6 +148,7 @@ public sealed partial class StaticPlaceholderWorldView
         data.IsBoardOpen = _isExpeditionPrepBoardOpen;
         data.CanOpenBoard = briefing != null && briefing.CanOpenPlanner;
         data.CanCycleDispatchPolicy = _isExpeditionPrepBoardOpen && !string.IsNullOrEmpty(_currentHomeCityId);
+        data.CanRecoverOneDay = _isExpeditionPrepBoardOpen && _runtimeEconomyState != null;
         data.CanLaunch = readiness != null && readiness.GateResult != null && readiness.GateResult.CanLaunch;
         data.BoardTitleText = "Expedition Prep";
         data.BoardSummaryText = context != null && IsMeaningfulSnapshotText(context.LaunchManifestSummaryText)
@@ -303,6 +304,8 @@ public sealed partial class StaticPlaceholderWorldView
             ? activeSnapshot.ReturnWindow.RecoveryAfterReturnLabel
             : "None";
         data.LatestExpeditionResult = BuildExpeditionPrepLatestResult(data.CityId, data.DungeonId, data.CityLabel);
+        int recoveryDaysToReady = !string.IsNullOrEmpty(data.CityId) ? GetRecoveryDaysToReady(data.CityId) : 0;
+        BuildSecondRunDecisionReadbacks(data, recoveryDaysToReady);
         data.AlternateMoveText = IsMeaningfulSnapshotText(data.LatestExpeditionResult.NextPrepFollowUpSummaryText)
             ? data.LatestExpeditionResult.NextPrepFollowUpSummaryText
             : IsMeaningfulSnapshotText(data.LatestExpeditionResult.NextSuggestedActionText)
@@ -314,7 +317,12 @@ public sealed partial class StaticPlaceholderWorldView
                 ? data.LatestExpeditionResult.LatestReturnAftermathSummaryText
                 : data.RecommendedNextActionText;
         data.CanConfirmLaunch = _isExpeditionPrepBoardOpen && hasSelectedRoute && data.CanLaunch;
-        data.RouteOptions = BuildExpeditionPrepRouteOptions(data.DungeonId, data.SelectedRouteId, data.RecommendedRouteId);
+        data.RouteOptions = BuildExpeditionPrepRouteOptions(
+            data.DungeonId,
+            data.SelectedRouteId,
+            data.RecommendedRouteId,
+            data.PartyGrowthCarryForwardText,
+            recoveryDaysToReady);
         return data;
     }
 
@@ -444,6 +452,7 @@ public sealed partial class StaticPlaceholderWorldView
         data.IsBoardOpen = source.IsBoardOpen;
         data.CanOpenBoard = source.CanOpenBoard;
         data.CanCycleDispatchPolicy = source.CanCycleDispatchPolicy;
+        data.CanRecoverOneDay = source.CanRecoverOneDay;
         data.HasStagedParty = source.HasStagedParty;
         data.CanLaunch = source.CanLaunch;
         data.CanConfirmLaunch = source.CanConfirmLaunch;
@@ -492,6 +501,18 @@ public sealed partial class StaticPlaceholderWorldView
         data.ReturnEtaText = source.ReturnEtaText ?? "None";
         data.ReturnWindowText = source.ReturnWindowText ?? "None";
         data.RecoveryAfterReturnText = source.RecoveryAfterReturnText ?? "None";
+        data.LastRunCarryForwardText = source.LastRunCarryForwardText ?? "None";
+        data.PartyGrowthCarryForwardText = source.PartyGrowthCarryForwardText ?? "None";
+        data.StabilityAppetiteText = source.StabilityAppetiteText ?? "None";
+        data.SurgeAppetiteText = source.SurgeAppetiteText ?? "None";
+        data.LaunchRiskAdviceText = source.LaunchRiskAdviceText ?? "None";
+        data.LaunchNowChoiceText = source.LaunchNowChoiceText ?? "None";
+        data.RecoverOneDayChoiceText = source.RecoverOneDayChoiceText ?? "None";
+        data.AfterRecoveryPreviewText = source.AfterRecoveryPreviewText ?? "None";
+        data.RecoveryPressureChoiceText = source.RecoveryPressureChoiceText ?? "None";
+        data.RouteAppetiteAfterRecoveryText = source.RouteAppetiteAfterRecoveryText ?? "None";
+        data.RouteAppetiteRecommendationText = source.RouteAppetiteRecommendationText ?? "None";
+        data.SecondRunDecisionSummaryText = source.SecondRunDecisionSummaryText ?? "None";
         data.LatestExpeditionResult = ResultPipeline.BuildReturnConsumedExpeditionResult(
             source.LatestExpeditionResult,
             null,
@@ -583,7 +604,12 @@ public sealed partial class StaticPlaceholderWorldView
         return data;
     }
 
-    private ExpeditionPrepRouteOptionData[] BuildExpeditionPrepRouteOptions(string dungeonId, string selectedRouteId, string recommendedRouteId)
+    private ExpeditionPrepRouteOptionData[] BuildExpeditionPrepRouteOptions(
+        string dungeonId,
+        string selectedRouteId,
+        string recommendedRouteId,
+        string partyGrowthCarryForwardText,
+        int recoveryDaysToReady)
     {
         if (string.IsNullOrEmpty(dungeonId))
         {
@@ -594,23 +620,298 @@ public sealed partial class StaticPlaceholderWorldView
         string normalizedRecommendedRouteId = NormalizeRouteChoiceId(recommendedRouteId);
         return new[]
         {
-            BuildExpeditionPrepRouteOptionData(dungeonId, SafeRouteId, normalizedSelectedRouteId, normalizedRecommendedRouteId),
-            BuildExpeditionPrepRouteOptionData(dungeonId, RiskyRouteId, normalizedSelectedRouteId, normalizedRecommendedRouteId)
+            BuildExpeditionPrepRouteOptionData(dungeonId, SafeRouteId, normalizedSelectedRouteId, normalizedRecommendedRouteId, partyGrowthCarryForwardText, recoveryDaysToReady),
+            BuildExpeditionPrepRouteOptionData(dungeonId, RiskyRouteId, normalizedSelectedRouteId, normalizedRecommendedRouteId, partyGrowthCarryForwardText, recoveryDaysToReady)
         };
     }
 
-    private ExpeditionPrepRouteOptionData BuildExpeditionPrepRouteOptionData(string dungeonId, string routeId, string selectedRouteId, string recommendedRouteId)
+    private ExpeditionPrepRouteOptionData BuildExpeditionPrepRouteOptionData(
+        string dungeonId,
+        string routeId,
+        string selectedRouteId,
+        string recommendedRouteId,
+        string partyGrowthCarryForwardText,
+        int recoveryDaysToReady)
     {
         ExpeditionPrepRouteOptionData option = new ExpeditionPrepRouteOptionData();
         option.OptionKey = routeId;
         option.OptionLabel = BuildRouteButtonLabel(dungeonId, routeId);
         option.RouteRiskText = BuildRouteRiskSummaryForRoute(dungeonId, routeId);
-        option.RoutePreviewText = BuildRoutePreviewSummaryText(dungeonId, routeId);
+        option.RoutePreviewText = AppendSecondRunRouteAppetiteText(
+            BuildRoutePreviewSummaryText(dungeonId, routeId),
+            BuildRouteAppetiteText(routeId, partyGrowthCarryForwardText, recoveryDaysToReady));
         option.RewardPreviewText = BuildRouteRewardPreviewEntryText(dungeonId, routeId);
         option.EventPreviewText = BuildRouteCombatPlanEntryText(dungeonId, routeId);
         option.IsSelected = selectedRouteId == routeId;
         option.IsRecommended = recommendedRouteId == routeId;
         return option;
+    }
+
+    private void BuildSecondRunDecisionReadbacks(ExpeditionPrepSurfaceData data, int recoveryDaysToReady)
+    {
+        if (data == null)
+        {
+            return;
+        }
+
+        data.LastRunCarryForwardText = BuildLastRunCarryForwardText(data.LatestExpeditionResult);
+        data.PartyGrowthCarryForwardText = BuildPartyGrowthCarryForwardText(data.LatestExpeditionResult, data.PartyLoadoutSummaryText);
+        data.StabilityAppetiteText = "Stability appetite: protect HP and keep dispatch rhythm steady.";
+        data.SurgeAppetiteText = BuildSurgeAppetiteText(data.PartyGrowthCarryForwardText);
+        data.LaunchRiskAdviceText = BuildLaunchRiskAdviceText(data, recoveryDaysToReady);
+        data.LaunchNowChoiceText = BuildLaunchNowChoiceText(data, recoveryDaysToReady);
+        data.RecoverOneDayChoiceText = BuildRecoverOneDayChoiceText(data, recoveryDaysToReady);
+        data.AfterRecoveryPreviewText = BuildAfterRecoveryPreviewText(data, recoveryDaysToReady);
+        data.RecoveryPressureChoiceText = BuildRecoveryPressureChoiceText(data);
+        data.RouteAppetiteAfterRecoveryText = BuildRouteAppetiteAfterRecoveryText(data, recoveryDaysToReady);
+        data.RouteAppetiteRecommendationText = BuildRouteAppetiteRecommendationText(data);
+        data.SecondRunDecisionSummaryText = BuildSecondRunDecisionSummaryText(data);
+    }
+
+    private string BuildLastRunCarryForwardText(ExpeditionResult result)
+    {
+        if (result == null || !IsMeaningfulSnapshotText(result.ResultStateKey))
+        {
+            return "None";
+        }
+
+        string lootText = result.ReturnedLootAmount > 0 && IsMeaningfulSnapshotText(result.RewardResourceId)
+            ? "Returned " + result.RewardResourceId + " x" + result.ReturnedLootAmount
+            : IsMeaningfulSnapshotText(result.ReturnedLootSummaryText)
+                ? result.ReturnedLootSummaryText
+                : "Returned no counted loot";
+        string conditionText = IsMeaningfulSnapshotText(result.PartyConditionText)
+            ? result.PartyConditionText
+            : "Stable";
+        string partyText = StartsWithOrdinalIgnoreCase(conditionText, "Party")
+            ? conditionText
+            : "Party " + conditionText;
+        return lootText + " | " + partyText;
+    }
+
+    private string BuildPartyGrowthCarryForwardText(ExpeditionResult result, string loadoutSummaryText)
+    {
+        if (result == null || !IsMeaningfulSnapshotText(result.ResultStateKey))
+        {
+            return "No party growth carry-forward yet.";
+        }
+
+        if (result != null && IsMeaningfulSnapshotText(result.LatestGrowthHighlightText))
+        {
+            return result.LatestGrowthHighlightText;
+        }
+
+        if (result != null && IsMeaningfulSnapshotText(result.NextRunGrowthPreviewText))
+        {
+            return result.NextRunGrowthPreviewText;
+        }
+
+        if (IsMeaningfulSnapshotText(loadoutSummaryText))
+        {
+            return loadoutSummaryText;
+        }
+
+        return "No party growth carry-forward yet.";
+    }
+
+    private string BuildSurgeAppetiteText(string partyGrowthCarryForwardText)
+    {
+        if (ContainsTextOrdinalIgnoreCase(partyGrowthCarryForwardText, "Rune") &&
+            ContainsTextOrdinalIgnoreCase(partyGrowthCarryForwardText, "Focus"))
+        {
+            return "Surge appetite: chase payout while Rune's new focus improves burst.";
+        }
+
+        return "Surge appetite: chase payout if stock pressure still outweighs strain.";
+    }
+
+    private string BuildLaunchRiskAdviceText(ExpeditionPrepSurfaceData data, int recoveryDaysToReady)
+    {
+        if (data == null)
+        {
+            return "Launch warning: None";
+        }
+
+        if (!data.CanLaunch)
+        {
+            return "Launch warning: Blocked / " + (IsMeaningfulSnapshotText(data.BlockedReasonText) ? data.BlockedReasonText : data.LaunchGateSummaryText);
+        }
+
+        string readinessText = (data.DispatchReadinessText ?? string.Empty) + " " +
+            (data.RecoveryProgressText ?? string.Empty) + " " +
+            (data.RecoveryEtaText ?? string.Empty) + " " +
+            (data.LaunchGateSummaryText ?? string.Empty);
+        bool hasRecoveryStrain = recoveryDaysToReady > 0 ||
+            ContainsTextOrdinalIgnoreCase(readinessText, "recover") ||
+            ContainsTextOrdinalIgnoreCase(readinessText, "strain");
+        if (ContainsTextOrdinalIgnoreCase(readinessText, "warning") ||
+            hasRecoveryStrain)
+        {
+            return "Launch warning: Ready with warning / recovery strain; launch is allowed, but dispatch rhythm stays tight.";
+        }
+
+        return "Launch warning: Ready / low recovery risk.";
+    }
+
+    private string BuildLaunchNowChoiceText(ExpeditionPrepSurfaceData data, int recoveryDaysToReady)
+    {
+        if (data == null)
+        {
+            return "Launch now: None";
+        }
+
+        if (!data.CanLaunch)
+        {
+            return "Launch now: Blocked until the launch gate clears.";
+        }
+
+        if (recoveryDaysToReady > 0)
+        {
+            return "Launch now: Ready with warning; recover " + recoveryDaysToReady + " day(s) to clear strain.";
+        }
+
+        return "Launch now: Ready; route can launch before the next world tick.";
+    }
+
+    private string BuildRecoverOneDayChoiceText(ExpeditionPrepSurfaceData data, int recoveryDaysToReady)
+    {
+        if (data == null)
+        {
+            return "Recover 1 Day: None";
+        }
+
+        if (recoveryDaysToReady > 0)
+        {
+            return "Recover 1 Day: improves readiness while world pressure/economy advance one day.";
+        }
+
+        return "Recover 1 Day / Wait 1 Day: readiness stays ready, but world pressure/economy still advance.";
+    }
+
+    private string BuildAfterRecoveryPreviewText(ExpeditionPrepSurfaceData data, int recoveryDaysToReady)
+    {
+        if (data == null)
+        {
+            return "After waiting: None";
+        }
+
+        if (recoveryDaysToReady > 1)
+        {
+            return "After waiting: readiness recovery ETA drops toward Ready; pressure and stock rails tick with the world day.";
+        }
+
+        if (recoveryDaysToReady == 1)
+        {
+            return "After waiting: readiness should become Ready; pressure and stock rails tick with the world day.";
+        }
+
+        return "After waiting: readiness remains Ready; pressure and stock rails tick with the world day.";
+    }
+
+    private string BuildRecoveryPressureChoiceText(ExpeditionPrepSurfaceData data)
+    {
+        if (data == null)
+        {
+            return "Recovery choice: None";
+        }
+
+        return data.LaunchNowChoiceText + " | " + data.RecoverOneDayChoiceText;
+    }
+
+    private string BuildRouteAppetiteAfterRecoveryText(ExpeditionPrepSurfaceData data, int recoveryDaysToReady)
+    {
+        if (data == null)
+        {
+            return "After recovery appetite: None";
+        }
+
+        if (recoveryDaysToReady > 0)
+        {
+            return "After recovery appetite: Stability protects the strained rhythm now; Surge becomes more tempting once readiness clears.";
+        }
+
+        return "After recovery appetite: readiness is clear, so Surge can lean on growth while Stability still protects rhythm.";
+    }
+
+    private string BuildRouteAppetiteRecommendationText(ExpeditionPrepSurfaceData data)
+    {
+        if (data == null)
+        {
+            return "Recommendation: None";
+        }
+
+        return "Recommendation: Stability if recovery strain matters now; Recover 1 Day makes Surge safer if stock pressure still outweighs delay.";
+    }
+
+    private string BuildSecondRunDecisionSummaryText(ExpeditionPrepSurfaceData data)
+    {
+        if (data == null ||
+            !IsMeaningfulSnapshotText(data.LastRunCarryForwardText) ||
+            !ContainsTextOrdinalIgnoreCase(data.LastRunCarryForwardText, "Returned"))
+        {
+            return "Second run decision pending.";
+        }
+
+        return "Last run changed the city and party; choose Stability to protect rhythm or Surge to trust the new burst edge.";
+    }
+
+    private string BuildRouteAppetiteText(string routeId, string partyGrowthCarryForwardText, int recoveryDaysToReady)
+    {
+        string normalizedRouteId = NormalizeRouteChoiceId(routeId);
+        if (normalizedRouteId == RiskyRouteId)
+        {
+            bool hasRuneFocus = ContainsTextOrdinalIgnoreCase(partyGrowthCarryForwardText, "Rune") &&
+                                ContainsTextOrdinalIgnoreCase(partyGrowthCarryForwardText, "Focus");
+            if (recoveryDaysToReady > 0)
+            {
+                return hasRuneFocus
+                    ? "Appetite: chase payout while Rune's new focus improves burst, but recovery is still tight"
+                    : "Appetite: chase payout only if stock pressure still outweighs recovery strain";
+            }
+
+            return hasRuneFocus
+                ? "Appetite: recovery is ready, so Rune's focus makes payout chase more tempting"
+                : "Appetite: chase payout if stock pressure still outweighs strain";
+        }
+
+        if (normalizedRouteId == SafeRouteId)
+        {
+            if (recoveryDaysToReady <= 0)
+            {
+                return "Appetite: protect HP and keep dispatch rhythm steady while readiness is clear";
+            }
+
+            return "Appetite: protect HP and keep dispatch rhythm steady";
+        }
+
+        return "None";
+    }
+
+    private string AppendSecondRunRouteAppetiteText(string baseText, string appetiteText)
+    {
+        if (!IsMeaningfulSnapshotText(appetiteText))
+        {
+            return IsMeaningfulSnapshotText(baseText) ? baseText : "None";
+        }
+
+        return IsMeaningfulSnapshotText(baseText)
+            ? baseText + " | " + appetiteText
+            : appetiteText;
+    }
+
+    private static bool StartsWithOrdinalIgnoreCase(string value, string prefix)
+    {
+        return !string.IsNullOrEmpty(value) &&
+               !string.IsNullOrEmpty(prefix) &&
+               value.Length >= prefix.Length &&
+               value.Substring(0, prefix.Length).ToLowerInvariant() == prefix.ToLowerInvariant();
+    }
+
+    private static bool ContainsTextOrdinalIgnoreCase(string value, string needle)
+    {
+        return !string.IsNullOrEmpty(value) &&
+               !string.IsNullOrEmpty(needle) &&
+               value.ToLowerInvariant().Contains(needle.ToLowerInvariant());
     }
 
     private string BuildDispatchReadinessKey(string cityId)

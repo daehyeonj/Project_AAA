@@ -424,15 +424,17 @@ public static class Batch80WorldResultPressureBoardProofRunner
             _readinessText = selection.PartyReadinessSummaryText;
             _nextActionText = outcome.CorrectiveFollowUpText;
 
-            bool hasBoardSummary = ContainsAll(_boardSummaryText, "pressure board", "Latest", "Changed", "Next");
-            bool hasLatestResult = ContainsAll(_latestResultText, "Last run", "Returned", "Party") &&
+            bool hasBoardSummary = ContainsAll(_boardSummaryText, "pressure board", "Latest:", "Changed:", "Next:") &&
+                                   ContainsAny(_boardSummaryText, "Ready:", "Blocked:");
+            bool hasLatestResult = ContainsAll(_latestResultText, "Returned", "Party") &&
                                    ContainsAny(_latestResultText, "Rest Path", "Stability Run", "Dungeon Alpha", "safe") &&
-                                   ContainsAny(_latestResultText, "run_clear", "Clear", "cleared") &&
+                                   ContainsAny(_latestResultText, "Cleared", "Failed", "Returned") &&
                                    ContainsAny(_latestResultText, "mana_shard", "x16", "16");
+            bool hidesInternalResultKey = !ContainsValue(_latestResultText, "run_clear");
             bool hasWhyItMatters = HasText(selection.WhyCityMattersText);
             bool hasPressureChange = HasText(_pressureChangeText) &&
                                      !ContainsValue(_pressureChangeText, "No pressure change recorded") &&
-                                     ContainsAny(_pressureChangeText, "Need pressure", "Dispatch readiness", "Stock +", "absorbed");
+                                     ContainsAny(_pressureChangeText, "Pressure", "Readiness", "Stock +", "absorbed");
             bool hasReadiness = HasText(_readinessText) && ContainsAny(_readinessText, "Ready", "Blocked", "warning", "recovery");
             bool hasRouteRecommendation = HasText(selection.RecommendedRouteText) &&
                                           ContainsAny(selection.RecommendedRouteText, "Rest Path", "Stability Run", "safe", "Route");
@@ -441,6 +443,7 @@ public static class Batch80WorldResultPressureBoardProofRunner
 
             if (!hasBoardSummary ||
                 !hasLatestResult ||
+                !hidesInternalResultKey ||
                 !hasWhyItMatters ||
                 !hasPressureChange ||
                 !hasReadiness ||

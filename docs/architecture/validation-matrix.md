@@ -60,6 +60,7 @@ This matrix defines the minimum checks that should be run after architecture or 
 - Batch 26 authoring guard: if `LatestResult.RecommendationShiftText` is present for a representative chain, confirm the top recent-impact hint or top recommendation reason still carries that same shared shift text instead of dropping back to chain-local fallback wording
 - Batch 27 authoring guard: if a representative chain resolves a shared city-decision meaning asset, confirm `CityOpportunitySignal.WhyItMattersText`, the top recommendation reason, and `WhyCityMattersText` still carry that same shared rationale instead of dropping back to CityHub-local fallback text
 - Batch 80 pressure-board guard: after result return, selected CityHub/selected-city board readback must explain what happened, why it mattered, what changed, next action, readiness/re-entry, and route recommendation from existing result/writeback/readiness data. Use `Batch80WorldResultPressureBoardProofRunner.RunBatch80WorldResultPressureBoardProof` for the targeted runtime proof.
+- Batch 80.1 readability guard: selected CityHub pressure-board presentation should keep the scannable order `Latest -> Why -> Changed -> Next -> Ready -> Route`, avoid internal result keys such as `run_clear`, and use `docs/ui/cityhub-pressure-board-ux-checklist.md` for manual screenshot QA.
 
 ### CityHub -> ExpeditionPrep
 
@@ -68,6 +69,9 @@ This matrix defines the minimum checks that should be run after architecture or 
 - Batch 19 continuity guard: after the result-return loop, re-enter ExpeditionPrep and confirm the prep read model plus route-choice prompt still carry the selected city's refreshed `RecentImpactSummary`, top recommendation summary/reason, and why-now text before the player commits to the next launch
 - Batch 21 clarity guard: confirm the returned `WhyNowText` no longer repeats the same decision clause and is short enough to fit the prep prompt without truncating the main reason for the next launch
 - Batch 79.3 re-entry guard: after a result return, re-enter ExpeditionPrep and confirm selected city/dungeon, prep `RecentImpactSummaryText`, recommendation summary/reason, `WhyNowText`, visible route options, dispatch readiness, and route aftermath echo. Do not require the route prompt to repeat returned decision copy when it correctly carries `LaunchReadiness` gate/warning text.
+- Batch 82 repeat-loop guard: after the first result return, re-enter ExpeditionPrep and confirm latest result, party growth/loadout, route options, launch gate, recommendation reason, and second-run launch/block explanation are all coherent. Use `Batch82RepeatCoreLoopProofRunner.RunBatch82RepeatCoreLoopProof` for the targeted two-run proof.
+- Batch 83 decision-pressure guard: after the first result return, second ExpeditionPrep should expose compact last-run change, party carry-forward, stability appetite, surge appetite, launch warning, and Stability-vs-Surge recommendation text. Use `Batch82RepeatCoreLoopProofRunner.RunBatch83SecondRunDecisionPressureProof` for the targeted runtime proof, then use `docs/ui/two-run-feel-qa-checklist.md` for manual feel QA.
+- Batch 84 recovery-pressure guard: from second ExpeditionPrep, verify launch-now/wait readbacks, `[T] Recover 1 Day`, world day advancement, readiness recovery, and post-wait Stability/Surge appetite changes through the existing recovery rail. Use `Batch82RepeatCoreLoopProofRunner.RunBatch84RecoveryPressureChoiceProof`, keep Batch10 smoke green, and use `docs/runtime/batch84-recovery-pressure-choice-checklist.md` for manual feel QA.
 
 ### ExpeditionPrep -> DungeonRun
 
@@ -99,6 +103,7 @@ This matrix defines the minimum checks that should be run after architecture or 
 - Batch 79 operating-scenario guard: for the selected `city-a -> dungeon-alpha -> safe/risky` pair, route scenario text should be visible in prep option cards, launch/dungeon readback, battle-result popover, and final-result readback without adding a new route content owner or a per-frame scenario rebuild.
 - Batch 79.1 smoke-triage guard: smoke automation that resolves the dungeon core loop should read event/pre-elite visibility from `PrototypeDungeonRunShellSurfaceData` as the current dungeon shell surface, not only from retired bootstrap event/pre-elite booleans that can remain false for legacy-shell suppression.
 - Batch 79.2 confirmed-plan guard: once a route choice is confirmed, keep the confirmed `ExpeditionPlan` available to DungeonRun and ResultPipeline instead of relying only on a live prep-surface fallback.
+- Batch 81 presentation lock guard: the accepted demo path is `city-a -> dungeon-alpha -> safe` / `Stability Run`; before recording, confirm the playbook path from CityHub pressure board through route card, first combat payoff, result writeback, compact world board, and ExpeditionPrep re-entry.
 
 ### DungeonRun -> BattleScene
 
@@ -132,6 +137,9 @@ This matrix defines the minimum checks that should be run after architecture or 
 - Batch 17 continuity guard: confirm the refreshed `ExpeditionResultReadModel` keeps `MissionObjectiveText` and `MissionRelevanceText` from `OutcomeReadback`, and that `WorldReturnSummaryText` combines the applied city-status change with the mission relevance anchor before the next CityHub hop
 - Batch 26 authoring guard: for representative chains, confirm the refreshed `ExpeditionResultReadModel` now also carries `OutcomeMeaningId`, `CityImpactMeaningText`, and `RecommendationShiftText`, and that `WorldReturnSummaryText` prefers the shared city-impact meaning when it is available
 - Batch 80 pressure-board handoff: confirm selected CityHub pressure copy is a cached/read-model consumer of `ExpeditionResultReadModel`, `OutcomeReadback`, `WorldWriteback`, `CityDecisionReadModel`, and `LaunchReadiness`, not a new ResultPipeline field set or per-frame world-board rebuild.
+- Batch 82 repeatability handoff: a cleared run should meaningfully inform the next prep decision through existing `ExpeditionResultReadModel`, `OutcomeReadback`, `LaunchReadiness`, party progression/loadout, and route-option surfaces. Do not add fake state changes or rebuild ResultPipeline in UI paths just to make the second run look different.
+- Batch 83 second-run desire handoff: player-facing appetite copy in ExpeditionPrep should remain a cached projection over existing result/readiness/route/party data. Do not alter world deltas, party progression, reward math, or result packaging to force a more tempting second-run readback.
+- Batch 84 recovery-pressure handoff: waiting from ExpeditionPrep must advance the same world day/economy/recovery rail that CityHub already uses. The resulting pressure/readiness/appetite changes should be read back from existing world/prep contracts, not from ResultPipeline remapping or UI-only penalty state.
 
 ## Static Checks When Manual Play Is Not Available
 

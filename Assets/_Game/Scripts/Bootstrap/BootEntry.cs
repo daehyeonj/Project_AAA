@@ -730,6 +730,18 @@ public sealed partial class BootEntry : MonoBehaviour
         }
     }
 
+    public bool TryRecoverExpeditionPrepOneDay()
+    {
+        if (!IsExpeditionPrepBoardOpen)
+        {
+            return false;
+        }
+
+        int previousWorldDayCount = WorldDayCount;
+        RunWorldDayStep();
+        return WorldDayCount > previousWorldDayCount;
+    }
+
     public void ResetWorldSimulation()
     {
         if (IsWorldSimActive && _worldView != null)
@@ -1629,6 +1641,11 @@ public sealed partial class BootEntry : MonoBehaviour
             if (keyboard.qKey.wasPressedThisFrame)
             {
                 return TryCycleExpeditionPrepDispatchPolicy();
+            }
+
+            if (keyboard.tKey.wasPressedThisFrame)
+            {
+                return TryRecoverExpeditionPrepOneDay();
             }
 
             if (keyboard.digit1Key.wasPressedThisFrame || keyboard.numpad1Key.wasPressedThisFrame)

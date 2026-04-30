@@ -190,6 +190,11 @@ public sealed class BootstrapSceneStateBridge : MonoBehaviour
         return Dispatch(entry => entry.TryCycleExpeditionPrepDispatchPolicy());
     }
 
+    public bool TryRecoverExpeditionPrepOneDay()
+    {
+        return Dispatch(entry => entry.TryRecoverExpeditionPrepOneDay());
+    }
+
     public bool TryConfirmSelectedExpeditionLaunch()
     {
         return Dispatch(entry => entry.TryConfirmSelectedExpeditionLaunch());

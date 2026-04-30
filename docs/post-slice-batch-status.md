@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 80 world result-pressure board + Batch 79.3 CityHub -> ExpeditionPrep re-entry continuity triage + Batch 79.2 ResultPipeline intent packaging smoke triage + Batch 79.1 route scenario runtime proof + smoke timeout triage + Batch 79 dungeon route operating scenario + Batch 78.1 combat core runtime proof + Batch 78 post-UI combat core revalidation + Batch 77.10.1 inventory modal target-status cleanup + Batch 77.10 runtime skin bridge + Batch 77.9 UI skin preview mapping QA + Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
+- Latest closed batch: `Batch 84 recovery pressure choice v1 + Batch 83 second-run decision pressure v1 + Batch 82 repeatable core game loop v1 + Batch 81 presentation vertical slice lock + Batch 80.1 selected CityHub pressure board readability UX + Batch 80 world result-pressure board + Batch 79.3 CityHub -> ExpeditionPrep re-entry continuity triage + Batch 79.2 ResultPipeline intent packaging smoke triage + Batch 79.1 route scenario runtime proof + smoke timeout triage + Batch 79 dungeon route operating scenario + Batch 78.1 combat core runtime proof + Batch 78 post-UI combat core revalidation + Batch 77.10.1 inventory modal target-status cleanup + Batch 77.10 runtime skin bridge + Batch 77.9 UI skin preview mapping QA + Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,8 +18,250 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-a -> dungeon-alpha operating-scenario rail; city-b -> dungeon-beta remains the content-thickened presenter rail`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: `manual UX review of the selected CityHub pressure board, then choose the next roadmap priority beyond result-pressure clarity`
+- Next honest bottleneck: `manual recovery-pressure feel QA, then tune pacing/reward pressure only if the launch-now vs recover-one-day choice still feels flat in human play`
 - Scene architecture status: `compile-safe persistent-root scaffold added; SampleScene remains the live playable baseline`
+
+## Batch 84 Recovery Pressure Choice v1 Close-Out
+
+- Selected branch: `Branch A - use the existing world day / recovery rail and make the second ExpeditionPrep choice readable`
+- Why this was the honest next step:
+  - Batch83 made the second run tempting, but the player still needed an explicit launch-now vs wait/recover decision
+  - the existing world day, dispatch recovery, readiness, pressure, and route appetite rails already had enough real state to support the choice
+  - this pass avoided a new fatigue system, fake wait penalty, ResultPipeline rewrite, and per-frame rebuild
+- Player-facing readbacks added:
+  - Launch now: `Ready`, `Ready with warning`, or `Blocked`
+  - Recover 1 Day / Wait 1 Day: one-day wait action plus pressure/economy tick warning
+  - After waiting: readiness/recovery preview plus pressure/stock rail reminder
+  - After recovery appetite: Stability remains safer, Surge becomes more tempting once readiness clears
+- Runtime action:
+  - `[T] Recover 1 Day` is available from the ExpeditionPrep board
+  - the action calls the existing world day/economy/recovery rail and keeps the prep board open
+- Files changed:
+  - `Assets/_Game/Scripts/Bootstrap/BootEntry.cs`
+  - `Assets/_Game/Scripts/Bootstrap/BootstrapSceneStateBridge.cs`
+  - `Assets/_Game/Scripts/Bootstrap/EXPEDITION_PREP_CONTRACT.md`
+  - `Assets/_Game/Scripts/Core/PrototypePresentationShell.cs`
+  - `Assets/_Game/Scripts/Expedition/ExpeditionPrepSurfaceData.cs`
+  - `Assets/_Game/Scripts/World/StaticPlaceholderWorldView.ExpeditionPrepSurface.cs`
+  - `Assets/_Game/Scripts/Editor/Batch82RepeatCoreLoopProofRunner.cs`
+  - `docs/runtime/batch84-recovery-pressure-choice-v1.md`
+  - `docs/runtime/batch84-recovery-pressure-choice-checklist.md`
+  - `docs/architecture/flow-contracts.md`
+  - `docs/architecture/validation-matrix.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch84-compile.log`
+  - result: `PASS`
+- Targeted proof:
+  - log: `unity-batch84-recovery-pressure-proof.log`
+  - result: `PASS`
+  - proof marker: `PASS :: Recover 1 Day choice`
+  - observed update: `BeforeDay=1 | AfterDay=2`, readiness became `Ready / low recovery risk`
+- Regression proof:
+  - Batch83 second-run desire proof: `PASS`, log `unity-batch84-batch83-proof.log`
+- Batch10 smoke:
+  - log: `unity-batch84-smoke.log`
+  - result: `PASS`
+- Static check:
+  - `git diff --check`: `PASS`, line-ending warnings only
+- UI shape changed?: `Small action-surface addition only; no skin/layout overhaul`
+- Manual UX proof: `NOT CLAIMED`; checklist added at `docs/runtime/batch84-recovery-pressure-choice-checklist.md`
+- Detailed proof note: `docs/runtime/batch84-recovery-pressure-choice-v1.md`
+
+## Batch 83 Second-Run Decision Pressure v1 Close-Out
+
+- Selected branch: `Branch A - the two-run loop works, but the second ExpeditionPrep needed stronger player-facing choice appetite`
+- Why this was the honest next step:
+  - Batch82 proved repeatability, but the next product question was whether the player wants to make the second choice
+  - existing result, city pressure, party growth, equipment, route, and launch-warning data already supported the prompt
+  - this pass could stay display/readback-only without adding mechanics, content, layout, skin, economy, or ResultPipeline work
+- Player-facing readbacks added:
+  - Last run changed: `Returned mana_shard x16 | Party Stable`
+  - Party carry-forward: `Alden +16 XP | Rune equipped Stormglass Focus`
+  - Stability appetite: `protect HP and keep dispatch rhythm steady`
+  - Surge appetite: `chase payout while Rune's new focus improves burst`
+  - Launch warning: `Ready with warning / recovery risk / fatigue`
+  - Recommendation: `Stability if recovery matters, Surge if stock pressure still outweighs strain`
+- Files changed:
+  - `Assets/_Game/Scripts/Expedition/ExpeditionPrepSurfaceData.cs`
+  - `Assets/_Game/Scripts/World/StaticPlaceholderWorldView.ExpeditionPrepSurface.cs`
+  - `Assets/_Game/Scripts/Core/PrototypePresentationShell.cs`
+  - `Assets/_Game/Scripts/Editor/Batch82RepeatCoreLoopProofRunner.cs`
+  - `Assets/_Game/Scripts/Bootstrap/EXPEDITION_PREP_CONTRACT.md`
+  - `docs/runtime/batch83-second-run-decision-pressure-v1.md`
+  - `docs/ui/two-run-feel-qa-checklist.md`
+  - `docs/architecture/flow-contracts.md`
+  - `docs/architecture/validation-matrix.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch83-compile.log`
+  - result: `PASS`
+- Targeted proof:
+  - log: `unity-batch83-two-run-feel-proof.log`
+  - result: `PASS`
+  - proof marker: `PASS :: Second ExpeditionPrep context`
+- Batch10 smoke:
+  - log: `unity-batch83-smoke.log`
+  - result: `PASS`
+- Static check:
+  - `git diff --check`: `PASS`, line-ending warnings only
+- UI shape changed?: `No new layout or skin; existing panels now consume compact decision readback lines`
+- Manual UX proof: `NOT CLAIMED`; checklist added at `docs/ui/two-run-feel-qa-checklist.md`
+- Detailed proof note: `docs/runtime/batch83-second-run-decision-pressure-v1.md`
+
+## Batch 82 Repeatable Core Game Loop v1 Close-Out
+
+- Selected branch: `Branch A - the loop already mostly repeats; lock the two-run contract proof without adding systems`
+- Why this was the honest next game-development step:
+  - the vertical slice had become presentable, but the next product question was whether it could repeat as a game loop
+  - existing result, world board, party growth, equipment, route, and prep contracts already had enough state to inform a second run
+  - the safest move was to prove and document repeatability instead of inventing a new city, dungeon, economy, combat, inventory, or UI system
+- Preflight:
+  - Vertical slice: `PASS through Batch81 playbook/proof baseline and Batch10 rerun`
+  - Pressure board: `PASS; Latest/Why/Changed/Next/Ready/Route remain readable after result return`
+  - Re-entry: `PASS; CityHub -> ExpeditionPrep re-entry stays coherent after result return`
+  - Packaging: `PASS; mission/relevance/risk context stays preserved through ResultPipeline`
+  - Combat: `PASS; Batch78.1 burst/payoff proof remains green`
+  - Modal/performance: `PASS through Batch78.1 UI/modal/skin sanity and static scope; no new per-frame rebuild path`
+- Repeat loop implementation:
+  - First prep: `city-a -> dungeon-alpha route cards expose Stability Run and Surge Window plus party/loadout/gate context`
+  - First run/result: `safe route launches through confirmed ExpeditionPlan and returns mana_shard x16`
+  - World return: `CityHub board shows Cleared Stability Run, Stock +16, pressure/readiness shift, next action, and warning-ready state`
+  - Second prep: `latest result, Alden XP, Rune equipped Stormglass Focus, loadout, safe/risky options, warning gate, and recommendation reason carry forward`
+  - Second-run readiness: `launch is allowed with warning because city readiness is not fully recovered`
+  - Next action: `second DungeonRun can start through the same confirmed plan seam`
+- Files changed:
+  - `Assets/_Game/Scripts/Editor/Batch82RepeatCoreLoopProofRunner.cs`
+  - `Assets/_Game/Scripts/Editor/Batch82RepeatCoreLoopProofRunner.cs.meta`
+  - `docs/runtime/batch82-repeatable-core-loop-v1.md`
+  - `docs/architecture/validation-matrix.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch82-compile.log`
+  - result: `PASS`
+- Targeted proof:
+  - log: `unity-batch82-repeat-loop-proof.log`
+  - result: `PASS`
+  - proof marker: `PASS :: Repeat core loop proof completed`
+- Batch10 smoke:
+  - log: `unity-batch82-smoke.log`
+  - result: `PASS`
+- Regression proof:
+  - Batch80.1 board: `PASS`, log `unity-batch82-board-proof.log`
+  - Batch79.3 re-entry: `PASS`, log `unity-batch82-reentry-proof.log`
+  - Batch79.2 packaging: `PASS`, log `unity-batch82-packaging-proof.log`
+  - Batch78.1 combat/modal/skin: `PASS`, log `unity-batch82-combat-proof.log`
+- Performance proof:
+  - static scope: `no ResultPipeline UI rebuild, no per-frame asset scan/load, no route/content/inventory/economy/UI layout expansion`
+  - runtime: repeat-loop proof reaches selected CityHub, second prep, second route select, and second launch without timeout
+- UI shape changed?: `No`
+- What the player can now do repeatedly:
+  - clear a run, return with loot/growth/equipment and changed city pressure, then open second prep and launch again with the updated context visible
+- Remaining game-loop weakness:
+  - repeatability is proven for the first two-run loop, but long-run motivation still needs manual feel QA and future pacing/content decisions
+- Recommended next batch:
+  - `manual two-run feel QA, then Batch83 run-to-run motivation polish`
+- Detailed proof note: `docs/runtime/batch82-repeatable-core-loop-v1.md`
+
+## Batch 81 Presentation Vertical Slice Lock Close-Out
+
+- Selected branch: `Branch A - the full Alpha Stability Run demo loop already works; lock it with playbook/proof notes instead of adding systems`
+- Why this was the honest next step:
+  - the four core pillars now have first-pass proof, so the next risk is presentation coherence rather than missing mechanics
+  - the preferred `city-a -> dungeon-alpha -> safe` path already carries city pressure, route scenario, party role combat, result writeback, pressure board, and re-entry
+  - no structural ResultPipeline cleanup or new feature should happen before the accepted demo path is recordable
+- Preflight:
+  - Party growth: `PASS through result/readback lines carrying Alden/Mira progression and differentiated combat roles`
+  - Combat core: `PASS through Batch78.1 proof; Burst Window setup/payoff remains intact`
+  - Route scenario: `PASS through Batch79.1 proof; Stability Run route card, dungeon readback, and encounter popover remain visible`
+  - World pressure board: `PASS through Batch80.1 proof; Latest/Why/Changed/Next/Ready/Route remain readable`
+  - Regression: `Batch10, ResultPipeline packaging, CityHub re-entry, UI/modal/skin sanity all PASS`
+- Chosen demo path: `city-a -> dungeon-alpha -> safe / Stability Run / Slime Front / Alden Burst Window -> Mira payoff / mana_shard return / CityHub pressure board / ExpeditionPrep re-entry`
+- Demo playbook:
+  - File: `docs/demo/project-aaa-vertical-slice-playbook.md`
+  - Steps: `MainMenu -> World -> City A -> ExpeditionPrep -> Stability Run -> DungeonRun -> Slime Front payoff -> result return -> pressure board -> re-entry`
+  - Expected lines: `Cleared: Stability Run`, `Stock +16 mana_shard`, `Stabilize for 1 day before the next push`, `Ready: warning | recovery 1 day | party idle | route available`, `Alden read intent...`, `Mira cashed Burst Window...`
+- Fixes, if any: `None; docs/status/proof lock only`
+- Files changed:
+  - `docs/demo/project-aaa-vertical-slice-playbook.md`
+  - `docs/runtime/batch81-presentation-vertical-slice-lock.md`
+  - `docs/architecture/validation-matrix.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch81-compile.log`
+  - result: `PASS`
+- Batch10 smoke:
+  - log: `unity-batch81-smoke.log`
+  - result: `PASS`
+- Targeted vertical slice proof:
+  - Route scenario proof: `PASS`, log `unity-batch81-route-proof.log`
+  - Combat payoff proof: `PASS`, log `unity-batch81-combat-proof.log`
+  - Board readability/re-entry proof: `PASS`, log `unity-batch81-board-proof.log`
+  - Packaging proof: `PASS`, log `unity-batch81-packaging-proof.log`
+  - Re-entry proof: `PASS`, log `unity-batch81-reentry-proof.log`
+- Manual UX proof: `NOT CLAIMED; playbook is ready for manual recording sanity pass`
+- Performance proof:
+  - static scope: `no new per-frame rebuilds, no asset scans, no UI skin/layout work, no ResultPipeline expansion`
+  - runtime: existing Batch10/proofs completed without new timeout or failure
+- Known limitations:
+  - full manual dungeon clear can be longer than a short presentation; playbook recommends showing first combat payoff then using proof/smoke result-return path for the concise recording
+  - runtime skin/fallback visuals remain prototype presentation, not final art
+  - human target-resolution clipping check is still needed before recording
+- Can presentation recording begin?: `Yes, after one manual screenshot/recording sanity pass`
+- Why / why not:
+  - `Yes` because the accepted Alpha path is documented and all relevant compile/smoke/targeted proof rails are green
+- Recommended next batch:
+  - `manual presentation recording sanity pass, then small demo polish fixes or post-demo structural cleanup`
+- Detailed proof note: `docs/runtime/batch81-presentation-vertical-slice-lock.md`
+
+## Batch 80.1 Selected CityHub Pressure Board Readability UX Close-Out
+
+- Selected branch: `Branch A - board had the right data, but text density and ordering were weak`
+- Why this was the honest next step:
+  - Batch80 was accepted as a systems/readback milestone, but the proof output still showed one dense board sentence plus repeated selected-board lines
+  - the next player-facing issue was scanability, not missing ResultPipeline/world data
+  - this pass could stay in copy/order/readback consumers without changing gameplay, content, UI skin, or result contracts
+- Preflight:
+  - Batch80 surfaces: `PASS static audit; RecentResultEvidenceText, PressureChangeText, PartyReadinessSummaryText, and selected UI consumers were located`
+  - Runtime/display: `PASS through targeted board proof; post-run selected CityHub now shows compact Latest/Changed/Next/Ready lines`
+  - Regression: `Batch10 PASS; re-entry/result-world return smoke checkpoints remain PASS`
+- Readability changes:
+  - Latest: changed from internal-key style `Last run ... (run_clear)` to player-facing `Cleared: Stability Run | Returned mana_shard x16 | Party Stable`
+  - Changed: reordered compact evidence to `Stock +N`, pressure delta, readiness delta
+  - Next: continues to use existing CityHub/outcome follow-up data
+  - Ready: compacted to `Ready: warning | recovery 1 day | party idle | route available` or a clear blocked reason
+  - Duplicates removed: selected CityHub presentation no longer shows a dense `Pressure Board:` line and then repeats `Changed`, `Latest`, `Next`, and readiness below it
+- Files changed:
+  - `Assets/_Game/Scripts/World/StaticPlaceholderWorldView.WorldSnapshotContext.cs`
+  - `Assets/_Game/Scripts/Core/PrototypePresentationShell.cs`
+  - `Assets/_Game/Scripts/Editor/Batch80WorldResultPressureBoardProofRunner.cs`
+  - `docs/ui/cityhub-pressure-board-ux-checklist.md`
+  - `docs/runtime/batch80-1-cityhub-pressure-board-readability-ux.md`
+  - `docs/architecture/validation-matrix.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch80-1-compile.log`
+  - result: `PASS`
+- Targeted proof:
+  - log: `unity-batch80-1-board-proof.log`
+  - result: `PASS`
+  - proof marker: `PASS :: Pressure board answers five questions`
+- Manual UX proof:
+  - `NOT CLAIMED`; checklist added at `docs/ui/cityhub-pressure-board-ux-checklist.md`
+- Performance proof:
+  - no ResultPipeline expansion, no per-frame heavy rebuild, no mouse-move/no-op selection rebuild, no UI skin or broad layout work
+- Batch10/regression proof:
+  - log: `unity-batch80-1-smoke.log`
+  - result: `PASS`
+  - key regression markers: `ResultPipeline -> WorldSim board refresh`, `World return chain causal summary`, `CityHub -> ExpeditionPrep re-entry continuity`
+- UI shape changed?: `No broad layout/skin redesign; selected board copy order and density changed`
+- What the player can now understand:
+  - at a glance: what came back, why City A cares, what changed, what to do next, and whether prep/re-entry is ready or warning-blocked
+- Remaining issue:
+  - human screenshot QA is still needed to catch actual clipping/overlap at target resolution
+- Recommended next batch:
+  - `manual screenshot QA follow-up, then Batch81 demo flow polish or the next roadmap priority`
+- Detailed proof note: `docs/runtime/batch80-1-cityhub-pressure-board-readability-ux.md`
 
 ## Batch 80 World Result-Pressure Board Close-Out
 

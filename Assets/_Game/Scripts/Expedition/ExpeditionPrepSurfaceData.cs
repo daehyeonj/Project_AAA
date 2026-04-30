@@ -19,6 +19,7 @@ public sealed class ExpeditionPrepSurfaceData
     public bool IsBoardOpen;
     public bool CanOpenBoard;
     public bool CanCycleDispatchPolicy;
+    public bool CanRecoverOneDay;
     public bool HasStagedParty;
     public bool CanLaunch;
     public bool CanConfirmLaunch;
@@ -67,6 +68,18 @@ public sealed class ExpeditionPrepSurfaceData
     public string ReturnEtaText = "None";
     public string ReturnWindowText = "None";
     public string RecoveryAfterReturnText = "None";
+    public string LastRunCarryForwardText = "None";
+    public string PartyGrowthCarryForwardText = "None";
+    public string StabilityAppetiteText = "None";
+    public string SurgeAppetiteText = "None";
+    public string LaunchRiskAdviceText = "None";
+    public string LaunchNowChoiceText = "None";
+    public string RecoverOneDayChoiceText = "None";
+    public string AfterRecoveryPreviewText = "None";
+    public string RecoveryPressureChoiceText = "None";
+    public string RouteAppetiteAfterRecoveryText = "None";
+    public string RouteAppetiteRecommendationText = "None";
+    public string SecondRunDecisionSummaryText = "None";
     public ExpeditionResult LatestExpeditionResult = new ExpeditionResult();
     public LaunchReadiness LaunchReadiness = new LaunchReadiness();
     public ExpeditionStartContext StartContext = new ExpeditionStartContext();

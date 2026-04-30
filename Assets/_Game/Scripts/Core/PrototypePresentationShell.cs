@@ -495,7 +495,7 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
               "Launch Gate: " + V(expeditionPrep.LaunchGateSummaryText) + "\n" +
               "Next Action: " + V(expeditionPrep.RecommendedNextActionText) + "\n" +
               "Board Feedback: " + V(expeditionPrep.FeedbackText) + "\n\n" +
-              "[Q] Cycle Policy  [1] Route 1  [2] Route 2  [Enter] Launch  [Esc] Cancel"
+              "[Q] Cycle Policy  [T] Recover 1 Day  [1] Route 1  [2] Route 2  [Enter] Launch  [Esc] Cancel"
             : postRunReveal != null && postRunReveal.HasPendingReveal
             ? BuildExpeditionPostRunRevealHintText(postRunReveal)
             : hasBriefing
@@ -554,7 +554,7 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
     private void DrawExpeditionPrepBoard(Rect rect, ExpeditionPrepSurfaceData data)
     {
         string subtitle = V(data.CityLabel) + " -> " + V(data.DungeonLabel) + " | Party: " + V(data.PartyLabel);
-        string footer = "[Q] Policy  [1] Route 1  [2] Route 2  [Enter] Launch  [Esc] Cancel";
+        string footer = "[Q] Policy  [T] Recover 1 Day  [1] Route 1  [2] Route 2  [Enter] Launch  [Esc] Cancel";
         DrawWorldBoardFrame(rect, data.BoardTitleText, subtitle, footer);
 
         Rect innerRect = Inset(rect, 16f);
@@ -574,8 +574,11 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         DrawScrollableTextBlock(
             new Rect(summaryRect.x + 12f, summaryRect.y + 40f, summaryRect.width - 24f, summaryRect.height - 50f),
             "expedition_prep:summary",
+            "Second Run: " + V(data.SecondRunDecisionSummaryText) + "\n" +
             "Need Pressure: " + V(data.NeedPressureText) + "\n" +
             "Readiness: " + V(data.DispatchReadinessText) + "\n" +
+            "Launch Now: " + V(data.LaunchNowChoiceText) + "\n" +
+            "Recover: " + V(data.RecoverOneDayChoiceText) + "\n" +
             "Policy: " + V(data.DispatchPolicyText) + "\n" +
             "Recovery: " + V(data.RecoveryProgressText) + " | ETA " + V(data.RecoveryEtaText),
             _bodyStyle);
@@ -597,6 +600,7 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
             "expedition_prep:loadout",
             "Staged Summary: " + V(data.StagedPartySummaryText) + "\n" +
             "Loadout: " + V(data.PartyLoadoutSummaryText) + "\n" +
+            "Carry-Forward: " + V(data.PartyGrowthCarryForwardText) + "\n" +
             "Launch Manifest: " + BuildExpeditionPrepLaunchManifestText(data.StartContext) + "\n" +
             "Members:\n" + BuildExpeditionPrepMemberManifestText(data.StartContext),
             _bodyStyle);
@@ -616,6 +620,8 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
             "Selected Route: " + V(data.SelectedRouteLabel) + "\n" +
             "Recommended Route: " + V(data.RecommendedRouteLabel) + "\n" +
             "Gate: " + V(data.LaunchGateSummaryText) + "\n" +
+            "Risk Advice: " + V(data.LaunchRiskAdviceText) + "\n" +
+            "After Waiting: " + V(data.AfterRecoveryPreviewText) + "\n" +
             "Blocked Reason: " + V(data.BlockedReasonText),
             _bodyStyle);
 
@@ -624,6 +630,11 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         DrawScrollableTextBlock(
             new Rect(recommendationRect.x + 12f, recommendationRect.y + 40f, recommendationRect.width - 24f, recommendationRect.height - 50f),
             "expedition_prep:recommendation",
+            V(data.RouteAppetiteRecommendationText) + "\n" +
+            "Recovery Choice: " + V(data.RecoveryPressureChoiceText) + "\n" +
+            "After Recovery: " + V(data.RouteAppetiteAfterRecoveryText) + "\n" +
+            "Stability: " + V(data.StabilityAppetiteText) + "\n" +
+            "Surge: " + V(data.SurgeAppetiteText) + "\n" +
             "Reason: " + V(data.RecommendationReasonText) + "\n" +
             "Expected Need Impact: " + V(data.ExpectedNeedImpactText),
             _bodyStyle);
@@ -648,14 +659,20 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
             _bodyStyle);
 
         float actionGap = 10f;
-        float actionWidth = (actionsRect.width - (actionGap * 2f)) / 3f;
+        float actionWidth = (actionsRect.width - (actionGap * 3f)) / 4f;
         Rect policyRect = new Rect(actionsRect.x, actionsRect.y, actionWidth, actionsRect.height);
-        Rect launchRect = new Rect(policyRect.xMax + actionGap, actionsRect.y, actionWidth, actionsRect.height);
+        Rect recoverRect = new Rect(policyRect.xMax + actionGap, actionsRect.y, actionWidth, actionsRect.height);
+        Rect launchRect = new Rect(recoverRect.xMax + actionGap, actionsRect.y, actionWidth, actionsRect.height);
         Rect cancelRect = new Rect(launchRect.xMax + actionGap, actionsRect.y, actionWidth, actionsRect.height);
 
         if (DrawActionButton(policyRect, "[Q] Cycle Policy", new Color(0.24f, 0.34f, 0.42f, 1f), data.CanCycleDispatchPolicy))
         {
             TryExecuteCityHubAction(PrototypeCityHubActionKeys.CycleExpeditionPrepDispatchPolicy, "ExpeditionPrepBoard");
+        }
+
+        if (DrawActionButton(recoverRect, "[T] Recover 1 Day", new Color(0.24f, 0.46f, 0.58f, 1f), data.CanRecoverOneDay))
+        {
+            _bootEntry.TryRecoverExpeditionPrepOneDay();
         }
 
         if (DrawActionButton(launchRect, "[Enter] Launch", new Color(0.42f, 0.28f, 0.18f, 1f), data.CanConfirmLaunch))
@@ -788,6 +805,8 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
             ? result.NextRunGrowthPreviewText
             : followUpText;
         return "Last Result: " + V(result.ResultSummaryText) + "\n" +
+            "Last Run Changed: " + V(data != null ? data.LastRunCarryForwardText : "None") + "\n" +
+            "Party Carry-Forward: " + V(data != null ? data.PartyGrowthCarryForwardText : "None") + "\n" +
             "Route / Followed: " + V(routeText) + " | " + V(followedText) + "\n" +
             "Loot / Survivors: " + V(result.ReturnedLootSummaryText) + " | " + V(result.SelectedPartySummaryText) + "\n" +
             "Elite / World: " + V(result.EliteOutcomeSummaryText) + " | " + V(result.WorldWritebackSummaryText) + "\n" +
@@ -920,13 +939,12 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         {
             return BuildWorldLines(
                 V(selection.DisplayName),
-                "Pressure Board: " + V(selection.PressureBoardSummaryText),
-                "Why City Matters: " + V(selection.WhyCityMattersText),
-                "Changed: " + V(selection.PressureChangeText),
-                "Route Answer: " + V(selection.RecommendedRouteText),
-                "Party Readiness: " + V(selection.PartyReadinessSummaryText),
-                "Latest Evidence: " + V(selection.RecentResultEvidenceText),
-                "Next Action: " + V(cityHubUi.Outcome.CorrectiveFollowUpText),
+                BuildCityPressureBoardLatestLine(selection),
+                BuildCityPressureBoardWhyLine(selection),
+                BuildCityPressureBoardChangedLine(selection),
+                BuildCityPressureBoardNextLine(selection, cityHubUi.Outcome),
+                BuildCityPressureBoardReadyLine(selection),
+                BuildCityPressureBoardRouteLine(selection),
                 BuildWorldReturnHandoffBriefBody(cityHubUi.Outcome));
         }
 
@@ -955,21 +973,21 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
         {
             return BuildWorldLines(
                 V(selection.DisplayName),
-                "Pressure Board: " + V(selection.PressureBoardSummaryText),
-                "Why City Matters: " + V(selection.WhyCityMattersText),
-                "Changed: " + V(selection.PressureChangeText),
+                BuildCityPressureBoardLatestLine(selection),
+                BuildCityPressureBoardWhyLine(selection),
+                BuildCityPressureBoardChangedLine(selection),
+                BuildCityPressureBoardNextLine(selection, cityHubUi.Outcome),
+                BuildCityPressureBoardReadyLine(selection),
+                BuildCityPressureBoardRouteLine(selection),
                 Line(T("SelectedType"), V(selection.TypeLabel)),
                 Line(T("LinkedDungeon"), V(selection.LinkedDungeonText)),
                 Line(T("NeedPressure"), V(selection.NeedPressureText)),
                 Line(T("DispatchReadiness"), V(selection.DispatchReadinessText)),
                 Line(T("RecoveryProgress"), V(selection.RecoveryProgressText)),
-                "Party Readiness: " + V(selection.PartyReadinessSummaryText),
                 Line(T("DispatchPolicy"), V(selection.DispatchPolicyText)),
-                "Route Answer: " + V(selection.RecommendedRouteText),
                 "Recommendation Reason: " + V(selection.RecommendationReasonText),
                 Line(T("RouteFit"), V(cityHubUi.Actions.RouteFitSummaryText)),
                 Line(T("LaunchLock"), V(selection.LaunchLockSummaryText)),
-                "Latest Evidence: " + V(selection.RecentResultEvidenceText),
                 Line(T("ProjectedOutcome"), V(selection.ProjectedOutcomeSummaryText)),
                 BuildWorldReturnHandoffDetailBody(cityHubUi.Outcome));
         }
@@ -985,6 +1003,54 @@ public sealed partial class PrototypePresentationShell : MonoBehaviour
             Line(T("RewardPreview"), V(selection.RewardPreviewText)),
             Line(T("EventPreview"), V(selection.EventPreviewText)),
             BuildWorldReturnHandoffDetailBody(cityHubUi.Outcome));
+    }
+
+    private string BuildCityPressureBoardLatestLine(PrototypeCityHubSelectionSurfaceData selection)
+    {
+        return BuildCityPressureBoardLine("Latest", selection != null ? selection.RecentResultEvidenceText : "None");
+    }
+
+    private string BuildCityPressureBoardWhyLine(PrototypeCityHubSelectionSurfaceData selection)
+    {
+        return BuildCityPressureBoardLine("Why", selection != null ? selection.WhyCityMattersText : "None");
+    }
+
+    private string BuildCityPressureBoardChangedLine(PrototypeCityHubSelectionSurfaceData selection)
+    {
+        return BuildCityPressureBoardLine("Changed", selection != null ? selection.PressureChangeText : "None");
+    }
+
+    private string BuildCityPressureBoardNextLine(PrototypeCityHubSelectionSurfaceData selection, PrototypeCityHubOutcomeSurfaceData outcome)
+    {
+        string nextText = outcome != null && HasMeaningfulValue(outcome.CorrectiveFollowUpText)
+            ? outcome.CorrectiveFollowUpText
+            : selection != null && HasMeaningfulValue(selection.RecommendationReasonText)
+                ? selection.RecommendationReasonText
+                : "None";
+        return BuildCityPressureBoardLine("Next", nextText);
+    }
+
+    private string BuildCityPressureBoardReadyLine(PrototypeCityHubSelectionSurfaceData selection)
+    {
+        string readinessText = selection != null ? selection.PartyReadinessSummaryText : "None";
+        if (!HasMeaningfulValue(readinessText))
+        {
+            return "Ready: Unknown";
+        }
+
+        return readinessText.StartsWith("Ready:", System.StringComparison.OrdinalIgnoreCase)
+            ? V(readinessText)
+            : "Ready: " + V(readinessText);
+    }
+
+    private string BuildCityPressureBoardRouteLine(PrototypeCityHubSelectionSurfaceData selection)
+    {
+        return BuildCityPressureBoardLine("Route", selection != null ? selection.RecommendedRouteText : "None");
+    }
+
+    private string BuildCityPressureBoardLine(string label, string value)
+    {
+        return HasMeaningfulValue(value) ? label + ": " + V(value) : string.Empty;
     }
 
     private string BuildWorldOverviewBriefBody()

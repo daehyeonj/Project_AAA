@@ -1032,6 +1032,7 @@ public static class Batch10SmokeValidationRunner
             Vector2Int markerPosition = GetFieldValue<Vector2Int>(room, "MarkerPosition");
             SetPrivateField(worldView, "_playerGridPosition", markerPosition);
             InvokeNonPublicMethod(worldView, "ProcessExploreStep");
+            InvokePublicMethod(worldView, "TryInteractCurrentDungeonRoomBeat");
         }
 
         private void ResolveBattleStep()

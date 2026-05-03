@@ -300,6 +300,10 @@ public sealed partial class StaticPlaceholderWorldView
             }
         }
 
+        request.EncounterContextText = AppendRoomInteractionConsequenceText(
+            request.EncounterContextText,
+            BuildRoomInteractionBattleContextText(request.EncounterId));
+
         request.EnterTurnIndex = Mathf.Max(_runTurnCount, _battleTurnIndex);
         request.PartyMembers = BuildPartyCombatantSnapshots(includeLiveHighlights: false);
         request.EnemyMembers = BuildEnemyCombatantSnapshots(includeLiveHighlights: false);

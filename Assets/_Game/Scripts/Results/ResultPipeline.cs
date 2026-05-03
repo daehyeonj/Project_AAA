@@ -401,6 +401,7 @@ public static class ResultPipeline
         result.PartyConditionText = ChooseMeaningfulText(safeResult.PartyConditionText, safeResult.InjurySummaryText);
         result.PartyHpSummaryText = ChooseMeaningfulText(safeResult.PartyHpSummaryText, "None");
         result.EliteSummaryText = ChooseMeaningfulText(safeResult.EliteOutcomeSummaryText, safeResult.EliteRewardLabel);
+        PopulateSharedOutcomeMeaning(result, safeResult.RouteId);
         return result;
     }
 

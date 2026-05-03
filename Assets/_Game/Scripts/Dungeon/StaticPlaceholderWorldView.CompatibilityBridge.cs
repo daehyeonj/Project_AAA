@@ -80,7 +80,8 @@ public sealed partial class StaticPlaceholderWorldView
         string partyFitText = TryBuildRoutePartyFitTextFromContent(cityId, dungeonId, routeId);
         string strategicPreview = BuildScenarioPipeText(
             BuildLabeledScenarioClause("Reward", rewardFocusText),
-            BuildLabeledScenarioClause("Party fit", partyFitText));
+            BuildLabeledScenarioClause("Party fit", partyFitText),
+            BuildLabeledScenarioClause("Consequence", BuildRouteConsequenceText(dungeonId, routeId)));
         if (strategicPreview != "None")
         {
             return strategicPreview;
@@ -90,7 +91,8 @@ public sealed partial class StaticPlaceholderWorldView
         return "Battle " + template.BattleLootAmount +
             " | Chest " + template.ChestRewardAmount +
             " | Event " + template.BonusLootAmount +
-            " | Total " + totalReward;
+            " | Total " + totalReward +
+            " | " + BuildRouteConsequenceText(dungeonId, routeId);
     }
 
     private string BuildRouteCombatPlanEntryText(string dungeonId, string routeId)
@@ -104,6 +106,7 @@ public sealed partial class StaticPlaceholderWorldView
         string cityId = ResolveScenarioContextCityId();
         string strategicPreview = BuildScenarioPipeText(
             BuildLabeledScenarioClause("Combat", TryBuildRouteCombatPlanTextFromContent(cityId, dungeonId, routeId)),
+            BuildLabeledScenarioClause("Dungeon feel", BuildRouteInternalFeelText(dungeonId, routeId)),
             BuildLabeledScenarioClause("Event", template.EventFocus));
         if (strategicPreview != "None")
         {

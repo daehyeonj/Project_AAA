@@ -303,6 +303,9 @@ public sealed partial class StaticPlaceholderWorldView
         request.EncounterContextText = AppendRoomInteractionConsequenceText(
             request.EncounterContextText,
             BuildRoomInteractionBattleContextText(request.EncounterId));
+        request.EncounterContextText = AppendRoomInteractionConsequenceText(
+            request.EncounterContextText,
+            BuildEncounterVarietyRoutePressureContextText(request.EncounterId));
 
         request.EnterTurnIndex = Mathf.Max(_runTurnCount, _battleTurnIndex);
         request.PartyMembers = BuildPartyCombatantSnapshots(includeLiveHighlights: false);

@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 89 room interaction consequence chain v1 + Batch 88 dungeon room interaction v1 + Batch 87 dungeon route content variety v1 + Batch 86 wait cost pressure clock v1 + Batch 85/85.1 second-run route consequence proof + Batch 84 recovery pressure choice v1 + Batch 83 second-run decision pressure v1 + Batch 82 repeatable core game loop v1 + Batch 81 presentation vertical slice lock + Batch 80.1 selected CityHub pressure board readability UX + Batch 80 world result-pressure board + Batch 79.3 CityHub -> ExpeditionPrep re-entry continuity triage + Batch 79.2 ResultPipeline intent packaging smoke triage + Batch 79.1 route scenario runtime proof + smoke timeout triage + Batch 79 dungeon route operating scenario + Batch 78.1 combat core runtime proof + Batch 78 post-UI combat core revalidation + Batch 77.10.1 inventory modal target-status cleanup + Batch 77.10 runtime skin bridge + Batch 77.9 UI skin preview mapping QA + Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
+- Latest closed batch: `Batch 92 dungeon dilemma variation v1 + Batch 91 encounter variety runtime proof/balance + Batch 90 encounter variety route pressure v1 + Batch 89 room interaction consequence chain v1 + Batch 88 dungeon room interaction v1 + Batch 87 dungeon route content variety v1 + Batch 86 wait cost pressure clock v1 + Batch 85/85.1 second-run route consequence proof + Batch 84 recovery pressure choice v1 + Batch 83 second-run decision pressure v1 + Batch 82 repeatable core game loop v1 + Batch 81 presentation vertical slice lock + Batch 80.1 selected CityHub pressure board readability UX + Batch 80 world result-pressure board + Batch 79.3 CityHub -> ExpeditionPrep re-entry continuity triage + Batch 79.2 ResultPipeline intent packaging smoke triage + Batch 79.1 route scenario runtime proof + smoke timeout triage + Batch 79 dungeon route operating scenario + Batch 78.1 combat core runtime proof + Batch 78 post-UI combat core revalidation + Batch 77.10.1 inventory modal target-status cleanup + Batch 77.10 runtime skin bridge + Batch 77.9 UI skin preview mapping QA + Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,8 +18,159 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-a -> dungeon-alpha operating-scenario rail; city-b -> dungeon-beta remains the content-thickened presenter rail`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: `manual next-beat dungeon QA: confirm Shrine Protection / Cache Pressure make the next encounter feel changed before adding new room/content systems`
+- Next honest bottleneck: `manual feel QA for Batch92 use-vs-skip choice tension, then tune visibility/payoff only if the playable decision still feels too flat`
 - Scene architecture status: `compile-safe persistent-root scaffold added; SampleScene remains the live playable baseline`
+
+## Batch 92 Dungeon Dilemma Variation Close-Out
+
+- Selected branch: `Branch A/D - use-vs-skip variation on existing grid room interactions`
+- Why this was the honest next game-development step:
+  - Batch91 locked the Stability-vs-Surge battle-feel baseline, so Rest Shrine / Greed Cache could become a decision instead of a one-way proof beat
+  - existing room, recovery, cache-loot, battle context, result, and world-board rails were enough; no legacy choice shell or new system was needed
+  - the player can now see that using a room interaction carries one next-beat consequence, while skipping honestly avoids or loses that consequence
+- Preflight:
+  - Batch91 landing: `PASS`
+  - Room consequence baseline: `PASS`; existing Greed Cache open path still proves +3 mana_shard and Cache Pressure
+  - Runtime baseline: `UNCHANGED`; grid dungeon + standard JRPG battle
+  - ResultPipeline rewrite: `NONE`
+  - Fatigue/economy/combat stat system changes: `NONE`
+- Dilemma implementation:
+  - Rest Shrine prompt now explains `[E]` use versus moving on to skip
+  - Rest Shrine use still arms `Shrine Protection` for `Watch Hall`
+  - Rest Shrine skip source text now honestly says no `Shrine Protection`
+  - Greed Cache prompt now explains `+3 mana_shard + Cache Pressure` versus moving on to skip
+  - Greed Cache skip leaves carried/chest loot unchanged, arms a `cache_skipped` next-beat readback, and advances to `Goblin Pair Hall`
+  - Goblin Pair Hall battle context, enemy intent, popover, result, and world board now distinguish `Cache Pressure` open from `Cache skipped`
+- Files changed for Batch92:
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.cs`
+  - `Assets/_Game/Scripts/Editor/Batch82RepeatCoreLoopProofRunner.cs`
+  - `Assets/_Game/Scripts/Dungeon/DUNGEON_RUN_CONTRACT.md`
+  - `docs/architecture/validation-matrix.md`
+  - `docs/runtime/batch92-dungeon-dilemma-variation-checklist.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch92-compile.log`
+  - result: `PASS`
+- Targeted proof:
+  - log: `unity-batch92-dilemma-proof.log`
+  - result: `PASS`
+  - proof markers: `PASS :: Batch92 Rest Shrine use`, `PASS :: Batch92 Greed Cache skip`, `PASS :: Batch92 Greed Cache skip battle context`, `PASS :: Batch92 dungeon dilemma variation proof`
+- Batch10 smoke:
+  - log: `unity-batch92-smoke.log`
+  - result: `PASS`
+- Regression proof:
+  - Batch89 open-path regression: `PASS`, log `unity-batch92-regression-batch89.log`
+  - Batch91 encounter-feel regression: `PASS`, log `unity-batch92-regression-batch91.log`
+- Performance proof:
+  - `PASS by static scope`; no per-frame rebuild loop, broad route-pressure cache, or modal rebuild was added
+- UI shape changed?: `No layout/skin change; room prompts, battle context, popover/result/world copy, and proof runner only`
+- What the player can now choose:
+  - `Rest Shrine: heal/protection now, or move on with no Shrine Protection`
+  - `Greed Cache: take +3 and Cache Pressure, or skip the payout to avoid Cache Pressure`
+- Remaining weakness:
+  - Manual feel QA is still needed; automated proof verifies runtime branches and readback, not whether the choice cadence feels tense enough in hand
+- Recommended next batch:
+  - `Playtest Batch92 and tune choice visibility/payoff if needed; do not add a larger fatigue or economy system until the current use-vs-skip beat is felt manually`
+
+## Batch 91 Encounter Variety Runtime Proof / Balance Close-Out
+
+- Selected branch: `Branch A - Batch90 landed; lock runtime proof/balance over existing battle surfaces`
+- Why this was the honest next game-development step:
+  - Batch90 made route-pressure readbacks visible, but Batch92 should not add more dungeon dilemmas until the baseline Stability-vs-Surge battle feel is proof-locked
+  - existing Alpha safe/risky encounter setup already provides the difference: Slime Front has lower ATK/random pressure, Goblin Pair Hall has higher ATK/lowest-HP focus/Cache Pressure
+  - this pass kept mechanics intact and avoided new combat systems, fatigue, skills, ResultPipeline changes, scene migration, legacy shells, and per-frame rebuilds
+- Preflight:
+  - Batch90 landing: `PASS` via existing route-pressure docs/proof runner/log and Batch91 proof reuse
+  - Room consequence: `PASS`; Rest Shrine / Greed Cache still arm `Shrine Protection` / `Cache Pressure`
+  - Room interaction: `PASS`; Greed Cache `[E]` interaction remains runtime-proven in Batch89 regression
+  - Route consequence: `PASS`; proof still returns Stability x16 and Surge x20/strain readbacks
+  - Wait cost: `UNCHANGED`; no wait/recovery rail edits
+  - Combat core: `UNCHANGED`; command/target, intent, and role payoff rails remain standard JRPG battle
+  - Runtime baseline: `UNCHANGED`; grid dungeon + standard JRPG battle
+  - Modal/performance: `UNCHANGED`; no inventory/skin/world-selection surface edits
+- Encounter variety implementation:
+  - Stability / Slime Front now reads `Threat: Moderate`, `ATK 4`, `predicted 2`, random pressure, and Rest Shrine -> Shrine Protection setup
+  - Surge / Goblin Pair Hall now reads `Threat: High`, `ATK 8`, `predicted 4+`, lowest-HP focus, Cache Pressure payoff, and recovery strain
+  - Battle context and enemy intent use existing route/setup/live monster state only
+  - Preview/log keeps the existing Cache Pressure payoff and Mira/Rune finish-window readback
+  - Popover confirms Stability route check and Surge payout/strain
+- Balance changes, if any:
+  - `None`; wording/proof lock only, no encounter stat tuning
+- Files changed for Batch91:
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.cs`
+  - `Assets/_Game/Scripts/Editor/Batch82RepeatCoreLoopProofRunner.cs`
+  - `Assets/_Game/Scripts/Dungeon/DUNGEON_RUN_CONTRACT.md`
+  - `Assets/_Game/Scripts/Rpg/Battle/BATTLE_EXECUTION_CONTRACT.md`
+  - `docs/architecture/flow-contracts.md`
+  - `docs/architecture/validation-matrix.md`
+  - `docs/runtime/batch91-encounter-variety-runtime-qa-checklist.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch91-compile.log`
+  - result: `PASS`
+- Authoring validation:
+  - `NOT RUN`; no content assets/JSON changed
+- Targeted proof:
+  - log: `unity-batch91-encounter-variety-balance-proof.log`
+  - result: `PASS`
+  - proof markers: `PASS :: Batch91 Stability battle readback`, `PASS :: Batch91 runtime balance lock`, `PASS :: Batch91 Surge battle readback`, `PASS :: Batch91 encounter variety runtime proof balance`
+- Batch10 smoke:
+  - log: `unity-batch91-smoke.log`
+  - result: `PASS`
+- Regression proof:
+  - Batch89 room interaction consequence chain: `PASS`, log `unity-batch91-regression-batch89.log`
+- Performance proof:
+  - `PASS by static scope`; no new Update/OnGUI rebuild loop or per-frame route-pressure cache was added
+  - `git diff --check`: `PASS`, line-ending warnings only
+- UI shape changed?: `No layout/skin change; battle context, intent, target preview, popover copy, and proof runner only`
+- What the player can now feel:
+  - `Stability let me keep control, while Surge pushed me harder but paid more.`
+- Remaining combat/dungeon weakness:
+  - Manual feel QA is still needed; automated proof verifies readback and runtime contrast, not subjective fun
+- Can Batch92 begin?:
+  - `Yes`; the baseline route-specific battle feel is proof-locked enough to expand Rest Shrine / Greed Cache use-vs-skip dilemmas
+
+## Batch 90 Encounter Variety Route Pressure v1 Close-Out
+
+- Selected branch: `Branch C - route-pressure readback over existing safe/risky battle surfaces`
+- Why this was the honest next step:
+  - Batch89 made Rest Shrine / Greed Cache consequences visible, but the battles themselves still needed clearer route-pressure identity
+  - Alpha Safe and Risky already differ through route, room, encounter profile, battle setup, live monster HP/ATK/target-patterns, and Cache Pressure state
+  - this pass avoided new combat mechanics, status/element systems, fatigue, inventory changes, ResultPipeline rewrite, legacy shell revival, and per-frame rebuild
+- Player-facing readbacks added:
+  - Stability `Slime Front` battle context now shows controlled slime pressure, live HP/ATK totals, random pressure, and Rest Shrine sustain
+  - Surge `Goblin Pair Hall` battle context now shows Cache Pressure, live HP/ATK totals, lowest-HP focus, and recovery strain
+  - enemy intent labels now append route-pressure predicted-damage readback for the targeted Alpha encounters
+  - target preview now surfaces `Cache Pressure payoff` / role-finish-window copy for Surge target selection
+- Files changed:
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.BattleContracts.cs`
+  - `Assets/_Game/Scripts/Rpg/Battle/StaticPlaceholderWorldView.RpgBattleSurfaceOwnership.cs`
+  - `Assets/_Game/Scripts/Rpg/Battle/StaticPlaceholderWorldView.RpgBattleIntentOwnership.cs`
+  - `Assets/_Game/Scripts/Rpg/Battle/StaticPlaceholderWorldView.RpgBattleActionOwnership.cs`
+  - `Assets/_Game/Scripts/Editor/Batch82RepeatCoreLoopProofRunner.cs`
+  - `Assets/_Game/Scripts/Dungeon/DUNGEON_RUN_CONTRACT.md`
+  - `Assets/_Game/Scripts/Rpg/Battle/BATTLE_EXECUTION_CONTRACT.md`
+  - `docs/architecture/flow-contracts.md`
+  - `docs/architecture/validation-matrix.md`
+  - `docs/runtime/batch90-encounter-variety-route-pressure-checklist.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch90-compile.log`
+  - result: `PASS`
+- Targeted proof:
+  - log: `unity-batch90-encounter-variety-proof.log`
+  - result: `PASS`
+  - proof markers: `PASS :: Batch90 Stability battle readback`, `PASS :: Batch90 Stability encounter popover`, `PASS :: Batch90 Surge battle readback`, `PASS :: Batch90 encounter variety route pressure proof`
+- Regression proof:
+  - Batch89 room interaction consequence chain: `PASS`, log `unity-batch90-regression-batch89.log`
+- Batch10 smoke:
+  - log: `unity-batch90-smoke.log`
+  - result: `PASS`
+- Static check:
+  - `git diff --check`: `PASS`, line-ending warnings only
+- UI shape changed?: `No layout/skin overhaul; battle context, intent, target preview, and popover copy only`
+- Manual UX proof: `NOT CLAIMED`; checklist added at `docs/runtime/batch90-encounter-variety-route-pressure-checklist.md`
 
 ## Batch 89 Room Interaction Consequence Chain v1 Close-Out
 

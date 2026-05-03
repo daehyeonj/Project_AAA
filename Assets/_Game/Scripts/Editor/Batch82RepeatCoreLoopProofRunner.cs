@@ -28,7 +28,10 @@ public static class Batch82RepeatCoreLoopProofRunner
         WaitCostPressureClock,
         DungeonRouteFeel,
         DungeonRoomInteraction,
-        RoomInteractionConsequenceChain
+        RoomInteractionConsequenceChain,
+        EncounterVarietyRoutePressure,
+        EncounterVarietyRuntimeBalance,
+        DungeonDilemmaVariation
     }
 
     [InitializeOnLoadMethod]
@@ -86,6 +89,21 @@ public static class Batch82RepeatCoreLoopProofRunner
     public static void RunBatch89RoomInteractionConsequenceChainProof()
     {
         RunProof(ProofMode.RoomInteractionConsequenceChain);
+    }
+
+    public static void RunBatch90EncounterVarietyRoutePressureProof()
+    {
+        RunProof(ProofMode.EncounterVarietyRoutePressure);
+    }
+
+    public static void RunBatch91EncounterVarietyRuntimeProofBalance()
+    {
+        RunProof(ProofMode.EncounterVarietyRuntimeBalance);
+    }
+
+    public static void RunBatch92DungeonDilemmaVariationProof()
+    {
+        RunProof(ProofMode.DungeonDilemmaVariation);
     }
 
     private static void RunProof(ProofMode proofMode)
@@ -170,6 +188,15 @@ public static class Batch82RepeatCoreLoopProofRunner
         private string _roomInteractionSourceText = string.Empty;
         private string _roomInteractionRuntimeText = string.Empty;
         private string _roomInteractionBattleContextText = string.Empty;
+        private string _encounterVarietySourceText = string.Empty;
+        private string _batch90StabilityBattleText = string.Empty;
+        private string _batch90StabilityPopoverText = string.Empty;
+        private string _batch90SurgeBattleText = string.Empty;
+        private string _batch91RuntimeBalanceText = string.Empty;
+        private string _batch92RestShrineUseText = string.Empty;
+        private string _batch92RestShrineSkipStaticText = string.Empty;
+        private string _batch92GreedCacheSkipText = string.Empty;
+        private string _batch92DilemmaProofText = string.Empty;
         private string _secondDungeonReadbackText = string.Empty;
         private string _secondEncounterPopoverText = string.Empty;
         private string _secondRunResultText = string.Empty;
@@ -181,6 +208,15 @@ public static class Batch82RepeatCoreLoopProofRunner
         private bool _batch88FirstPopoverCleared;
         private bool _batch88GreedCacheInteracted;
         private bool _batch89BattleContextCaptured;
+        private bool _batch90StabilityBattleCaptured;
+        private bool _batch90StabilityPopoverCaptured;
+        private bool _batch90SurgeBattleCaptured;
+        private bool _batch92FirstPopoverCleared;
+        private bool _batch92RestShrineUsed;
+        private bool _batch92RestShrineBattleCaptured;
+        private bool _batch92RestShrinePopoverCaptured;
+        private bool _batch92GreedCacheSkipped;
+        private bool _batch92SkipBattleContextCaptured;
         private bool _shutdownRequested;
 
         public ProofSession(ProofMode proofMode)
@@ -554,6 +590,16 @@ public static class Batch82RepeatCoreLoopProofRunner
 
         private void SimulateFirstRunResult()
         {
+            if (IsDungeonDilemmaVariationProofMode() && ResolveBatch92RestShrineUseProof())
+            {
+                return;
+            }
+
+            if (IsEncounterVarietyRoutePressureProofMode() && ResolveBatch90StabilityEncounterProof())
+            {
+                return;
+            }
+
             object worldView = GetWorldView();
             if (worldView == null)
             {
@@ -749,7 +795,9 @@ public static class Batch82RepeatCoreLoopProofRunner
             bool hasSecondRunDesire =
                 prep != null &&
                 ContainsAll(prep.LastRunCarryForwardText, "Returned", "mana_shard", "Party Stable") &&
-                ContainsAll(prep.PartyGrowthCarryForwardText, "Alden +16 XP", "Rune") &&
+                (IsEncounterVarietyRoutePressureProofMode() || IsDungeonDilemmaVariationProofMode()
+                    ? ContainsAll(prep.PartyGrowthCarryForwardText, "Alden", "Rune")
+                    : ContainsAll(prep.PartyGrowthCarryForwardText, "Alden +16 XP", "Rune")) &&
                 ContainsAll(prep.StabilityAppetiteText, "protect HP", "dispatch rhythm") &&
                 ContainsAll(prep.SurgeAppetiteText, "chase payout", "Rune") &&
                 ContainsAll(prep.LaunchRiskAdviceText, "Ready with warning", "recovery", "strain") &&
@@ -787,6 +835,9 @@ public static class Batch82RepeatCoreLoopProofRunner
                 ContainsAll(safeCard, "Dungeon feel", "Rest Shrine", "sustain") &&
                 ContainsAll(riskyCard, "Dungeon feel", "Greed Cache", "strain") &&
                 ValidateDungeonRoomInteractionDataSources(out _roomInteractionSourceText);
+            bool hasEncounterVariety =
+                !IsEncounterVarietyRoutePressureProofMode() ||
+                ValidateEncounterVarietyRoutePressureDataSources(out _encounterVarietySourceText);
 
             if (!hasResultCarryover || !hasPartyCarryover || !hasRouteChoice || !hasGateAndReason || !hasSecondRunDesire || !hasRecoveryChoice || !hasWaitCostPressureClock)
             {
@@ -823,6 +874,15 @@ public static class Batch82RepeatCoreLoopProofRunner
                 return;
             }
 
+            if (IsEncounterVarietyRoutePressureProofMode() && !hasEncounterVariety)
+            {
+                Fail(
+                    GetEncounterVarietyProofLabel() + " encounter variety sources did not expose data-backed Slime Front / Goblin Pair Hall pressure. " +
+                    "Sources=" + SafeText(_encounterVarietySourceText) +
+                    " " + _secondPrepText);
+                return;
+            }
+
             RecordPass("Second ExpeditionPrep context", _secondPrepText);
             if (IsRouteConsequenceProofMode())
             {
@@ -834,7 +894,11 @@ public static class Batch82RepeatCoreLoopProofRunner
             }
             if (IsDungeonRoomInteractionProofMode())
             {
-                RecordPass(IsRoomInteractionConsequenceProofMode() ? "Batch89 room interaction source" : "Batch88 room interaction source", _roomInteractionSourceText);
+                RecordPass(IsEncounterVarietyRoutePressureProofMode() ? GetEncounterVarietyProofLabel() + " room interaction source" : IsRoomInteractionConsequenceProofMode() ? "Batch89 room interaction source" : "Batch88 room interaction source", _roomInteractionSourceText);
+            }
+            if (IsEncounterVarietyRoutePressureProofMode())
+            {
+                RecordPass(GetEncounterVarietyProofLabel() + " encounter variety source", _encounterVarietySourceText);
             }
 
             if (_proofMode == ProofMode.RecoveryPressureChoice || IsWaitCostPressureClockProofMode())
@@ -1142,6 +1206,28 @@ public static class Batch82RepeatCoreLoopProofRunner
                 }
 
                 _secondEncounterPopoverText = popoverText;
+                if (IsDungeonDilemmaVariationProofMode())
+                {
+                    bool hasSkipConsequence =
+                        ContainsAll(_secondEncounterPopoverText, "Greed Cache", "Cache skipped", "no extra payout", "pressure avoided") &&
+                        ContainsAny(_secondEncounterPopoverText, "Goblin Pair Hall", "Route Check", "no Cache Pressure");
+                    if (!hasSkipConsequence)
+                    {
+                        Fail("Batch92 second encounter popover did not reflect the Greed Cache skip consequence. " + SafeText(_secondEncounterPopoverText));
+                        return;
+                    }
+
+                    if (!_batch92SkipBattleContextCaptured)
+                    {
+                        Fail("Batch92 reached the next-encounter popover before proving Greed Cache skip battle context. " + SafeText(_roomInteractionBattleContextText));
+                        return;
+                    }
+
+                    RecordPass("Batch92 Greed Cache skip popover", _secondEncounterPopoverText);
+                    AdvanceTo(ProofStep.SimulateSecondRunResult, "Batch92 Greed Cache skip popover validated.");
+                    return;
+                }
+
                 bool hasInteractionConsequence = IsRoomInteractionConsequenceProofMode()
                     ? ContainsAll(_secondEncounterPopoverText, "Greed Cache", "Cache Pressure", "Cache Check", "reward secured", "strain warning") &&
                       ContainsAny(_secondEncounterPopoverText, "Goblin Pair Hall", "Route Check", "recovery strain")
@@ -1149,26 +1235,45 @@ public static class Batch82RepeatCoreLoopProofRunner
                       ContainsAny(_secondEncounterPopoverText, "Goblin Pair Hall", "Route Check", "recovery strain");
                 if (!hasInteractionConsequence)
                 {
-                    Fail((IsRoomInteractionConsequenceProofMode() ? "Batch89" : "Batch88") + " second encounter popover did not reflect the Greed Cache interaction consequence. " + SafeText(_secondEncounterPopoverText));
+                    Fail((IsEncounterVarietyRoutePressureProofMode() ? GetEncounterVarietyProofLabel() : IsRoomInteractionConsequenceProofMode() ? "Batch89" : "Batch88") + " second encounter popover did not reflect the Greed Cache interaction consequence. " + SafeText(_secondEncounterPopoverText));
                     return;
                 }
 
                 if (IsRoomInteractionConsequenceProofMode() && !_batch89BattleContextCaptured)
                 {
-                    Fail("Batch89 reached the next-encounter popover before proving Cache Pressure battle context. " + SafeText(_roomInteractionBattleContextText));
+                    Fail((IsEncounterVarietyRoutePressureProofMode() ? GetEncounterVarietyProofLabel() : "Batch89") + " reached the next-encounter popover before proving Cache Pressure battle context. " + SafeText(_roomInteractionBattleContextText));
                     return;
                 }
 
-                RecordPass(IsRoomInteractionConsequenceProofMode() ? "Batch89 interaction consequence popover" : "Batch88 interaction encounter popover", _secondEncounterPopoverText);
-                AdvanceTo(ProofStep.SimulateSecondRunResult, (IsRoomInteractionConsequenceProofMode() ? "Batch89" : "Batch88") + " interaction popover validated.");
+                if (IsEncounterVarietyRoutePressureProofMode() && !_batch90SurgeBattleCaptured)
+                {
+                    Fail(GetEncounterVarietyProofLabel() + " reached the Goblin Pair Hall popover before proving Surge target/intent readback. " + SafeText(_batch90SurgeBattleText));
+                    return;
+                }
+
+                if (IsEncounterVarietyRuntimeBalanceProofMode() && !ValidateBatch91RuntimeBalanceLock())
+                {
+                    return;
+                }
+
+                RecordPass(IsEncounterVarietyRoutePressureProofMode() ? GetEncounterVarietyProofLabel() + " surge encounter popover" : IsRoomInteractionConsequenceProofMode() ? "Batch89 interaction consequence popover" : "Batch88 interaction encounter popover", _secondEncounterPopoverText);
+                AdvanceTo(ProofStep.SimulateSecondRunResult, (IsEncounterVarietyRoutePressureProofMode() ? GetEncounterVarietyProofLabel() : IsRoomInteractionConsequenceProofMode() ? "Batch89" : "Batch88") + " interaction popover validated.");
                 return;
             }
 
             if (_boot.CurrentAppFlowStage == AppFlowStage.BattleScene)
             {
+                if (IsDungeonDilemmaVariationProofMode())
+                {
+                    CaptureBatch92GreedCacheSkipBattleContextIfReady();
+                }
                 if (IsRoomInteractionConsequenceProofMode())
                 {
                     CaptureBatch89BattleContextIfReady();
+                }
+                if (IsEncounterVarietyRoutePressureProofMode())
+                {
+                    CaptureBatch90SurgeBattleReadbackIfReady();
                 }
 
                 ResolveActiveBattleTurn();
@@ -1177,6 +1282,17 @@ public static class Batch82RepeatCoreLoopProofRunner
 
             if (_boot.CurrentAppFlowStage != AppFlowStage.DungeonRun)
             {
+                return;
+            }
+
+            if (IsDungeonDilemmaVariationProofMode())
+            {
+                if (!_batch92GreedCacheSkipped && TryResolveBatch92GreedCacheSkipInteraction())
+                {
+                    return;
+                }
+
+                ResolveRouteFeelExploreStep();
                 return;
             }
 
@@ -1222,6 +1338,118 @@ public static class Batch82RepeatCoreLoopProofRunner
 
             _batch89BattleContextCaptured = true;
             RecordPass("Batch89 battle context", _roomInteractionBattleContextText);
+        }
+
+        private void CaptureBatch92GreedCacheSkipBattleContextIfReady()
+        {
+            if (_batch92SkipBattleContextCaptured)
+            {
+                return;
+            }
+
+            PrototypeBattleRequest request = _boot.GetBattleRequest();
+            string encounterIdentityText =
+                SafeText(request != null ? request.EncounterId : "None") +
+                " | " + SafeText(request != null ? request.EncounterName : "None") +
+                " | " + SafeText(request != null ? request.RoomLabel : "None");
+            if (request == null ||
+                (!ContainsValue(encounterIdentityText, "Goblin Pair Hall") &&
+                 !ContainsValue(encounterIdentityText, "encounter-room-2")))
+            {
+                return;
+            }
+
+            PrototypeBattleUiSurfaceData surface = _boot.GetBattleUiSurfaceData();
+            PrototypeBattleContextData context = _boot.GetCurrentBattleContextData();
+            string intentText = BuildBatch90EnemyIntentRosterText(surface);
+            _roomInteractionBattleContextText =
+                "Request=" + SafeText(request.EncounterContextText) +
+                " | Risk=" + SafeText(request.RiskContextText) +
+                " | Intent=" + SafeText(intentText) +
+                " | Context=" + SafeText(context != null ? context.ContextSummaryText : "None");
+            bool hasSkipContext =
+                ContainsAll(_roomInteractionBattleContextText, "Cache skipped", "no Cache Pressure", "extra payout") &&
+                ContainsAny(_roomInteractionBattleContextText, "baseline pressure", "left behind", "without extra payout");
+            bool avoidsPressureClaim = !ContainsValue(_roomInteractionBattleContextText, "Cache Pressure: payout secured");
+            if (!hasSkipContext || !avoidsPressureClaim)
+            {
+                Fail("Batch92 Greed Cache skip battle context still claimed Cache Pressure or hid the skip. " + SafeText(_roomInteractionBattleContextText));
+                return;
+            }
+
+            _batch92SkipBattleContextCaptured = true;
+            RecordPass("Batch92 Greed Cache skip battle context", _roomInteractionBattleContextText);
+        }
+
+        private bool TryResolveBatch92GreedCacheSkipInteraction()
+        {
+            object worldView = GetWorldView();
+            if (worldView == null)
+            {
+                Fail("World view disappeared before Batch92 Greed Cache skip proof.");
+                return true;
+            }
+
+            object room = InvokeNonPublicMethod(worldView, "GetCurrentPlannedRoomStep");
+            if (room == null)
+            {
+                return false;
+            }
+
+            string roomName = GetObjectField<string>(room, "DisplayName");
+            if (!ContainsValue(roomName, "Greed Cache"))
+            {
+                return false;
+            }
+
+            Vector2Int markerPosition = GetObjectField<Vector2Int>(room, "MarkerPosition");
+            SetPrivateField(worldView, "_playerGridPosition", markerPosition);
+            InvokeNonPublicMethod(worldView, "ProcessExploreStep");
+            PrototypeDungeonRunShellSurfaceData beforeShell = _boot.GetDungeonRunShellSurfaceData();
+            string prompt = SafeText(beforeShell != null ? beforeShell.CurrentSelectionPromptText : _boot.CurrentSelectionPromptLabel);
+            int beforeCarried = GetPrivateField<int>(worldView, "_carriedLootAmount");
+            int beforeChest = GetPrivateField<int>(worldView, "_chestLootAmount");
+            int expectedChestReward = GetExpectedRouteChestLootAmount(RiskyRouteId);
+
+            SetPrivateField(worldView, "_playerGridPosition", new Vector2Int(markerPosition.x + 1, markerPosition.y));
+            InvokeNonPublicMethod(worldView, "ProcessExploreStep");
+            PrototypeDungeonRunShellSurfaceData afterShell = _boot.GetDungeonRunShellSurfaceData();
+            int afterCarried = GetPrivateField<int>(worldView, "_carriedLootAmount");
+            int afterChest = GetPrivateField<int>(worldView, "_chestLootAmount");
+            string pendingKey = GetPrivateField<string>(worldView, "_pendingRoomInteractionConsequenceKey");
+            string pendingConsequence = GetPrivateField<string>(worldView, "_pendingRoomInteractionConsequenceText");
+            string pendingTarget = GetPrivateField<string>(worldView, "_pendingRoomInteractionTargetEncounterId");
+            string feedback = SafeText(_boot.BattleFeedbackLabel);
+            string eventText = SafeText(afterShell != null ? afterShell.EventChoiceText : "None");
+            _batch92GreedCacheSkipText =
+                "Prompt=" + SafeText(prompt) +
+                " | Carried=" + beforeCarried + "->" + afterCarried +
+                " | Chest=" + beforeChest + "->" + afterChest +
+                " | ExpectedSkippedReward=" + expectedChestReward +
+                " | PendingKey=" + SafeText(pendingKey) +
+                " | Pending=" + SafeText(pendingConsequence) +
+                " | Target=" + SafeText(pendingTarget) +
+                " | Feedback=" + feedback +
+                " | Event=" + eventText +
+                " | NextRoom=" + SafeText(afterShell != null ? afterShell.CurrentRoomLabel : "None");
+
+            bool promptExplainsDecision = ContainsAll(prompt, "[E]", "Greed Cache", "Move on to skip", "Cache Pressure") &&
+                                          ContainsAny(prompt, "+3", "mana_shard");
+            bool rewardDidNotChange = afterCarried == beforeCarried && afterChest == beforeChest;
+            bool skipArmed =
+                ContainsValue(pendingKey, "cache_skipped") &&
+                ContainsAll(feedback + " " + eventText + " " + pendingConsequence, "Greed Cache skipped", "left behind", "no Cache Pressure") &&
+                ContainsValue(pendingTarget, "encounter-room-2");
+            bool advancedToNextRoom = afterShell != null && ContainsValue(afterShell.CurrentRoomLabel, "Goblin Pair Hall");
+            if (!promptExplainsDecision || !rewardDidNotChange || !skipArmed || !advancedToNextRoom)
+            {
+                Fail("Batch92 Greed Cache skip was not playable or data-backed. " + _batch92GreedCacheSkipText);
+                return true;
+            }
+
+            _batch92GreedCacheSkipped = true;
+            RecordPass("Batch92 Greed Cache skip", _batch92GreedCacheSkipText);
+            return true;
         }
 
         private bool TryResolveBatch88GreedCacheInteraction()
@@ -1306,7 +1534,9 @@ public static class Batch82RepeatCoreLoopProofRunner
             }
 
             string targetRouteId = GetSecondProofRouteId();
-            int expectedReturnedLoot = GetExpectedRouteBaseClear(targetRouteId);
+            int expectedReturnedLoot = IsDungeonDilemmaVariationProofMode() && targetRouteId == RiskyRouteId
+                ? GetExpectedRouteBattleLootAmount(targetRouteId)
+                : GetExpectedRouteBaseClear(targetRouteId);
             object clearState = ParseNestedEnum(worldView, "RunResultState", "Clear");
             object victoryState = ParseNestedEnum(worldView, "BattleState", "Victory");
             InvokeNonPublicMethod(
@@ -1316,7 +1546,9 @@ public static class Batch82RepeatCoreLoopProofRunner
                 victoryState,
                 true,
                 expectedReturnedLoot,
-                "Batch85 proof cleared the " + GetRouteScenarioName(targetRouteId) + " route and returned with mana_shard x" + expectedReturnedLoot + ".");
+                IsDungeonDilemmaVariationProofMode()
+                    ? "Batch92 proof skipped the Greed Cache and returned with mana_shard x" + expectedReturnedLoot + "."
+                    : "Batch85 proof cleared the " + GetRouteScenarioName(targetRouteId) + " route and returned with mana_shard x" + expectedReturnedLoot + ".");
 
             if (!_boot.IsDungeonResultPanelVisible && _boot.CurrentAppFlowStage != AppFlowStage.ResultPipeline)
             {
@@ -1341,10 +1573,15 @@ public static class Batch82RepeatCoreLoopProofRunner
                 outcome != null &&
                 outcome.Success &&
                 outcome.ReturnedLootAmount == expectedReturnedLoot &&
-                HasSelectedRouteResultText(_secondRunResultText, targetRouteId);
+                (IsDungeonDilemmaVariationProofMode()
+                    ? HasBatch92DilemmaResultText(_secondRunResultText, expectedReturnedLoot)
+                    : HasSelectedRouteResultText(_secondRunResultText, targetRouteId));
             bool hasRoomInteractionResult =
                 !IsDungeonRoomInteractionProofMode() ||
-                (IsRoomInteractionConsequenceProofMode()
+                (IsDungeonDilemmaVariationProofMode()
+                    ? ContainsAll(_secondRunResultText, "Greed Cache", "Cache skipped", "no extra payout", "pressure avoided") &&
+                      !ContainsValue(_secondRunResultText, "Cache Pressure: payout secured")
+                    : IsRoomInteractionConsequenceProofMode()
                     ? ContainsAll(_secondRunResultText, "Greed Cache", "Cache Pressure", "Cache Check", "reward secured", "strain warning")
                     : ContainsAll(_secondRunResultText, "Greed Cache", "Cache payoff secured", "Surge strain"));
             if (!hasActualResult || !hasRoomInteractionResult)
@@ -1415,12 +1652,22 @@ public static class Batch82RepeatCoreLoopProofRunner
             string targetRouteId = GetSecondProofRouteId();
             bool hasLatest =
                 ContainsAll(latest, "Returned", "Party") &&
-                HasSelectedRouteBoardLatestText(latest, targetRouteId);
+                (IsDungeonDilemmaVariationProofMode()
+                    ? ContainsAll(latest, "Surge", "mana_shard") &&
+                      ContainsAny(latest, "x17", "17") &&
+                      !ContainsAny(latest, "x20", "Stock +20")
+                    : HasSelectedRouteBoardLatestText(latest, targetRouteId));
             bool hasChanged = HasText(changed) && ContainsAny(changed, "Stock +", "Pressure", "Readiness", "absorbed");
-            bool hasConsequence = HasSelectedRouteBoardConsequenceText(_secondResultBoardText, targetRouteId);
+            bool hasConsequence = IsDungeonDilemmaVariationProofMode()
+                ? ContainsAll(_secondResultBoardText, "Surge", "x17") &&
+                  ContainsAny(_secondResultBoardText, "Strained", "recovery 2", "Blocked")
+                : HasSelectedRouteBoardConsequenceText(_secondResultBoardText, targetRouteId);
             bool hasRoomInteractionBoard =
                 !IsDungeonRoomInteractionProofMode() ||
-                (IsRoomInteractionConsequenceProofMode()
+                (IsDungeonDilemmaVariationProofMode()
+                    ? ContainsAll(_secondResultBoardText, "Greed Cache", "Cache skipped", "no extra payout", "pressure avoided") &&
+                      !ContainsValue(_secondResultBoardText, "Cache Pressure: payout secured")
+                    : IsRoomInteractionConsequenceProofMode()
                     ? ContainsAll(_secondResultBoardText, "Greed Cache", "Cache Pressure", "Cache Check", "reward secured", "strain warning")
                     : ContainsAll(_secondResultBoardText, "Greed Cache", "Cache payoff secured", "Surge strain"));
             if (!hasLatest || !hasChanged || !hasConsequence || !hasRoomInteractionBoard)
@@ -1444,6 +1691,69 @@ public static class Batch82RepeatCoreLoopProofRunner
 
             if (IsDungeonRoomInteractionProofMode())
             {
+                if (IsDungeonDilemmaVariationProofMode())
+                {
+                    if (!_batch92RestShrineUsed || !_batch92RestShrineBattleCaptured || !_batch92RestShrinePopoverCaptured || !_batch92GreedCacheSkipped || !_batch92SkipBattleContextCaptured)
+                    {
+                        Fail(
+                            "Batch92 dilemma proof ended without Rest use and Greed skip runtime evidence. " +
+                            "RestUse=" + _batch92RestShrineUsed +
+                            " RestBattle=" + _batch92RestShrineBattleCaptured +
+                            " RestPopover=" + _batch92RestShrinePopoverCaptured +
+                            " GreedSkip=" + _batch92GreedCacheSkipped +
+                            " SkipBattle=" + _batch92SkipBattleContextCaptured +
+                            " Rest=" + SafeText(_batch92RestShrineUseText) +
+                            " Greed=" + SafeText(_batch92GreedCacheSkipText));
+                        return;
+                    }
+
+                    _batch92DilemmaProofText =
+                        "RestUse=" + SafeText(_batch92RestShrineUseText) +
+                        " | RestStaticSkip=" + SafeText(_batch92RestShrineSkipStaticText) +
+                        " | GreedSkip=" + SafeText(_batch92GreedCacheSkipText) +
+                        " | GreedSkipBattle=" + SafeText(_roomInteractionBattleContextText) +
+                        " | Popover=" + SafeText(_secondEncounterPopoverText) +
+                        " | Result=" + SafeText(_secondRunResultText) +
+                        " | Board=" + SafeText(_secondResultBoardText);
+                    RecordPass("Batch92 dungeon dilemma variation proof", _batch92DilemmaProofText);
+                    AdvanceTo(ProofStep.Shutdown, "Batch92 proof complete.");
+                    return;
+                }
+
+                if (IsEncounterVarietyRoutePressureProofMode())
+                {
+                    if (!_batch90StabilityBattleCaptured || !_batch90StabilityPopoverCaptured || !_batch90SurgeBattleCaptured)
+                    {
+                        Fail(
+                            GetEncounterVarietyProofLabel() + " encounter variety proof ended without both route battle readbacks. " +
+                            "StabilityBattle=" + _batch90StabilityBattleCaptured +
+                            " StabilityPopover=" + _batch90StabilityPopoverCaptured +
+                            " SurgeBattle=" + _batch90SurgeBattleCaptured +
+                            " Safe=" + SafeText(_batch90StabilityBattleText) +
+                            " Surge=" + SafeText(_batch90SurgeBattleText));
+                        return;
+                    }
+
+                    if (IsEncounterVarietyRuntimeBalanceProofMode() && !HasText(_batch91RuntimeBalanceText))
+                    {
+                        Fail("Batch91 encounter variety proof ended without the runtime balance lock checkpoint.");
+                        return;
+                    }
+
+                    RecordPass(
+                        IsEncounterVarietyRuntimeBalanceProofMode() ? "Batch91 encounter variety runtime proof balance" : "Batch90 encounter variety route pressure proof",
+                        "Source: " + SafeText(_encounterVarietySourceText) +
+                        " | StabilityBattle: " + SafeText(_batch90StabilityBattleText) +
+                        " | StabilityPopover: " + SafeText(_batch90StabilityPopoverText) +
+                        " | SurgeBattle: " + SafeText(_batch90SurgeBattleText) +
+                        " | RuntimeBalance: " + SafeText(_batch91RuntimeBalanceText) +
+                        " | SurgePopover: " + SafeText(_secondEncounterPopoverText) +
+                        " | Result: " + SafeText(_secondRunResultText) +
+                        " | Board: " + SafeText(_secondResultBoardText));
+                    AdvanceTo(ProofStep.Shutdown, GetEncounterVarietyProofLabel() + " proof complete.");
+                    return;
+                }
+
                 if (IsRoomInteractionConsequenceProofMode())
                 {
                     RecordPass(
@@ -1491,7 +1801,9 @@ public static class Batch82RepeatCoreLoopProofRunner
                    _proofMode == ProofMode.SurgeRuntimeConsequence ||
                    _proofMode == ProofMode.DungeonRouteFeel ||
                    _proofMode == ProofMode.DungeonRoomInteraction ||
-                   _proofMode == ProofMode.RoomInteractionConsequenceChain;
+                   _proofMode == ProofMode.RoomInteractionConsequenceChain ||
+                   _proofMode == ProofMode.EncounterVarietyRoutePressure ||
+                   _proofMode == ProofMode.DungeonDilemmaVariation;
         }
 
         private bool IsSurgeRuntimeConsequenceProofMode()
@@ -1512,12 +1824,522 @@ public static class Batch82RepeatCoreLoopProofRunner
         private bool IsDungeonRoomInteractionProofMode()
         {
             return _proofMode == ProofMode.DungeonRoomInteraction ||
-                   _proofMode == ProofMode.RoomInteractionConsequenceChain;
+                   _proofMode == ProofMode.RoomInteractionConsequenceChain ||
+                   IsDungeonDilemmaVariationProofMode() ||
+                   IsEncounterVarietyRoutePressureProofMode();
         }
 
         private bool IsRoomInteractionConsequenceProofMode()
         {
-            return _proofMode == ProofMode.RoomInteractionConsequenceChain;
+            return _proofMode == ProofMode.RoomInteractionConsequenceChain ||
+                   IsEncounterVarietyRoutePressureProofMode();
+        }
+
+        private bool IsEncounterVarietyRoutePressureProofMode()
+        {
+            return _proofMode == ProofMode.EncounterVarietyRoutePressure ||
+                   _proofMode == ProofMode.EncounterVarietyRuntimeBalance;
+        }
+
+        private bool IsEncounterVarietyRuntimeBalanceProofMode()
+        {
+            return _proofMode == ProofMode.EncounterVarietyRuntimeBalance;
+        }
+
+        private bool IsDungeonDilemmaVariationProofMode()
+        {
+            return _proofMode == ProofMode.DungeonDilemmaVariation;
+        }
+
+        private string GetEncounterVarietyProofLabel()
+        {
+            return IsEncounterVarietyRuntimeBalanceProofMode() ? "Batch91" : "Batch90";
+        }
+
+        private bool ResolveBatch92RestShrineUseProof()
+        {
+            PrototypeDungeonRunShellSurfaceData shell = _boot.GetDungeonRunShellSurfaceData();
+            if (shell != null &&
+                shell.IsBattleResultPopoverVisible &&
+                shell.BattleResultPopover != null &&
+                shell.BattleResultPopover.IsVisible)
+            {
+                string popoverText =
+                    "Title=" + SafeText(shell.BattleResultPopover.TitleText) +
+                    " | Encounter=" + SafeText(shell.BattleResultPopover.EncounterNameText) +
+                    " | Summary=" + SafeText(shell.BattleResultPopover.SummaryText) +
+                    " | RoutePlan=" + SafeText(shell.BattleResultPopover.RoutePlanText) +
+                    " | Loot=" + SafeText(shell.BattleResultPopover.LootSummaryText) +
+                    " | Party=" + SafeText(shell.BattleResultPopover.PartySummaryText);
+
+                if (!_batch92FirstPopoverCleared)
+                {
+                    bool hasFirstRouteCheck =
+                        ContainsAll(popoverText, "Route Check", "Stability Pressure", "Slime Front") &&
+                        ContainsAny(popoverText, "Rest Shrine", "Shrine Protection");
+                    if (!hasFirstRouteCheck)
+                    {
+                        Fail("Batch92 first Stability popover did not lead toward Rest Shrine. " + SafeText(popoverText));
+                        return true;
+                    }
+
+                    _batch92FirstPopoverCleared = true;
+                    InvokeNonPublicMethod(GetWorldView(), "ClearBattleResultPopover");
+                    RecordPass("Batch92 Rest Shrine setup popover", popoverText);
+                    return true;
+                }
+
+                if (!_batch92RestShrinePopoverCaptured)
+                {
+                    bool hasShrineCheck =
+                        ContainsAll(popoverText, "Route Check", "Stability Pressure", "Watch Hall", "Shrine Protection") &&
+                        ContainsAny(popoverText, "Shrine Check", "party condition", "protected", "preserved");
+                    if (!hasShrineCheck)
+                    {
+                        Fail("Batch92 Rest Shrine use popover did not confirm Shrine Protection. " + SafeText(popoverText));
+                        return true;
+                    }
+
+                    _batch92RestShrinePopoverCaptured = true;
+                    InvokeNonPublicMethod(GetWorldView(), "ClearBattleResultPopover");
+                    RecordPass("Batch92 Rest Shrine use popover", popoverText);
+                    return true;
+                }
+            }
+
+            if (!_batch92RestShrineUsed)
+            {
+                if (_boot.CurrentAppFlowStage == AppFlowStage.BattleScene)
+                {
+                    ResolveActiveBattleTurn();
+                    return true;
+                }
+
+                if (_boot.CurrentAppFlowStage == AppFlowStage.DungeonRun)
+                {
+                    if (TryResolveBatch92RestShrineUseInteraction())
+                    {
+                        return true;
+                    }
+
+                    ResolveBatch90StabilityExploreStep();
+                    return true;
+                }
+
+                return true;
+            }
+
+            if (!_batch92RestShrineBattleCaptured)
+            {
+                if (_boot.CurrentAppFlowStage == AppFlowStage.BattleScene)
+                {
+                    CaptureBatch92RestShrineBattleContextIfReady();
+                    ResolveActiveBattleTurn();
+                    return true;
+                }
+
+                if (_boot.CurrentAppFlowStage == AppFlowStage.DungeonRun)
+                {
+                    ResolveBatch90StabilityExploreStep();
+                    return true;
+                }
+
+                return true;
+            }
+
+            if (!_batch92RestShrinePopoverCaptured)
+            {
+                if (_boot.CurrentAppFlowStage == AppFlowStage.BattleScene)
+                {
+                    ResolveActiveBattleTurn();
+                    return true;
+                }
+
+                if (_boot.CurrentAppFlowStage == AppFlowStage.DungeonRun)
+                {
+                    ResolveBatch90StabilityExploreStep();
+                    return true;
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryResolveBatch92RestShrineUseInteraction()
+        {
+            object worldView = GetWorldView();
+            if (worldView == null)
+            {
+                Fail("World view disappeared before Batch92 Rest Shrine use proof.");
+                return true;
+            }
+
+            object room = InvokeNonPublicMethod(worldView, "GetCurrentPlannedRoomStep");
+            if (room == null)
+            {
+                return false;
+            }
+
+            string roomName = GetObjectField<string>(room, "DisplayName");
+            if (!ContainsValue(roomName, "Rest Shrine"))
+            {
+                return false;
+            }
+
+            Vector2Int markerPosition = GetObjectField<Vector2Int>(room, "MarkerPosition");
+            SetPrivateField(worldView, "_playerGridPosition", markerPosition);
+            InvokeNonPublicMethod(worldView, "ProcessExploreStep");
+            PrototypeDungeonRunShellSurfaceData beforeShell = _boot.GetDungeonRunShellSurfaceData();
+            string prompt = SafeText(beforeShell != null ? beforeShell.CurrentSelectionPromptText : _boot.CurrentSelectionPromptLabel);
+            object nextRoom = InvokeNonPublicMethod(worldView, "GetNextEncounterRoomAfterRoom", room);
+            string staticSkipSummary = SafeText(InvokeNonPublicMethod(worldView, "BuildShrineSkippedRoomInteractionSummary", room) as string);
+            string staticSkipNext = SafeText(InvokeNonPublicMethod(worldView, "BuildShrineSkippedNextBeatText", nextRoom) as string);
+            _batch92RestShrineSkipStaticText = staticSkipSummary + " | " + staticSkipNext;
+            if (!ContainsAll(_batch92RestShrineSkipStaticText, "Rest Shrine skipped", "no Shrine Protection"))
+            {
+                Fail("Batch92 Rest Shrine static skip text was not honest. " + SafeText(_batch92RestShrineSkipStaticText));
+                return true;
+            }
+
+            RecordPass("Batch92 Rest Shrine static skip source", _batch92RestShrineSkipStaticText);
+
+            int beforeHeal = GetPrivateField<int>(worldView, "_totalEventHealAmount");
+            object interacted = InvokePublicMethod(worldView, "TryInteractCurrentDungeonRoomBeat");
+            bool didInteract = interacted is bool value && value;
+            PrototypeDungeonRunShellSurfaceData afterShell = _boot.GetDungeonRunShellSurfaceData();
+            int afterHeal = GetPrivateField<int>(worldView, "_totalEventHealAmount");
+            string pendingConsequence = GetPrivateField<string>(worldView, "_pendingRoomInteractionConsequenceText");
+            string pendingTarget = GetPrivateField<string>(worldView, "_pendingRoomInteractionTargetEncounterId");
+            string feedback = SafeText(_boot.BattleFeedbackLabel);
+            string eventText = SafeText(afterShell != null ? afterShell.EventChoiceText : "None");
+            _batch92RestShrineUseText =
+                "Prompt=" + SafeText(prompt) +
+                " | Interacted=" + didInteract +
+                " | Heal=" + beforeHeal + "->" + afterHeal +
+                " | Feedback=" + feedback +
+                " | Event=" + eventText +
+                " | Pending=" + SafeText(pendingConsequence) +
+                " | Target=" + SafeText(pendingTarget) +
+                " | NextRoom=" + SafeText(afterShell != null ? afterShell.CurrentRoomLabel : "None");
+
+            bool promptExplainsDecision = ContainsAll(prompt, "[E]", "Rest Shrine", "Move on to skip", "Shrine Protection");
+            bool useArmedProtection = didInteract &&
+                                      ContainsAll(feedback + " " + eventText + " " + pendingConsequence, "Rest Shrine", "Shrine Protection", "Watch Hall") &&
+                                      ContainsValue(pendingTarget, "encounter-room-2");
+            bool advancedToNextRoom = afterShell != null && ContainsValue(afterShell.CurrentRoomLabel, "Watch Hall");
+            if (!promptExplainsDecision || !useArmedProtection || !advancedToNextRoom)
+            {
+                Fail("Batch92 Rest Shrine use was not playable or data-backed. " + _batch92RestShrineUseText);
+                return true;
+            }
+
+            _batch92RestShrineUsed = true;
+            RecordPass("Batch92 Rest Shrine use", _batch92RestShrineUseText);
+            return true;
+        }
+
+        private void CaptureBatch92RestShrineBattleContextIfReady()
+        {
+            if (_batch92RestShrineBattleCaptured)
+            {
+                return;
+            }
+
+            PrototypeBattleRequest request = _boot.GetBattleRequest();
+            string encounterIdentityText =
+                SafeText(request != null ? request.EncounterId : "None") +
+                " | " + SafeText(request != null ? request.EncounterName : "None") +
+                " | " + SafeText(request != null ? request.RoomLabel : "None");
+            if (request == null ||
+                (!ContainsValue(encounterIdentityText, "Watch Hall") &&
+                 !ContainsValue(encounterIdentityText, "encounter-room-2")))
+            {
+                return;
+            }
+
+            _roomInteractionBattleContextText =
+                "Request=" + SafeText(request.EncounterContextText) +
+                " | Risk=" + SafeText(request.RiskContextText) +
+                " | Setup=" + SafeText(request.BattleSetupSummaryText);
+            if (!ContainsAll(_roomInteractionBattleContextText, "Shrine Protection", "party stability"))
+            {
+                Fail("Batch92 Rest Shrine battle context did not acknowledge Shrine Protection. " + SafeText(_roomInteractionBattleContextText));
+                return;
+            }
+
+            _batch92RestShrineBattleCaptured = true;
+            RecordPass("Batch92 Rest Shrine battle context", _roomInteractionBattleContextText);
+        }
+
+        private bool ResolveBatch90StabilityEncounterProof()
+        {
+            if (!_batch90StabilityBattleCaptured)
+            {
+                if (_boot.CurrentAppFlowStage == AppFlowStage.BattleScene)
+                {
+                    CaptureBatch90StabilityBattleReadbackIfReady();
+                    ResolveActiveBattleTurn();
+                    return true;
+                }
+
+                if (_boot.CurrentAppFlowStage == AppFlowStage.DungeonRun)
+                {
+                    ResolveBatch90StabilityExploreStep();
+                    return true;
+                }
+
+                return true;
+            }
+
+            if (!_batch90StabilityPopoverCaptured)
+            {
+                PrototypeDungeonRunShellSurfaceData shell = _boot.GetDungeonRunShellSurfaceData();
+                if (shell != null &&
+                    shell.IsBattleResultPopoverVisible &&
+                    shell.BattleResultPopover != null &&
+                    shell.BattleResultPopover.IsVisible)
+                {
+                    _batch90StabilityPopoverText =
+                        "Title=" + SafeText(shell.BattleResultPopover.TitleText) +
+                        " | Encounter=" + SafeText(shell.BattleResultPopover.EncounterNameText) +
+                        " | Summary=" + SafeText(shell.BattleResultPopover.SummaryText) +
+                        " | RoutePlan=" + SafeText(shell.BattleResultPopover.RoutePlanText) +
+                        " | Loot=" + SafeText(shell.BattleResultPopover.LootSummaryText) +
+                        " | Party=" + SafeText(shell.BattleResultPopover.PartySummaryText);
+                    bool hasStabilityRouteCheck =
+                        ContainsAll(_batch90StabilityPopoverText, "Route Check", "Stability Pressure", "Slime Front", "Rest Shrine", "Shrine Protection") &&
+                        ContainsAny(_batch90StabilityPopoverText, "stable", "sustain", "protected", "controlled");
+                    if (!hasStabilityRouteCheck)
+                    {
+                        Fail(GetEncounterVarietyProofLabel() + " Stability popover did not connect Slime Front back to the Stability route check. " + SafeText(_batch90StabilityPopoverText));
+                        return true;
+                    }
+
+                    _batch90StabilityPopoverCaptured = true;
+                    InvokeNonPublicMethod(GetWorldView(), "ClearBattleResultPopover");
+                    RecordPass(GetEncounterVarietyProofLabel() + " Stability encounter popover", _batch90StabilityPopoverText);
+                    return true;
+                }
+
+                if (_boot.CurrentAppFlowStage == AppFlowStage.BattleScene)
+                {
+                    ResolveActiveBattleTurn();
+                    return true;
+                }
+
+                if (_boot.CurrentAppFlowStage == AppFlowStage.DungeonRun)
+                {
+                    ResolveBatch90StabilityExploreStep();
+                    return true;
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private void ResolveBatch90StabilityExploreStep()
+        {
+            object worldView = GetWorldView();
+            if (worldView == null)
+            {
+                Fail("World view disappeared during " + GetEncounterVarietyProofLabel() + " Stability encounter proof.");
+                return;
+            }
+
+            object room = InvokeNonPublicMethod(worldView, "GetCurrentPlannedRoomStep");
+            if (room == null)
+            {
+                return;
+            }
+
+            Vector2Int markerPosition = GetObjectField<Vector2Int>(room, "MarkerPosition");
+            SetPrivateField(worldView, "_playerGridPosition", markerPosition);
+            InvokeNonPublicMethod(worldView, "ProcessExploreStep");
+        }
+
+        private void CaptureBatch90StabilityBattleReadbackIfReady()
+        {
+            if (_batch90StabilityBattleCaptured)
+            {
+                return;
+            }
+
+            PrototypeBattleRequest request = _boot.GetBattleRequest();
+            string encounterIdentityText =
+                SafeText(request != null ? request.EncounterId : "None") +
+                " | " + SafeText(request != null ? request.EncounterName : "None") +
+                " | " + SafeText(request != null ? request.RoomLabel : "None");
+            if (request == null ||
+                (!ContainsValue(encounterIdentityText, "Slime Front") &&
+                 !ContainsValue(encounterIdentityText, "encounter-room-1")))
+            {
+                return;
+            }
+
+            PrototypeBattleUiSurfaceData surface = _boot.GetBattleUiSurfaceData();
+            PrototypeBattleContextData context = _boot.GetCurrentBattleContextData();
+            string intentText = BuildBatch90EnemyIntentRosterText(surface);
+            _batch90StabilityBattleText =
+                "Request=" + SafeText(request.EncounterContextText) +
+                " | Setup=" + SafeText(request.BattleSetupSummaryText) +
+                " | Enemy=" + SafeText(request.EnemyGroupText) +
+                " | Intent=" + SafeText(intentText) +
+                " | Mission=" + SafeText(surface != null ? surface.MissionIntentSummaryText : "None") +
+                " | Context=" + SafeText(context != null ? context.ContextSummaryText : "None");
+
+            bool hasContext =
+                ContainsAll(_batch90StabilityBattleText, "Stability Pressure", "Threat: Moderate", "Slime Front", "Rest Shrine", "Shrine Protection", "HP", "ATK") &&
+                ContainsAny(_batch90StabilityBattleText, "controlled", "random pressure", "sustain");
+            bool hasIntent =
+                ContainsAll(intentText, "Stability Pressure", "Threat: Moderate", "predicted") &&
+                ContainsAny(intentText, "Rest Shrine", "Shrine Protection", "random target");
+            if (!hasContext || !hasIntent)
+            {
+                Fail(GetEncounterVarietyProofLabel() + " Stability battle readback did not expose controlled slime pressure. " + SafeText(_batch90StabilityBattleText));
+                return;
+            }
+
+            _batch90StabilityBattleCaptured = true;
+            RecordPass(GetEncounterVarietyProofLabel() + " Stability battle readback", _batch90StabilityBattleText);
+        }
+
+        private void CaptureBatch90SurgeBattleReadbackIfReady()
+        {
+            if (_batch90SurgeBattleCaptured)
+            {
+                return;
+            }
+
+            PrototypeBattleRequest request = _boot.GetBattleRequest();
+            string encounterIdentityText =
+                SafeText(request != null ? request.EncounterId : "None") +
+                " | " + SafeText(request != null ? request.EncounterName : "None") +
+                " | " + SafeText(request != null ? request.RoomLabel : "None");
+            if (request == null ||
+                (!ContainsValue(encounterIdentityText, "Goblin Pair Hall") &&
+                 !ContainsValue(encounterIdentityText, "encounter-room-2")))
+            {
+                return;
+            }
+
+            PrototypeBattleUiSurfaceData surface = _boot.GetBattleUiSurfaceData();
+            PrototypeBattleContextData context = _boot.GetCurrentBattleContextData();
+            PrototypeBattleUiTargetSelectionData targetSelection = surface != null ? surface.TargetSelection : null;
+            string intentText = BuildBatch90EnemyIntentRosterText(surface);
+            string targetPreviewText = BuildBatch90TargetPreviewText(surface);
+            _batch90SurgeBattleText =
+                "Request=" + SafeText(request.EncounterContextText) +
+                " | Setup=" + SafeText(request.BattleSetupSummaryText) +
+                " | Enemy=" + SafeText(request.EnemyGroupText) +
+                " | Intent=" + SafeText(intentText) +
+                " | TargetPreview=" + SafeText(targetPreviewText) +
+                " | Mission=" + SafeText(surface != null ? surface.MissionIntentSummaryText : "None") +
+                " | Context=" + SafeText(context != null ? context.ContextSummaryText : "None");
+
+            if (targetSelection == null || !targetSelection.IsActive)
+            {
+                return;
+            }
+
+            bool hasContext =
+                ContainsAll(_batch90SurgeBattleText, "Surge Pressure", "Threat: High", "Goblin Pair Hall", "Cache Pressure", "strain", "HP", "ATK") &&
+                ContainsAny(_batch90SurgeBattleText, "lowest-HP focus", "lowest HP", "payout");
+            bool hasIntent =
+                ContainsAll(intentText, "Surge Pressure", "Threat: High", "predicted") &&
+                ContainsAny(intentText, "lowest HP", "payout-vs-recovery", "Cache Pressure");
+            bool hasTargetPayoff =
+                ContainsAll(targetPreviewText, "Cache Pressure payoff", "strain") &&
+                ContainsAny(targetPreviewText, "Mira/Rune", "removes a goblin", "finish windows");
+            if (!hasContext || !hasIntent || !hasTargetPayoff)
+            {
+                Fail(GetEncounterVarietyProofLabel() + " Surge battle readback did not expose Cache Pressure, intent, and target payoff together. " + SafeText(_batch90SurgeBattleText));
+                return;
+            }
+
+            _batch90SurgeBattleCaptured = true;
+            RecordPass(GetEncounterVarietyProofLabel() + " Surge battle readback", _batch90SurgeBattleText);
+        }
+
+        private bool ValidateBatch91RuntimeBalanceLock()
+        {
+            _batch91RuntimeBalanceText =
+                "Stability=" + SafeText(_batch90StabilityBattleText) +
+                " | StabilityPopover=" + SafeText(_batch90StabilityPopoverText) +
+                " | Surge=" + SafeText(_batch90SurgeBattleText) +
+                " | SurgePopover=" + SafeText(_secondEncounterPopoverText);
+
+            bool stabilityFeelsControlled =
+                ContainsAll(_batch90StabilityBattleText, "Threat: Moderate", "Slime Front", "ATK 4", "predicted 2", "random pressure", "Shrine Protection") &&
+                ContainsAll(_batch90StabilityPopoverText, "Route Check", "Stability Pressure", "Rest Shrine", "Shrine Protection");
+            bool surgeFeelsPressured =
+                ContainsAll(_batch90SurgeBattleText, "Threat: High", "Goblin Pair Hall", "ATK 8", "lowest-HP focus", "Cache Pressure", "predicted 4", "Cache Pressure payoff") &&
+                ContainsAny(_batch90SurgeBattleText, "predicted 8", "Rending Blow", "Striker");
+            bool routePayoffDiffers =
+                ContainsAll(_secondEncounterPopoverText, "Route Check", "Surge Pressure", "recovery strain") &&
+                ContainsAll(_batch90SurgeBattleText, "payout-vs-recovery", "Mira/Rune") &&
+                ContainsAny(_batch90StabilityBattleText, "controlled", "Rest Shrine", "random pressure");
+
+            if (!stabilityFeelsControlled || !surgeFeelsPressured || !routePayoffDiffers)
+            {
+                Fail("Batch91 runtime balance lock did not prove safer Stability vs higher-pressure Surge. " + SafeText(_batch91RuntimeBalanceText));
+                return false;
+            }
+
+            RecordPass(
+                "Batch91 runtime balance lock",
+                "Stability is Threat: Moderate with ATK 4 / predicted 2 / Shrine Protection setup; " +
+                "Surge is Threat: High with ATK 8 / predicted 4+ / Cache Pressure payoff and recovery strain.");
+            return true;
+        }
+
+        private string BuildBatch90EnemyIntentRosterText(PrototypeBattleUiSurfaceData surface)
+        {
+            PrototypeBattleUiEnemyData[] enemies = surface != null ? surface.EnemyRoster : null;
+            if (enemies == null || enemies.Length == 0)
+            {
+                return "None";
+            }
+
+            List<string> parts = new List<string>();
+            for (int i = 0; i < enemies.Length; i++)
+            {
+                PrototypeBattleUiEnemyData enemy = enemies[i];
+                if (enemy == null)
+                {
+                    continue;
+                }
+
+                parts.Add(
+                    SafeText(enemy.DisplayName) +
+                    " intent=" + SafeText(enemy.IntentLabel) +
+                    " threat=" + SafeText(enemy.ThreatLaneText) +
+                    " hp=" + enemy.CurrentHp + "/" + enemy.MaxHp +
+                    " atk=" + enemy.Attack);
+            }
+
+            return parts.Count > 0 ? string.Join(" || ", parts.ToArray()) : "None";
+        }
+
+        private string BuildBatch90TargetPreviewText(PrototypeBattleUiSurfaceData surface)
+        {
+            PrototypeBattleUiTargetSelectionData target = surface != null ? surface.TargetSelection : null;
+            if (target == null)
+            {
+                return "None";
+            }
+
+            return
+                "Active=" + target.IsActive +
+                " | Target=" + SafeText(target.TargetLabel) +
+                " | Intent=" + SafeText(target.TargetIntentLabel) +
+                " | Expected=" + SafeText(target.ExpectedEffectText) +
+                " | Post=" + SafeText(target.PostEffectText) +
+                " | Formula=" + SafeText(target.FormulaText) +
+                " | Growth=" + SafeText(target.GrowthText);
         }
 
         private void ResolveActiveBattleTurn()
@@ -1580,6 +2402,10 @@ public static class Batch82RepeatCoreLoopProofRunner
             {
                 CaptureBatch89BattleContextIfReady();
             }
+            if (IsEncounterVarietyRoutePressureProofMode())
+            {
+                CaptureBatch90SurgeBattleReadbackIfReady();
+            }
 
             InvokePublicMethod(worldView, "TryInteractCurrentDungeonRoomBeat");
         }
@@ -1625,6 +2451,13 @@ public static class Batch82RepeatCoreLoopProofRunner
                   ContainsAny(text, "higher payout", "bigger mana_shard", "less dispatch stability", "rougher", "tighter")
                 : ContainsAll(text, "Stability", "mana_shard x16", "outcome-mana-shard-city-a") &&
                   ContainsAny(text, "lower payout", "lower shard", "recovery cushion", "Stabilizes");
+        }
+
+        private bool HasBatch92DilemmaResultText(string text, int expectedReturnedLoot)
+        {
+            return ContainsAll(text, "Surge", "mana_shard x" + expectedReturnedLoot, "Greed Cache", "Cache skipped") &&
+                   ContainsAny(text, "no extra payout", "pressure avoided", "left behind") &&
+                   !ContainsValue(text, "Loot=mana_shard x20");
         }
 
         private bool HasSelectedRouteLaunchText(string text, string routeId)
@@ -1856,6 +2689,55 @@ public static class Batch82RepeatCoreLoopProofRunner
                    riskyChainLoaded &&
                    safeRestShrineLoaded &&
                    riskyGreedCacheLoaded;
+        }
+
+        private bool ValidateEncounterVarietyRoutePressureDataSources(out string detail)
+        {
+            detail = "None";
+            bool safeChainLoaded = GoldenPathContentRegistry.TryGetChainForRoute(SelectedCityId, TargetDungeonId, SafeRouteId, out GoldenPathChainDefinition safeChain);
+            bool riskyChainLoaded = GoldenPathContentRegistry.TryGetChainForRoute(SelectedCityId, TargetDungeonId, RiskyRouteId, out GoldenPathChainDefinition riskyChain);
+            GoldenPathRouteDefinition safeRoute = safeChain != null ? safeChain.CanonicalRoute : null;
+            GoldenPathRouteDefinition riskyRoute = riskyChain != null ? riskyChain.CanonicalRoute : null;
+            string safeRooms = BuildRouteRoomListText(safeRoute);
+            string riskyRooms = BuildRouteRoomListText(riskyRoute);
+
+            bool safeProfileLoaded =
+                GoldenPathContentRegistry.TryGetEncounterProfile("encounter-profile-alpha-safe-entry", out GoldenPathEncounterProfileDefinition safeProfile) &&
+                safeProfile != null &&
+                ContainsAll(safeProfile.EncounterRoleTagsText + " " + safeProfile.MissionRelevanceText + " " + safeProfile.BattleContextText, "slime", "stabilizer", "shrine");
+            bool riskyProfileLoaded =
+                GoldenPathContentRegistry.TryGetEncounterProfile("encounter-profile-alpha-risky-hall", out GoldenPathEncounterProfileDefinition riskyProfile) &&
+                riskyProfile != null &&
+                ContainsAll(riskyProfile.EncounterRoleTagsText + " " + riskyProfile.MissionRelevanceText + " " + riskyProfile.BattleContextText, "goblin", "higher payout", "shrine");
+            bool safeSetupLoaded =
+                GoldenPathContentRegistry.TryGetBattleSetup("battle-setup-alpha-safe-room1", out GoldenPathBattleSetupDefinition safeSetup) &&
+                safeSetup != null &&
+                ContainsAll(safeSetup.EnemyGroupLabel + " " + safeSetup.SetupSummaryText + " " + safeSetup.WinRelevanceText, "Slime", "Rest Path", "stable");
+            bool riskySetupLoaded =
+                GoldenPathContentRegistry.TryGetBattleSetup("battle-setup-alpha-risky-room2", out GoldenPathBattleSetupDefinition riskySetup) &&
+                riskySetup != null &&
+                ContainsAll(riskySetup.EnemyGroupLabel + " " + riskySetup.SetupSummaryText + " " + riskySetup.WinRelevanceText, "Goblin Pair", "shard surge", "core threshold");
+            bool safeRoomsLoaded = ContainsAll(safeRooms, "Slime Front", "Rest Shrine");
+            bool riskyRoomsLoaded = ContainsAll(riskyRooms, "Greed Cache", "Goblin Pair Hall");
+
+            detail =
+                "safe=data:" + SafeText(safeChain != null ? safeChain.ChainId : "None") +
+                " rooms=" + SafeText(safeRooms) +
+                " profile=" + SafeText(safeProfile != null ? safeProfile.BattleContextText : "None") +
+                " setup=" + SafeText(safeSetup != null ? safeSetup.EnemyGroupLabel + " / " + safeSetup.WinRelevanceText : "None") +
+                " | risky=data:" + SafeText(riskyChain != null ? riskyChain.ChainId : "None") +
+                " rooms=" + SafeText(riskyRooms) +
+                " profile=" + SafeText(riskyProfile != null ? riskyProfile.BattleContextText : "None") +
+                " setup=" + SafeText(riskySetup != null ? riskySetup.EnemyGroupLabel + " / " + riskySetup.WinRelevanceText : "None");
+
+            return safeChainLoaded &&
+                   riskyChainLoaded &&
+                   safeProfileLoaded &&
+                   riskyProfileLoaded &&
+                   safeSetupLoaded &&
+                   riskySetupLoaded &&
+                   safeRoomsLoaded &&
+                   riskyRoomsLoaded;
         }
 
         private bool RouteContainsRoomType(GoldenPathRouteDefinition route, string displayName, string roomType)
@@ -2162,6 +3044,12 @@ public static class Batch82RepeatCoreLoopProofRunner
             _summary.AppendLine("[Batch82Proof] Summary");
             _summary.AppendLine("- Branch=" + (_proofMode == ProofMode.SurgeRuntimeConsequence
                 ? "B surge runtime consequence seam proof over existing recovery rail"
+                : _proofMode == ProofMode.DungeonDilemmaVariation
+                    ? "A/D dungeon dilemma variation over existing grid room interactions"
+                : _proofMode == ProofMode.EncounterVarietyRuntimeBalance
+                    ? "A encounter variety runtime proof/balance lock over Batch90 battle surfaces"
+                : _proofMode == ProofMode.EncounterVarietyRoutePressure
+                    ? "C route-pressure encounter variety proof over existing safe/risky battle surfaces"
                 : "A repeat-loop proof over existing loop contracts"));
             _summary.AppendLine("- ProofMode=" + _proofMode);
             _summary.AppendLine("- FirstPrepRouteCard=" + SafeText(_firstPrepRouteCardText));
@@ -2173,6 +3061,12 @@ public static class Batch82RepeatCoreLoopProofRunner
             _summary.AppendLine("- RouteConsequenceSource=" + SafeText(_routeConsequenceSourceText));
             _summary.AppendLine("- RoomInteractionSource=" + SafeText(_roomInteractionSourceText));
             _summary.AppendLine("- RoomInteractionRuntime=" + SafeText(_roomInteractionRuntimeText));
+            _summary.AppendLine("- EncounterVarietySource=" + SafeText(_encounterVarietySourceText));
+            _summary.AppendLine("- Batch90StabilityBattle=" + SafeText(_batch90StabilityBattleText));
+            _summary.AppendLine("- Batch90StabilityPopover=" + SafeText(_batch90StabilityPopoverText));
+            _summary.AppendLine("- Batch90SurgeBattle=" + SafeText(_batch90SurgeBattleText));
+            _summary.AppendLine("- Batch91RuntimeBalance=" + SafeText(_batch91RuntimeBalanceText));
+            _summary.AppendLine("- Batch92Dilemma=" + SafeText(_batch92DilemmaProofText));
             _summary.AppendLine("- SecondRunResult=" + SafeText(_secondRunResultText));
             _summary.AppendLine("- SecondResultBoard=" + SafeText(_secondResultBoardText));
             for (int i = 0; i < _checkpoints.Count; i++)

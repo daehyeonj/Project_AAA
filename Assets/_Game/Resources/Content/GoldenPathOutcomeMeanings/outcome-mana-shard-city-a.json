@@ -1,7 +1,7 @@
 {
   "OutcomeMeaningId": "outcome-mana-shard-city-a",
   "RewardResourceId": "mana_shard",
-  "RewardMeaningText": "Dungeon Alpha is the main expedition lever connected to this city right now.",
-  "CityImpactMeaningText": "Stabilizes the next dispatch window once mana_shard stock returns.",
-  "RecommendationShiftText": "Mana shard pressure eased, so City A can push the next stable dispatch instead of waiting."
+  "RewardMeaningText": "The Rest Path returns a steadier, lower mana_shard haul while preserving the stronger recovery cushion.",
+  "CityImpactMeaningText": "Stability result: City A gains a smaller shard refill, but the party keeps more recovery room for the next dispatch.",
+  "RecommendationShiftText": "Mana shard pressure eased without taking the Surge strain; choose Stability again if recovery matters, or Surge if stock pressure still outweighs party strain."
 }

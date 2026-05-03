@@ -74,7 +74,12 @@ public static class ExpeditionPrepModelBuilder
                     ? recommendedRoute.RouteId
                     : string.Empty);
 
-        model.ObjectiveText = BuildObjectiveText(model.OriginCityLabel, model.TargetDungeonLabel, primaryBottleneck, primaryOpportunity, contentDefinition);
+        model.ObjectiveText = BuildObjectiveText(
+            model.OriginCityLabel,
+            model.TargetDungeonLabel,
+            primaryBottleneck,
+            primaryOpportunity,
+            routeAwareContentDefinition ?? contentDefinition);
         model.RecentImpactSummaryText = primaryImpact != null && HasText(primaryImpact.SummaryText)
             ? primaryImpact.SummaryText
             : "None";

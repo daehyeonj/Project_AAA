@@ -172,7 +172,9 @@ public sealed partial class StaticPlaceholderWorldView
         context.DungeonModifierSummary = GetCurrentDungeonDangerText() + " | " + BuildCurrentThreatPressureSummaryText();
         context.WorldModifierSummary = BuildRpgOwnedBattleWorldModifierSummary();
         context.EncounterRequestSummaryText = encounterRequest.SummaryText;
-        context.ContextSummaryText = context.DungeonLabel + " | " + context.RouteLabel + " | " + BuildCurrentTimePressureSummaryText();
+        context.ContextSummaryText = AppendRoomInteractionConsequenceText(
+            context.DungeonLabel + " | " + context.RouteLabel + " | " + BuildCurrentTimePressureSummaryText(),
+            BuildRoomInteractionBattleContextText(context.EncounterId));
         return context;
     }
 

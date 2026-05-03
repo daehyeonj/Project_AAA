@@ -529,6 +529,11 @@ public sealed partial class StaticPlaceholderWorldView
                 parts.Add("Party " + partyText);
             }
 
+            if (IsMeaningfulSnapshotText(latestResult.EventChoiceSummaryText))
+            {
+                parts.Add("Room " + latestResult.EventChoiceSummaryText);
+            }
+
             return string.Join(" | ", parts.ToArray());
         }
 

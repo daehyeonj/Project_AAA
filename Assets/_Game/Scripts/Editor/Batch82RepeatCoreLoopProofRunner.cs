@@ -22,7 +22,13 @@ public static class Batch82RepeatCoreLoopProofRunner
     {
         RepeatLoop,
         SecondRunDecisionPressure,
-        RecoveryPressureChoice
+        RecoveryPressureChoice,
+        SecondRunRouteConsequence,
+        SurgeRuntimeConsequence,
+        WaitCostPressureClock,
+        DungeonRouteFeel,
+        DungeonRoomInteraction,
+        RoomInteractionConsequenceChain
     }
 
     [InitializeOnLoadMethod]
@@ -50,6 +56,36 @@ public static class Batch82RepeatCoreLoopProofRunner
     public static void RunBatch84RecoveryPressureChoiceProof()
     {
         RunProof(ProofMode.RecoveryPressureChoice);
+    }
+
+    public static void RunBatch85SecondRunRouteConsequenceProof()
+    {
+        RunProof(ProofMode.SecondRunRouteConsequence);
+    }
+
+    public static void RunBatch85_1SurgeRuntimeConsequenceProof()
+    {
+        RunProof(ProofMode.SurgeRuntimeConsequence);
+    }
+
+    public static void RunBatch86WaitCostPressureClockProof()
+    {
+        RunProof(ProofMode.WaitCostPressureClock);
+    }
+
+    public static void RunBatch87DungeonRouteFeelProof()
+    {
+        RunProof(ProofMode.DungeonRouteFeel);
+    }
+
+    public static void RunBatch88DungeonRoomInteractionProof()
+    {
+        RunProof(ProofMode.DungeonRoomInteraction);
+    }
+
+    public static void RunBatch89RoomInteractionConsequenceChainProof()
+    {
+        RunProof(ProofMode.RoomInteractionConsequenceChain);
     }
 
     private static void RunProof(ProofMode proofMode)
@@ -107,6 +143,12 @@ public static class Batch82RepeatCoreLoopProofRunner
             SelectSecondRouteOrValidateBlocked,
             ConfirmSecondLaunchOrValidateBlocked,
             WaitForSecondDungeonRunOrFinish,
+            ValidateSecondDungeonRouteReadback,
+            ResolveSecondRouteEncounterPopover,
+            SimulateSecondRunResult,
+            ReturnSecondResultToWorld,
+            WaitForSecondReturnedCityHub,
+            ValidateSecondResultBoard,
             Shutdown
         }
 
@@ -123,8 +165,22 @@ public static class Batch82RepeatCoreLoopProofRunner
         private string _secondPrepText = string.Empty;
         private string _secondPrepAfterRecoveryText = string.Empty;
         private string _secondRunDecisionText = string.Empty;
+        private string _routeConsequenceSourceText = string.Empty;
+        private string _routeFeelSourceText = string.Empty;
+        private string _roomInteractionSourceText = string.Empty;
+        private string _roomInteractionRuntimeText = string.Empty;
+        private string _roomInteractionBattleContextText = string.Empty;
+        private string _secondDungeonReadbackText = string.Empty;
+        private string _secondEncounterPopoverText = string.Empty;
+        private string _secondRunResultText = string.Empty;
+        private string _secondResultBoardText = string.Empty;
+        private string _waitCostBeforeRecoveryText = string.Empty;
+        private string _waitCostAfterRecoveryText = string.Empty;
         private int _secondPrepWorldDayBeforeRecovery;
         private bool _secondLaunchConfirmed;
+        private bool _batch88FirstPopoverCleared;
+        private bool _batch88GreedCacheInteracted;
+        private bool _batch89BattleContextCaptured;
         private bool _shutdownRequested;
 
         public ProofSession(ProofMode proofMode)
@@ -241,6 +297,24 @@ public static class Batch82RepeatCoreLoopProofRunner
                         break;
                     case ProofStep.WaitForSecondDungeonRunOrFinish:
                         WaitForSecondDungeonRunOrFinish();
+                        break;
+                    case ProofStep.ValidateSecondDungeonRouteReadback:
+                        ValidateSecondDungeonRouteReadback();
+                        break;
+                    case ProofStep.ResolveSecondRouteEncounterPopover:
+                        ResolveSecondRouteEncounterPopover();
+                        break;
+                    case ProofStep.SimulateSecondRunResult:
+                        SimulateSecondRunResult();
+                        break;
+                    case ProofStep.ReturnSecondResultToWorld:
+                        ReturnSecondResultToWorld();
+                        break;
+                    case ProofStep.WaitForSecondReturnedCityHub:
+                        WaitForSecondReturnedCityHub();
+                        break;
+                    case ProofStep.ValidateSecondResultBoard:
+                        ValidateSecondResultBoard();
                         break;
                     case ProofStep.Shutdown:
                         Shutdown(0);
@@ -639,6 +713,10 @@ public static class Batch82RepeatCoreLoopProofRunner
                 " | RecoveryChoice=" + SafeText(prep != null ? prep.RecoveryPressureChoiceText : "None") +
                 " | AfterRecoveryAppetite=" + SafeText(prep != null ? prep.RouteAppetiteAfterRecoveryText : "None") +
                 " | AppetiteRecommendation=" + SafeText(prep != null ? prep.RouteAppetiteRecommendationText : "None") +
+                " | Stock=" + SafeText(_boot.SelectedCityManaShardStockLabel) +
+                " | LastConsumed=" + SafeText(_boot.SelectedLastDayConsumedLabel) +
+                " | LastShortages=" + SafeText(_boot.SelectedLastDayShortagesLabel) +
+                " | NeedPressure=" + SafeText(_boot.SelectedNeedPressureLabel) +
                 " | Party=" + SafeText(prep != null ? prep.StagedPartySummaryText : "None") +
                 " | Loadout=" + SafeText(prep != null ? prep.PartyLoadoutSummaryText : "None") +
                 " | Gate=" + SafeText(prep != null ? prep.LaunchGateSummaryText : "None") +
@@ -687,15 +765,79 @@ public static class Batch82RepeatCoreLoopProofRunner
                 ContainsAll(prep.AfterRecoveryPreviewText, "After waiting", "readiness", "pressure") &&
                 ContainsAll(prep.RecoveryPressureChoiceText, "Launch now", "1 Day") &&
                 ContainsAll(prep.RouteAppetiteAfterRecoveryText, "Stability", "Surge");
+            bool hasWaitCostPressureClock =
+                !IsWaitCostPressureClockProofMode() ||
+                prep != null &&
+                ContainsAll(prep.RecoverOneDayChoiceText, "Wait Cost", "Pressure Clock", "world advances 1 day") &&
+                ContainsAll(prep.AfterRecoveryPreviewText, "After waiting", "stock -", "pressure") &&
+                ContainsAll(prep.RecoveryPressureChoiceText, "Launch now", "Wait Cost") &&
+                ContainsAll(prep.RouteAppetiteRecommendationText, "Stability", "Surge", "recovery", "strain");
+            bool hasRouteConsequenceCards =
+                ContainsAll(safeCard, "Stability consequence", "base clear mana_shard x16", "ceiling mana_shard x19", "event recovery +8", "lower payout") &&
+                ContainsAll(riskyCard, "Surge consequence", "base clear mana_shard x20", "ceiling mana_shard x25", "event recovery +6", "higher payout", "tighter party recovery");
+            bool hasRouteConsequenceSources = !IsRouteConsequenceProofMode() ||
+                                              ValidateRouteConsequenceDataSources(out _routeConsequenceSourceText);
+            bool hasDungeonRouteFeel =
+                !IsDungeonRouteFeelProofMode() ||
+                ContainsAll(safeCard, "Dungeon feel", "Stability", "sustain", "Rest Shrine", "lower") &&
+                ContainsAll(riskyCard, "Dungeon feel", "Surge", "pressure", "Greed Cache", "strain") &&
+                ValidateDungeonRouteFeelDataSources(out _routeFeelSourceText);
+            bool hasDungeonRoomInteraction =
+                !IsDungeonRoomInteractionProofMode() ||
+                ContainsAll(safeCard, "Dungeon feel", "Rest Shrine", "sustain") &&
+                ContainsAll(riskyCard, "Dungeon feel", "Greed Cache", "strain") &&
+                ValidateDungeonRoomInteractionDataSources(out _roomInteractionSourceText);
 
-            if (!hasResultCarryover || !hasPartyCarryover || !hasRouteChoice || !hasGateAndReason || !hasSecondRunDesire || !hasRecoveryChoice)
+            if (!hasResultCarryover || !hasPartyCarryover || !hasRouteChoice || !hasGateAndReason || !hasSecondRunDesire || !hasRecoveryChoice || !hasWaitCostPressureClock)
             {
                 Fail("Second ExpeditionPrep did not carry result, party/loadout, route, gate, desire-pressure, or recovery choice context. " + _secondPrepText);
                 return;
             }
 
+            if (IsRouteConsequenceProofMode() && (!hasRouteConsequenceCards || !hasRouteConsequenceSources))
+            {
+                Fail(
+                    "Second ExpeditionPrep route cards did not expose data-backed Stability/Surge consequences. " +
+                    "CardsOk=" + hasRouteConsequenceCards +
+                    " SourcesOk=" + hasRouteConsequenceSources +
+                    " Sources=" + SafeText(_routeConsequenceSourceText) +
+                    " " + _secondPrepText);
+                return;
+            }
+
+            if (IsDungeonRouteFeelProofMode() && !hasDungeonRouteFeel)
+            {
+                Fail(
+                    "Second ExpeditionPrep route cards did not expose data-backed dungeon-internal Stability/Surge feel. " +
+                    "Sources=" + SafeText(_routeFeelSourceText) +
+                    " " + _secondPrepText);
+                return;
+            }
+
+            if (IsDungeonRoomInteractionProofMode() && !hasDungeonRoomInteraction)
+            {
+                Fail(
+                    "Second ExpeditionPrep route cards did not expose data-backed Rest Shrine / Greed Cache interaction beats. " +
+                    "Sources=" + SafeText(_roomInteractionSourceText) +
+                    " " + _secondPrepText);
+                return;
+            }
+
             RecordPass("Second ExpeditionPrep context", _secondPrepText);
-            if (_proofMode == ProofMode.RecoveryPressureChoice)
+            if (IsRouteConsequenceProofMode())
+            {
+                RecordPass("Second route consequence source", _routeConsequenceSourceText);
+            }
+            if (IsDungeonRouteFeelProofMode())
+            {
+                RecordPass("Batch87 route feel source", _routeFeelSourceText);
+            }
+            if (IsDungeonRoomInteractionProofMode())
+            {
+                RecordPass(IsRoomInteractionConsequenceProofMode() ? "Batch89 room interaction source" : "Batch88 room interaction source", _roomInteractionSourceText);
+            }
+
+            if (_proofMode == ProofMode.RecoveryPressureChoice || IsWaitCostPressureClockProofMode())
             {
                 AdvanceTo(ProofStep.RecoverOneDayBeforeSecondRoute, "Second ExpeditionPrep recovery choice validated.");
                 return;
@@ -712,6 +854,7 @@ public static class Batch82RepeatCoreLoopProofRunner
             }
 
             _secondPrepWorldDayBeforeRecovery = _boot.WorldDayCount;
+            _waitCostBeforeRecoveryText = BuildSelectedCityWaitCostRailText("BeforeWaiting");
             if (!_boot.TryRecoverExpeditionPrepOneDay())
             {
                 Fail("Recover 1 Day action did not advance the existing world day/recovery rail.");
@@ -729,6 +872,7 @@ public static class Batch82RepeatCoreLoopProofRunner
             }
 
             ExpeditionPrepSurfaceData prep = _boot.GetSelectedExpeditionPrepSurfaceData();
+            _waitCostAfterRecoveryText = BuildSelectedCityWaitCostRailText("AfterWaiting");
             string readinessText =
                 SafeText(prep != null ? prep.DispatchReadinessText : "None") + " | " +
                 SafeText(prep != null ? prep.RecoveryProgressText : "None") + " | " +
@@ -742,7 +886,9 @@ public static class Batch82RepeatCoreLoopProofRunner
                 " | RecoverOneDay=" + SafeText(prep != null ? prep.RecoverOneDayChoiceText : "None") +
                 " | AfterWaiting=" + SafeText(prep != null ? prep.AfterRecoveryPreviewText : "None") +
                 " | AfterRecoveryAppetite=" + SafeText(prep != null ? prep.RouteAppetiteAfterRecoveryText : "None") +
-                " | Recommendation=" + SafeText(prep != null ? prep.RouteAppetiteRecommendationText : "None");
+                " | Recommendation=" + SafeText(prep != null ? prep.RouteAppetiteRecommendationText : "None") +
+                " | " + SafeText(_waitCostBeforeRecoveryText) +
+                " | " + SafeText(_waitCostAfterRecoveryText);
 
             bool dayAdvanced = _boot.WorldDayCount > _secondPrepWorldDayBeforeRecovery;
             bool boardStillOpen = prep != null && prep.IsBoardOpen && prep.CanRecoverOneDay;
@@ -755,24 +901,42 @@ public static class Batch82RepeatCoreLoopProofRunner
             bool waitReadbackStillHonest = prep != null &&
                                            ContainsAll(prep.AfterRecoveryPreviewText, "After waiting", "pressure") &&
                                            ContainsAll(prep.RecoverOneDayChoiceText, "1 Day", "world");
+            bool waitCostPressureClockUpdated =
+                !IsWaitCostPressureClockProofMode() ||
+                prep != null &&
+                ContainsAll(prep.AfterRecoveryPreviewText, "After waiting", "readiness Ready", "stock -", "pressure") &&
+                ContainsAll(prep.RouteAppetiteRecommendationText, "Next", "launch now", "waiting again", "shortage") &&
+                ContainsAny(_waitCostAfterRecoveryText, "Consumed=1", "Consumed=2", "Consumed=3", "Shortages=1", "Shortages=2", "Shortages=3");
 
-            if (!dayAdvanced || !boardStillOpen || !readinessUpdated || !appetiteChanged || !waitReadbackStillHonest)
+            if (!dayAdvanced || !boardStillOpen || !readinessUpdated || !appetiteChanged || !waitReadbackStillHonest || !waitCostPressureClockUpdated)
             {
                 Fail("Recover 1 Day did not update readiness/pressure/appetite through the existing rail. " + _secondPrepAfterRecoveryText);
                 return;
             }
 
             RecordPass("Recover 1 Day choice", _secondPrepAfterRecoveryText);
+            if (IsWaitCostPressureClockProofMode())
+            {
+                RecordPass("Wait cost pressure clock", _waitCostBeforeRecoveryText + " | " + _waitCostAfterRecoveryText);
+            }
+
             AdvanceTo(ProofStep.SelectSecondRouteOrValidateBlocked, "Recovery choice updated second ExpeditionPrep.");
         }
 
         private void SelectSecondRouteOrValidateBlocked()
         {
-            if (_boot.IsRouteChoiceAvailable(SafeRouteId) && _boot.TryTriggerRouteChoice(SafeRouteId))
+            string targetRouteId = GetSecondProofRouteId();
+            if (_boot.IsRouteChoiceAvailable(targetRouteId) && _boot.TryTriggerRouteChoice(targetRouteId))
             {
                 ExpeditionPrepSurfaceData prep = _boot.GetSelectedExpeditionPrepSurfaceData();
                 _secondRunDecisionText = BuildPrepDecisionText(prep);
-                RecordPass("Second route select", "Selected route " + SafeRouteId + ". " + SafeText(_secondRunDecisionText));
+                if (IsRouteConsequenceProofMode() && !HasSelectedRouteConsequenceText(_secondRunDecisionText, targetRouteId))
+                {
+                    Fail("Second route commit summary did not explain the selected " + GetRouteScenarioName(targetRouteId) + " consequence. Summary=" + SafeText(_secondRunDecisionText) + ".");
+                    return;
+                }
+
+                RecordPass("Second route select", "Selected route " + targetRouteId + ". " + SafeText(_secondRunDecisionText));
                 AdvanceTo(ProofStep.ConfirmSecondLaunchOrValidateBlocked, "Second route selected.");
                 return;
             }
@@ -828,14 +992,911 @@ public static class Batch82RepeatCoreLoopProofRunner
             }
 
             ExpeditionPlan launchPlan = GetCurrentLaunchPlan();
-            if (!ValidateLaunchPlan(launchPlan, "Second launch contract"))
+            string targetRouteId = GetSecondProofRouteId();
+            if (!ValidateLaunchPlan(launchPlan, "Second launch contract", targetRouteId))
             {
                 return;
             }
 
-            RecordPass("Second run launch", BuildLaunchPlanText(launchPlan));
+            string launchText = BuildLaunchPlanText(launchPlan);
+            if (IsDungeonRouteFeelProofMode() || IsDungeonRoomInteractionProofMode())
+            {
+                if (!HasSelectedRouteConsequenceText(launchText, targetRouteId))
+                {
+                    Fail("Second launch contract did not preserve selected route consequence. Launch=" + SafeText(launchText) + ".");
+                    return;
+                }
+
+                RecordPass("Second run launch", launchText);
+                AdvanceTo(ProofStep.ValidateSecondDungeonRouteReadback, "Second launch dungeon route contract validated.");
+                return;
+            }
+
+            if (IsRouteConsequenceProofMode())
+            {
+                if (!HasSelectedRouteConsequenceText(launchText, targetRouteId))
+                {
+                    Fail("Second launch contract did not preserve selected route consequence. Launch=" + SafeText(launchText) + ".");
+                    return;
+                }
+
+                RecordPass("Second run launch", launchText);
+                AdvanceTo(ProofStep.SimulateSecondRunResult, "Second launch consequence contract validated.");
+                return;
+            }
+
+            RecordPass("Second run launch", launchText);
             RecordPass("Repeat core loop proof completed", "World -> CityHub -> ExpeditionPrep -> DungeonRun -> Result -> World/CityHub -> ExpeditionPrep -> DungeonRun is repeatable.");
             AdvanceTo(ProofStep.Shutdown, "Proof complete.");
+        }
+
+        private void ValidateSecondDungeonRouteReadback()
+        {
+            if (_boot.CurrentAppFlowStage != AppFlowStage.DungeonRun || _boot.IsDungeonRouteChoiceVisible)
+            {
+                return;
+            }
+
+            PrototypeDungeonRunShellSurfaceData shell = _boot.GetDungeonRunShellSurfaceData();
+            ExpeditionStartContext start = shell != null ? shell.ExpeditionStartContext : null;
+            PrototypeDungeonPanelContext panel = shell != null ? shell.PanelContext : null;
+            _secondDungeonReadbackText =
+                "Route=" + SafeText(start != null ? start.RoutePreviewSummaryText : "None") +
+                " | BattleWatch=" + SafeText(start != null ? start.EventPreviewSummaryText : "None") +
+                " | PanelRisk=" + SafeText(panel != null ? panel.RiskPreviewSummaryText : "None") +
+                " | Room=" + SafeText(shell != null ? shell.CurrentRoomLabel : "None") +
+                " | Sustain=" + SafeText(shell != null ? shell.SustainPressureText : "None") +
+                " | Next=" + SafeText(shell != null ? shell.NextMajorGoalText : "None");
+
+            bool hasSurgeDungeonReadback =
+                ContainsAll(_secondDungeonReadbackText, "Surge", "Dungeon feel", "pressure", "Greed Cache", "strain") &&
+                ContainsAny(_secondDungeonReadbackText, "Mixed Front", "Goblin Pair Hall", "Cache");
+            if (!hasSurgeDungeonReadback)
+            {
+                Fail("Second DungeonRun did not expose the Surge internal route feel. " + SafeText(_secondDungeonReadbackText));
+                return;
+            }
+
+            RecordPass("Second DungeonRun route readback", _secondDungeonReadbackText);
+            AdvanceTo(ProofStep.ResolveSecondRouteEncounterPopover, "Second DungeonRun readback validated.");
+        }
+
+        private void ResolveSecondRouteEncounterPopover()
+        {
+            if (IsDungeonRoomInteractionProofMode())
+            {
+                ResolveDungeonRoomInteractionProof();
+                return;
+            }
+
+            PrototypeDungeonRunShellSurfaceData shell = _boot.GetDungeonRunShellSurfaceData();
+            if (shell != null &&
+                shell.IsBattleResultPopoverVisible &&
+                shell.BattleResultPopover != null &&
+                shell.BattleResultPopover.IsVisible)
+            {
+                _secondEncounterPopoverText =
+                    "Title=" + SafeText(shell.BattleResultPopover.TitleText) +
+                    " | Encounter=" + SafeText(shell.BattleResultPopover.EncounterNameText) +
+                    " | Summary=" + SafeText(shell.BattleResultPopover.SummaryText) +
+                    " | RoutePlan=" + SafeText(shell.BattleResultPopover.RoutePlanText) +
+                    " | Loot=" + SafeText(shell.BattleResultPopover.LootSummaryText) +
+                    " | Party=" + SafeText(shell.BattleResultPopover.PartySummaryText);
+                bool hasRouteCheck =
+                    ContainsAll(_secondEncounterPopoverText, "Route Check", "Surge Pressure", "recovery strain") &&
+                    ContainsAny(_secondEncounterPopoverText, "Mixed Front", "greed cache", "shard payout", "Standard Path");
+                if (!hasRouteCheck)
+                {
+                    Fail("Second route encounter popover did not explain the Surge route check. " + SafeText(_secondEncounterPopoverText));
+                    return;
+                }
+
+                RecordPass("Second route encounter popover", _secondEncounterPopoverText);
+                AdvanceTo(ProofStep.SimulateSecondRunResult, "Second route popover validated.");
+                return;
+            }
+
+            if (_boot.CurrentAppFlowStage == AppFlowStage.BattleScene)
+            {
+                ResolveActiveBattleTurn();
+                return;
+            }
+
+            if (_boot.CurrentAppFlowStage == AppFlowStage.DungeonRun)
+            {
+                ResolveRouteFeelExploreStep();
+            }
+        }
+
+        private void ResolveDungeonRoomInteractionProof()
+        {
+            PrototypeDungeonRunShellSurfaceData shell = _boot.GetDungeonRunShellSurfaceData();
+            if (shell != null &&
+                shell.IsBattleResultPopoverVisible &&
+                shell.BattleResultPopover != null &&
+                shell.BattleResultPopover.IsVisible)
+            {
+                string popoverText =
+                    "Title=" + SafeText(shell.BattleResultPopover.TitleText) +
+                    " | Encounter=" + SafeText(shell.BattleResultPopover.EncounterNameText) +
+                    " | Summary=" + SafeText(shell.BattleResultPopover.SummaryText) +
+                    " | RoutePlan=" + SafeText(shell.BattleResultPopover.RoutePlanText) +
+                    " | Loot=" + SafeText(shell.BattleResultPopover.LootSummaryText) +
+                    " | Party=" + SafeText(shell.BattleResultPopover.PartySummaryText);
+
+                if (!_batch88FirstPopoverCleared)
+                {
+                    bool hasFirstRouteCheck =
+                        ContainsAll(popoverText, "Route Check", "Surge Pressure") &&
+                        ContainsAny(popoverText, "Greed Cache", "payout", "strain");
+                    if (!hasFirstRouteCheck)
+                    {
+                        Fail("Batch88 first encounter popover did not lead toward the Greed Cache interaction. " + SafeText(popoverText));
+                        return;
+                    }
+
+                    _batch88FirstPopoverCleared = true;
+                    InvokeNonPublicMethod(GetWorldView(), "ClearBattleResultPopover");
+                    RecordPass("Batch88 first encounter route check", popoverText);
+                    return;
+                }
+
+                _secondEncounterPopoverText = popoverText;
+                bool hasInteractionConsequence = IsRoomInteractionConsequenceProofMode()
+                    ? ContainsAll(_secondEncounterPopoverText, "Greed Cache", "Cache Pressure", "Cache Check", "reward secured", "strain warning") &&
+                      ContainsAny(_secondEncounterPopoverText, "Goblin Pair Hall", "Route Check", "recovery strain")
+                    : ContainsAll(_secondEncounterPopoverText, "Greed Cache", "Cache payoff secured", "Surge strain") &&
+                      ContainsAny(_secondEncounterPopoverText, "Goblin Pair Hall", "Route Check", "recovery strain");
+                if (!hasInteractionConsequence)
+                {
+                    Fail((IsRoomInteractionConsequenceProofMode() ? "Batch89" : "Batch88") + " second encounter popover did not reflect the Greed Cache interaction consequence. " + SafeText(_secondEncounterPopoverText));
+                    return;
+                }
+
+                if (IsRoomInteractionConsequenceProofMode() && !_batch89BattleContextCaptured)
+                {
+                    Fail("Batch89 reached the next-encounter popover before proving Cache Pressure battle context. " + SafeText(_roomInteractionBattleContextText));
+                    return;
+                }
+
+                RecordPass(IsRoomInteractionConsequenceProofMode() ? "Batch89 interaction consequence popover" : "Batch88 interaction encounter popover", _secondEncounterPopoverText);
+                AdvanceTo(ProofStep.SimulateSecondRunResult, (IsRoomInteractionConsequenceProofMode() ? "Batch89" : "Batch88") + " interaction popover validated.");
+                return;
+            }
+
+            if (_boot.CurrentAppFlowStage == AppFlowStage.BattleScene)
+            {
+                if (IsRoomInteractionConsequenceProofMode())
+                {
+                    CaptureBatch89BattleContextIfReady();
+                }
+
+                ResolveActiveBattleTurn();
+                return;
+            }
+
+            if (_boot.CurrentAppFlowStage != AppFlowStage.DungeonRun)
+            {
+                return;
+            }
+
+            if (!_batch88GreedCacheInteracted && TryResolveBatch88GreedCacheInteraction())
+            {
+                return;
+            }
+
+            ResolveRouteFeelExploreStep();
+        }
+
+        private void CaptureBatch89BattleContextIfReady()
+        {
+            if (_batch89BattleContextCaptured)
+            {
+                return;
+            }
+
+            PrototypeBattleRequest request = _boot.GetBattleRequest();
+            string encounterIdentityText =
+                SafeText(request != null ? request.EncounterId : "None") +
+                " | " + SafeText(request != null ? request.EncounterName : "None") +
+                " | " + SafeText(request != null ? request.RoomLabel : "None");
+            if (request == null ||
+                (!ContainsValue(encounterIdentityText, "Goblin Pair Hall") &&
+                 !ContainsValue(encounterIdentityText, "encounter-room-2")))
+            {
+                return;
+            }
+
+            PrototypeBattleUiSurfaceData surface = _boot.GetBattleUiSurfaceData();
+            PrototypeBattleContextData context = _boot.GetCurrentBattleContextData();
+            _roomInteractionBattleContextText =
+                "Request=" + SafeText(request.EncounterContextText) +
+                " | Risk=" + SafeText(request.RiskContextText) +
+                " | Intent=" + SafeText(surface != null ? surface.MissionIntentSummaryText : "None") +
+                " | Context=" + SafeText(context != null ? context.ContextSummaryText : "None");
+            if (!ContainsAll(_roomInteractionBattleContextText, "Cache Pressure", "payout secured", "strain warning"))
+            {
+                Fail("Batch89 battle context did not acknowledge Cache Pressure at the next encounter. " + SafeText(_roomInteractionBattleContextText));
+                return;
+            }
+
+            _batch89BattleContextCaptured = true;
+            RecordPass("Batch89 battle context", _roomInteractionBattleContextText);
+        }
+
+        private bool TryResolveBatch88GreedCacheInteraction()
+        {
+            object worldView = GetWorldView();
+            if (worldView == null)
+            {
+                Fail("World view disappeared before Batch88 Greed Cache interaction.");
+                return true;
+            }
+
+            object room = InvokeNonPublicMethod(worldView, "GetCurrentPlannedRoomStep");
+            if (room == null)
+            {
+                return false;
+            }
+
+            string roomName = GetObjectField<string>(room, "DisplayName");
+            if (!ContainsValue(roomName, "Greed Cache"))
+            {
+                return false;
+            }
+
+            Vector2Int markerPosition = GetObjectField<Vector2Int>(room, "MarkerPosition");
+            SetPrivateField(worldView, "_playerGridPosition", markerPosition);
+            InvokeNonPublicMethod(worldView, "ProcessExploreStep");
+            PrototypeDungeonRunShellSurfaceData beforeShell = _boot.GetDungeonRunShellSurfaceData();
+            string prompt = SafeText(beforeShell != null ? beforeShell.CurrentSelectionPromptText : _boot.CurrentSelectionPromptLabel);
+            int beforeCarried = GetPrivateField<int>(worldView, "_carriedLootAmount");
+            int beforeChest = GetPrivateField<int>(worldView, "_chestLootAmount");
+            int expectedChestReward = GetExpectedRouteChestLootAmount(RiskyRouteId);
+            object interacted = InvokePublicMethod(worldView, "TryInteractCurrentDungeonRoomBeat");
+            bool didInteract = interacted is bool value && value;
+            PrototypeDungeonRunShellSurfaceData afterShell = _boot.GetDungeonRunShellSurfaceData();
+            int afterCarried = GetPrivateField<int>(worldView, "_carriedLootAmount");
+            int afterChest = GetPrivateField<int>(worldView, "_chestLootAmount");
+            string pendingConsequence = GetPrivateField<string>(worldView, "_pendingRoomInteractionConsequenceText");
+            string pendingTarget = GetPrivateField<string>(worldView, "_pendingRoomInteractionTargetEncounterId");
+            string feedback = SafeText(_boot.BattleFeedbackLabel);
+            string eventText = SafeText(afterShell != null ? afterShell.EventChoiceText : "None");
+            _roomInteractionRuntimeText =
+                "Prompt=" + SafeText(prompt) +
+                " | Interacted=" + didInteract +
+                " | Carried=" + beforeCarried + "->" + afterCarried +
+                " | Chest=" + beforeChest + "->" + afterChest +
+                " | Feedback=" + feedback +
+                " | Event=" + eventText +
+                " | Pending=" + SafeText(pendingConsequence) +
+                " | Target=" + SafeText(pendingTarget) +
+                " | NextRoom=" + SafeText(afterShell != null ? afterShell.CurrentRoomLabel : "None");
+
+            bool promptExplainsDecision = ContainsAll(prompt, "[E]", "Greed Cache") &&
+                                          ContainsAny(prompt, "Surge", "strain") &&
+                                          ContainsAny(prompt, "payout", "mana_shard", "secure");
+            bool rewardChanged = didInteract &&
+                                 afterCarried - beforeCarried == expectedChestReward &&
+                                 afterChest - beforeChest == expectedChestReward;
+            bool feedbackExplainsConsequence = ContainsAll(feedback + " " + eventText, "Greed Cache", "Cache payoff secured", "Surge strain");
+            bool nextBeatArmed =
+                !IsRoomInteractionConsequenceProofMode() ||
+                ContainsAll(feedback + " " + eventText + " " + pendingConsequence, "Next: Cache Pressure", "Goblin Pair Hall", "strain warning") &&
+                ContainsValue(pendingTarget, "encounter-room-2");
+            bool advancedToNextRoom = afterShell != null && ContainsAny(afterShell.CurrentRoomLabel, "Goblin Pair Hall", "Unstable Shrine", "Core Threshold");
+            if (!promptExplainsDecision || !rewardChanged || !feedbackExplainsConsequence || !nextBeatArmed || !advancedToNextRoom)
+            {
+                Fail("Batch88 Greed Cache interaction was not playable or data-backed. " + _roomInteractionRuntimeText);
+                return true;
+            }
+
+            _batch88GreedCacheInteracted = true;
+            RecordPass("Batch88 Greed Cache interaction", _roomInteractionRuntimeText);
+            return true;
+        }
+
+        private void SimulateSecondRunResult()
+        {
+            object worldView = GetWorldView();
+            if (worldView == null)
+            {
+                Fail("World view missing for simulated second result.");
+                return;
+            }
+
+            string targetRouteId = GetSecondProofRouteId();
+            int expectedReturnedLoot = GetExpectedRouteBaseClear(targetRouteId);
+            object clearState = ParseNestedEnum(worldView, "RunResultState", "Clear");
+            object victoryState = ParseNestedEnum(worldView, "BattleState", "Victory");
+            InvokeNonPublicMethod(
+                worldView,
+                "FinishDungeonRun",
+                clearState,
+                victoryState,
+                true,
+                expectedReturnedLoot,
+                "Batch85 proof cleared the " + GetRouteScenarioName(targetRouteId) + " route and returned with mana_shard x" + expectedReturnedLoot + ".");
+
+            if (!_boot.IsDungeonResultPanelVisible && _boot.CurrentAppFlowStage != AppFlowStage.ResultPipeline)
+            {
+                Fail("Simulated second run result did not reach ResultPipeline. Stage=" + _boot.CurrentAppFlowStage + ".");
+                return;
+            }
+
+            AppFlowResultContext resultContext = _boot.CurrentAppFlowContext != null ? _boot.CurrentAppFlowContext.LatestResult : null;
+            ExpeditionOutcome outcome = resultContext != null ? resultContext.ExpeditionOutcome : null;
+            OutcomeReadback readback = resultContext != null ? resultContext.OutcomeReadback : null;
+            _secondRunResultText =
+                "Outcome=" + SafeText(outcome != null ? outcome.ResultStateKey : "None") +
+                " | Route=" + SafeText(outcome != null ? outcome.RouteSummaryText : "None") +
+                " | Loot=mana_shard x" + (outcome != null ? outcome.ReturnedLootAmount : 0) +
+                " | Event=" + SafeText(readback != null ? readback.EventChoiceSummaryText : outcome != null ? outcome.EventChoiceSummaryText : "None") +
+                " | MeaningId=" + SafeText(outcome != null ? outcome.OutcomeMeaningId : "None") +
+                " | Risk=" + SafeText(outcome != null ? outcome.RiskRewardContextText : "None") +
+                " | Meaning=" + SafeText(outcome != null ? outcome.CityImpactMeaningText : "None") +
+                " | Readback=" + SafeText(readback != null ? readback.CityImpactMeaningText : "None") +
+                " | Next=" + SafeText(readback != null ? readback.RecommendationShiftText : "None");
+            bool hasActualResult =
+                outcome != null &&
+                outcome.Success &&
+                outcome.ReturnedLootAmount == expectedReturnedLoot &&
+                HasSelectedRouteResultText(_secondRunResultText, targetRouteId);
+            bool hasRoomInteractionResult =
+                !IsDungeonRoomInteractionProofMode() ||
+                (IsRoomInteractionConsequenceProofMode()
+                    ? ContainsAll(_secondRunResultText, "Greed Cache", "Cache Pressure", "Cache Check", "reward secured", "strain warning")
+                    : ContainsAll(_secondRunResultText, "Greed Cache", "Cache payoff secured", "Surge strain"));
+            if (!hasActualResult || !hasRoomInteractionResult)
+            {
+                Fail("Second route actual result did not reflect the " + GetRouteScenarioName(targetRouteId) + " consequence. " + _secondRunResultText);
+                return;
+            }
+
+            RecordPass("Second route actual result", _secondRunResultText);
+            AdvanceTo(ProofStep.ReturnSecondResultToWorld, "Second route result validated.");
+        }
+
+        private void ReturnSecondResultToWorld()
+        {
+            object worldView = GetWorldView();
+            if (worldView == null)
+            {
+                Fail("World view missing for second result return.");
+                return;
+            }
+
+            SetPrivateField(worldView, "_pendingDungeonExit", true);
+            AppFlowObservedSnapshot snapshot = (AppFlowObservedSnapshot)InvokePublicMethod(worldView, "BuildAppFlowSnapshot");
+            bool returned = (bool)InvokeNonPublicMethod(_boot, "TryExitDungeonRunToWorldSim");
+            if (!snapshot.HasPendingWorldReturn || !returned)
+            {
+                Fail("Second result return was not consumed. Pending=" + snapshot.HasPendingWorldReturn + " Returned=" + returned + ".");
+                return;
+            }
+
+            RecordPass("Second result return", "Result return consumed and world shell re-entry requested.");
+            AdvanceTo(ProofStep.WaitForSecondReturnedCityHub, "Returned second result to world shell.");
+        }
+
+        private void WaitForSecondReturnedCityHub()
+        {
+            if (!_boot.IsWorldSimActive || _boot.CurrentAppFlowStage != AppFlowStage.CityHub)
+            {
+                return;
+            }
+
+            RecordPass("Second world return -> CityHub", "Returned to selected CityHub after second result. Stage=" + _boot.CurrentAppFlowStage + ".");
+            AdvanceTo(ProofStep.ValidateSecondResultBoard, "Second returned CityHub active.");
+        }
+
+        private void ValidateSecondResultBoard()
+        {
+            PrototypeCityHubUiSurfaceData ui = _boot.GetCityHubUiSurfaceData();
+            PrototypeCityHubSelectionSurfaceData selection = ui != null ? ui.Selection : null;
+            PrototypeCityHubOutcomeSurfaceData outcome = ui != null ? ui.Outcome : null;
+            if (ui == null || selection == null || outcome == null || !ui.HasSelectedCity || !selection.IsCitySelection)
+            {
+                Fail("CityHub UI did not expose a selected city after second result return.");
+                return;
+            }
+
+            string summary = selection.PressureBoardSummaryText;
+            string latest = selection.RecentResultEvidenceText;
+            string changed = selection.PressureChangeText;
+            string ready = selection.PartyReadinessSummaryText;
+            string next = outcome.CorrectiveFollowUpText;
+            _secondResultBoardText =
+                "Summary=" + SafeText(summary) +
+                " | Latest=" + SafeText(latest) +
+                " | Changed=" + SafeText(changed) +
+                " | Ready=" + SafeText(ready) +
+                " | Next=" + SafeText(next);
+            string targetRouteId = GetSecondProofRouteId();
+            bool hasLatest =
+                ContainsAll(latest, "Returned", "Party") &&
+                HasSelectedRouteBoardLatestText(latest, targetRouteId);
+            bool hasChanged = HasText(changed) && ContainsAny(changed, "Stock +", "Pressure", "Readiness", "absorbed");
+            bool hasConsequence = HasSelectedRouteBoardConsequenceText(_secondResultBoardText, targetRouteId);
+            bool hasRoomInteractionBoard =
+                !IsDungeonRoomInteractionProofMode() ||
+                (IsRoomInteractionConsequenceProofMode()
+                    ? ContainsAll(_secondResultBoardText, "Greed Cache", "Cache Pressure", "Cache Check", "reward secured", "strain warning")
+                    : ContainsAll(_secondResultBoardText, "Greed Cache", "Cache payoff secured", "Surge strain"));
+            if (!hasLatest || !hasChanged || !hasConsequence || !hasRoomInteractionBoard)
+            {
+                Fail("Second result world board did not reflect the chosen " + GetRouteScenarioName(targetRouteId) + " consequence. " + _secondResultBoardText);
+                return;
+            }
+
+            RecordPass("Second result world board", _secondResultBoardText);
+            if (IsDungeonRouteFeelProofMode())
+            {
+                RecordPass(
+                    "Batch87 dungeon route feel comparison",
+                    "Stability card/readback source: " + SafeText(_routeFeelSourceText) +
+                    " | Surge runtime readback: " + SafeText(_secondDungeonReadbackText) +
+                    " | Surge popover: " + SafeText(_secondEncounterPopoverText) +
+                    " | Final board: " + SafeText(_secondResultBoardText));
+                AdvanceTo(ProofStep.Shutdown, "Batch87 proof complete.");
+                return;
+            }
+
+            if (IsDungeonRoomInteractionProofMode())
+            {
+                if (IsRoomInteractionConsequenceProofMode())
+                {
+                    RecordPass(
+                        "Batch89 room interaction consequence chain proof",
+                        "Source: " + SafeText(_roomInteractionSourceText) +
+                        " | Runtime: " + SafeText(_roomInteractionRuntimeText) +
+                        " | BattleContext: " + SafeText(_roomInteractionBattleContextText) +
+                        " | Popover: " + SafeText(_secondEncounterPopoverText) +
+                        " | Result: " + SafeText(_secondRunResultText) +
+                        " | Board: " + SafeText(_secondResultBoardText));
+                    AdvanceTo(ProofStep.Shutdown, "Batch89 proof complete.");
+                    return;
+                }
+
+                RecordPass(
+                    "Batch88 dungeon room interaction proof",
+                    "Source: " + SafeText(_roomInteractionSourceText) +
+                    " | Runtime: " + SafeText(_roomInteractionRuntimeText) +
+                    " | Popover: " + SafeText(_secondEncounterPopoverText) +
+                    " | Result: " + SafeText(_secondRunResultText) +
+                    " | Board: " + SafeText(_secondResultBoardText));
+                AdvanceTo(ProofStep.Shutdown, "Batch88 proof complete.");
+                return;
+            }
+
+            if (IsSurgeRuntimeConsequenceProofMode())
+            {
+                RecordPass(
+                    "Batch85.1 surge runtime comparison",
+                    "Stability baseline: base=16 ceiling=19 recover=8; Surge actual: returned mana_shard x" +
+                    GetExpectedRouteBaseClear(RiskyRouteId) +
+                    " with recovery margin +" + GetExpectedRouteRecoverAmount(RiskyRouteId) +
+                    " and board readiness cost visible. " + SafeText(_secondResultBoardText));
+                AdvanceTo(ProofStep.Shutdown, "Batch85.1 proof complete.");
+                return;
+            }
+
+            RecordPass("Batch85 route consequence proof completed", "Safe route reached actual result/world board; risky route consequence was verified from authored data. " + SafeText(_routeConsequenceSourceText));
+            AdvanceTo(ProofStep.Shutdown, "Batch85 proof complete.");
+        }
+
+        private bool IsRouteConsequenceProofMode()
+        {
+            return _proofMode == ProofMode.SecondRunRouteConsequence ||
+                   _proofMode == ProofMode.SurgeRuntimeConsequence ||
+                   _proofMode == ProofMode.DungeonRouteFeel ||
+                   _proofMode == ProofMode.DungeonRoomInteraction ||
+                   _proofMode == ProofMode.RoomInteractionConsequenceChain;
+        }
+
+        private bool IsSurgeRuntimeConsequenceProofMode()
+        {
+            return _proofMode == ProofMode.SurgeRuntimeConsequence;
+        }
+
+        private bool IsWaitCostPressureClockProofMode()
+        {
+            return _proofMode == ProofMode.WaitCostPressureClock;
+        }
+
+        private bool IsDungeonRouteFeelProofMode()
+        {
+            return _proofMode == ProofMode.DungeonRouteFeel;
+        }
+
+        private bool IsDungeonRoomInteractionProofMode()
+        {
+            return _proofMode == ProofMode.DungeonRoomInteraction ||
+                   _proofMode == ProofMode.RoomInteractionConsequenceChain;
+        }
+
+        private bool IsRoomInteractionConsequenceProofMode()
+        {
+            return _proofMode == ProofMode.RoomInteractionConsequenceChain;
+        }
+
+        private void ResolveActiveBattleTurn()
+        {
+            string battleState = SafeText(_boot.BattlePhaseLabel);
+            if (battleState == "Player Turn")
+            {
+                _boot.TryTriggerBattleAction("attack");
+                return;
+            }
+
+            if (battleState == "Target Select")
+            {
+                object monster = InvokeNonPublicMethod(GetWorldView(), "GetFirstLivingBattleMonster");
+                string monsterId = monster != null ? GetPropertyValue<string>(monster, "MonsterId") : string.Empty;
+                if (string.IsNullOrEmpty(monsterId) || !_boot.TryTriggerBattleTarget(monsterId))
+                {
+                    Fail("Could not resolve battle target for Batch87 route-feel proof. Target=" + SafeText(monsterId) + ".");
+                }
+
+                return;
+            }
+
+            if (battleState == "Enemy Turn")
+            {
+                InvokeNonPublicMethod(GetWorldView(), "ExecuteQueuedEnemyIntent");
+            }
+        }
+
+        private void ResolveRouteFeelExploreStep()
+        {
+            object worldView = GetWorldView();
+            if (worldView == null)
+            {
+                Fail("World view disappeared during Batch87 route-feel proof.");
+                return;
+            }
+
+            object room = InvokeNonPublicMethod(worldView, "GetCurrentPlannedRoomStep");
+            bool exitUnlocked = GetPrivateField<bool>(worldView, "_exitUnlocked");
+            bool eliteDefeated = GetPrivateField<bool>(worldView, "_eliteDefeated");
+            Vector2Int exitGrid = GetPrivateField<Vector2Int>(worldView, "_exitGridPosition");
+
+            if (exitUnlocked && eliteDefeated)
+            {
+                SetPrivateField(worldView, "_playerGridPosition", exitGrid);
+                InvokeNonPublicMethod(worldView, "ProcessExploreStep");
+                return;
+            }
+
+            if (room == null)
+            {
+                return;
+            }
+
+            Vector2Int markerPosition = GetObjectField<Vector2Int>(room, "MarkerPosition");
+            SetPrivateField(worldView, "_playerGridPosition", markerPosition);
+            InvokeNonPublicMethod(worldView, "ProcessExploreStep");
+            if (IsRoomInteractionConsequenceProofMode())
+            {
+                CaptureBatch89BattleContextIfReady();
+            }
+
+            InvokePublicMethod(worldView, "TryInteractCurrentDungeonRoomBeat");
+        }
+
+        private string BuildSelectedCityWaitCostRailText(string label)
+        {
+            if (_boot == null)
+            {
+                return label + ": None";
+            }
+
+            return label +
+                   ": Day=" + _boot.WorldDayCount +
+                   " | Stock=" + SafeText(_boot.SelectedCityManaShardStockLabel) +
+                   " | Consumed=" + SafeText(_boot.SelectedLastDayConsumedLabel) +
+                   " | Shortages=" + SafeText(_boot.SelectedLastDayShortagesLabel) +
+                   " | Pressure=" + SafeText(_boot.SelectedNeedPressureLabel) +
+                   " | Readiness=" + SafeText(_boot.SelectedDispatchReadinessLabel) +
+                   " | RecoveryEta=" + SafeText(_boot.SelectedRecoveryEtaLabel);
+        }
+
+        private string GetSecondProofRouteId()
+        {
+            return IsSurgeRuntimeConsequenceProofMode() || IsDungeonRouteFeelProofMode() || IsDungeonRoomInteractionProofMode() ? RiskyRouteId : SafeRouteId;
+        }
+
+        private string GetRouteScenarioName(string routeId)
+        {
+            return routeId == RiskyRouteId ? "Surge" : "Stability";
+        }
+
+        private bool HasSelectedRouteConsequenceText(string text, string routeId)
+        {
+            return routeId == RiskyRouteId
+                ? ContainsAll(text, "Surge consequence", "base clear mana_shard x20", "ceiling mana_shard x25", "higher payout", "event recovery +6")
+                : ContainsAll(text, "Stability consequence", "base clear mana_shard x16", "ceiling mana_shard x19", "lower payout", "event recovery +8");
+        }
+
+        private bool HasSelectedRouteResultText(string text, string routeId)
+        {
+            return routeId == RiskyRouteId
+                ? ContainsAll(text, "Surge", "mana_shard x20", "outcome-mana-shard-city-a-surge") &&
+                  ContainsAny(text, "higher payout", "bigger mana_shard", "less dispatch stability", "rougher", "tighter")
+                : ContainsAll(text, "Stability", "mana_shard x16", "outcome-mana-shard-city-a") &&
+                  ContainsAny(text, "lower payout", "lower shard", "recovery cushion", "Stabilizes");
+        }
+
+        private bool HasSelectedRouteLaunchText(string text, string routeId)
+        {
+            return routeId == RiskyRouteId
+                ? ContainsAll(text, "Standard Path", "Surge consequence", "x20", "higher payout") &&
+                  !ContainsValue(text, "Objective=Launch Dungeon Alpha through the Rest Path")
+                : ContainsAll(text, "Rest Path", "Stability consequence", "x16", "lower payout");
+        }
+
+        private bool HasSelectedRouteBoardLatestText(string latestText, string routeId)
+        {
+            return routeId == RiskyRouteId
+                ? ContainsAny(latestText, "Surge Window", "Standard Path", "risky") &&
+                  ContainsAll(latestText, "mana_shard") &&
+                  ContainsAny(latestText, "x20", "20")
+                : ContainsAny(latestText, "Stability Run", "Rest Path", "safe") &&
+                  ContainsAll(latestText, "mana_shard") &&
+                  ContainsAny(latestText, "x16", "16");
+        }
+
+        private bool HasSelectedRouteBoardConsequenceText(string boardText, string routeId)
+        {
+            return routeId == RiskyRouteId
+                ? ContainsAny(boardText, "Surge", "Standard Path") &&
+                  ContainsAny(boardText, "Strained", "recovery 2", "Blocked") &&
+                  ContainsAny(boardText, "x20", "Stock +20")
+                : ContainsAny(boardText, "Stability", "Rest Path") &&
+                  ContainsAny(boardText, "Recovering", "recovery 1") &&
+                  ContainsAny(boardText, "x16", "Stock +16");
+        }
+
+        private int GetExpectedRouteBaseClear(string routeId)
+        {
+            return GetExpectedRouteBattleLootAmount(routeId) + GetExpectedRouteChestLootAmount(routeId);
+        }
+
+        private int GetExpectedRouteBattleLootAmount(string routeId)
+        {
+            GoldenPathRouteDefinition route = GetExpectedRouteDefinition(routeId);
+            return route != null ? route.BattleLootAmount : routeId == RiskyRouteId ? 17 : 14;
+        }
+
+        private int GetExpectedRouteChestLootAmount(string routeId)
+        {
+            GoldenPathRouteDefinition route = GetExpectedRouteDefinition(routeId);
+            return route != null ? route.ChestRewardAmount : routeId == RiskyRouteId ? 3 : 2;
+        }
+
+        private int GetExpectedRouteRecoverAmount(string routeId)
+        {
+            GoldenPathRouteDefinition route = GetExpectedRouteDefinition(routeId);
+            return route != null ? route.RecoverAmount : routeId == RiskyRouteId ? 6 : 8;
+        }
+
+        private GoldenPathRouteDefinition GetExpectedRouteDefinition(string routeId)
+        {
+            return GoldenPathContentRegistry.TryGetChainForRoute(
+                    SelectedCityId,
+                    TargetDungeonId,
+                    routeId,
+                    out GoldenPathChainDefinition chain) &&
+                   chain != null
+                ? chain.CanonicalRoute
+                : null;
+        }
+
+        private bool ValidateRouteConsequenceDataSources(out string detail)
+        {
+            detail = "None";
+            bool safeChainLoaded = GoldenPathContentRegistry.TryGetChainForRoute(SelectedCityId, TargetDungeonId, SafeRouteId, out GoldenPathChainDefinition safeChain);
+            bool riskyChainLoaded = GoldenPathContentRegistry.TryGetChainForRoute(SelectedCityId, TargetDungeonId, RiskyRouteId, out GoldenPathChainDefinition riskyChain);
+            GoldenPathRouteDefinition safeRoute = safeChain != null ? safeChain.CanonicalRoute : null;
+            GoldenPathRouteDefinition riskyRoute = riskyChain != null ? riskyChain.CanonicalRoute : null;
+            bool safeRouteMeaningLoaded = safeRoute != null &&
+                                          GoldenPathContentRegistry.TryGetRouteMeaning(safeRoute.RouteMeaningId, out GoldenPathRouteMeaningDefinition safeMeaning) &&
+                                          safeMeaning != null &&
+                                          ContainsAll(safeMeaning.ScenarioLabel + " " + safeMeaning.WatchOutText, "Stability", "lower payout");
+            bool riskyRouteMeaningLoaded = riskyRoute != null &&
+                                           GoldenPathContentRegistry.TryGetRouteMeaning(riskyRoute.RouteMeaningId, out GoldenPathRouteMeaningDefinition riskyMeaning) &&
+                                           riskyMeaning != null &&
+                                           ContainsAll(riskyMeaning.ScenarioLabel + " " + riskyMeaning.RewardPreview, "Surge", "Higher");
+            bool safeOutcomeMeaningLoaded = safeChain != null &&
+                                            GoldenPathContentRegistry.TryGetOutcomeMeaning(safeChain.OutcomeMeaningId, out GoldenPathOutcomeMeaningDefinition safeOutcomeMeaning) &&
+                                            safeOutcomeMeaning != null &&
+                                            ContainsAny(safeOutcomeMeaning.CityImpactMeaningText, "Stability", "lower", "recovery");
+            bool riskyOutcomeMeaningLoaded = riskyChain != null &&
+                                             GoldenPathContentRegistry.TryGetOutcomeMeaning(riskyChain.OutcomeMeaningId, out GoldenPathOutcomeMeaningDefinition riskyOutcomeMeaning) &&
+                                             riskyOutcomeMeaning != null &&
+                                             ContainsAny(riskyOutcomeMeaning.CityImpactMeaningText, "bigger", "less dispatch stability", "rougher");
+
+            int safeBaseClear = safeRoute != null ? safeRoute.BattleLootAmount + safeRoute.ChestRewardAmount : 0;
+            int safeCeiling = safeRoute != null ? safeBaseClear + safeRoute.BonusLootAmount : 0;
+            int riskyBaseClear = riskyRoute != null ? riskyRoute.BattleLootAmount + riskyRoute.ChestRewardAmount : 0;
+            int riskyCeiling = riskyRoute != null ? riskyBaseClear + riskyRoute.BonusLootAmount : 0;
+            detail =
+                "safe=data:" + SafeText(safeChain != null ? safeChain.ChainId : "None") +
+                " base=" + safeBaseClear +
+                " ceiling=" + safeCeiling +
+                " recover=" + (safeRoute != null ? safeRoute.RecoverAmount : 0) +
+                " outcome=" + SafeText(safeChain != null ? safeChain.OutcomeMeaningId : "None") +
+                " | risky=data:" + SafeText(riskyChain != null ? riskyChain.ChainId : "None") +
+                " base=" + riskyBaseClear +
+                " ceiling=" + riskyCeiling +
+                " recover=" + (riskyRoute != null ? riskyRoute.RecoverAmount : 0) +
+                " outcome=" + SafeText(riskyChain != null ? riskyChain.OutcomeMeaningId : "None");
+
+            bool valueDifferenceLoaded =
+                safeChainLoaded &&
+                riskyChainLoaded &&
+                safeRoute != null &&
+                riskyRoute != null &&
+                safeRoute.RouteId == SafeRouteId &&
+                riskyRoute.RouteId == RiskyRouteId &&
+                safeBaseClear == 16 &&
+                safeCeiling == 19 &&
+                safeRoute.RecoverAmount == 8 &&
+                riskyBaseClear == 20 &&
+                riskyCeiling == 25 &&
+                riskyRoute.RecoverAmount == 6 &&
+                riskyBaseClear > safeBaseClear &&
+                riskyCeiling > safeCeiling &&
+                riskyRoute.RecoverAmount < safeRoute.RecoverAmount;
+            return valueDifferenceLoaded &&
+                   safeRouteMeaningLoaded &&
+                   riskyRouteMeaningLoaded &&
+                   safeOutcomeMeaningLoaded &&
+                   riskyOutcomeMeaningLoaded;
+        }
+
+        private bool ValidateDungeonRouteFeelDataSources(out string detail)
+        {
+            detail = "None";
+            bool safeChainLoaded = GoldenPathContentRegistry.TryGetChainForRoute(SelectedCityId, TargetDungeonId, SafeRouteId, out GoldenPathChainDefinition safeChain);
+            bool riskyChainLoaded = GoldenPathContentRegistry.TryGetChainForRoute(SelectedCityId, TargetDungeonId, RiskyRouteId, out GoldenPathChainDefinition riskyChain);
+            GoldenPathRouteDefinition safeRoute = safeChain != null ? safeChain.CanonicalRoute : null;
+            GoldenPathRouteDefinition riskyRoute = riskyChain != null ? riskyChain.CanonicalRoute : null;
+            string safeRooms = BuildRouteRoomListText(safeRoute);
+            string riskyRooms = BuildRouteRoomListText(riskyRoute);
+
+            GoldenPathRouteMeaningDefinition safeMeaning = null;
+            GoldenPathRouteMeaningDefinition riskyMeaning = null;
+            GoldenPathEncounterProfileDefinition safeProfile = null;
+            GoldenPathEncounterProfileDefinition riskyProfile = null;
+            GoldenPathBattleSetupDefinition safeSetup = null;
+            GoldenPathBattleSetupDefinition riskySetup = null;
+            bool safeRouteMeaningLoaded = safeRoute != null &&
+                                          GoldenPathContentRegistry.TryGetRouteMeaning(safeRoute.RouteMeaningId, out safeMeaning) &&
+                                          safeMeaning != null &&
+                                          ContainsAll(safeMeaning.ScenarioLabel + " " + safeMeaning.CombatPlanText + " " + safeMeaning.EventFocus, "Stability", "sustain", "Shrine");
+            bool riskyRouteMeaningLoaded = riskyRoute != null &&
+                                           GoldenPathContentRegistry.TryGetRouteMeaning(riskyRoute.RouteMeaningId, out riskyMeaning) &&
+                                           riskyMeaning != null &&
+                                           ContainsAll(riskyMeaning.ScenarioLabel + " " + riskyMeaning.CombatPlanText + " " + riskyMeaning.EventFocus, "Surge", "mixed", "strain");
+            bool safeEncounterLoaded =
+                GoldenPathContentRegistry.TryGetEncounterProfile("encounter-profile-alpha-safe-entry", out safeProfile) &&
+                safeProfile != null &&
+                ContainsAll(safeProfile.EncounterRoleTagsText + " " + safeProfile.MissionRelevanceText, "slime", "stabilizer");
+            bool riskyEncounterLoaded =
+                GoldenPathContentRegistry.TryGetEncounterProfile("encounter-profile-alpha-risky-breach", out riskyProfile) &&
+                riskyProfile != null &&
+                ContainsAll(riskyProfile.EncounterRoleTagsText + " " + riskyProfile.MissionRelevanceText, "mixed", "tempo");
+            bool safeBattleSetupLoaded =
+                GoldenPathContentRegistry.TryGetBattleSetup("battle-setup-alpha-safe-room1", out safeSetup) &&
+                safeSetup != null &&
+                ContainsAll(safeSetup.EnemyGroupLabel + " " + safeSetup.WinRelevanceText, "Slime", "Rest Path", "stable");
+            bool riskyBattleSetupLoaded =
+                GoldenPathContentRegistry.TryGetBattleSetup("battle-setup-alpha-risky-room1", out riskySetup) &&
+                riskySetup != null &&
+                ContainsAll(riskySetup.EnemyGroupLabel + " " + riskySetup.WinRelevanceText, "Mixed", "Standard Path", "shard payout");
+            bool safeRoomsLoaded = ContainsAll(safeRooms, "Slime Front", "Rest Shrine", "Watch Hall", "Supply Cache");
+            bool riskyRoomsLoaded = ContainsAll(riskyRooms, "Mixed Front", "Greed Cache", "Goblin Pair Hall", "Unstable Shrine");
+
+            detail =
+                "safe=data:" + SafeText(safeChain != null ? safeChain.ChainId : "None") +
+                " rooms=" + SafeText(safeRooms) +
+                " combat=" + SafeText(safeMeaning != null ? safeMeaning.CombatPlanText : "None") +
+                " setup=" + SafeText(safeSetup != null ? safeSetup.WinRelevanceText : "None") +
+                " | risky=data:" + SafeText(riskyChain != null ? riskyChain.ChainId : "None") +
+                " rooms=" + SafeText(riskyRooms) +
+                " combat=" + SafeText(riskyMeaning != null ? riskyMeaning.CombatPlanText : "None") +
+                " setup=" + SafeText(riskySetup != null ? riskySetup.WinRelevanceText : "None");
+
+            return safeChainLoaded &&
+                   riskyChainLoaded &&
+                   safeRoute != null &&
+                   riskyRoute != null &&
+                   safeRouteMeaningLoaded &&
+                   riskyRouteMeaningLoaded &&
+                   safeEncounterLoaded &&
+                   riskyEncounterLoaded &&
+                   safeBattleSetupLoaded &&
+                   riskyBattleSetupLoaded &&
+                   safeRoomsLoaded &&
+                   riskyRoomsLoaded &&
+                   !string.Equals(safeRooms, riskyRooms, StringComparison.Ordinal);
+        }
+
+        private bool ValidateDungeonRoomInteractionDataSources(out string detail)
+        {
+            detail = "None";
+            bool safeChainLoaded = GoldenPathContentRegistry.TryGetChainForRoute(SelectedCityId, TargetDungeonId, SafeRouteId, out GoldenPathChainDefinition safeChain);
+            bool riskyChainLoaded = GoldenPathContentRegistry.TryGetChainForRoute(SelectedCityId, TargetDungeonId, RiskyRouteId, out GoldenPathChainDefinition riskyChain);
+            GoldenPathRouteDefinition safeRoute = safeChain != null ? safeChain.CanonicalRoute : null;
+            GoldenPathRouteDefinition riskyRoute = riskyChain != null ? riskyChain.CanonicalRoute : null;
+            string safeRooms = BuildRouteRoomListText(safeRoute);
+            string riskyRooms = BuildRouteRoomListText(riskyRoute);
+
+            bool safeRestShrineLoaded = safeRoute != null &&
+                                        safeRoute.RecoverAmount == 8 &&
+                                        ContainsAll(safeRooms, "Rest Shrine", "Watch Hall") &&
+                                        RouteContainsRoomType(safeRoute, "Rest Shrine", "Shrine");
+            bool riskyGreedCacheLoaded = riskyRoute != null &&
+                                         riskyRoute.ChestRewardAmount == 3 &&
+                                         riskyRoute.BattleLootAmount + riskyRoute.ChestRewardAmount == 20 &&
+                                         ContainsAll(riskyRooms, "Greed Cache", "Goblin Pair Hall") &&
+                                         RouteContainsRoomType(riskyRoute, "Greed Cache", "Cache");
+
+            detail =
+                "safe=data:" + SafeText(safeChain != null ? safeChain.ChainId : "None") +
+                " rooms=" + SafeText(safeRooms) +
+                " restRecover=" + (safeRoute != null ? safeRoute.RecoverAmount : 0) +
+                " | risky=data:" + SafeText(riskyChain != null ? riskyChain.ChainId : "None") +
+                " rooms=" + SafeText(riskyRooms) +
+                " greedCache=" + (riskyRoute != null ? riskyRoute.ChestRewardAmount : 0) +
+                " baseClear=" + (riskyRoute != null ? riskyRoute.BattleLootAmount + riskyRoute.ChestRewardAmount : 0);
+
+            return safeChainLoaded &&
+                   riskyChainLoaded &&
+                   safeRestShrineLoaded &&
+                   riskyGreedCacheLoaded;
+        }
+
+        private bool RouteContainsRoomType(GoldenPathRouteDefinition route, string displayName, string roomType)
+        {
+            if (route == null || route.Rooms == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < route.Rooms.Length; i++)
+            {
+                GoldenPathRoomDefinition room = route.Rooms[i];
+                if (room != null &&
+                    ContainsValue(room.DisplayName, displayName) &&
+                    ContainsValue(room.RoomType, roomType))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private string BuildRouteRoomListText(GoldenPathRouteDefinition route)
+        {
+            if (route == null || route.Rooms == null || route.Rooms.Length == 0)
+            {
+                return "None";
+            }
+
+            List<string> rooms = new List<string>();
+            for (int i = 0; i < route.Rooms.Length; i++)
+            {
+                GoldenPathRoomDefinition room = route.Rooms[i];
+                if (room != null && HasText(room.DisplayName))
+                {
+                    rooms.Add(room.DisplayName);
+                }
+            }
+
+            return rooms.Count > 0 ? string.Join(" -> ", rooms.ToArray()) : "None";
         }
 
         private bool ValidatePrepIdentity(ExpeditionPrepSurfaceData prep, string checkpoint)
@@ -859,17 +1920,26 @@ public static class Batch82RepeatCoreLoopProofRunner
 
         private bool ValidateLaunchPlan(ExpeditionPlan launchPlan, string checkpoint)
         {
+            return ValidateLaunchPlan(launchPlan, checkpoint, SafeRouteId);
+        }
+
+        private bool ValidateLaunchPlan(ExpeditionPlan launchPlan, string checkpoint, string expectedRouteId)
+        {
+            string launchPlanText = BuildLaunchPlanText(launchPlan);
             if (launchPlan == null ||
                 !launchPlan.IsConfirmed ||
                 launchPlan.OriginCityId != _selectedCityId ||
                 launchPlan.TargetDungeonId != TargetDungeonId ||
                 launchPlan.SelectedRoute == null ||
-                launchPlan.SelectedRoute.RouteId != SafeRouteId)
+                launchPlan.SelectedRoute.RouteId != expectedRouteId ||
+                !HasSelectedRouteLaunchText(launchPlanText, expectedRouteId))
             {
                 Fail(
                     checkpoint + " was not coherent. City=" + SafeText(launchPlan != null ? launchPlan.OriginCityId : "None") +
                     " Dungeon=" + SafeText(launchPlan != null ? launchPlan.TargetDungeonId : "None") +
-                    " Route=" + SafeText(launchPlan != null && launchPlan.SelectedRoute != null ? launchPlan.SelectedRoute.RouteId : "None") + ".");
+                    " Route=" + SafeText(launchPlan != null && launchPlan.SelectedRoute != null ? launchPlan.SelectedRoute.RouteId : "None") +
+                    " ExpectedRoute=" + SafeText(expectedRouteId) +
+                    " Launch=" + SafeText(launchPlanText) + ".");
                 return false;
             }
 
@@ -993,9 +2063,11 @@ public static class Batch82RepeatCoreLoopProofRunner
                 "SelectedRoute=" + SafeText(prep != null ? prep.SelectedRouteLabel : "None") +
                 " | RoutePreview=" + SafeText(prep != null ? prep.RoutePreviewSummaryText : "None") +
                 " | CombatPlan=" + SafeText(prep != null ? prep.EventPreviewText : "None") +
+                " | Consequence=" + SafeText(prep != null ? prep.ConsequencePreviewText : "None") +
                 " | Party=" + SafeText(prep != null ? prep.StagedPartySummaryText : "None") +
                 " | Loadout=" + SafeText(prep != null ? prep.PartyLoadoutSummaryText : "None") +
                 " | Gate=" + SafeText(prep != null ? prep.LaunchGateSummaryText : "None") +
+                " | Commit=" + SafeText(prep != null ? prep.CommitReasonText : "None") +
                 " | LaunchRisk=" + SafeText(prep != null ? prep.LaunchRiskAdviceText : "None") +
                 " | AppetiteRecommendation=" + SafeText(prep != null ? prep.RouteAppetiteRecommendationText : "None") +
                 " | Reason=" + SafeText(prep != null ? prep.RecommendationReasonText : "None") +
@@ -1088,7 +2160,9 @@ public static class Batch82RepeatCoreLoopProofRunner
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
 
             _summary.AppendLine("[Batch82Proof] Summary");
-            _summary.AppendLine("- Branch=A repeat-loop proof over existing loop contracts");
+            _summary.AppendLine("- Branch=" + (_proofMode == ProofMode.SurgeRuntimeConsequence
+                ? "B surge runtime consequence seam proof over existing recovery rail"
+                : "A repeat-loop proof over existing loop contracts"));
             _summary.AppendLine("- ProofMode=" + _proofMode);
             _summary.AppendLine("- FirstPrepRouteCard=" + SafeText(_firstPrepRouteCardText));
             _summary.AppendLine("- FirstRunLaunch=" + SafeText(_firstRunLaunchText));
@@ -1096,6 +2170,11 @@ public static class Batch82RepeatCoreLoopProofRunner
             _summary.AppendLine("- SecondPrep=" + SafeText(_secondPrepText));
             _summary.AppendLine("- SecondPrepAfterRecovery=" + SafeText(_secondPrepAfterRecoveryText));
             _summary.AppendLine("- SecondRunDecision=" + SafeText(_secondRunDecisionText));
+            _summary.AppendLine("- RouteConsequenceSource=" + SafeText(_routeConsequenceSourceText));
+            _summary.AppendLine("- RoomInteractionSource=" + SafeText(_roomInteractionSourceText));
+            _summary.AppendLine("- RoomInteractionRuntime=" + SafeText(_roomInteractionRuntimeText));
+            _summary.AppendLine("- SecondRunResult=" + SafeText(_secondRunResultText));
+            _summary.AppendLine("- SecondResultBoard=" + SafeText(_secondResultBoardText));
             for (int i = 0; i < _checkpoints.Count; i++)
             {
                 CheckpointResult checkpoint = _checkpoints[i];
@@ -1204,6 +2283,28 @@ public static class Batch82RepeatCoreLoopProofRunner
 
             FieldInfo field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             return field != null ? (T)field.GetValue(instance) : default;
+        }
+
+        private T GetObjectField<T>(object instance, string fieldName)
+        {
+            if (instance == null)
+            {
+                return default;
+            }
+
+            FieldInfo field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            return field != null ? (T)field.GetValue(instance) : default;
+        }
+
+        private T GetPropertyValue<T>(object instance, string propertyName)
+        {
+            if (instance == null)
+            {
+                return default;
+            }
+
+            PropertyInfo property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            return property != null ? (T)property.GetValue(instance) : default;
         }
 
         private void SetPrivateField(object instance, string fieldName, object value)

@@ -10,7 +10,7 @@
 
 ## Current Verdict
 
-- Latest closed batch: `Batch 84 recovery pressure choice v1 + Batch 83 second-run decision pressure v1 + Batch 82 repeatable core game loop v1 + Batch 81 presentation vertical slice lock + Batch 80.1 selected CityHub pressure board readability UX + Batch 80 world result-pressure board + Batch 79.3 CityHub -> ExpeditionPrep re-entry continuity triage + Batch 79.2 ResultPipeline intent packaging smoke triage + Batch 79.1 route scenario runtime proof + smoke timeout triage + Batch 79 dungeon route operating scenario + Batch 78.1 combat core runtime proof + Batch 78 post-UI combat core revalidation + Batch 77.10.1 inventory modal target-status cleanup + Batch 77.10 runtime skin bridge + Batch 77.9 UI skin preview mapping QA + Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
+- Latest closed batch: `Batch 89 room interaction consequence chain v1 + Batch 88 dungeon room interaction v1 + Batch 87 dungeon route content variety v1 + Batch 86 wait cost pressure clock v1 + Batch 85/85.1 second-run route consequence proof + Batch 84 recovery pressure choice v1 + Batch 83 second-run decision pressure v1 + Batch 82 repeatable core game loop v1 + Batch 81 presentation vertical slice lock + Batch 80.1 selected CityHub pressure board readability UX + Batch 80 world result-pressure board + Batch 79.3 CityHub -> ExpeditionPrep re-entry continuity triage + Batch 79.2 ResultPipeline intent packaging smoke triage + Batch 79.1 route scenario runtime proof + smoke timeout triage + Batch 79 dungeon route operating scenario + Batch 78.1 combat core runtime proof + Batch 78 post-UI combat core revalidation + Batch 77.10.1 inventory modal target-status cleanup + Batch 77.10 runtime skin bridge + Batch 77.9 UI skin preview mapping QA + Batch 77.8.1 skin preview validation gate + Batch 77.8 skin preview layout tuning + Batch 77.7 human-mapped skin assignment gate + Batch 77.6 manual skin assignment QA + Batch 77.5 UI sprite import audit + Batch 77.4 folder organization + Batch 78 + Batch 77.1 blocker fix + Batch 77.2 battle/inventory UI skinning scaffold + scene architecture scaffold follow-up + Batch 77.3 battle/inventory UI preview scaffold`
 - Runtime baseline: `grid dungeon` + `standard JRPG battle`
 - Canonical representative rail: stable
 - Surfaced portfolio: stable
@@ -18,8 +18,163 @@
 - Beta surfaced pair: `content-thickened on current rail`
 - Current signature demo pair: `city-a -> dungeon-alpha operating-scenario rail; city-b -> dungeon-beta remains the content-thickened presenter rail`
 - Current presenter playbook: `docs/runtime/batch71-beta-signature-demo-playbook.md`
-- Next honest bottleneck: `manual recovery-pressure feel QA, then tune pacing/reward pressure only if the launch-now vs recover-one-day choice still feels flat in human play`
+- Next honest bottleneck: `manual next-beat dungeon QA: confirm Shrine Protection / Cache Pressure make the next encounter feel changed before adding new room/content systems`
 - Scene architecture status: `compile-safe persistent-root scaffold added; SampleScene remains the live playable baseline`
+
+## Batch 89 Room Interaction Consequence Chain v1 Close-Out
+
+- Selected branch: `Branch B - interactions existed and had real data, but needed a tiny next-encounter consequence state`
+- Why this was the honest next step:
+  - Batch88 proved `[E]` room interactions existed, but Batch89 needed the next battle beat to acknowledge them
+  - Greed Cache already grants real cache loot; Rest Shrine already applies real HP recovery or honest no-op preservation
+  - this pass avoided new combat mechanics, a fatigue system, a ResultPipeline rewrite, scene migration, and per-frame rebuild
+- Player-facing readbacks added:
+  - Rest Shrine arms `Shrine Protection` for the next Alpha encounter
+  - Greed Cache arms `Cache Pressure` for `Goblin Pair Hall`
+  - battle context and encounter popover now confirm the consequence, then final/world readbacks preserve it through existing event summary fields
+- Manual UX proof: `NOT CLAIMED`; checklist added at `docs/runtime/batch89-room-interaction-consequence-chain-checklist.md`
+
+## Batch 88 Dungeon Room Interaction v1 Close-Out
+
+- Selected branch: `Branch A - existing Rest Shrine / Greed Cache data already exists; make those beats playable in the current grid dungeon`
+- Why this was the honest next step:
+  - Batch87 made the route feel readable, but the route-defining utility rooms still needed an explicit player action
+  - Rest Shrine and Greed Cache already exist in the Alpha safe/risky room data with real recovery/cache values
+  - this pass avoided a new room system, fake consequence, ResultPipeline rewrite, scene migration, and per-frame rebuild
+- Player-facing readbacks added:
+  - Rest Shrine prompt: `[E] Use Rest Shrine` with Stability sustain/recovery copy
+  - Greed Cache prompt: `[E] Open Greed Cache` with real `+3 mana_shard` cache payoff
+  - encounter popover route check now reflects `Cache payoff secured; Surge strain rising`
+  - result/world board now carries the room consequence through existing event-choice/readback fields
+- Files changed:
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.ShellContracts.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.RunState.cs`
+  - `Assets/_Game/Scripts/World/StaticPlaceholderWorldView.WorldSnapshotContext.cs`
+  - `Assets/_Game/Scripts/Editor/Batch10SmokeValidationRunner.cs`
+  - `Assets/_Game/Scripts/Editor/Batch78_1CombatCoreRuntimeProofRunner.cs`
+  - `Assets/_Game/Scripts/Editor/Batch79_1RouteScenarioRuntimeProofRunner.cs`
+  - `Assets/_Game/Scripts/Editor/Batch82RepeatCoreLoopProofRunner.cs`
+  - `Assets/_Game/Scripts/Dungeon/DUNGEON_RUN_CONTRACT.md`
+  - `docs/architecture/flow-contracts.md`
+  - `docs/architecture/validation-matrix.md`
+  - `docs/runtime/batch88-dungeon-room-interaction-checklist.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch88-compile.log`
+  - result: `PASS`
+- Targeted proof:
+  - log: `unity-batch88-room-interaction-proof.log`
+  - result: `PASS`
+  - proof markers: `PASS :: Batch88 Greed Cache interaction`, `PASS :: Batch88 interaction encounter popover`, `PASS :: Batch88 dungeon room interaction proof`
+- Regression proof:
+  - Batch87 route feel: `PASS`, log `unity-batch88-regression-batch87.log`
+- Batch10 smoke:
+  - log: `unity-batch88-smoke.log`
+  - result: `PASS`
+- Static check:
+  - `git diff --check`: `PASS`, line-ending warnings only
+- UI shape changed?: `No layout/skin overhaul; interaction prompts and readbacks only`
+- Manual UX proof: `NOT CLAIMED`; checklist added at `docs/runtime/batch88-dungeon-room-interaction-checklist.md`
+
+## Batch 87 Dungeon Route Content Variety v1 Close-Out
+
+- Selected branch: `Branch A - existing safe/risky route data already differs; surface that difference inside the dungeon instead of adding a new content system`
+- Why this was the honest next step:
+  - Batch85/85.1 proved different route consequences, but the dungeon interior still needed to make Stability and Surge feel different before the final board
+  - the existing GoldenPath route definitions, route meanings, room order, encounter profiles, battle setups, outcome meanings, and world board already carried enough source data
+  - this pass avoided a new route system, new encounter system, fake consequence, ResultPipeline rewrite, and per-frame rebuild
+- Player-facing readbacks added:
+  - Route cards and launch/commit summaries now include `Dungeon feel`
+  - DungeonRun route risk/readback now keeps the selected route feel visible after launch
+  - Encounter result popovers now include `Route Check` so the cleared room points back to the chosen route's internal logic
+  - Result/world board proof still reflects the selected route's real consequence, including Surge `mana_shard x20`, `Strained`, and recovery cost
+- Route feel distinction:
+  - Stability / Rest Path: `Slime Front -> Rest Shrine -> Watch Hall -> Supply Cache -> Quiet Antechamber -> Elite Chamber`, slime-heavy sustain, shrine recovery, lower payout, cleaner recovery
+  - Surge / Standard Path: `Mixed Front -> Greed Cache -> Goblin Pair Hall -> Unstable Shrine -> Core Threshold -> Elite Chamber`, mixed pressure, cache-first payout, higher shards, tighter recovery
+- Files changed:
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.DungeonRun.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.CompatibilityBridge.cs`
+  - `Assets/_Game/Scripts/Dungeon/StaticPlaceholderWorldView.RunState.cs`
+  - `Assets/_Game/Scripts/Editor/Batch82RepeatCoreLoopProofRunner.cs`
+  - `Assets/_Game/Scripts/Dungeon/DUNGEON_RUN_CONTRACT.md`
+  - `Assets/_Game/Scripts/Bootstrap/EXPEDITION_PREP_CONTRACT.md`
+  - `docs/architecture/flow-contracts.md`
+  - `docs/architecture/validation-matrix.md`
+  - `docs/runtime/batch87-dungeon-route-feel-checklist.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch87-compile.log`
+  - result: `PASS`
+- Authoring validation:
+  - log: `unity-batch87-authoring-validation.log`
+  - result: `PASS`
+  - proof marker: `[AuthoringValidation] Summary`, `PassCount=4`, `FailCount=0`
+- Targeted proof:
+  - log: `unity-batch87-route-feel-proof.log`
+  - result: `PASS`
+  - proof markers: `PASS :: Second DungeonRun route readback`, `PASS :: Second route encounter popover`, `PASS :: Batch87 dungeon route feel comparison`
+- Regression proof:
+  - Batch86 wait cost pressure clock: `PASS`, log `unity-batch87-regression-batch86.log`
+  - Batch85.1 surge runtime consequence: `PASS`, log `unity-batch87-regression-batch85_1.log`
+  - Batch84 recovery pressure choice: `PASS`, log `unity-batch87-regression-batch84.log`
+  - Batch83 second-run decision: `PASS`, log `unity-batch87-regression-batch83.log`
+  - Batch82 repeat loop: `PASS`, log `unity-batch87-regression-batch82.log`
+  - Batch79.1 route scenario runtime proof: `PASS`, log `unity-batch87-regression-batch79_1.log`
+  - Batch80 world result pressure board: `PASS`, log `unity-batch87-regression-batch80.log`
+  - Batch78.1 combat core runtime proof: `PASS`, log `unity-batch87-regression-batch78_1.log`
+- Batch10 smoke:
+  - log: `unity-batch87-smoke.log`
+  - result: `PASS`
+- Static check:
+  - `git diff --check`: `PASS`, line-ending warnings only
+- UI shape changed?: `No layout/skin overhaul; route-feel text is projected through existing cards, dungeon readback, popover, and board surfaces`
+- Manual UX proof: `NOT CLAIMED`; checklist added at `docs/runtime/batch87-dungeon-route-feel-checklist.md`
+
+## Batch 86 Wait Cost Pressure Clock v1 Close-Out
+
+- Selected branch: `Branch A - use the existing world day / economy tick / recovery rail and make the wait cost readable`
+- Why this was the honest next step:
+  - Batch84 made `Recover 1 Day` actionable, but the player still needed to understand that waiting spends a world day
+  - the existing city need, stock, pressure, dispatch readiness, recovery ETA, and route recommendation rails already carried enough real state
+  - this pass avoided a new economy system, new fatigue system, fake wait penalty, ResultPipeline rewrite, and per-frame rebuild
+- Player-facing readbacks added:
+  - Before waiting: `Wait Cost: City pressure may rise if you recover.`
+  - Recover action: `[T] Recover 1 Day: readiness improves, world advances 1 day.`
+  - Pressure clock: `city need consumes 1 need stock/day; shard cushion mana_shard xN`
+  - After waiting: `readiness Ready, need stock -1, pressure Stable`
+  - Recommendation shift: `Next: launch now; waiting again risks shortage.`
+- Runtime action:
+  - `[T] Recover 1 Day` continues to call the existing world day/economy/recovery rail
+  - the proof validates day advance, readiness improvement, actual selected-city need consumption, and route recommendation shift
+- Files changed:
+  - `Assets/_Game/Scripts/World/StaticPlaceholderWorldView.ExpeditionPrepSurface.cs`
+  - `Assets/_Game/Scripts/Editor/Batch82RepeatCoreLoopProofRunner.cs`
+  - `Assets/_Game/Scripts/Bootstrap/EXPEDITION_PREP_CONTRACT.md`
+  - `Assets/_Game/Scripts/World/WORLDSIM_READMODEL.md`
+  - `docs/architecture/flow-contracts.md`
+  - `docs/architecture/validation-matrix.md`
+  - `docs/runtime/batch86-wait-cost-pressure-clock-checklist.md`
+  - `docs/post-slice-batch-status.md`
+- Compile:
+  - log: `unity-batch86-compile.log`
+  - result: `PASS`
+- Targeted proof:
+  - log: `unity-batch86-wait-cost-proof.log`
+  - result: `PASS`
+  - proof marker: `PASS :: Wait cost pressure clock`
+  - observed update: `BeforeWaiting Day=1 / RecoveryEta=1 day -> AfterWaiting Day=2 / Readiness=Ready / Consumed=1`
+- Regression proof:
+  - Batch84 recovery pressure choice: `PASS`, log `unity-batch86-regression-batch84.log`
+  - Batch83 second-run desire proof: `PASS`, log `unity-batch86-regression-batch83.log`
+  - Batch85.1 surge runtime consequence proof: `PASS`, log `unity-batch86-regression-batch85_1.log`
+- Batch10 smoke:
+  - log: `unity-batch86-smoke.log`
+  - result: `PASS`
+- Static check:
+  - `git diff --check`: `PASS`, line-ending warnings only
+- UI shape changed?: `Readback text only; no skin/layout overhaul`
+- Manual UX proof: `NOT CLAIMED`; checklist added at `docs/runtime/batch86-wait-cost-pressure-clock-checklist.md`
 
 ## Batch 84 Recovery Pressure Choice v1 Close-Out
 

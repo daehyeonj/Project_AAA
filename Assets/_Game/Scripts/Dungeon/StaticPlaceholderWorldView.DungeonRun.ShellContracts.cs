@@ -1491,12 +1491,19 @@ public sealed partial class StaticPlaceholderWorldView
     {
         if (_latestDungeonEventResolution != null && !string.IsNullOrEmpty(_latestDungeonEventResolution.LoopSummaryText))
         {
-            return _latestDungeonEventResolution.LoopSummaryText;
+            return IsMeaningfulRoomInteractionSummary(_roomInteractionSummaryText) &&
+                   !ContainsRoomInteractionSummary(_latestDungeonEventResolution.LoopSummaryText, _roomInteractionSummaryText)
+                ? _latestDungeonEventResolution.LoopSummaryText + " | " + _roomInteractionSummaryText
+                : _latestDungeonEventResolution.LoopSummaryText;
         }
 
         string shrineText = _eventResolved ? GetSelectedEventChoiceDisplayText() : "Shrine pending";
         string preparationText = _preEliteDecisionResolved ? GetSelectedPreEliteChoiceDisplayText() : "Preparation pending";
-        return shrineText + " | " + preparationText;
+        string summary = shrineText + " | " + preparationText;
+        return IsMeaningfulRoomInteractionSummary(_roomInteractionSummaryText) &&
+               !ContainsRoomInteractionSummary(summary, _roomInteractionSummaryText)
+            ? summary + " | " + _roomInteractionSummaryText
+            : summary;
     }
 
     private string BuildCurrentExtractionSummaryText()

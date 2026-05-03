@@ -119,6 +119,7 @@ This file is the repo-level registry for Project AAA shared contracts. It answer
 - Batch 79.3 re-entry continuity: after result return, Appflow's `ActiveExpeditionPlan.PrepReadModel` must be refreshed on explicit prep-open, route-change, and dispatch-policy-change points so it carries the returned city/dungeon identity plus recent impact, recommendation, and why-now evidence. The route prompt may remain `LaunchReadiness` gate/warning text; returned decision evidence should be asserted through `ExpeditionPrepReadModel` and route aftermath echo instead of forcing the prompt to duplicate city-decision copy.
 - Batch 83 second-run desire guard: second ExpeditionPrep may cache display-only readbacks for last-run change, party carry-forward, stability appetite, surge appetite, launch warning, and route-appetite recommendation, but those fields must be derived from `ExpeditionResult`, party/loadout state, `LaunchReadiness`, city pressure, and route-option surfaces. They must not become a second result, progression, recovery, or reward truth source.
 - Batch 84 recovery-pressure guard: second ExpeditionPrep may expose launch-now vs recover-one-day readbacks and a `[T] Recover 1 Day` action, but the action must run the existing world day / dispatch recovery rail and rebuild prep readbacks from `LaunchReadiness`, city pressure, and route surfaces. Do not add a new fatigue system, fake penalty, ResultPipeline rewrite, or per-frame rebuild path to make waiting feel meaningful.
+- Batch 86 wait-cost guard: second ExpeditionPrep may show `Wait Cost`, `Pressure Clock`, post-wait stock/pressure readback, and a launch-now recommendation shift, but those strings must come from the existing world day, economy tick, selected-city stock/need consumption, need pressure, recovery ETA, and route recommendation rails. Do not create a parallel economy, fatigue, or hidden wait penalty to force the readback.
 
 ### ExpeditionPrep -> DungeonRun
 
@@ -129,6 +130,9 @@ This file is the repo-level registry for Project AAA shared contracts. It answer
 - Batch 22 post-slice data seam: representative-chain authoring data may seed the `dungeon-alpha / safe` route identity and room sequence before the confirmed `ExpeditionPlan` enters `DungeonRun`; hardcoded templates remain fallback for uncovered routes and dungeons
 - Batch 28 route-variant seam: representative route variants may now share a `cityId + dungeonId` primary chain while resolving their canonical route through `TryGetChainForRoute(...)` / `TryGetCanonicalRoute(...)`; keep city-side default wording on the primary chain and keep route-specific preview/usefulness on the route-aware path
 - Batch 79 operating-scenario guard: confirmed launch and DungeonRun readbacks may keep the selected scenario plan visible from the existing route preview / fit / event preview strings; `ExpeditionPlan` and `ExpeditionRunState` remain the canonical handoff contracts
+- Batch 87 route-feel guard: Alpha Stability/Surge internal-feel copy may travel from ExpeditionPrep route cards into DungeonRun readback and encounter popovers, but it must remain a projection of the confirmed route plus existing route meaning, room order, encounter profile, battle setup, and result consequence data. Do not add a parallel dungeon content owner or rebuild route-feel text from layout/mouse/update loops.
+- Batch 88 room-interaction guard: Alpha route-defining room beats may add explicit `[E]` prompts for Rest Shrine and Greed Cache inside the existing grid dungeon, but they must resolve through existing recovery, cache loot, run result, and world readback rails. Modal/inventory/battle gates must block the interaction through the existing input path.
+- Batch 89 next-beat interaction guard: Rest Shrine / Greed Cache may arm a small DungeonRun-local next-encounter consequence (`Shrine Protection` / `Cache Pressure`) that is consumed by the next battle context and encounter popover. The state must be backed by actual recovery/cache-loot values and copy into existing event/result/world readback fields only after resolution; it must not become a new combat mechanic, fatigue system, or ResultPipeline contract.
 
 ### DungeonRun -> BattleScene
 
@@ -156,6 +160,7 @@ This file is the repo-level registry for Project AAA shared contracts. It answer
 - Batch 16 continuity: seed `ExpeditionOutcome` from canonical `ExpeditionRunState` mission context too, not only the run-result snapshot, so objective, city-usefulness anchor, risk/reward context, and run-path summary survive into `OutcomeReadback`
 - Batch 79 operating-scenario guard: final run/result presentation can state whether the selected route scenario paid off, partially paid off, or missed, but it must derive that from the existing route summary plus result key instead of mutating world state directly
 - Batch 79.2 intent-package guard: `MissionObjectiveText`, `MissionRelevanceText`, and `RiskRewardContextText` should be copied explicitly from DungeonRun run/prep intent into `PostRunResolutionInput` and `ExpeditionResult`; do not infer those fields from key encounter, growth/loot, or world writeback summaries.
+- Batch 88 interaction readback guard: DungeonRun room-interaction summaries may populate existing selected-event/room resolution text so ResultPipeline and WorldSim can show the consequence, but they must not introduce a second result contract or rewrite reward/recovery math.
 
 ### ResultPipeline -> WorldSim
 
@@ -168,6 +173,7 @@ This file is the repo-level registry for Project AAA shared contracts. It answer
 - Batch 28 route-variant seam: when `ExpeditionOutcome` still knows the route id through the run snapshot, representative route variants should resolve shared outcome meaning by `cityId + dungeonId + routeId` before falling back to the primary city+dungeon chain
 - Batch 79.2 public reconstruction: `ManualTradeRuntimeState` should call `ResultPipeline.BuildExpeditionOutcome(ExpeditionResult)` when it needs a public outcome from a packaged result, so mission intent fields stay aligned with the ResultPipeline owner.
 - Batch 80 result-pressure handoff: world/city pressure-board copy may compactly combine `OutcomeReadback`, `WorldWriteback`, `ExpeditionResultReadModel`, city decision, and launch-readiness fields, but it must not expand the ResultPipeline contract or rebuild result summaries during UI layout/mouse/update loops.
+- Batch 88 world-board guard: selected CityHub latest-result evidence may append the existing `EventChoiceSummaryText` as a room consequence line, but the value must come from the DungeonRun -> ResultPipeline -> `ExpeditionResultReadModel` chain.
 
 ## Adapter Boundaries To Keep Thin
 

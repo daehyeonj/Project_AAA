@@ -24,3 +24,8 @@
 - Selected-city pressure board text is a presentation aggregation over `CityStatusReadModel`, `CityStatusReadModel.Decision`, the latest result read model, outcome/writeback readback, and launch readiness.
 - The board may answer what happened, why it mattered, what changed, next action, and readiness/re-entry, but it must not become a new world pressure system or ResultPipeline owner.
 - Build or refresh the copy through existing world/result/selection/prep refresh points; do not rebuild result-pressure summaries from `OnGUI`, mouse-move, or per-frame update paths.
+
+## Batch 86 Wait Cost Pressure Clock
+- `Recover 1 Day` from ExpeditionPrep must keep using `ManualTradeRuntimeState.RunEconomyDay()` plus dispatch recovery advancement as the runtime source of truth.
+- Wait-cost copy may summarize selected-city stock, consumed need count, shortages, need pressure, recovery ETA, and route recommendation, but it must not create a second stock ledger or fake penalty.
+- If a day tick consumes city need stock, the prep readback may say `stock -1`; if it does not, the readback should explain the stable/shortage reason from the same read model rail.

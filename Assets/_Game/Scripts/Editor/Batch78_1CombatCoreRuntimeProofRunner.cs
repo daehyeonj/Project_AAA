@@ -747,6 +747,7 @@ public static class Batch78_1CombatCoreRuntimeProofRunner
             Vector2Int markerPosition = GetFieldValue<Vector2Int>(room, "MarkerPosition");
             SetPrivateField(worldView, "_playerGridPosition", markerPosition);
             InvokeNonPublicMethod(worldView, "ProcessExploreStep");
+            InvokePublicMethod(worldView, "TryInteractCurrentDungeonRoomBeat");
         }
 
         private bool IsPlayerTurn()

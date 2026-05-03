@@ -488,6 +488,7 @@ public static class Batch79_1RouteScenarioRuntimeProofRunner
             Vector2Int markerPosition = GetFieldValue<Vector2Int>(room, "MarkerPosition");
             SetPrivateField(worldView, "_playerGridPosition", markerPosition);
             InvokeNonPublicMethod(worldView, "ProcessExploreStep");
+            InvokePublicMethod(worldView, "TryInteractCurrentDungeonRoomBeat");
         }
 
         private ExpeditionPrepRouteOptionData FindRouteOption(ExpeditionPrepSurfaceData prep, string routeId)

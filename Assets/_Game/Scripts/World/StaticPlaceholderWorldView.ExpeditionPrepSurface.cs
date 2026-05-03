@@ -249,9 +249,14 @@ public sealed partial class StaticPlaceholderWorldView
             : context != null && IsMeaningfulSnapshotText(context.ProjectedOutcomeSummaryText)
                 ? context.ProjectedOutcomeSummaryText
                 : "None";
-        data.ConsequencePreviewText = IsMeaningfulSnapshotText(data.ProjectedOutcomeSummaryText)
-            ? data.ProjectedOutcomeSummaryText
-            : data.ExpectedNeedImpactText;
+        string selectedRouteConsequenceText = !string.IsNullOrEmpty(data.DungeonId) && !string.IsNullOrEmpty(data.SelectedRouteId)
+            ? BuildRouteConsequenceText(data.DungeonId, data.SelectedRouteId)
+            : string.Empty;
+        data.ConsequencePreviewText = BuildScenarioPipeText(
+            IsMeaningfulSnapshotText(data.ProjectedOutcomeSummaryText)
+                ? data.ProjectedOutcomeSummaryText
+                : data.ExpectedNeedImpactText,
+            BuildLabeledScenarioClause("Route consequence", selectedRouteConsequenceText));
         data.RoutePreviewSummaryText = context != null && IsMeaningfulSnapshotText(context.RoutePreviewSummaryText)
             ? context.RoutePreviewSummaryText
             : !string.IsNullOrEmpty(data.DungeonId) && !string.IsNullOrEmpty(data.SelectedRouteId)
@@ -276,9 +281,11 @@ public sealed partial class StaticPlaceholderWorldView
             : data.CanLaunch
                 ? "Select a route before confirming the launch."
                 : "Launch confirmation is blocked by the current world state.";
-        data.CommitReasonText = IsMeaningfulSnapshotText(data.LaunchGateSummaryText)
-            ? data.LaunchGateSummaryText
-            : data.BlockedReasonText;
+        data.CommitReasonText = BuildScenarioPipeText(
+            IsMeaningfulSnapshotText(data.LaunchGateSummaryText)
+                ? data.LaunchGateSummaryText
+                : data.BlockedReasonText,
+            BuildLabeledScenarioClause("Selected reason", selectedRouteConsequenceText));
         data.RecommendedNextActionText = IsMeaningfulSnapshotText(readiness.RecommendedActionText)
             ? readiness.RecommendedActionText
             : "None";
@@ -664,7 +671,7 @@ public sealed partial class StaticPlaceholderWorldView
         data.AfterRecoveryPreviewText = BuildAfterRecoveryPreviewText(data, recoveryDaysToReady);
         data.RecoveryPressureChoiceText = BuildRecoveryPressureChoiceText(data);
         data.RouteAppetiteAfterRecoveryText = BuildRouteAppetiteAfterRecoveryText(data, recoveryDaysToReady);
-        data.RouteAppetiteRecommendationText = BuildRouteAppetiteRecommendationText(data);
+        data.RouteAppetiteRecommendationText = BuildRouteAppetiteRecommendationText(data, recoveryDaysToReady);
         data.SecondRunDecisionSummaryText = BuildSecondRunDecisionSummaryText(data);
     }
 
@@ -780,12 +787,13 @@ public sealed partial class StaticPlaceholderWorldView
             return "Recover 1 Day: None";
         }
 
+        string waitCostText = BuildWaitCostPressureClockText(data);
         if (recoveryDaysToReady > 0)
         {
-            return "Recover 1 Day: improves readiness while world pressure/economy advance one day.";
+            return waitCostText + " [T] Recover 1 Day: readiness improves, world advances 1 day.";
         }
 
-        return "Recover 1 Day / Wait 1 Day: readiness stays ready, but world pressure/economy still advance.";
+        return waitCostText + " [T] Recover 1 Day / Wait 1 Day: readiness stays ready, world advances 1 day.";
     }
 
     private string BuildAfterRecoveryPreviewText(ExpeditionPrepSurfaceData data, int recoveryDaysToReady)
@@ -795,17 +803,19 @@ public sealed partial class StaticPlaceholderWorldView
             return "After waiting: None";
         }
 
+        string stockDeltaText = BuildAfterWaitingStockDeltaText(data.CityId, recoveryDaysToReady);
+        string pressureText = BuildAfterWaitingPressureText(data.CityId);
         if (recoveryDaysToReady > 1)
         {
-            return "After waiting: readiness recovery ETA drops toward Ready; pressure and stock rails tick with the world day.";
+            return "After waiting: readiness recovery ETA drops toward Ready, " + stockDeltaText + "; " + pressureText + ".";
         }
 
         if (recoveryDaysToReady == 1)
         {
-            return "After waiting: readiness should become Ready; pressure and stock rails tick with the world day.";
+            return "After waiting: readiness should become Ready, " + stockDeltaText + "; " + pressureText + ".";
         }
 
-        return "After waiting: readiness remains Ready; pressure and stock rails tick with the world day.";
+        return "After waiting: readiness Ready, " + stockDeltaText + "; " + pressureText + ".";
     }
 
     private string BuildRecoveryPressureChoiceText(ExpeditionPrepSurfaceData data)
@@ -830,17 +840,119 @@ public sealed partial class StaticPlaceholderWorldView
             return "After recovery appetite: Stability protects the strained rhythm now; Surge becomes more tempting once readiness clears.";
         }
 
-        return "After recovery appetite: readiness is clear, so Surge can lean on growth while Stability still protects rhythm.";
+        return "After recovery appetite: readiness is clear, so Surge can lean on growth while Stability still protects rhythm. Next: launch now; waiting again risks shortage.";
     }
 
-    private string BuildRouteAppetiteRecommendationText(ExpeditionPrepSurfaceData data)
+    private string BuildRouteAppetiteRecommendationText(ExpeditionPrepSurfaceData data, int recoveryDaysToReady)
     {
         if (data == null)
         {
             return "Recommendation: None";
         }
 
-        return "Recommendation: Stability if recovery strain matters now; Recover 1 Day makes Surge safer if stock pressure still outweighs delay.";
+        if (recoveryDaysToReady > 0)
+        {
+            return "Recommendation: Stability if recovery strain matters now; Recover 1 Day makes Surge safer if stock pressure still outweighs delay.";
+        }
+
+        return "Recommendation: Next: launch now; waiting again risks shortage. Stability if recovery matters, Surge if stock pressure still outweighs strain.";
+    }
+
+    private string BuildWaitCostPressureClockText(ExpeditionPrepSurfaceData data)
+    {
+        if (data == null)
+        {
+            return "Wait Cost: None.";
+        }
+
+        string pressureText = IsMeaningfulSnapshotText(data.NeedPressureText)
+            ? data.NeedPressureText
+            : BuildNeedPressureText(data.CityId);
+        return "Wait Cost: City pressure may rise if you recover. " +
+               BuildPressureClockText(data.CityId) +
+               " Need Pressure: " + pressureText + ".";
+    }
+
+    private string BuildPressureClockText(string cityId)
+    {
+        if (_runtimeEconomyState == null || string.IsNullOrEmpty(cityId))
+        {
+            return "Pressure Clock: stock rail unavailable.";
+        }
+
+        int dailyNeedCount = CountCityDailyNeedResources(cityId);
+        string stockText = BuildCityManaShardStockText(cityId);
+        if (dailyNeedCount > 0)
+        {
+            return "Pressure Clock: city need consumes " + dailyNeedCount + " need stock/day; shard cushion " + stockText + ".";
+        }
+
+        return "Pressure Clock: no daily need stock drain; shard cushion " + stockText + ".";
+    }
+
+    private string BuildAfterWaitingStockDeltaText(string cityId, int recoveryDaysToReady)
+    {
+        if (_runtimeEconomyState == null || string.IsNullOrEmpty(cityId))
+        {
+            return "stock rail unavailable";
+        }
+
+        if (recoveryDaysToReady > 0)
+        {
+            int projectedNeedCount = CountCityDailyNeedResources(cityId);
+            return projectedNeedCount > 0
+                ? "need stock -" + projectedNeedCount + " expected from city need"
+                : "stock unchanged";
+        }
+
+        int consumed = _runtimeEconomyState.GetLastDayConsumed(cityId);
+        int shortages = _runtimeEconomyState.GetLastDayShortages(cityId);
+        if (consumed > 0 && shortages > 0)
+        {
+            return "need stock -" + consumed + ", shortage +" + shortages;
+        }
+
+        if (consumed > 0)
+        {
+            return "need stock -" + consumed;
+        }
+
+        if (shortages > 0)
+        {
+            return "shortage +" + shortages;
+        }
+
+        return "stock unchanged";
+    }
+
+    private string BuildAfterWaitingPressureText(string cityId)
+    {
+        if (string.IsNullOrEmpty(cityId))
+        {
+            return "pressure unavailable";
+        }
+
+        return "pressure " + BuildNeedPressureText(cityId);
+    }
+
+    private int CountCityDailyNeedResources(string cityId)
+    {
+        WorldEntityData city = FindEntity(cityId);
+        if (city == null || city.NeedResourceIds == null)
+        {
+            return 0;
+        }
+
+        int count = 0;
+        for (int i = 0; i < city.NeedResourceIds.Length; i++)
+        {
+            if (!string.IsNullOrEmpty(city.NeedResourceIds[i]))
+            {
+                count += 1;
+            }
+        }
+
+        return count;
     }
 
     private string BuildSecondRunDecisionSummaryText(ExpeditionPrepSurfaceData data)

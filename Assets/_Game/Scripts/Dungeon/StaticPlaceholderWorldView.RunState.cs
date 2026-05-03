@@ -219,17 +219,20 @@ public sealed partial class StaticPlaceholderWorldView
             ? BuildRoomPathPreviewText(_currentDungeonId, routeId)
             : "None";
         string routeSummary = BuildSelectedRouteSummary();
+        string routeFeel = HasText(_currentDungeonId)
+            ? BuildRouteInternalFeelText(_currentDungeonId, routeId)
+            : string.Empty;
         if (HasText(routeSummary) && HasText(preview))
         {
-            return routeSummary + " | " + preview;
+            return BuildScenarioPipeText(routeSummary, preview, BuildLabeledScenarioClause("Dungeon feel", routeFeel));
         }
 
         if (HasText(routeSummary))
         {
-            return routeSummary;
+            return BuildScenarioPipeText(routeSummary, BuildLabeledScenarioClause("Dungeon feel", routeFeel));
         }
 
-        return HasText(preview) ? preview : "None";
+        return BuildScenarioPipeText(preview, BuildLabeledScenarioClause("Dungeon feel", routeFeel));
     }
 
     private string BuildRunResultStateKey()
@@ -362,15 +365,19 @@ public sealed partial class StaticPlaceholderWorldView
     private EventChoiceResult BuildEventChoiceResult()
     {
         EventChoiceResult result = new EventChoiceResult();
-        if (!_eventResolved && _dungeonRunState != DungeonRunState.EventChoice && !HasText(_selectedEventChoiceId))
+        if (!_eventResolved &&
+            _dungeonRunState != DungeonRunState.EventChoice &&
+            !HasText(_selectedEventChoiceId) &&
+            !IsMeaningfulRoomInteractionSummary(_roomInteractionSummaryText))
         {
             return result;
         }
 
-        result.EventId = "shrine_choice";
-        result.EventLabel = GetCurrentEventTitleText();
+        bool hasShrineChoice = HasText(_selectedEventChoiceId);
+        result.EventId = hasShrineChoice ? "shrine_choice" : "room_interaction";
+        result.EventLabel = hasShrineChoice ? GetCurrentEventTitleText() : GetCurrentRoomText();
         result.ChoiceId = _selectedEventChoiceId ?? string.Empty;
-        result.Resolved = _eventResolved;
+        result.Resolved = _eventResolved || IsMeaningfulRoomInteractionSummary(_roomInteractionSummaryText);
         if (_selectedEventChoiceId == "recover")
         {
             result.ChoiceLabel = GetCurrentEventOptionAText();
@@ -385,7 +392,10 @@ public sealed partial class StaticPlaceholderWorldView
         }
         else
         {
-            result.ChoiceLabel = "Pending";
+            result.ChoiceId = IsMeaningfulRoomInteractionSummary(_roomInteractionSummaryText) ? "room_interaction" : result.ChoiceId;
+            result.ChoiceLabel = IsMeaningfulRoomInteractionSummary(_roomInteractionSummaryText) ? _roomInteractionSummaryText : "Pending";
+            result.OutcomeTag = IsMeaningfulRoomInteractionSummary(_roomInteractionSummaryText) ? "room_interaction" : string.Empty;
+            result.RewardAmount = Mathf.Max(0, _chestLootAmount);
         }
 
         result.ResultSummaryText = result.Resolved

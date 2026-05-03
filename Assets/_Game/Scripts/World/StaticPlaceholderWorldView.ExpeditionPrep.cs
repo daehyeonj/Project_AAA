@@ -112,7 +112,13 @@ public sealed partial class StaticPlaceholderWorldView
             : "None";
         routeChoice.EncounterProfileText = HasText(template.EncounterPreview) ? template.EncounterPreview : "None";
         routeChoice.EventFocusText = HasText(template.EventFocus) ? template.EventFocus : "None";
-        routeChoice.RewardPreviewText = HasText(template.RewardPreview) ? template.RewardPreview : "None";
+        string rewardPreviewText = HasText(template.RewardPreview) ? template.RewardPreview : "None";
+        string routeConsequenceText = HasText(_currentDungeonId)
+            ? BuildRouteConsequenceText(_currentDungeonId, template.RouteId)
+            : string.Empty;
+        routeChoice.RewardPreviewText = HasText(routeConsequenceText)
+            ? rewardPreviewText + " | " + routeConsequenceText
+            : rewardPreviewText;
         routeChoice.ExpectedNeedImpactText = BuildExpectedNeedImpactText(_currentHomeCityId, _currentDungeonId, template.RouteId);
         routeChoice.IsRecommended = template.RouteId == _recommendedRouteId;
         routeChoice.IsSelected = template.RouteId == _selectedRouteChoiceId ||

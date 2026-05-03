@@ -25,6 +25,8 @@ public sealed partial class StaticPlaceholderWorldView
     private const string RiskyRouteId = "risky";
     private const string ShrineProtectionConsequenceKey = "shrine_protection";
     private const string CachePressureConsequenceKey = "cache_pressure";
+    private const string ShrineSkippedConsequenceKey = "shrine_skipped";
+    private const string CacheSkippedConsequenceKey = "cache_skipped";
     private static readonly Vector2Int ShrineEventGridPosition = new Vector2Int(8, 5);
     private static readonly Vector2Int Room2EventGridPosition = new Vector2Int(9, 3);
     private static readonly Vector2Int Room2ChestGridPosition = new Vector2Int(10, 3);
@@ -518,6 +520,7 @@ public sealed partial class StaticPlaceholderWorldView
     private readonly List<DungeonEncounterRuntimeData> _activeEncounters = new List<DungeonEncounterRuntimeData>();
     private readonly List<DungeonRoomTemplateData> _plannedRooms = new List<DungeonRoomTemplateData>();
     private readonly List<string> _roomPathHistory = new List<string>();
+    private readonly HashSet<string> _skippedRoomInteractionRoomIds = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, SpriteRenderer> _monsterRendererById = new Dictionary<string, SpriteRenderer>();
     private readonly bool[] _partyActedThisRound = new bool[4];
     private readonly int[] _runMemberDamageDealt = new int[4];
@@ -605,9 +608,11 @@ public sealed partial class StaticPlaceholderWorldView
     private string _pendingRoomInteractionConsequenceKey = string.Empty;
     private string _pendingRoomInteractionConsequenceText = "None";
     private string _pendingRoomInteractionTargetEncounterId = string.Empty;
+    private string _promptedRoomInteractionRoomId = string.Empty;
     private string _activeRoomInteractionConsequenceKey = string.Empty;
     private string _activeRoomInteractionConsequenceText = "None";
     private string _activeRoomInteractionConsequenceEncounterId = string.Empty;
+    private string _resolvedRoomInteractionConsequenceKey = string.Empty;
     private string _resolvedRoomInteractionConsequenceText = "None";
     private string _resolvedRoomInteractionConsequenceEncounterId = string.Empty;
     private string _resultEventChoiceText = "None";
@@ -2800,7 +2805,7 @@ public sealed partial class StaticPlaceholderWorldView
             : "encounter-room-1";
         string routeCheckFrame = isRisky
             ? "Surge Pressure: payout is on track, but recovery strain is rising"
-            : "Stability Room: HP and readiness margin remain protected";
+            : "Stability Pressure: HP and readiness margin remain protected";
         string roomInteractionText = BuildRouteRoomInteractionCheckText(normalizedRouteId);
 
         if (!TryResolveEncounterBattleAuthoring(
@@ -2826,6 +2831,252 @@ public sealed partial class StaticPlaceholderWorldView
         return BuildScenarioSentenceText(routeCheckFrame, roomText, evidenceText, roomInteractionText);
     }
 
+    private string BuildEncounterVarietyRoutePressureContextText(string encounterId)
+    {
+        string normalizedRouteId = NormalizeRouteChoiceId(HasText(_selectedRouteId) ? _selectedRouteId : _selectedRouteChoiceId);
+        if (_currentDungeonId != "dungeon-alpha" || !HasText(encounterId))
+        {
+            return string.Empty;
+        }
+
+        string statsText = BuildEncounterRoutePressureStatsText(encounterId);
+        if (normalizedRouteId == SafeRouteId)
+        {
+            if (string.Equals(encounterId, "encounter-room-1", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return "Stability Pressure: Threat: Moderate. Slime Front is controlled (" + statsText + "); Rest Shrine can arm Shrine Protection for the next fight.";
+            }
+
+            if (string.Equals(encounterId, "encounter-room-2", System.StringComparison.OrdinalIgnoreCase))
+            {
+                string shrineText = IsRoomInteractionConsequenceVisibleForEncounter(ShrineProtectionConsequenceKey, encounterId)
+                    ? "Shrine Protection keeps the recovery margin visible"
+                    : IsRoomInteractionKeyVisibleForEncounter(ShrineSkippedConsequenceKey, encounterId)
+                        ? "Rest Shrine skipped; no Shrine Protection prepared"
+                        : "Rest Shrine can still arm Shrine Protection if used";
+                return "Stability Pressure: Threat: Moderate. Watch Hall stays controlled (" + statsText + "); " + shrineText + ".";
+            }
+        }
+
+        if (normalizedRouteId == RiskyRouteId)
+        {
+            if (string.Equals(encounterId, "encounter-room-2", System.StringComparison.OrdinalIgnoreCase))
+            {
+                string cacheText = IsRoomInteractionConsequenceVisibleForEncounter(CachePressureConsequenceKey, encounterId)
+                    ? "Cache Pressure payout is secured"
+                    : IsRoomInteractionKeyVisibleForEncounter(CacheSkippedConsequenceKey, encounterId)
+                        ? "Greed Cache skipped; no extra payout and no Cache Pressure"
+                        : "Greed Cache payout pressure is pending";
+                return "Surge Pressure: Threat: High. Goblin Pair Hall is sharper (" + statsText + "); " + cacheText + ", but lowest-HP focus can strain recovery.";
+            }
+
+            if (string.Equals(encounterId, "encounter-room-1", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return "Surge Pressure: Threat: Rising. Mixed Front opens the payout route (" + statsText + "); Greed Cache and Goblin Pair Hall can raise reward pressure.";
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private string BuildEncounterRoutePressureStatsText(string encounterId)
+    {
+        int livingCount = 0;
+        int currentHp = 0;
+        int maxHp = 0;
+        int totalAttack = 0;
+        int lowestHpFocusCount = 0;
+        int randomFocusCount = 0;
+        int strikerCount = 0;
+
+        for (int i = 0; i < _activeMonsters.Count; i++)
+        {
+            DungeonMonsterRuntimeData monster = _activeMonsters[i];
+            if (monster == null ||
+                !string.Equals(monster.EncounterId, encounterId, System.StringComparison.OrdinalIgnoreCase) ||
+                monster.IsDefeated ||
+                monster.CurrentHp <= 0)
+            {
+                continue;
+            }
+
+            livingCount += 1;
+            currentHp += Mathf.Max(0, monster.CurrentHp);
+            maxHp += Mathf.Max(1, monster.MaxHp);
+            totalAttack += Mathf.Max(1, monster.Attack);
+            if (monster.TargetPattern == MonsterTargetPattern.LowestHpLiving)
+            {
+                lowestHpFocusCount += 1;
+            }
+            else if (monster.TargetPattern == MonsterTargetPattern.RandomLiving)
+            {
+                randomFocusCount += 1;
+            }
+
+            if (monster.EncounterRole == MonsterEncounterRole.Striker)
+            {
+                strikerCount += 1;
+            }
+        }
+
+        if (livingCount <= 0)
+        {
+            return "runtime enemies pending";
+        }
+
+        string focusText = lowestHpFocusCount > 0
+            ? "lowest-HP focus x" + lowestHpFocusCount
+            : randomFocusCount > 0
+                ? "random pressure x" + randomFocusCount
+                : "frontline focus";
+        string strikerText = strikerCount > 0 ? ", striker x" + strikerCount : string.Empty;
+        return livingCount + " enemies, HP " + currentHp + "/" + maxHp + ", ATK " + totalAttack + ", " + focusText + strikerText;
+    }
+
+    private bool IsRoomInteractionConsequenceVisibleForEncounter(string consequenceKey, string encounterId)
+    {
+        return IsRoomInteractionKeyVisibleForEncounter(consequenceKey, encounterId);
+    }
+
+    private bool IsRoomInteractionKeyVisibleForEncounter(string consequenceKey, string encounterId)
+    {
+        if (!HasText(consequenceKey) || !HasText(encounterId))
+        {
+            return false;
+        }
+
+        if (string.Equals(_activeRoomInteractionConsequenceKey, consequenceKey, System.StringComparison.OrdinalIgnoreCase) &&
+            (!HasText(_activeRoomInteractionConsequenceEncounterId) ||
+             string.Equals(_activeRoomInteractionConsequenceEncounterId, encounterId, System.StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        if (string.Equals(_resolvedRoomInteractionConsequenceKey, consequenceKey, System.StringComparison.OrdinalIgnoreCase) &&
+            (!HasText(_resolvedRoomInteractionConsequenceEncounterId) ||
+             string.Equals(_resolvedRoomInteractionConsequenceEncounterId, encounterId, System.StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return string.Equals(_pendingRoomInteractionConsequenceKey, consequenceKey, System.StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(_pendingRoomInteractionTargetEncounterId, encounterId, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string AppendEncounterVarietyEnemyIntentText(string intentText, DungeonMonsterRuntimeData monster, int targetIndex, bool useSpecial)
+    {
+        string pressureText = BuildEncounterVarietyEnemyIntentPressureText(monster, targetIndex, useSpecial);
+        if (!HasText(pressureText))
+        {
+            return intentText;
+        }
+
+        if (!HasText(intentText))
+        {
+            return pressureText;
+        }
+
+        return intentText.IndexOf(pressureText, System.StringComparison.OrdinalIgnoreCase) >= 0
+            ? intentText
+            : intentText + " " + pressureText;
+    }
+
+    private string BuildEncounterVarietyEnemyIntentPressureText(DungeonMonsterRuntimeData monster, int targetIndex, bool useSpecial)
+    {
+        if (monster == null || _currentDungeonId != "dungeon-alpha")
+        {
+            return string.Empty;
+        }
+
+        string normalizedRouteId = NormalizeRouteChoiceId(HasText(_selectedRouteId) ? _selectedRouteId : _selectedRouteChoiceId);
+        string encounterId = monster.EncounterId;
+        int predictedDamage = Mathf.Max(1, GetRpgOwnedEnemyActionPower(monster, useSpecial));
+        string targetName = GetPartyMemberDisplayName(targetIndex);
+        if (normalizedRouteId == SafeRouteId &&
+            string.Equals(encounterId, "encounter-room-1", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return "Stability Pressure: Threat: Moderate; predicted " + predictedDamage + " dmg stays controlled; Rest Shrine can arm Shrine Protection after this room.";
+        }
+
+        if (normalizedRouteId == RiskyRouteId &&
+            string.Equals(encounterId, "encounter-room-2", System.StringComparison.OrdinalIgnoreCase))
+        {
+            string cacheText = IsRoomInteractionConsequenceVisibleForEncounter(CachePressureConsequenceKey, encounterId)
+                ? "Cache Pressure makes this a payout-vs-recovery check"
+                : IsRoomInteractionKeyVisibleForEncounter(CacheSkippedConsequenceKey, encounterId)
+                    ? "Greed Cache was skipped, so this is baseline pressure without extra payout"
+                    : "Greed Cache makes this a payout-vs-recovery check";
+            return "Surge Pressure: Threat: High; predicted " + predictedDamage + " dmg into " + targetName + "; " + cacheText + ".";
+        }
+
+        return string.Empty;
+    }
+
+    private void AppendEncounterVarietyRoutePressureRolePayoffText(
+        RpgOwnedBattleActionPreviewData preview,
+        BattleActionType action,
+        DungeonPartyMemberRuntimeData member,
+        DungeonMonsterRuntimeData targetMonster)
+    {
+        if (preview == null)
+        {
+            return;
+        }
+
+        string payoffText = BuildEncounterVarietyRoutePressureRolePayoffText(preview, action, member, targetMonster);
+        if (!HasText(payoffText))
+        {
+            return;
+        }
+
+        if (!HasText(preview.PostEffectText))
+        {
+            preview.PostEffectText = payoffText;
+            return;
+        }
+
+        if (preview.PostEffectText.IndexOf(payoffText, System.StringComparison.OrdinalIgnoreCase) < 0)
+        {
+            preview.PostEffectText += " | " + payoffText;
+        }
+    }
+
+    private string BuildEncounterVarietyRoutePressureRolePayoffText(
+        RpgOwnedBattleActionPreviewData preview,
+        BattleActionType action,
+        DungeonPartyMemberRuntimeData member,
+        DungeonMonsterRuntimeData targetMonster)
+    {
+        if (member == null || targetMonster == null || _currentDungeonId != "dungeon-alpha")
+        {
+            return string.Empty;
+        }
+
+        string normalizedRouteId = NormalizeRouteChoiceId(HasText(_selectedRouteId) ? _selectedRouteId : _selectedRouteChoiceId);
+        string encounterId = targetMonster.EncounterId;
+        string actionLabel = action == BattleActionType.Skill ? "skill" : "target lock";
+        if (normalizedRouteId == SafeRouteId &&
+            string.Equals(encounterId, "encounter-room-1", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return preview.WouldDefeatTarget
+                ? "Stability payoff: clean slime removal keeps Rest Shrine sustain on plan."
+                : "Stability payoff: controlled " + actionLabel + " keeps HP margin ready for Rest Shrine sustain.";
+        }
+
+        if (normalizedRouteId == RiskyRouteId &&
+            string.Equals(encounterId, "encounter-room-2", System.StringComparison.OrdinalIgnoreCase))
+        {
+            string payoffLabel = IsRoomInteractionConsequenceVisibleForEncounter(CachePressureConsequenceKey, encounterId)
+                ? "Cache Pressure payoff"
+                : "Surge payoff";
+            return preview.WouldDefeatTarget
+                ? payoffLabel + ": " + member.DisplayName + " removes a goblin before recovery strain stacks."
+                : payoffLabel + ": " + member.DisplayName + " sets Mira/Rune finish windows before strain stacks.";
+        }
+
+        return string.Empty;
+    }
+
     private string BuildRouteRoomInteractionCheckText(string routeId)
     {
         string consequenceText = BuildRoomInteractionConsequenceCheckText();
@@ -2837,12 +3088,12 @@ public sealed partial class StaticPlaceholderWorldView
         if (NormalizeRouteChoiceId(routeId) == RiskyRouteId)
         {
             return AppendRoomInteractionConsequenceText(
-                "Greed Cache pending: [E] can lock the shard payout while keeping recovery strain visible.",
+                "Greed Cache pending: [E] can lock the shard payout and Cache Pressure; moving on skips both.",
                 consequenceText);
         }
 
         return AppendRoomInteractionConsequenceText(
-            "Rest Shrine pending: [E] can protect the sustain line before the next fight.",
+            "Rest Shrine pending: [E] can arm Shrine Protection; moving on skips protection.",
             consequenceText);
     }
 
@@ -3048,12 +3299,12 @@ public sealed partial class StaticPlaceholderWorldView
 
         if (room.RoomType == DungeonRoomType.Cache)
         {
-            return _activeChest != null && _activeChest.IsOpened;
+            return (_activeChest != null && _activeChest.IsOpened) || IsRoomInteractionSkipped(room);
         }
 
         if (room.RoomType == DungeonRoomType.Shrine)
         {
-            return _eventResolved;
+            return _eventResolved || IsRoomInteractionSkipped(room);
         }
 
         if (room.RoomType == DungeonRoomType.Preparation)
@@ -5361,6 +5612,18 @@ public sealed partial class StaticPlaceholderWorldView
         return roomName + " opened: +" + Mathf.Max(0, lootAmount) + " " + DungeonRewardResourceId + " secured.";
     }
 
+    private string BuildShrineSkippedRoomInteractionSummary(DungeonRoomTemplateData room)
+    {
+        string roomName = room != null && !string.IsNullOrEmpty(room.DisplayName) ? room.DisplayName : "Rest Shrine";
+        return roomName + " skipped: no Shrine Protection prepared; party keeps current HP and moves on.";
+    }
+
+    private string BuildCacheSkippedRoomInteractionSummary(DungeonRoomTemplateData room, int lootAmount)
+    {
+        string roomName = room != null && !string.IsNullOrEmpty(room.DisplayName) ? room.DisplayName : "Greed Cache";
+        return roomName + " skipped: +" + Mathf.Max(0, lootAmount) + " " + DungeonRewardResourceId + " left behind; Cache Pressure avoided.";
+    }
+
     private DungeonRoomTemplateData GetNextEncounterRoomAfterRoom(DungeonRoomTemplateData sourceRoom)
     {
         int sourceIndex = sourceRoom != null ? _plannedRooms.IndexOf(sourceRoom) : GetCurrentPlannedRoomIndex();
@@ -5416,6 +5679,18 @@ public sealed partial class StaticPlaceholderWorldView
         return "Next: Cache Pressure at " + targetLabel + "; +" + Mathf.Max(0, lootAmount) + " " + DungeonRewardResourceId + " reserved, recovery strain warning active.";
     }
 
+    private string BuildShrineSkippedNextBeatText(DungeonRoomTemplateData targetRoom)
+    {
+        string targetLabel = BuildRoomInteractionTargetLabel(targetRoom);
+        return "Next: no Shrine Protection at " + targetLabel + "; baseline pressure will be checked.";
+    }
+
+    private string BuildCacheSkippedNextBeatText(DungeonRoomTemplateData targetRoom, int lootAmount)
+    {
+        string targetLabel = BuildRoomInteractionTargetLabel(targetRoom);
+        return "Next: no Cache Pressure at " + targetLabel + "; no +" + Mathf.Max(0, lootAmount) + " " + DungeonRewardResourceId + " reserved.";
+    }
+
     private void ArmRoomInteractionConsequence(string consequenceKey, string consequenceText, string targetEncounterId)
     {
         if (!HasText(consequenceKey) || !IsMeaningfulRoomInteractionSummary(consequenceText))
@@ -5429,6 +5704,7 @@ public sealed partial class StaticPlaceholderWorldView
         _activeRoomInteractionConsequenceKey = string.Empty;
         _activeRoomInteractionConsequenceText = "None";
         _activeRoomInteractionConsequenceEncounterId = string.Empty;
+        _resolvedRoomInteractionConsequenceKey = string.Empty;
         _resolvedRoomInteractionConsequenceText = "None";
         _resolvedRoomInteractionConsequenceEncounterId = string.Empty;
     }
@@ -5478,6 +5754,16 @@ public sealed partial class StaticPlaceholderWorldView
             return encounterName + " under Cache Pressure: payout secured, strain warning active.";
         }
 
+        if (consequenceKey == ShrineSkippedConsequenceKey)
+        {
+            return "Entering " + encounterName + " without Shrine Protection: baseline pressure only.";
+        }
+
+        if (consequenceKey == CacheSkippedConsequenceKey)
+        {
+            return encounterName + " without Cache Pressure: extra payout left behind.";
+        }
+
         return string.Empty;
     }
 
@@ -5500,6 +5786,7 @@ public sealed partial class StaticPlaceholderWorldView
         string resolutionText = BuildRoomInteractionConsequenceResolutionText(_activeRoomInteractionConsequenceKey, encounter);
         if (IsMeaningfulRoomInteractionSummary(resolutionText))
         {
+            _resolvedRoomInteractionConsequenceKey = _activeRoomInteractionConsequenceKey;
             _resolvedRoomInteractionConsequenceText = resolutionText;
             _resolvedRoomInteractionConsequenceEncounterId = encounterId;
             RecordRoomInteractionSummary(resolutionText);
@@ -5522,6 +5809,16 @@ public sealed partial class StaticPlaceholderWorldView
         if (consequenceKey == CachePressureConsequenceKey)
         {
             return "Cache Check: reward secured through " + encounterName + "; recovery strain warning remains visible.";
+        }
+
+        if (consequenceKey == ShrineSkippedConsequenceKey)
+        {
+            return "Shrine Check: Shrine skipped; party faced baseline pressure through " + encounterName + ".";
+        }
+
+        if (consequenceKey == CacheSkippedConsequenceKey)
+        {
+            return "Cache Check: Cache skipped; no extra payout, pressure avoided through " + encounterName + ".";
         }
 
         return string.Empty;
@@ -5558,7 +5855,11 @@ public sealed partial class StaticPlaceholderWorldView
                 ? "Shrine Protection: party stability preserved."
                 : _activeRoomInteractionConsequenceKey == CachePressureConsequenceKey
                     ? "Cache Pressure: payout secured, strain warning active."
-                    : _activeRoomInteractionConsequenceText;
+                    : _activeRoomInteractionConsequenceKey == ShrineSkippedConsequenceKey
+                        ? "Shrine skipped: no Shrine Protection prepared."
+                        : _activeRoomInteractionConsequenceKey == CacheSkippedConsequenceKey
+                            ? "Cache skipped: no Cache Pressure; extra payout left behind."
+                            : _activeRoomInteractionConsequenceText;
         }
 
         if (HasText(encounterId) &&
@@ -6079,7 +6380,7 @@ public sealed partial class StaticPlaceholderWorldView
             if (IsRouteDefiningGreedCache(room))
             {
                 DungeonRoomTemplateData nextEncounterRoom = GetNextEncounterRoomAfterRoom(room);
-                return prefix + "Open " + room.DisplayName + ": secure +" + rewardAmount + " " + DungeonRewardResourceId + " now; Surge payout rises while recovery strain remains. " +
+                return prefix + "Open " + room.DisplayName + " for +" + rewardAmount + " " + DungeonRewardResourceId + " and Cache Pressure. Move on to skip: no extra payout, no Cache Pressure. " +
                        BuildCachePressureNextBeatText(nextEncounterRoom, rewardAmount);
             }
 
@@ -6092,7 +6393,7 @@ public sealed partial class StaticPlaceholderWorldView
             if (IsRouteDefiningRestShrine(room))
             {
                 DungeonRoomTemplateData nextEncounterRoom = GetNextEncounterRoomAfterRoom(room);
-                return prefix + "Use " + room.DisplayName + ": recover up to +" + recoverAmount + " HP each; Stability sustain margin improves. " +
+                return prefix + "Use " + room.DisplayName + " for Shrine Protection and up to +" + recoverAmount + " HP each. Move on to skip: no Shrine Protection prepared. " +
                        "Next: Shrine Protection at " + BuildRoomInteractionTargetLabel(nextEncounterRoom) + "; recovery margin will be checked after use.";
             }
 
@@ -7286,6 +7587,13 @@ public sealed partial class StaticPlaceholderWorldView
         return false;
     }
 
+    private bool IsRoomInteractionSkipped(DungeonRoomTemplateData room)
+    {
+        return room != null &&
+               !string.IsNullOrEmpty(room.RoomId) &&
+               _skippedRoomInteractionRoomIds.Contains(room.RoomId);
+    }
+
     private bool TryOpenCacheRoomInteraction(DungeonRoomTemplateData currentRoom)
     {
         if (currentRoom == null || currentRoom.RoomType != DungeonRoomType.Cache || _activeChest == null || _activeChest.IsOpened)
@@ -7293,6 +7601,8 @@ public sealed partial class StaticPlaceholderWorldView
             return false;
         }
 
+        _skippedRoomInteractionRoomIds.Remove(currentRoom.RoomId);
+        _promptedRoomInteractionRoomId = string.Empty;
         _activeChest.GridPosition = currentRoom.MarkerPosition;
         _activeChest.IsOpened = true;
         _chestOpenedCount += 1;
@@ -7325,6 +7635,8 @@ public sealed partial class StaticPlaceholderWorldView
             return false;
         }
 
+        _skippedRoomInteractionRoomIds.Remove(currentRoom.RoomId);
+        _promptedRoomInteractionRoomId = string.Empty;
         _selectedEventChoiceId = "recover";
         _eventResolved = true;
         int recoveredAmount = ApplyShrineRecovery();
@@ -7346,6 +7658,78 @@ public sealed partial class StaticPlaceholderWorldView
         RefreshRoomSequenceState(true);
         RefreshSelectionPrompt();
         RefreshDungeonPresentation();
+        return true;
+    }
+
+    private void MarkRoomInteractionPromptSeen(DungeonRoomTemplateData currentRoom)
+    {
+        if (currentRoom == null ||
+            !IsRouteDefiningRoomInteraction(currentRoom) ||
+            IsRoomInteractionSkipped(currentRoom))
+        {
+            return;
+        }
+
+        _promptedRoomInteractionRoomId = currentRoom.RoomId ?? string.Empty;
+    }
+
+    private bool IsRouteDefiningRoomInteraction(DungeonRoomTemplateData room)
+    {
+        return IsRouteDefiningRestShrine(room) || IsRouteDefiningGreedCache(room);
+    }
+
+    private bool TrySkipRouteDefiningRoomInteractionIfMovedPast(DungeonRoomTemplateData currentRoom)
+    {
+        if (currentRoom == null ||
+            !IsRouteDefiningRoomInteraction(currentRoom) ||
+            IsRoomInteractionSkipped(currentRoom) ||
+            _playerGridPosition == currentRoom.MarkerPosition ||
+            !string.Equals(_promptedRoomInteractionRoomId, currentRoom.RoomId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return RecordSkippedRoomInteraction(currentRoom);
+    }
+
+    private bool RecordSkippedRoomInteraction(DungeonRoomTemplateData currentRoom)
+    {
+        if (currentRoom == null || !IsRouteDefiningRoomInteraction(currentRoom))
+        {
+            return false;
+        }
+
+        _skippedRoomInteractionRoomIds.Add(currentRoom.RoomId ?? string.Empty);
+        _promptedRoomInteractionRoomId = string.Empty;
+
+        DungeonRoomTemplateData nextEncounterRoom = GetNextEncounterRoomAfterRoom(currentRoom);
+        string summaryText;
+        string nextBeatText;
+        string consequenceKey;
+        if (IsRouteDefiningGreedCache(currentRoom))
+        {
+            int rewardAmount = _activeChest != null ? _activeChest.RewardAmount : GetCurrentRouteChestRewardAmount();
+            summaryText = BuildCacheSkippedRoomInteractionSummary(currentRoom, rewardAmount);
+            nextBeatText = BuildCacheSkippedNextBeatText(nextEncounterRoom, rewardAmount);
+            consequenceKey = CacheSkippedConsequenceKey;
+        }
+        else
+        {
+            summaryText = BuildShrineSkippedRoomInteractionSummary(currentRoom);
+            nextBeatText = BuildShrineSkippedNextBeatText(nextEncounterRoom);
+            consequenceKey = ShrineSkippedConsequenceKey;
+        }
+
+        RecordRoomInteractionSummary(summaryText);
+        RecordRoomInteractionSummary(nextBeatText);
+        ArmRoomInteractionConsequence(
+            consequenceKey,
+            nextBeatText,
+            BuildRoomInteractionTargetEncounterId(nextEncounterRoom));
+        AppendBattleLog(summaryText);
+        AppendBattleLog(nextBeatText);
+        SetBattleFeedbackText(summaryText + " " + nextBeatText);
+        RefreshRoomSequenceState(true);
         return true;
     }
 
@@ -7372,6 +7756,22 @@ public sealed partial class StaticPlaceholderWorldView
             return;
         }
 
+        if (TrySkipRouteDefiningRoomInteractionIfMovedPast(currentRoom))
+        {
+            currentRoom = GetCurrentPlannedRoomStep();
+            if (currentRoom != null)
+            {
+                _currentRoomIndex = Mathf.Max(1, GetCurrentPlannedRoomIndex() + 1);
+            }
+        }
+
+        if (currentRoom == null)
+        {
+            RefreshSelectionPrompt();
+            RefreshDungeonPresentation();
+            return;
+        }
+
         if (currentRoom.RoomType == DungeonRoomType.Cache)
         {
             if (_activeChest != null)
@@ -7381,6 +7781,7 @@ public sealed partial class StaticPlaceholderWorldView
 
             if (_activeChest != null && !_activeChest.IsOpened && _playerGridPosition == currentRoom.MarkerPosition)
             {
+                MarkRoomInteractionPromptSeen(currentRoom);
                 SetBattleFeedbackText(BuildRoomInteractionPromptText(currentRoom));
                 RefreshSelectionPrompt();
                 RefreshDungeonPresentation();
@@ -7391,6 +7792,7 @@ public sealed partial class StaticPlaceholderWorldView
         {
             if (IsRouteDefiningRestShrine(currentRoom) && !_eventResolved && _playerGridPosition == currentRoom.MarkerPosition)
             {
+                MarkRoomInteractionPromptSeen(currentRoom);
                 SetBattleFeedbackText(BuildRoomInteractionPromptText(currentRoom));
                 RefreshSelectionPrompt();
                 RefreshDungeonPresentation();
@@ -7696,12 +8098,15 @@ public sealed partial class StaticPlaceholderWorldView
         _hoverEventChoiceId = string.Empty;
         _selectedEventChoiceId = string.Empty;
         _roomInteractionSummaryText = "None";
+        _skippedRoomInteractionRoomIds.Clear();
         _pendingRoomInteractionConsequenceKey = string.Empty;
         _pendingRoomInteractionConsequenceText = "None";
         _pendingRoomInteractionTargetEncounterId = string.Empty;
+        _promptedRoomInteractionRoomId = string.Empty;
         _activeRoomInteractionConsequenceKey = string.Empty;
         _activeRoomInteractionConsequenceText = "None";
         _activeRoomInteractionConsequenceEncounterId = string.Empty;
+        _resolvedRoomInteractionConsequenceKey = string.Empty;
         _resolvedRoomInteractionConsequenceText = "None";
         _resolvedRoomInteractionConsequenceEncounterId = string.Empty;
         _resultEventChoiceText = "None";
@@ -7947,12 +8352,15 @@ public sealed partial class StaticPlaceholderWorldView
         _hoverEventChoiceId = string.Empty;
         _selectedEventChoiceId = string.Empty;
         _roomInteractionSummaryText = "None";
+        _skippedRoomInteractionRoomIds.Clear();
         _pendingRoomInteractionConsequenceKey = string.Empty;
         _pendingRoomInteractionConsequenceText = "None";
         _pendingRoomInteractionTargetEncounterId = string.Empty;
+        _promptedRoomInteractionRoomId = string.Empty;
         _activeRoomInteractionConsequenceKey = string.Empty;
         _activeRoomInteractionConsequenceText = "None";
         _activeRoomInteractionConsequenceEncounterId = string.Empty;
+        _resolvedRoomInteractionConsequenceKey = string.Empty;
         _resolvedRoomInteractionConsequenceText = "None";
         _resolvedRoomInteractionConsequenceEncounterId = string.Empty;
         _resultEventChoiceText = "None";

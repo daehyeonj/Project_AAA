@@ -230,6 +230,7 @@ public sealed partial class StaticPlaceholderWorldView
             preview.GrowthText = BuildRpgOwnedGrowthContributionText(member, "ATK", growthBonus, gearBonus);
             PopulateRpgOwnedTargetOutcomePreview(preview, targetMonster, resolvedDamage);
             AppendRpgOwnedTargetWindowOutcomeText(preview, targetMonster);
+            AppendEncounterVarietyRoutePressureRolePayoffText(preview, action, member, targetMonster);
             return preview;
         }
 
@@ -306,6 +307,7 @@ public sealed partial class StaticPlaceholderWorldView
             {
                 PopulateRpgOwnedTargetOutcomePreview(preview, targetMonster, resolvedAmount);
                 AppendRpgOwnedTargetWindowOutcomeText(preview, targetMonster);
+                AppendEncounterVarietyRoutePressureRolePayoffText(preview, action, member, targetMonster);
             }
             else
             {
@@ -324,6 +326,7 @@ public sealed partial class StaticPlaceholderWorldView
             string.IsNullOrEmpty(situationalLabel) ? "Burst" : situationalLabel);
         PopulateRpgOwnedTargetOutcomePreview(preview, targetMonster, resolvedAmount);
         AppendRpgOwnedTargetWindowOutcomeText(preview, targetMonster);
+        AppendEncounterVarietyRoutePressureRolePayoffText(preview, action, member, targetMonster);
         return preview;
     }
 

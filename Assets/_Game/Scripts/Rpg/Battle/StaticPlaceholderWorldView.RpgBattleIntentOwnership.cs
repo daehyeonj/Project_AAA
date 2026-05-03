@@ -246,28 +246,33 @@ public sealed partial class StaticPlaceholderWorldView
         string targetName = GetPartyMemberDisplayName(targetIndex);
         string actionLabel = GetRpgOwnedEnemyActionLabel(monster, useSpecial);
         string roleLabel = GetMonsterRoleText(monster);
+        string intentText;
         if (monster.IsElite)
         {
             if (IsRpgOwnedPartyWideEliteSpecial(monster, useSpecial))
             {
-                return monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on all living allies. " + laneResolution.RangeText + ".";
+                intentText = monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on all living allies. " + laneResolution.RangeText + ".";
+                return AppendEncounterVarietyEnemyIntentText(intentText, monster, targetIndex, useSpecial);
             }
 
-            return useSpecial
+            intentText = useSpecial
                 ? monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on " + targetName + ". " + laneResolution.ReachabilitySummaryText + " Focused execution incoming."
                 : monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on " + targetName + ". " + laneResolution.ReachabilitySummaryText;
+            return AppendEncounterVarietyEnemyIntentText(intentText, monster, targetIndex, useSpecial);
         }
 
         if (monster.EncounterRole == MonsterEncounterRole.Striker)
         {
-            return monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on " + targetName + ". " + laneResolution.ReachabilitySummaryText;
+            intentText = monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on " + targetName + ". " + laneResolution.ReachabilitySummaryText;
+            return AppendEncounterVarietyEnemyIntentText(intentText, monster, targetIndex, useSpecial);
         }
 
-        return monster.TargetPattern == MonsterTargetPattern.LowestHpLiving
+        intentText = monster.TargetPattern == MonsterTargetPattern.LowestHpLiving
             ? monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on lowest HP target: " + targetName + ". " + laneResolution.ReachabilitySummaryText
             : monster.TargetPattern == MonsterTargetPattern.RandomLiving
                 ? monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on random target: " + targetName + ". " + laneResolution.ReachabilitySummaryText
                 : monster.DisplayName + " (" + roleLabel + ") intends " + actionLabel + " on " + targetName + ". " + laneResolution.ReachabilitySummaryText;
+        return AppendEncounterVarietyEnemyIntentText(intentText, monster, targetIndex, useSpecial);
     }
 
     private bool TryQueueRpgOwnedEnemyIntent(int startDisplayIndex)
